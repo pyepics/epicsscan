@@ -1,74 +1,180 @@
-<!DOCTYPE html>
-<html>
 
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
   <head>
-    <meta charset='utf-8' />
-    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
-    <meta name="description" content="Stepscan : step scannng and data acquisition with pyepics" />
-
-    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
-
-    <title>Stepscan</title>
-  </head>
-
-  <body>
-
-    <!-- HEADER -->
-    <div id="header_wrap" class="outer">
-        <header class="inner">
-          <a id="forkme_banner" href="https://github.com/pyepics/stepscan">View on GitHub</a>
-
-          <h1 id="project_title">Stepscan</h1>
-          <h2 id="project_tagline">step scannng and data acquisition with pyepics</h2>
-
-            <section id="downloads">
-              <a class="zip_download_link" href="https://github.com/pyepics/stepscan/zipball/master">Download this project as a .zip file</a>
-              <a class="tar_download_link" href="https://github.com/pyepics/stepscan/tarball/master">Download this project as a tar.gz file</a>
-            </section>
-        </header>
-    </div>
-
-    <!-- MAIN CONTENT -->
-    <div id="main_content_wrap" class="outer">
-      <section id="main_content" class="inner">
-        <h3>Welcome to GitHub Pages.</h3>
-
-<p>This automatic page generator is the easiest way to create beautiful pages for all of your projects. Author your page content here using GitHub Flavored Markdown, select a template crafted by a designer, and publish. After your page is generated, you can check out the new branch:</p>
-
-<pre><code>$ cd your_repo_root/repo_name
-$ git fetch origin
-$ git checkout gh-pages
-</code></pre>
-
-<p>If you're using the GitHub for Mac, simply sync your repository and you'll see the new branch.</p>
-
-<h3>Designer Templates</h3>
-
-<p>We've crafted some handsome templates for you to use. Go ahead and continue to layouts to browse through them. You can easily go back to edit your page before publishing. After publishing your page, you can revisit the page generator and switch to another theme. Your Page content will be preserved if it remained markdown format.</p>
-
-<h3>Rather Drive Stick?</h3>
-
-<p>If you prefer to not use the automatic generator, push a branch named <code>gh-pages</code> to your repository to create a page manually. In addition to supporting regular HTML content, GitHub Pages support Jekyll, a simple, blog aware static site generator written by our own Tom Preston-Werner. Jekyll makes it easy to create site-wide headers and footers without having to copy them across every page. It also offers intelligent blog support and other advanced templating features.</p>
-
-<h3>Authors and Contributors</h3>
-
-<p>You can <a href="https://github.com/blog/821" class="user-mention">@mention</a> a GitHub username to generate a link to their profile. The resulting <code>&lt;a&gt;</code> element will link to the contributor's GitHub Profile. For example: In 2007, Chris Wanstrath (<a href="https://github.com/defunkt" class="user-mention">@defunkt</a>), PJ Hyett (<a href="https://github.com/pjhyett" class="user-mention">@pjhyett</a>), and Tom Preston-Werner (<a href="https://github.com/mojombo" class="user-mention">@mojombo</a>) founded GitHub.</p>
-
-<h3>Support or Contact</h3>
-
-<p>Having trouble with Pages? Check out the documentation at <a href="http://help.github.com/pages">http://help.github.com/pages</a> or contact <a href="mailto:support@github.com">support@github.com</a> and we’ll help you sort it out.</p>
-      </section>
-    </div>
-
-    <!-- FOOTER  -->
-    <div id="footer_wrap" class="outer">
-      <footer class="inner">
-        <p class="copyright">Stepscan maintained by <a href="https://github.com/pyepics">pyepics</a></p>
-        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
-      </footer>
-    </div>
-
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
+    <title>StepScan: Data Acquisition with Python and Epics Channel Access &mdash; Step Scanning and Data Acquisition with Python and Epics Channel Access</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Step Scanning and Data Acquisition with Python and Epics Channel Access" href="#" />
+    <link rel="next" title="StepScan Downloading and Installation" href="install.html" /> 
+  </head>
+  <body>
+<div style="background-color: #E4EAED; text-align: left; padding: 0px 0px 15px 15px">
+ <h1> <a href="#">Step Scanning for Python and Epics Channel Access</a></h1>
+</div>
 
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="np-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="install.html" title="StepScan Downloading and Installation"
+             accesskey="N">next</a> |</li>
+   <li><a href="install.html">download</a>|</li>
+   <li><a href="concepts.html">scan concepts</a>|</li>
+   <li><a href="usage.html">using stepscan</a>|</li>
+   &nbsp;&nbsp;<li><a href="search.html">search</a></li>
+ 
+      </ul>
+    </div>
+
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper"><h3>Download</h3>
+
+Stable Releases:
+
+&nbsp; &nbsp; <a href="http://cars9.uchicago.edu/software/python/stepscan/downloads">cars.uchicago.edu</a>
+<p>
+
+Development:
+&nbsp; &nbsp; <a href="http://github.com/pyepics/stepscan">github.com</a>
+<p>
+
+<h3>Documentation</h3>
+
+ <a href="stepscan.pdf">
+
+ PDF Format</a>
+<hr>
+<p>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="stepscan-data-acquisition-with-python-and-epics-channel-access">
+<h1>StepScan: Data Acquisition with Python and Epics Channel Access<a class="headerlink" href="#stepscan-data-acquisition-with-python-and-epics-channel-access" title="Permalink to this headline">¶</a></h1>
+<p>Epics StepScan is a library and (soon...) set of command-line and GUI
+applications for data acquisition with Epics Channel Access using Python.
+StepScan allows you to define and run step scans, in which a motorized
+stage or other variable is changed through a set of pre-defined positions
+(or steps), and a set of detectors are measured at each position.  By using
+Epics Channel Access, nearly any motors, detectors, or Epics Process
+Variable can be scanned or counted in a StepScan.  Using concepts are
+borrowed from the Epics SScan record and from commonly used Spec software,
+simple to moderately complex step scans can be built and run.  With
+StepScan, the data collection happens in the python client, so that many
+other python libraries and environments can be coupled with Epics StepScan.</p>
+<p>Though StepScan allows nearly any Process Variable to be scanned or counted
+during a scan, and thus allows scans to become quite complex, the StepScan
+library and applications allow simple scans to still be simple to define
+and run.  A description of some terms in the <a class="reference internal" href="concepts.html#scan-concepts-label"><em>Step Scan Concepts</em></a>
+section is given to clarify the concepts used in StepScan and this
+documentation.   Examples of simple scans and some more complex scans are
+given.</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="install.html">StepScan Downloading and Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="install.html#pre-requisites">Pre-requisites</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#downloads">Downloads</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#development-version">Development Version</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#installation">Installation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Step Scan Concepts</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="concepts.html#positioners">Positioners</a></li>
+<li class="toctree-l2"><a class="reference internal" href="concepts.html#triggers">Triggers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="concepts.html#counters">Counters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="concepts.html#detectors">Detectors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="concepts.html#extra-pvs">Extra PVs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="concepts.html#breakpoints">Breakpoints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="concepts.html#pre-and-post-scan-functions">Pre- and Post-Scan functions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Using StepScan</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="usage.html#defining-a-new-scan">Defining a New Scan</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage.html#running-a-scan">Running a Scan</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="spec.html">Spec-like Scans with StepScan</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="spec.html#setting-up-and-configuring-the-spec-emulation-layer">Setting up and Configuring the spec emulation layer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spec.html#using-the-spec-emulation-layer">Using the spec emulation layer</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="gui.html">Using the StepScan GUI</a></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="np-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="install.html" title="StepScan Downloading and Installation"
+             >next</a> |</li>
+   <li><a href="install.html">download</a>|</li>
+   <li><a href="concepts.html">scan concepts</a>|</li>
+   <li><a href="usage.html">using stepscan</a>|</li>
+   &nbsp;&nbsp;<li><a href="search.html">search</a></li>
+ 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2012, Matthew Newville.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
+    </div>
   </body>
 </html>
