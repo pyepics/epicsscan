@@ -271,6 +271,8 @@ class ScanFrame(wx.Frame):
             return (scanname,  scan)
 
         else:
+            print 'GENERATE SCAN ', scanname, scan['type']
+            print scan
             sdb.add_scandef(scanname,  text=json.dumps(scan),
                             type=scan['type'])
             return scanname
@@ -279,6 +281,7 @@ class ScanFrame(wx.Frame):
     def onStartScan(self, evt=None):
         scanname = self.generate_scan()
         fname = self.filename.GetValue()
+        
         self.scandb.add_command('doscan', arguments=scanname,
                                 output_file=fname)
 
@@ -294,6 +297,13 @@ class ScanFrame(wx.Frame):
         for key, val in dat.items():
             print ' {} = {} '.format(key, val)
 
+        sname = fix_filename('%s.ini' % scanname)
+        fout = open(sname, 'w')
+        fout.write("%s\n" % json.dumps(dat))
+        fout.close()
+        print 'wrote %s' % sname
+
+        
     def onScanTimer(self, evt=None):
         self.statusbar.SetStatusText(self.scandb.get_info('scan_message'), 0)
 
