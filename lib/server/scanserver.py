@@ -192,7 +192,7 @@ class ScanServer():
         self.scandb.set_info('scan_message', msg)
         if verbose:
             print 'ScanServer: ', msg
-        self.scandb.commit()
+        # self.scandb.commit()
 
     def do_scan(self, scanname, filename=None):
         self.set_scan_message('Preparing Scan (loading def)')
@@ -251,7 +251,6 @@ class ScanServer():
 
         self.scan.run(filename=filename)
         self.set_scan_message('Finishing')
-        self.scandb.commit()
 
         if self.scanwatcher is not None:
             self.scanwatcher.join()
@@ -272,15 +271,15 @@ class ScanServer():
 
     def execute_command(self, req):
         print 'Execute: ', req.id, req.command, req.arguments, req.output_file
-        #print 'req.id      = ', req.id
-        #print 'req.arguments = ', req.arguments
-        #print 'req.status_id, req.status = ', req.status_id
-        #print 'req.request_time = ', req.request_time
-        #print 'req.start_time = ', req.start_time
-        #print 'req.modify_time = ', req.modify_time
-        #print 'req.output_value = ', req.output_value
-        #print 'req.output_file = ', req.output_file
-
+#         print 'req.id      = ', req.id
+#         print 'req.arguments = ', req.arguments
+#         print 'req.status_id, req.status = ', req.status_id
+#         print 'req.request_time = ', req.request_time
+#         print 'req.start_time = ', req.start_time
+#         print 'req.modify_time = ', req.modify_time
+#         print 'req.output_value = ', req.output_value
+#         print 'req.output_file = ', req.output_file
+# 
         cmd_thread = threading.Thread(target=self.do_command,
                                       kwargs=dict(req=req),
                                       name='cmd_thread')
@@ -302,7 +301,7 @@ class ScanServer():
             self.do_scan(str(req.arguments), filename=req.output_file)
         else: 
             print 'unknown command ', req.command
-        time.sleep(3.0)
+        time.sleep(1.0)
         self.scandb.set_command_status(req.id, 'stopping')
 
     def look_for_interrupt_requests(self):
@@ -340,7 +339,7 @@ class ScanServer():
             elif len(reqs) > 0: # and not self.command_in_progress:
                 print '#Execute Next Command: '
                 self.execute_command(reqs.pop(0))
-
+                
         # mainloop end
         self.finish()
         sys.exit()
