@@ -71,6 +71,7 @@ class ScanViewerFrame(wx.Frame):
         self.larch = None
         self.lgroup = None
         self.scan_inprogress = False
+        self.last_column_update = 0.0
         self.SetTitle(title)
         self.SetSize((750, 750))
         self.SetFont(Font(9))
@@ -116,17 +117,18 @@ class ScanViewerFrame(wx.Frame):
 
 
         force_newplot = False
-
-        if ((curfile != self.live_scanfile or msg.lower().startswith('starting scan')) and
-            not self.scan_inprogress):
-        # filename changed -- scan starting, so update
-        # list of positioners, detectors, etc
+        if (time.time()-self.last_column_update > 1 and
+            (curfile != self.live_scanfile or
+             msg.lower().startswith('preparing'))):
+            # filename changed -- scan starting, so update
+            # list of positioners, detectors, etc
+            self.last_column_update = time.time()
             self.scan_inprogress = True            
             force_newplot = True
             self.live_scanfile = curfile
             self.title.SetLabel(curfile)
             self.set_column_names(sdata)
-
+            
         elif msg.lower().startswith('scan complete') and self.scan_inprogress:
             self.scan_inprogress = False
             force_newplot = True
@@ -254,13 +256,13 @@ class ScanViewerFrame(wx.Frame):
         return mainpanel
 
     def onPause(self, evt=None):
-        self.scandb.set_info('request_command_pause', 1)
+        self.scandb.set_info('request_pause', 1)
 
     def onResume(self, evt=None):
-        self.scandb.set_info('request_command_pause', 0)
+        self.scandb.set_info('request_pause', 0)
 
     def onAbort(self, evt=None):
-        self.scandb.set_info('request_command_abort', 1)
+        self.scandb.set_info('request_abort', 1)
 
     def CreateFitPanel(self, parent):
         p = panel = wx.Panel(parent)
