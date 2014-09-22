@@ -272,15 +272,15 @@ class ScanFrame(wx.Frame):
         if self.last_scanname not in (None, ''):
             lastscan = json.loads(sdb.get_scandef(self.last_scanname).text)
             scan_is_new = False
+            this_pos = scan['positioners']
+            last_pos = lastscan['positioners'])
+            this_det = scan['detectors']
+            last_det = lastscan['detectors'])
             for comp in ('pos_settle_time', 'det_settle_time', 'dwelltime',
-                         'detectors', 'positioners', 'extra_pvs', 'type',
-                         'counters'):
+                         'extra_pvs', 'type', 'counters'):
                 if json.dumps(lastscan[comp]) !=  json.dumps(scan[comp]):
                     scan_is_new =  True
-                    # print 'Scan is new ', comp
-                    # print ' LAST ', lastscan[comp]
-                    # print ' This ', scan[comp]
-                    break                    
+                    break
         if scan_is_new:
             sdb.add_scandef(scanname,  text=json.dumps(scan),
                             type=scan['type'])
