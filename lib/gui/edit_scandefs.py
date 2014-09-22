@@ -80,13 +80,11 @@ class GenericDataTable(gridlib.PyGridTableBase):
 
     def onLoadScan(self, row):
         thisscan = self.data[row]
-        print 'on LoadScan: ', row, thisscan
         for scan in self.scandb.getall('scandefs'):
             if (scan.type.lower().startswith(self.type.lower()) and
                 scan.name.lower() == thisscan[0].lower()):
-                print 'Load Scan ', scan
-                return json.loads(scan.text)
-        return {}
+                return scan.name
+        return ''
     
 
     def GetNumberRows(self):     return len(self.data) + 1
@@ -393,8 +391,7 @@ class ScandefsFrame(wx.Frame) :
         label, thisgrid = self.nblabels[inb]
         irow = thisgrid.GetGridCursorRow()
 
-        scandef = self.tables[label.lower()].onLoadScan(irow)
-        print 'onLoad -- > ', scandef
+        scanname, scandef = self.tables[label.lower()].onLoadScan(irow)
         scanpanel = self.parent.scanpanels[label.lower()][1]
-        scanpanel.load_scandict(scandef)
+        scanpanel.load_scan(scanname)
         self.parent.nb.SetSelection(inb)
