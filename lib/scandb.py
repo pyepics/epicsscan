@@ -247,7 +247,6 @@ class ScanDB(object):
         "close session"
         try:
             self.set_hostpid(clear=True)
-            self.session.commit()
             self.session.flush()
             self.session.close()
             self.conn.close()
@@ -257,6 +256,7 @@ class ScanDB(object):
     def query(self, *args, **kws):
         "generic query"
         try:
+            # self.session.autoflush = False
             return self.session.query(*args, **kws)
         except sqlalchemy.StatementError():
             time.sleep(0.01)
@@ -267,8 +267,8 @@ class ScanDB(object):
             except:
                 self.session.rollback()
                 return None
-
-
+        # self.session.autoflush = True
+        
     def _get_table(self, tablename):
         return self.get_table(tablename)
     
