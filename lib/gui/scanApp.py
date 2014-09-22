@@ -239,12 +239,9 @@ class ScanFrame(wx.Frame):
             scanname = time.strftime("__%b%d_%H:%M:%S__")
 
         scan = self.nb.GetCurrentPage().generate_scan()
-        scan['nscans'] = int(self.nscans.GetValue())
-
         sdb = self.scandb
         fname = self.filename.GetValue()
         scan['filename'] = fname
-        scan['user_comments'] = self.user_comms.GetValue()
 
         scan['pos_settle_time'] = float(sdb.get_info('pos_settle_time', default=0.))
         scan['det_settle_time'] = float(sdb.get_info('det_settle_time', default=0.))
@@ -270,20 +267,35 @@ class ScanFrame(wx.Frame):
         if debug:
             return (scanname,  scan)
 
-        else:
-            print 'GENERATE SCAN ', scanname, scan['type']
-            print scan
+        # check if this is identical to previous scan
+        scan_is_new = True
+        if self.last_scanname not in (None, ''):
+            lastscan = json.loads(sdb.get_scandef(self.last_scanname).text)
+            scan_is_new = False
+            for comp in ('pos_settle_time', 'det_settle_time', 'dwelltime',
+                         'detectors', 'positioners', 'extra_pvs', 'type',
+                         'counters'):
+                if json.dumps(lastscan[comp]) !=  json.dumps(scan[comp]):
+                    scan_is_new =  True
+                    # print 'Scan is new ', comp
+                    # print ' LAST ', lastscan[comp]
+                    # print ' This ', scan[comp]
+                    break                    
+        if scan_is_new:
             sdb.add_scandef(scanname,  text=json.dumps(scan),
                             type=scan['type'])
-            return scanname
-
+            self.last_scanname = scanname
+        return self.last_scanname
 
     def onStartScan(self, evt=None):
         scanname = self.generate_scan()
-        fname = self.filename.GetValue()
-        
-        self.scandb.add_command('doscan', arguments=scanname,
-                                output_file=fname)
+        fname    = self.filename.GetValue()
+        nscans   = "nscans=%d" % int(self.nscans.GetValue())
+        comments = "comments='%s'" % self.user_comms.GetValue()
+        args = "'%s', %s, %s" % (scanname, nscans, comments)
+
+        # print 'onStartScan ', args, fname
+        self.scandb.add_command('doscan', arguments=args, output_file=fname)
 
         self.statusbar.SetStatusText('Waiting....', 0)
         self.scan_started = False
@@ -325,11 +337,11 @@ class ScanFrame(wx.Frame):
         elif cmd == 'debug':
             self.onDebugScan()
         elif cmd == 'abort':
-            self.scandb.set_info('request_command_abort', 1)
+            self.scandb.set_info('request_abort', 1)
         elif cmd == 'pause':
-            self.scandb.set_info('request_command_pause', 1)
+            self.scandb.set_info('request_pause', 1)
         elif cmd == 'resume':
-            self.scandb.set_info('request_command_pause', 0)
+            self.scandb.set_info('request_pause', 0)
 
     def createMenus(self):
         self.menubar = wx.MenuBar()
@@ -515,16 +527,17 @@ class ScanFrame(wx.Frame):
         dlg.Destroy()
 
         if sname is not None:
-            self.statusbar.SetStatusText("Read Scan '%s'" % sname)
-            thisscan = json.loads(self.scandb.get_scandef(sname).text)
-            self.load_scandef( thisscan)
-            self.last_scanname = sname
+            self.load_scan(sname)
 
-    def load_scandef(self, scan):
+    def load_scan(self, scanname):
         """load scan definition from dictionary, as stored
         in scandb scandef.text field
         """
+        self.statusbar.SetStatusText("Read Scan '%s'" % scanname)
+        
         sdb = self.scandb
+        scan = json.loads(sdb.get_scandef(scanname).text)
+
         sdb.set_info('det_settle_time', scan['det_settle_time'])
         sdb.set_info('pos_settle_time', scan['pos_settle_time'])
 
