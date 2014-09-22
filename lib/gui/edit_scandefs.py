@@ -59,6 +59,7 @@ class GenericDataTable(gridlib.PyGridTableBase):
 
     def onApplyChanges(self):
         "apply changes -- deletes and renames"
+        print 'ON APPLY CHANGES ' 
         scandat = {}
         for scan in self.scandb.getall('scandefs'):
             if scan.type.lower().startswith(self.type.lower()):
@@ -69,12 +70,20 @@ class GenericDataTable(gridlib.PyGridTableBase):
         for dat in self.data:
             name, delOK = dat[0], dat[-1]
             xtime = (dat[-3], dat[-2])
+            print  name, delOK, xtime
             if delOK == 1 and name in scandat:
-                self.scandb.del_scandef(scanid=scandat[name][0])
+                try:
+                    self.scandb.del_scandef(scanid=scandat[name][0])
+                except:
+                    pass
             else:
                 for key, val in scandat.items():
                     if xtime == val[1] and key != name:
-                        self.scandb.rename_scandef(val[0], name)
+                        print 'Rename ', key, name, val
+                        try:
+                            self.scandb.rename_scandef(val[0], name)
+                        except:
+                            pass
                         time.sleep(0.1)
                         
 
@@ -389,9 +398,10 @@ class ScandefsFrame(wx.Frame) :
     def onLoad(self, event=None):
         inb =  self.nb.GetSelection()
         label, thisgrid = self.nblabels[inb]
+        label = label.lower()
         irow = thisgrid.GetGridCursorRow()
-
-        scanname, scandef = self.tables[label.lower()].onLoadScan(irow)
-        scanpanel = self.parent.scanpanels[label.lower()][1]
+        scanpanel = self.parent.scanpanels[label][1]
+        
+        scanname = self.tables[label].onLoadScan(irow)
         scanpanel.load_scan(scanname)
         self.parent.nb.SetSelection(inb)
