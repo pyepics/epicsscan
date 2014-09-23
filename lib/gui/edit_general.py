@@ -38,7 +38,7 @@ class SettingsFrame(wx.Frame) :
         self.wids = {}
         for sect, vars in (('User Setup',
                             (('user_name', False),
-                             ('user_folder', False),
+                             # ('user_folder', False),
                              ('experiment_id', False),
                              ('scangui_verify_quit', True))
                             ),

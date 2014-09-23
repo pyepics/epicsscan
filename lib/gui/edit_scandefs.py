@@ -59,7 +59,6 @@ class GenericDataTable(gridlib.PyGridTableBase):
 
     def onApplyChanges(self):
         "apply changes -- deletes and renames"
-        print 'ON APPLY CHANGES ' 
         scandat = {}
         for scan in self.scandb.getall('scandefs'):
             if scan.type.lower().startswith(self.type.lower()):
@@ -70,7 +69,6 @@ class GenericDataTable(gridlib.PyGridTableBase):
         for dat in self.data:
             name, delOK = dat[0], dat[-1]
             xtime = (dat[-3], dat[-2])
-            print  name, delOK, xtime
             if delOK == 1 and name in scandat:
                 try:
                     self.scandb.del_scandef(scanid=scandat[name][0])
@@ -79,7 +77,6 @@ class GenericDataTable(gridlib.PyGridTableBase):
             else:
                 for key, val in scandat.items():
                     if xtime == val[1] and key != name:
-                        print 'Rename ', key, name, val
                         try:
                             self.scandb.rename_scandef(val[0], name)
                         except:
@@ -385,8 +382,7 @@ class ScandefsFrame(wx.Frame) :
         irow = thisgrid.GetGridCursorRow()
         all = dir(thisgrid)
         tab = self.tables[label]
-        # print 'SORT ', tab, icol, self.reverse_sort
-                
+        # print 'SORT ', tab, icol, self.reverse_sort                
         tab.set_data(tab.scans, sort_col=icol, reverse=self.reverse_sort)
         self.reverse_sort = not self.reverse_sort
         self.Refresh()
