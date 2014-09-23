@@ -77,6 +77,51 @@ from .edit_macros      import MacrosFrame
 ALL_CEN =  wx.ALL|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL
 FNB_STYLE = flat_nb.FNB_NO_X_BUTTON|flat_nb.FNB_SMART_TABS|flat_nb.FNB_NO_NAV_BUTTONS
 
+    
+def compare_scans(scan1, scan2, verbose=False):
+    "compare dictionary for 2 scans"
+
+    REQ_COMPS = ('pos_settle_time', 'det_settle_time', 'dwelltime', 'type',
+                 'extra_pvs', 'detectors', 'counters')
+
+    OPT_COMPS = ('positioners', 'inner', 'outer', 'dimension', 'elem',
+                 'e0', 'is_relative', 'regions', 'energy_drive',
+                 'max_time')
+
+    def equal(this, other):
+        if verbose: print ' comp? ', this, other
+        if isinstance(this, unicode):
+            return str(this) == str(other)
+        elif isinstance(this, (list, tuple)):
+            out = True
+            for thisitem, otheritem in zip(this, other):
+                out = out and equal(thisitem, otheritem)
+            return out
+        elif isinstance(this, dict):
+            out = True
+            for thisitem in this:
+                out = out and equal(this[thisitem], other[thisitem])
+            return out
+        return this == other
+    for comp in REQ_COMPS:
+        try:
+            if not equal(scan1[comp], scan2[comp]):
+                return False
+        except:
+            return False
+    for comp in OPT_COMPS:
+        if comp in scan1:
+            try:
+                if not equal(scan1[comp], scan2[comp]):
+                    return False
+            except:
+                return False
+        
+            
+
+    return True
+
+
 class ScanFrame(wx.Frame):
     _about = """StepScan GUI
   Matt Newville <newville @ cars.uchicago.edu>
@@ -107,6 +152,9 @@ class ScanFrame(wx.Frame):
         statusbar_fields = ["Initializing...", "Status"]
         for i in range(len(statusbar_fields)):
             self.statusbar.SetStatusText(statusbar_fields[i], i)
+
+        workdir = self.scandb.get_info('user_folder')
+        os.chdir(nativepath(workdir))
 
         self.scantimer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.onScanTimer, self.scantimer)
@@ -271,16 +319,7 @@ class ScanFrame(wx.Frame):
         scan_is_new = True
         if self.last_scanname not in (None, ''):
             lastscan = json.loads(sdb.get_scandef(self.last_scanname).text)
-            scan_is_new = False
-            this_pos = scan['positioners']
-            last_pos = lastscan['positioners'])
-            this_det = scan['detectors']
-            last_det = lastscan['detectors'])
-            for comp in ('pos_settle_time', 'det_settle_time', 'dwelltime',
-                         'extra_pvs', 'type', 'counters'):
-                if json.dumps(lastscan[comp]) !=  json.dumps(scan[comp]):
-                    scan_is_new =  True
-                    break
+            scan_is_new = not compare_scans(scan, lastscan, verbose=False)
         if scan_is_new:
             sdb.add_scandef(scanname,  text=json.dumps(scan),
                             type=scan['type'])
@@ -304,8 +343,6 @@ class ScanFrame(wx.Frame):
     def onDebugScan(self, evt=None):
         scanname, dat = self.generate_scan(debug=True)
         fname = self.filename.GetValue()
-        print("Would Load Scan: ", fname)
-        print(scanname)
         for key, val in dat.items():
             print ' {} = {} '.format(key, val)
 
@@ -347,8 +384,8 @@ class ScanFrame(wx.Frame):
         self.menubar = wx.MenuBar()
         # file
         fmenu = wx.Menu()
-        add_menu(self, fmenu, "Load Scan Definition\tCtrl+O",
-                 "Load Scan Defintion",  self.onReadScanDef)
+        add_menu(self, fmenu, "Read Scan Definition\tCtrl+O",
+                 "Read Scan Defintion",  self.onReadScanDef)
 
         add_menu(self, fmenu, "Save Scan Definition\tCtrl+S",
                  "Save Scan Definition", self.onSaveScanDef)
@@ -366,7 +403,8 @@ class ScanFrame(wx.Frame):
 
         # options
         pmenu = wx.Menu()
-
+        add_menu(self, pmenu, "General Settings",
+                 "General Setup", self.onEditSettings)
         add_menu(self, pmenu, "Positioners\tCtrl+P",
                  "Setup Motors and Positioners", self.onEditPositioners)
         add_menu(self, pmenu, "Detectors\tCtrl+D",
@@ -378,10 +416,6 @@ class ScanFrame(wx.Frame):
 
         add_menu(self, pmenu, "Scan Definitions",
                  "Manage Saved Scans", self.onEditScans)
-
-        pmenu.AppendSeparator()
-        add_menu(self, pmenu, "General Settings",
-                 "General Setup", self.onEditSettings)
 
         # Sequences
         smenu = wx.Menu()
@@ -582,6 +616,7 @@ class ScanFrame(wx.Frame):
                     pos.readpv = readpv
 
         # now fill in page
+        self.last_scanname = scanname
         stype = scan['type'].lower()
         if stype in self.scanpanels:
             inb, span = self.scanpanels[stype]
