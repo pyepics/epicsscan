@@ -70,8 +70,10 @@ class ScanViewerFrame(wx.Frame):
                                  create=create)
         self.larch = None
         self.lgroup = None
+        self.force_newplot = False
         self.scan_inprogress = False
         self.last_column_update = 0.0
+        self.need_column_update = True
         self.SetTitle(title)
         self.SetSize((750, 750))
         self.SetFont(Font(9))
@@ -99,63 +101,62 @@ class ScanViewerFrame(wx.Frame):
     def onScanTimer(self, evt=None,  **kws):
         if self.lgroup is None:
             return
-
         try:
-            curfile = fix_filename(self.get_info('filename'))
-            sdata = self.scandb.get_scandata()
-            time_est = hms(self.get_info('scan_time_estimate', as_int=True))
-            msg = self.get_info('scan_message')
+            curfile   = fix_filename(self.get_info('filename'))
+            sdata     = self.scandb.get_scandata()
+            scan_stat = self.get_info('scan_status')
+            msg       = self.get_info('scan_message')
         except:
+            print 'Scan ? '
             return
         
-        npts = len(sdata[-1].data)
+        try:
+            npts = len(sdata[-1].data)
+        except:
+            npts = 0
+        if npts <= 0 or msg.lower().startswith('preparing'):
+            self.need_column_update = True
+        
         cmd = self.scandb.get_mostrecent_command()
         try:
             cmd_stat = cmd.status.name.lower()
         except AttributeError:
             cmd_stat = 'unknown'
 
-
-        force_newplot = False
-        if (time.time()-self.last_column_update > 1 and
-            (curfile != self.live_scanfile or
-             msg.lower().startswith('preparing'))):
-            # filename changed -- scan starting, so update
-            # list of positioners, detectors, etc
-            self.last_column_update = time.time()
+        do_newplot = False
+        
+        if ((curfile != self.live_scanfile) or
+            (npts > 0 and npts < 10 and self.need_column_update)):
+            self.need_column_update = False
             self.scan_inprogress = True            
-            force_newplot = True
+            do_newplot = True
             self.live_scanfile = curfile
             self.title.SetLabel(curfile)
             self.set_column_names(sdata)
             
         elif msg.lower().startswith('scan complete') and self.scan_inprogress:
             self.scan_inprogress = False
-            force_newplot = True
+            do_newplot = True
 
-        if not (self.scan_inprogress or force_newplot):
+        self.SetStatusText(msg)
+
+        if (not self.scan_inprogress and
+            not do_newplot and
+            npts == self.live_cpt):
             return
-        
-        if cmd_stat.startswith('run'):
-            msg = '%s, %s' % (msg, time_est)        
-        self.SetStatusText(msg)
 
-        if (npts > 2 and npts == self.live_cpt and not force_newplot):  # no new data
-                return
-
-        if cmd_stat.startswith('run'):
-            msg = '%s, %s' % (msg, time_est)        
-
-        self.SetStatusText(msg)
-        self.live_cpt = npts
         for row in sdata:
             dat = row.data
             if self.scandb_server == 'sqlite':
                 dat = json.loads(dat.replace('{', '[').replace('}', ']'))
             setattr(self.lgroup, fix_varname(row.name), np.array(dat))
 
-        if npts > 1:
-            self.onPlot(npts=npts, force_newplot=force_newplot)
+        if npts > 1 and npts != self.live_cpt:
+            if do_newplot:
+                self.force_newplot = True
+            self.onPlot(npts=npts)
+        self.live_cpt = npts
+
 
     def set_column_names(self, sdata):
         """set column names from values read from scandata table"""
@@ -240,12 +241,15 @@ class ScanViewerFrame(wx.Frame):
 
         self.plotpanel.messenger = self.write_message
         self.plotpanel.canvas.figure.set_facecolor((0.98,0.98,0.97))
-
+        self.plotpanel.unzoom     = self.unzoom
+        self.plotpanel.popup_menu = None
+        
         btnsizer = wx.StdDialogButtonSizer()
         btnpanel = wx.Panel(mainpanel)
         btnsizer.Add(add_button(btnpanel, 'Pause', action=self.onPause))
         btnsizer.Add(add_button(btnpanel, 'Resume', action=self.onResume))
         btnsizer.Add(add_button(btnpanel, 'Abort', action=self.onAbort))
+        btnsizer.Add(add_button(btnpanel, 'Unzoom', action=self.unzoom))
         pack(btnpanel, btnsizer)
 
         mainsizer.Add(panel,   0, LCEN|wx.EXPAND, 2)
@@ -443,10 +447,10 @@ class ScanViewerFrame(wx.Frame):
         """write a message to the Status Bar"""
         self.SetStatusText(s, panel)
 
-    def onPlot(self, evt=None, npts=None, force_newplot=False):
+    def onPlot(self, evt=None, npts=None):
         """drow plot of newest data"""
 
-        new_plot = force_newplot or npts < 3
+        new_plot = self.force_newplot or npts < 3
         lgroup, gname = self.lgroup, SCANGROUP
 
         ix = self.xarr.GetSelection()
@@ -529,18 +533,32 @@ class ScanViewerFrame(wx.Frame):
         else:
             ppnl.set_xlabel(xlabel)
             ppnl.set_ylabel(ylabel)
-            ppnl.update_line(0, lgroup.arr_x, lgroup.arr_y1,
-                             draw=True, update_limits=True)
-            ppnl.set_xylims((min(lgroup.arr_x), max(lgroup.arr_x),
-                             min(lgroup.arr_y1), max(lgroup.arr_y1)))
+            ppnl.update_line(0, lgroup.arr_x, lgroup.arr_y1, draw=True,
+                             update_limits=True)
+            ax = ppnl.axes
+            ppnl.user_limits[ax] = (min(lgroup.arr_x),  max(lgroup.arr_x),
+                                    min(lgroup.arr_y1), max(lgroup.arr_y1))
 
+#             xlo, xhi = min(lgroup.arr_x), max(lgroup.arr_x)
+#             ylo, yhi = min(lgroup.arr_y1), max(lgroup.arr_y1)
+#             ppnl.conf.set_trace_datarange([xlo, xhi, ylo, yhi], 0)
+# 
+#             for ax in ppnl.fig.get_axes():
+#                 ppnl.data_range[ax] = [xlo, xhi, ylo, yhi]
+#                 ax.set_xlim((xlo, xhi),  emit=True)
+#                 ax.set_ylim((ylo, yhi), emit=True)
+
+            ### 
             if y2expr != '':
                 ppnl.set_y2label(y2label)
                 ppnl.update_line(1, lgroup.arr_x, lgroup.arr_y2, side='right',
                                  draw=True, update_limits=True)
-                ppnl.set_xylims((min(lgroup.arr_x), max(lgroup.arr_x),
-                                 min(lgroup.arr_y2), max(lgroup.arr_y2)),
-                                side='right')
+                ax = ppnl.get_right_axes()
+                ppnl.user_limits[ax] = (min(lgroup.arr_x), max(lgroup.arr_x),
+                                        min(lgroup.arr_y2), max(lgroup.arr_y2))
+
+        self.force_newplot = False
+        
 
     def createMenus(self):
         self.menubar = wx.MenuBar()
@@ -562,7 +580,7 @@ class ScanViewerFrame(wx.Frame):
 
         add_menu(self, pmenu, "Configure\tCtrl+K",
                  "Configure Plot", self.onConfigurePlot)
-        add_menu(self, pmenu, "Unzoom\tCtrl+Z", "Unzoom Plot", self.onUnzoom)
+        add_menu(self, pmenu, "Unzoom\tCtrl+Z", "Unzoom Plot", self.unzoom)
         pmenu.AppendSeparator()
         add_menu(self, pmenu, "Toggle Legend\tCtrl+L",
                  "Toggle Legend on Plot", self.onToggleLegend)
@@ -591,8 +609,12 @@ class ScanViewerFrame(wx.Frame):
     def onConfigurePlot(self, evt=None):
         self.plotpanel.configure(evt)
 
-    def onUnzoom(self, evt=None):
-        self.plotpanel.unzoom(evt)
+    def unzoom(self, event=None, **kwargs):
+        ppnl = self.plotpanel
+        ppnl.zoom_lims = []
+        ppnl.set_viewlimits()
+        self.force_newplot = True
+        self.onPlot()
 
     def onToggleLegend(self, evt=None):
         self.plotpanel.toggle_legend(evt)
