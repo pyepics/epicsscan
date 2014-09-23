@@ -1,10 +1,7 @@
 #!/usr/bin/env python
 
-import time
+import time, sys, os
 import threading
-
-import time
-import sys
 import json
 import numpy as np
 
@@ -12,7 +9,7 @@ import epics
 
 from ..scandb import ScanDB, ScanDBException, make_datetime
 
-from ..file_utils import fix_varname
+from ..file_utils import fix_varname, nativepath
 from ..utils import  strip_quotes
 
 
@@ -42,7 +39,7 @@ class ScanServer():
         # self.scandb.commit()
 
     def do_scan(self, cmd_args, filename=None):
-        self.set_scan_message('Preparing Scan (server)')
+        self.set_scan_message('Server Launching scan')
         args =  str(cmd_args)
         words = args.split(',')
         scanname = strip_quotes(words[0].strip())
@@ -67,6 +64,10 @@ class ScanServer():
 
     def execute_command(self, req):
         print 'Execute: ', req.id, req.command, req.arguments, req.output_file
+
+        workdir = self.scandb.get_info('user_folder')
+        os.chdir(nativepath(workdir))
+        
 #         print 'req.id      = ', req.id
 #         print 'req.arguments = ', req.arguments
 #         print 'req.status_id, req.status = ', req.status_id
@@ -91,7 +92,7 @@ class ScanServer():
         self.command_in_progress = False
 
     def do_command(self, req=None, **kws):
-        self.scandb.set_info('scan_status', 'running')
+        self.scandb.set_info('scan_status', 'running')        
         self.scandb.set_command_status(req.id, 'running')
         if req.command == 'doscan':
             self.do_scan(req.arguments, filename=req.output_file)
