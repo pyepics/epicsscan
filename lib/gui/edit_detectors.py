@@ -153,7 +153,8 @@ class DetectorFrame(wx.Frame) :
 
         self.widlist = []
         for det in self.detectors:
-            if det.use is None: det.use = 0
+            if det.use is None: 
+                det.use = 0
             ir +=1
             dkind = strip_quotes(det.kind)
             dkind  = det.kind.title().strip()
@@ -181,7 +182,7 @@ class DetectorFrame(wx.Frame) :
             pvctrl = wx.TextCtrl(panel, value='',   size=(175, -1))
             use    = check(panel, default=True)
             kind = add_choice(panel, DET_CHOICES, size=(110, -1))
-            kind.SetStringSelection(dkind)
+            kind.SetStringSelection(DET_CHOICES[0])
             sizer.Add(desc,   (ir, 0), (1, 1), CEN, 1)
             sizer.Add(pvctrl, (ir, 1), (1, 1), LCEN, 1)
             sizer.Add(use,    (ir, 2), (1, 1), LCEN, 1)
