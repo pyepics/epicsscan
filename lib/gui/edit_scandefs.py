@@ -277,7 +277,7 @@ class ScandefsFrame(wx.Frame) :
 
         self.reverse_sort = False
         
-        self.SetMinSize((740, 450))
+        self.SetMinSize((740, 600))
         self.colors = GUIColors()
         panel = scrolled.ScrolledPanel(self)
         panel.SetBackgroundColour(self.colors.bg)

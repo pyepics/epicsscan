@@ -27,7 +27,7 @@ class DetectorDetailsDialog(wx.Dialog):
     def __init__(self, parent, det=None):
         self.scandb = parent.scandb
         self.det = det
-        title = "Settings for '%s'?" % (det.name)
+        title = "Settings for '%s'" % (det.name)
         wx.Dialog.__init__(self, parent, wx.ID_ANY, title=title)
         self.build_dialog(parent)
 
@@ -114,7 +114,7 @@ class DetectorFrame(wx.Frame) :
 
         sizer = wx.GridBagSizer(12, 5)
         panel = scrolled.ScrolledPanel(self) # , size=(675, 625))
-        self.SetMinSize((650, 500))
+        self.SetMinSize((650, 625))
         self.colors = GUIColors()
         panel.SetBackgroundColour(self.colors.bg)
 
