@@ -510,7 +510,6 @@ class ScanViewerFrame(wx.Frame):
 
         y2label, y2expr = make_array(self.yops, 1)
         if y2expr != '':
-            print "MAKE Y2EXPR ", gname, y2expr
             self.larch("%s.arr_y2 = %s" % (gname, y2expr))
             n2pts = npts
             try:
