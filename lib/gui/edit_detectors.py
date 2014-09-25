@@ -15,6 +15,9 @@ from .gui_utils import (GUIColors, set_font_with_children, YesNo, Closure,
 
 from ..utils import strip_quotes
 
+from epics import caget
+from epics.wx import EpicsFunction
+
 LCEN  |= wx.ALL
 RCEN  |= wx.ALL
 CEN  |= wx.ALL
@@ -22,6 +25,107 @@ CEN  |= wx.ALL
 DET_CHOICES = ('scaler', 'xspress3', 'mca', 'multimca', 'areadetector')
 AD_CHOICES = ['None'] + list(AD_FILE_PLUGINS)
 
+class ROIFrame(wxDialog):
+    """Full list of detector settings"""
+    def __init__(self, parent, det=None):
+        self.scandb = parent.scandb
+        title = "Select ROIs"
+        wx.Dialog.__init__(self, parent, wx.ID_ANY, title=title)
+        self.roi_names = []
+        self.build_dialog(parent)
+
+    @EpicsFunction
+    def connect_epics(self, prefix):
+        curr = self.current_rois
+        iroi = 0
+        for i in range(32):
+            nm = caget("%s.mca1.R%iNM" % prefix, i)
+            hi = caget("%s.mca1.R%iHI" % prefix, i)
+            if len(nm.strip()) > 0 and hi > 0:
+                self.names[iroi].SetLabel(nm)
+                self.use[iroi].SetValue(nm.lower() in curr)
+
+
+    def build_dialog(self, parent):
+        panel = wx.Panel(self)
+        self.colors = GUIColors()
+        panel.SetBackgroundColour(self.colors.bg)
+
+        self.current_rois = [s.lower() for s in json.loads(self.scandb.get_info('rois', default='[]'))]
+        self.det = None
+        for det in self.scandb.getall('scandetectors', orderby='id'):
+            dname = det.kind.lower().strip()
+            if det.use == 1 and ('xsp' in dname or 'mca' in dname):
+                self.det = det
+                break
+        #--#
+        if self.det is None:
+            print 'no MCA to select ROIS!'
+            return
+        
+        self.SetFont(parent.GetFont())
+        sizer = wx.GridBagSizer(30, 3)
+
+        # title row
+        i = 0
+        for titleword in ('ROI Name ', 'Use?'):
+            txt =SimpleText(panel, titleword,
+                            minsize=(100, -1),   style=RCEN)
+            sizer.Add(txt, (0, i), (1, 1), LCEN, 1)
+            i += 1
+
+        sizer.Add(wx.StaticLine(panel, size=(150, -1),
+                                style=wx.LI_HORIZONTAL),
+                  (1, 0), (1, 4), CEN, 0)
+        
+        self.wids = {}
+        prefix = mca_det.pvname
+        opts   = json.loads(self.det.options)
+        optkeys = opts.keys()
+        optkeys.sort()
+        irow = 2
+        for key in optkeys:
+            if key in ('use', 'kind', 'label'):
+                continue
+            val = opts[key]
+            label = key
+            for short, longw in (('_', ' '),
+                                 ('chan', 'channels'),
+                                 ('mcas', 'MCAs'),
+                                 ('rois', 'ROIs')):
+                label = label.replace(short, longw)
+
+            if label.startswith('n'):
+                label = '# of %s' % (label[1:])
+            label = label.title()
+            label = SimpleText(panel, label, style=LCEN)
+            val = strip_quotes(val)
+
+            if val in (True, False, 'Yes', 'No'):
+                defval = val in (True, 'Yes')
+                wid = check(panel, default=defval)
+            elif key.lower() == 'file_plugin':
+                wid = add_choice(panel, AD_CHOICES, default=1)
+            elif isinstance(val, (int, float)):
+                wid = FloatCtrl(panel, value=val, size=(80, -1))
+            else:
+                wid = wx.TextCtrl(panel, value=val, size=(80, -1))
+
+            sizer.Add(label, (irow, 0), (1, 1), LCEN,  2)
+            sizer.Add(wid,   (irow, 1), (1, 1), RCEN, 2)
+            self.wids[key] = wid
+            irow  += 1
+
+        sizer.Add(wx.StaticLine(panel, size=(150, -1), style=wx.LI_HORIZONTAL),
+                  (irow, 0), (1, 4), CEN, 0)
+
+        sizer.Add(okcancel(panel), (irow+1, 0), (1, 3), LCEN, 1)
+        pack(panel, sizer)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(panel, 0, 0, 0)
+        pack(self, sizer)
+
+    
 class DetectorDetailsDialog(wx.Dialog):
     """Full list of detector settings"""
     def __init__(self, parent, det=None):

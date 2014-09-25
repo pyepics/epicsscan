@@ -66,7 +66,7 @@ from ..detectors import (SimpleDetector, ScalerDetector, McaDetector,
 
 from .liveviewerApp    import ScanViewerFrame
 from .edit_positioners import PositionerFrame
-from .edit_detectors   import DetectorFrame
+from .edit_detectors   import DetectorFrame, ROIFrame
 from .edit_general     import SettingsFrame
 from .edit_extrapvs    import ExtraPVsFrame
 from .edit_scandefs    import ScandefsFrame
@@ -475,6 +475,9 @@ class ScanFrame(wx.Frame):
 
     def onEditDetectors(self, evt=None):
         self.show_subframe('det', DetectorFrame)
+
+    def onEditROIs(self, evt=None):
+        self.show_subframe('rois', ROISFrame)
 
     def onEditScans(self, evt=None):
         self.show_subframe('scan', ScandefsFrame)
