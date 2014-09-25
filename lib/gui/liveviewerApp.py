@@ -474,16 +474,25 @@ class ScanViewerFrame(wx.Frame):
 
             if yy1 in ('0', '1', '', None) or len(yy1) < 0:
                 return '', ''
-
             label = yy1
             expr = "%s.%s"  % (gn, yy1)
 
             if yy2 != '':
-                label = "%s%s%s"     % (label, op2, yy2)
-                expr  = "%s%s%s.%s"  % (expr, op2, gn, yy2)
+                label = "%s%s%s" % (label, op2, yy2)
+                expr = "%s%s" % (expr, op2)
+                if yy2 in ('1.0', '0.0'):
+                    expr = "%s%s" % (expr, yy2)
+                else:
+                    expr = "%s%s.%s"  % (expr, gn, yy2)
+
             if yy3 != '':
-                label = "(%s)%s%s"    % (label, op3, yy3)
-                expr  = "(%s)%s%s.%s" % (expr, op3, gn, yy3)
+                label = "(%s)%s%s" % (label, op3, yy3)
+                expr = "(%s)%s" % (expr, op3)                
+                if yy3 in ('1.0', '0.0'):
+                    expr = "%s%s"  % (expr, yy3)                
+                else:
+                    expr = "%s%s.%s" % (expr, gn, yy3)
+
             if op1 != '':
                 label = "%s(%s)" % (op1, label)
                 expr  = "%s(%s)" % (op1, expr)
@@ -493,11 +502,7 @@ class ScanViewerFrame(wx.Frame):
         if yexpr == '':
             return
         self.larch("%s.arr_x = %s.%s" % (gname, gname, x))
-        self.larch("%s.arr_y1 = %s" % (gname, yexpr))
-        # print 'onPlot Show Groups ', lgroup
-        # print ' : ', dir(lgroup)
-        # print '  X -> ', x, lgroup.arr_x
-        # print '  Y -> ', yexpr, lgroup.arr_y1
+        self.larch("%s.arr_y1 = %s"   % (gname, yexpr))
         try:
             npts = min(len(lgroup.arr_x), len(lgroup.arr_y1))
         except AttributeError:
@@ -505,6 +510,7 @@ class ScanViewerFrame(wx.Frame):
 
         y2label, y2expr = make_array(self.yops, 1)
         if y2expr != '':
+            print "MAKE Y2EXPR ", gname, y2expr
             self.larch("%s.arr_y2 = %s" % (gname, y2expr))
             n2pts = npts
             try:
@@ -514,6 +520,7 @@ class ScanViewerFrame(wx.Frame):
             except:
                 y2expr = ''
             npts = n2pts
+            print "MAKE Y2EXPR NPTS ", npts
 
         lgroup.arr_y1 = np.array( lgroup.arr_y1[:npts])
         lgroup.arr_x  = np.array( lgroup.arr_x[:npts])
