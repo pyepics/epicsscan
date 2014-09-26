@@ -170,12 +170,13 @@ class ScanFrame(wx.Frame):
         self.Font11=wx.Font(11, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
 
         self.SetTitle("Epics Scans")
-        self.SetSize((700, 575))
+        self.SetSize((750, 600))
         self.SetFont(self.Font11)
 
         sizer = wx.BoxSizer(wx.VERTICAL)
 
         self.nb = flat_nb.FlatNotebook(self, wx.ID_ANY, agwStyle=FNB_STYLE)
+        self.nb.SetSize((750, 450))
         self.nb.SetBackgroundColour('#FCFCFA')
         self.SetBackgroundColour('#F0F0E8')
 
@@ -293,6 +294,7 @@ class ScanFrame(wx.Frame):
 
         scan['pos_settle_time'] = float(sdb.get_info('pos_settle_time', default=0.))
         scan['det_settle_time'] = float(sdb.get_info('det_settle_time', default=0.))
+        scan['rois'] = json.loads(sdb.get_info('rois', default='[]'))
 
         scan['detectors'] = []
         scan['counters']  = []
@@ -405,10 +407,12 @@ class ScanFrame(wx.Frame):
         pmenu = wx.Menu()
         add_menu(self, pmenu, "General Settings",
                  "General Setup", self.onEditSettings)
-        add_menu(self, pmenu, "Positioners\tCtrl+P",
-                 "Setup Motors and Positioners", self.onEditPositioners)
+        add_menu(self, pmenu, "Select ROIs\tCtrl+R",
+                 "Select MCA ROIs", self.onEditROIs)
         add_menu(self, pmenu, "Detectors\tCtrl+D",
                  "Setup Detectors and Counters", self.onEditDetectors)
+        add_menu(self, pmenu, "Positioners\tCtrl+P",
+                 "Setup Motors and Positioners", self.onEditPositioners)
         pmenu.AppendSeparator()
 
         add_menu(self, pmenu, "Extra PVs",
@@ -477,7 +481,7 @@ class ScanFrame(wx.Frame):
         self.show_subframe('det', DetectorFrame)
 
     def onEditROIs(self, evt=None):
-        self.show_subframe('rois', ROISFrame)
+        self.show_subframe('rois', ROIFrame)
 
     def onEditScans(self, evt=None):
         self.show_subframe('scan', ScandefsFrame)
@@ -577,6 +581,9 @@ class ScanFrame(wx.Frame):
 
         sdb.set_info('det_settle_time', scan['det_settle_time'])
         sdb.set_info('pos_settle_time', scan['pos_settle_time'])
+
+        if 'rois' in scan:
+            sdb.set_info('rois', json.dumps(scan['rois']))
 
         ep = [x.pvname for x in sdb.select('extrapvs')]
         for name, pvname in scan['extra_pvs']:
