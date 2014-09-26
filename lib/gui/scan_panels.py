@@ -940,11 +940,6 @@ class SlewScanPanel(GenericScanPanel):
         self.layout()
 
     def load_scandict(self, scan):
-        """load scan for slew scan from scan dictionary
-        as stored in db, or passed to stepscan"""
-
-
-    def load_scandict(self, scan):
         """load scan for mesh scan from scan dictionary
         as stored in db, or passed to stepscan"""
         self.dwelltime.SetValue(scan['dwelltime'])
