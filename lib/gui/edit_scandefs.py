@@ -326,6 +326,7 @@ class ScandefsFrame(wx.Frame) :
             tgrid.SetMargins(1,1)
             tgrid.HideRow(nrows-1)
             
+            
         self.nb.SetSelection(0)
         sizer.Add(self.nb, 1, wx.ALL|wx.EXPAND, 5)
 
@@ -382,7 +383,6 @@ class ScandefsFrame(wx.Frame) :
         irow = thisgrid.GetGridCursorRow()
         all = dir(thisgrid)
         tab = self.tables[label]
-        # print 'SORT ', tab, icol, self.reverse_sort                
         tab.set_data(tab.scans, sort_col=icol, reverse=self.reverse_sort)
         self.reverse_sort = not self.reverse_sort
         self.Refresh()

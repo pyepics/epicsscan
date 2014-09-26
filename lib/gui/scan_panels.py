@@ -420,7 +420,7 @@ class XAFSScanPanel(GenericScanPanel):
     units_list = ('eV', u'1/\u212B')
 
     def __init__(self, parent, **kws):
-        kws['size'] = (750, 400)
+        kws['size'] = (750, 425)
         GenericScanPanel.__init__(self, parent, **kws)
         self.reg_settings = []
         self.ev_units = []

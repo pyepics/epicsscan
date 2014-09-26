@@ -567,7 +567,7 @@ class SimpleText(wx.StaticText):
     "simple static text wrapper"
     def __init__(self, parent, label, minsize=None,
                  font=None, colour=None, bgcolour=None,
-                 style=wx.ALIGN_CENTRE,  **kws):
+                 style=wx.LEFT|wx.ALIGN_CENTRE_VERTICAL,  **kws):
 
         wx.StaticText.__init__(self, parent, -1,
                                label=label, style=style, **kws)
