@@ -11,7 +11,7 @@ from ..detectors import DET_DEFAULT_OPTS, AD_FILE_PLUGINS
 from .gui_utils import (GUIColors, set_font_with_children, YesNo, Closure,
                         add_button, add_choice, pack, check, Font,
                         SimpleText, FloatCtrl, okcancel, add_subtitle,
-                        LCEN, CEN, RCEN, FRAMESTYLE)
+                        LCEN, CEN, RCEN, LEFT, FRAMESTYLE)
 
 from ..utils import strip_quotes
 
@@ -25,33 +25,35 @@ CEN  |= wx.ALL
 DET_CHOICES = ('scaler', 'xspress3', 'mca', 'multimca', 'areadetector')
 AD_CHOICES = ['None'] + list(AD_FILE_PLUGINS)
 
-class ROIFrame(wxDialog):
-    """Full list of detector settings"""
+class ROIFrame(wx.Frame):
+    """Select ROIS"""
     def __init__(self, parent, det=None):
+        self.parent = parent
         self.scandb = parent.scandb
         title = "Select ROIs"
-        wx.Dialog.__init__(self, parent, wx.ID_ANY, title=title)
-        self.roi_names = []
+        wx.Frame.__init__(self, None, -1, 'Epics Scanning: Select ROIs',
+                          style=FRAMESTYLE)
+        self.SetFont(Font(8))
         self.build_dialog(parent)
 
     @EpicsFunction
-    def connect_epics(self, prefix):
+    def connect_epics(self):
         curr = self.current_rois
         iroi = 0
-        for i in range(32):
-            nm = caget("%s.mca1.R%iNM" % prefix, i)
-            hi = caget("%s.mca1.R%iHI" % prefix, i)
+        pref = "%smca1.R" % self.prefix
+        for i in range(self.nrois):
+            nm = caget("%s%iNM" % (pref, i))
+            hi = caget("%s%iHI" % (pref, i))
             if len(nm.strip()) > 0 and hi > 0:
-                self.names[iroi].SetLabel(nm)
-                self.use[iroi].SetValue(nm.lower() in curr)
-
+                self.wids[i][0].SetLabel('  %s ' % nm)
+                self.wids[i][1].SetValue(nm.lower() in curr)
+                self.wids[i][1].Enable()
 
     def build_dialog(self, parent):
-        panel = wx.Panel(self)
         self.colors = GUIColors()
-        panel.SetBackgroundColour(self.colors.bg)
-
-        self.current_rois = [s.lower() for s in json.loads(self.scandb.get_info('rois', default='[]'))]
+        self.SetBackgroundColour(self.colors.bg)
+        roistring =  self.scandb.get_info('rois', default='[]').replace("'", '"')
+        self.current_rois = [str(s.lower()) for s in json.loads(roistring)]
         self.det = None
         for det in self.scandb.getall('scandetectors', orderby='id'):
             dname = det.kind.lower().strip()
@@ -60,85 +62,76 @@ class ROIFrame(wxDialog):
                 break
         #--#
         if self.det is None:
-            print 'no MCA to select ROIS!'
             return
-        
-        self.SetFont(parent.GetFont())
-        sizer = wx.GridBagSizer(30, 3)
 
+        sizer = wx.GridBagSizer(20, 4)
         # title row
-        i = 0
-        for titleword in ('ROI Name ', 'Use?'):
-            txt =SimpleText(panel, titleword,
-                            minsize=(100, -1),   style=RCEN)
-            sizer.Add(txt, (0, i), (1, 1), LCEN, 1)
-            i += 1
+        irow = 0
+        txt =SimpleText(self, ' ROI', minsize=(80, -1), style=LEFT)
+        sizer.Add(txt, (0, 0),   (1, 1), LCEN, 1)
+        txt =SimpleText(self, ' ROI', minsize=(80, -1), style=LEFT)
+        sizer.Add(txt, (0, 2),   (1, 1), LCEN, 1)
+        txt =SimpleText(self, ' Use?', minsize=(40, -1), style=LEFT)
+        sizer.Add(txt, (0, 1),   (1, 1), LCEN, 1)
+        txt =SimpleText(self, ' Use?', minsize=(40, -1), style=LEFT)
+        sizer.Add(txt, (0, 3),   (1, 1), LCEN, 1)
 
-        sizer.Add(wx.StaticLine(panel, size=(150, -1),
-                                style=wx.LI_HORIZONTAL),
-                  (1, 0), (1, 4), CEN, 0)
-        
-        self.wids = {}
-        prefix = mca_det.pvname
-        opts   = json.loads(self.det.options)
-        optkeys = opts.keys()
-        optkeys.sort()
-        irow = 2
-        for key in optkeys:
-            if key in ('use', 'kind', 'label'):
-                continue
-            val = opts[key]
-            label = key
-            for short, longw in (('_', ' '),
-                                 ('chan', 'channels'),
-                                 ('mcas', 'MCAs'),
-                                 ('rois', 'ROIs')):
-                label = label.replace(short, longw)
+        self.wids = []
+        self.prefix = self.det.pvname
+        self.nrois  = int(json.loads(self.det.options).get('nrois', 32))
+        nrows = self.nrois/2
+        col = 0
+        for i in range(self.nrois):
+            lab = SimpleText(self, ' <unused>', minsize=(80, -1))
+            use = check(self, default=False)
+            use.Disable()
+            self.wids.append((lab, use))
+            if i ==  nrows:
+                col = 2
+                irow = irow - nrows
+            irow += 1
+            sizer.Add(lab, (irow, col),   (1, 1), LCEN, 0)
+            sizer.Add(use, (irow, col+1), (1, 1), LEFT, 0)
 
-            if label.startswith('n'):
-                label = '# of %s' % (label[1:])
-            label = label.title()
-            label = SimpleText(panel, label, style=LCEN)
-            val = strip_quotes(val)
-
-            if val in (True, False, 'Yes', 'No'):
-                defval = val in (True, 'Yes')
-                wid = check(panel, default=defval)
-            elif key.lower() == 'file_plugin':
-                wid = add_choice(panel, AD_CHOICES, default=1)
-            elif isinstance(val, (int, float)):
-                wid = FloatCtrl(panel, value=val, size=(80, -1))
-            else:
-                wid = wx.TextCtrl(panel, value=val, size=(80, -1))
-
-            sizer.Add(label, (irow, 0), (1, 1), LCEN,  2)
-            sizer.Add(wid,   (irow, 1), (1, 1), RCEN, 2)
-            self.wids[key] = wid
-            irow  += 1
-
-        sizer.Add(wx.StaticLine(panel, size=(150, -1), style=wx.LI_HORIZONTAL),
+        irow += 1
+        sizer.Add(wx.StaticLine(self, size=(350, -1), style=wx.LI_HORIZONTAL),
                   (irow, 0), (1, 4), CEN, 0)
-
-        sizer.Add(okcancel(panel), (irow+1, 0), (1, 3), LCEN, 1)
-        pack(panel, sizer)
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(panel, 0, 0, 0)
+        irow += 1
+        sizer.Add(okcancel(self, self.onOK, self.onClose),
+                  (irow, 0), (1, 3), LCEN, 0)
         pack(self, sizer)
+        wx.CallAfter(self.connect_epics)
+        self.SetSize((325, 700))
+        self.Show()
+        self.Raise()
 
-    
-class DetectorDetailsDialog(wx.Dialog):
+    def onOK(self, event=None):
+        rois = []
+        for (label, use) in self.wids:
+            if use.Enabled and use.IsChecked():
+                rois.append(label.GetLabel().strip())
+        roistring =  json.dumps(rois)
+        self.scandb.set_info('rois', roistring)
+        self.Destroy()
+
+    def onClose(self, event=None):
+        self.Destroy()
+
+
+class DetectorDetailsFrame(wx.Frame):
     """Full list of detector settings"""
     def __init__(self, parent, det=None):
+        self.parent = parent
         self.scandb = parent.scandb
         self.det = det
         title = "Settings for '%s'" % (det.name)
-        wx.Dialog.__init__(self, parent, wx.ID_ANY, title=title)
+        wx.Frame.__init__(self, None, -1, title, style=FRAMESTYLE)                          
+        self.SetFont(Font(8))
         self.build_dialog(parent)
 
     def build_dialog(self, parent):
-        panel = wx.Panel(self)
         self.colors = GUIColors()
-        panel.SetBackgroundColour(self.colors.bg)
+        self.SetBackgroundColour(self.colors.bg)
 
         self.SetFont(parent.GetFont())
         sizer = wx.GridBagSizer(10, 3)
@@ -146,12 +139,12 @@ class DetectorDetailsDialog(wx.Dialog):
         # title row
         i = 0
         for titleword in (' Setting ', 'Value'):
-            txt =SimpleText(panel, titleword,
+            txt =SimpleText(self, titleword,
                             minsize=(100, -1),   style=RCEN)
             sizer.Add(txt, (0, i), (1, 1), LCEN, 1)
             i += 1
 
-        sizer.Add(wx.StaticLine(panel, size=(150, -1),
+        sizer.Add(wx.StaticLine(self, size=(150, -1),
                                 style=wx.LI_HORIZONTAL),
                   (1, 0), (1, 4), CEN, 0)
 
@@ -175,38 +168,64 @@ class DetectorDetailsDialog(wx.Dialog):
             if label.startswith('n'):
                 label = '# of %s' % (label[1:])
             label = label.title()
-            label = SimpleText(panel, label, style=LCEN)
+            label = SimpleText(self, label, style=LCEN)
             val = strip_quotes(val)
 
             if val in (True, False, 'Yes', 'No'):
                 defval = val in (True, 'Yes')
-                wid = check(panel, default=defval)
+                wid = check(self, default=defval)
             elif key.lower() == 'file_plugin':
-                wid = add_choice(panel, AD_CHOICES, default=1)
+                wid = add_choice(self, AD_CHOICES, default=1)
             elif isinstance(val, (int, float)):
-                wid = FloatCtrl(panel, value=val, size=(80, -1))
+                wid = FloatCtrl(self, value=val, size=(80, -1))
             else:
-                wid = wx.TextCtrl(panel, value=val, size=(80, -1))
+                wid = wx.TextCtrl(self, value=val, size=(80, -1))
 
             sizer.Add(label, (irow, 0), (1, 1), LCEN,  2)
             sizer.Add(wid,   (irow, 1), (1, 1), RCEN, 2)
             self.wids[key] = wid
             irow  += 1
 
-        sizer.Add(wx.StaticLine(panel, size=(150, -1), style=wx.LI_HORIZONTAL),
+        sizer.Add(wx.StaticLine(self, size=(250, -1), style=wx.LI_HORIZONTAL),
                   (irow, 0), (1, 4), CEN, 0)
 
-        sizer.Add(okcancel(panel), (irow+1, 0), (1, 3), LCEN, 1)
-        pack(panel, sizer)
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(panel, 0, 0, 0)
+        sizer.Add(okcancel(self, self.onOK, self.onClose),
+                  (irow+1, 0), (1, 3), LCEN, 1)
+        wx.EVT_CLOSE(self, self.onClose)        
+        self.SetSize((450, 625))
         pack(self, sizer)
+        self.Show()
+        self.Raise()
+        
+
+    def onOK(self, event=None):
+        opts = {}
+        for key, wid in self.wids.items():
+            if isinstance(wid, wx.TextCtrl):
+                val = wid.GetValue()
+                try:
+                    val = float(val)
+                except:
+                    pass
+            elif isinstance(wid, wx.CheckBox):
+                val =  wid.IsChecked()
+            elif isinstance(wid, YesNo):
+                val =  {0:False, 1:True}[wid.GetSelection()]
+            opts[key] = val
+
+        self.det.options = json.dumps(opts)
+        self.onClose()
+        
+    def onClose(self, event=None):
+        self.parent.detailframe = None        
+        self.Destroy()
 
 class DetectorFrame(wx.Frame) :
     """Frame to Setup Scan Detectors"""
     def __init__(self, parent, pos=(-1, -1)):
         self.parent = parent
         self.scandb = parent.scandb
+        self.detailframe = None
 
         self.detectors = self.scandb.getall('scandetectors', orderby='id')
         self.counters = self.scandb.getall('scancounters', orderby='id')
@@ -346,31 +365,14 @@ class DetectorFrame(wx.Frame) :
         mainsizer = wx.BoxSizer(wx.VERTICAL)
         mainsizer.Add(panel, 1, wx.GROW|wx.ALL, 1)
 
+        wx.EVT_CLOSE(self, self.onClose)
         pack(self, mainsizer)
         self.Show()
         self.Raise()
 
     def onDetDetails(self, evt=None, det=None, **kws):
-        dlg = DetectorDetailsDialog(self, det=det)
-        dlg.Raise()
-        if dlg.ShowModal() == wx.ID_OK:
-            opts = {}
-            for key, wid in dlg.wids.items():
-                if isinstance(wid, wx.TextCtrl):
-                    val = wid.GetValue()
-                    try:
-                        val = float(val)
-                    except:
-                        pass
-
-                elif isinstance(wid, wx.CheckBox):
-                    val =  wid.IsChecked()
-                elif isinstance(wid, YesNo):
-                    val =  {0:False, 1:True}[wid.GetSelection()]
-                opts[key] = val
-            det.options = json.dumps(opts)
-            self.scandb.commit()
-        dlg.Destroy()
+        if self.detailframe is None:
+            self.detailframe = DetectorDetailsFrame(self, det=det)
 
     def onOK(self, event=None):
         self.scandb.set_info('det_settle_time', float(self.settle_time.GetValue()))
