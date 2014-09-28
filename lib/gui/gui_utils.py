@@ -567,10 +567,9 @@ class SimpleText(wx.StaticText):
     "simple static text wrapper"
     def __init__(self, parent, label, minsize=None,
                  font=None, colour=None, bgcolour=None,
-                 style=wx.LEFT|wx.ALIGN_CENTRE_VERTICAL,  **kws):
+                 style=wx.ALIGN_LEFT|wx.ALIGN_CENTRE_VERTICAL,  **kws):
 
-        wx.StaticText.__init__(self, parent, -1,
-                               label=label, style=style, **kws)
+        SimpleText.__init__(self, parent, -1, label=label, style=style, **kws)
 
         if minsize is not None:
             self.SetMinSize(minsize)
@@ -633,4 +632,3 @@ class DateTimeCtrl(object):
         sizer.Fit(panel)
         if use_now:
             self.timectrl.SetValue(wx.DateTime_Now())
-
