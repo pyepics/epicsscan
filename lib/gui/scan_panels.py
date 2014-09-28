@@ -18,7 +18,7 @@ from .gui_utils import SimpleText, FloatCtrl, Closure
 from .gui_utils import pack, add_choice, hms
 
 from .. import etok, ktoe, XAFS_Scan, StepScan, Positioner, Counter
-from ..utils import normalize_pvname
+from ..utils import normalize_pvname, atGSECARS
 
 CEN = wx.ALIGN_CENTER|wx.ALIGN_CENTER_VERTICAL
 LEFT = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL
@@ -169,6 +169,8 @@ class GenericScanPanel(scrolled.ScrolledPanel):
 
     @EpicsFunction
     def update_position_from_pv(self, index, name=None):
+        if not atGSECARS():
+            return
         if not hasattr(self, 'pos_settings'):
             return
         if name is None:
@@ -242,7 +244,6 @@ class GenericScanPanel(scrolled.ScrolledPanel):
                 wids[4].SetMin(wids[4].GetMin() + offset)
                 wids[4].SetMax(wids[4].GetMax() + offset)
 
-
                 wids[3].SetValue(offset + wids[3].GetValue(), act=False)
                 wids[4].SetValue(offset + wids[4].GetValue(), act=False)
                 self.update_position_from_pv(index)
@@ -270,12 +271,13 @@ class LinearScanPanel(GenericScanPanel):
 
         sizer.Add(self.hline(), (ir, 0), (1, 8), wx.ALIGN_CENTER)
         ir += 1
-        for ic, lab in enumerate(("Role", "Positioner", "Units",
+        for ic, txt in enumerate(("Role", "Positioner", "Units",
                                   "Current", "Start",
                                   "Stop", "Step", " Npts")):
             s  = CEN
-            if lab == " Npts": s = LEFT
-            sizer.Add(SimpleText(self, lab), (ir, ic), (1, 1), s, 2)
+            if txt == " Npts": s = LEFT
+            sizer.Add(wx.StaticText(self, -1, label=txt),
+                      (ir, ic), (1, 1), s, 2)
 
         self.pos_settings = []
         fsize = (95, -1)
@@ -506,7 +508,9 @@ class XAFSScanPanel(GenericScanPanel):
         self.kwtimemax.SetValue(scan['max_time'])
         self.kwtimechoice.SetSelection(scan['time_kw'])
 
-        self.elemchoice.SetStringSelection(scan.get('elem', 'Fe'))
+        elem = scan.get('elem', None)
+        if elem:
+            self.elemchoice.SetStringSelection(elem)
         self.e0.SetValue(scan['e0'])
         self.absrel.SetSelection({True:1, False:0}[scan['is_relative']])   # relative!!
         nregs = len(scan['regions'])
@@ -527,7 +531,7 @@ class XAFSScanPanel(GenericScanPanel):
                 else:
                     units.SetSelection(1)
 
-                self.ev_units[ireg] = (reg[4] == self.units_list[0])
+                self.ev_units[ireg] = (reg[4].lower().startswith('ev'))
 
             start.SetValue(reg[0])
             stop.SetValue(reg[1])
@@ -566,6 +570,7 @@ class XAFSScanPanel(GenericScanPanel):
         self.absrel = add_choice(self, ('Absolute', 'Relative'),
                                  size=(120, -1),
                                  action = self.onAbsRel)
+        self.absrel_value = 1
         self.absrel.SetSelection(1)
         self.dwelltime = FloatCtrl(self, precision=dwell_prec,
                                    value=dwell_value,
@@ -723,12 +728,15 @@ class XAFSScanPanel(GenericScanPanel):
 
     def onAbsRel(self, evt=None):
         """xafs abs/rel"""
-        offset = self.e0.GetValue()
-
-        # relative (was absolute)
+        offset = 0
         if 1 == self.absrel.GetSelection() and self.absrel_value == 0:
-            offset = -offset
+            # was absolute, now in relative
+            offset = -self.e0.GetValue()
             self.absrel_value = 1
+        elif 0 == self.absrel.GetSelection() and self.absrel_value == 1:
+            # was relative, now absolute
+            offset = self.e0.GetValue()
+            self.absrel_value = 0
         for index, wids in enumerate(self.reg_settings):
             units = self.getUnits(index)
             if units == 'eV':
@@ -1028,5 +1036,3 @@ class SlewScanPanel(GenericScanPanel):
                 if i > 0: mname = 'outer'
                 s[mname] = [name, pvnames, p1, p2, npts]
         return s
-
-
