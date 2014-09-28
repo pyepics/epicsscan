@@ -34,6 +34,7 @@ import time
 import shutil
 import numpy as np
 import json
+import socket
 from datetime import timedelta
 from threading import Thread
 
@@ -47,9 +48,10 @@ from epics.wx import DelayedEpicsCallback, EpicsFunction, finalize_epics
 from epics.wx.utils import popup
 
 from .gui_utils import (SimpleText, FloatCtrl, Closure, pack, add_button,
-                        add_menu, add_choice, add_menu, CEN, LCEN, FRAMESTYLE)
+                        add_menu, add_choice, add_menu, FileOpen,
+                        CEN, LCEN, FRAMESTYLE)
 
-from ..utils import normalize_pvname
+from ..utils import normalize_pvname, read_oldscanfile, atGSECARS
 from ..stepscan import StepScan
 from ..xafs_scan import XAFS_Scan
 
@@ -77,7 +79,6 @@ from .edit_macros      import MacrosFrame
 ALL_CEN =  wx.ALL|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL
 FNB_STYLE = flat_nb.FNB_NO_X_BUTTON|flat_nb.FNB_SMART_TABS|flat_nb.FNB_NO_NAV_BUTTONS
 
-    
 def compare_scans(scan1, scan2, verbose=False):
     "compare dictionary for 2 scans"
 
@@ -116,9 +117,6 @@ def compare_scans(scan1, scan2, verbose=False):
                     return False
             except:
                 return False
-        
-            
-
     return True
 
 
@@ -162,6 +160,7 @@ class ScanFrame(wx.Frame):
         self.inittimer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.onInitTimer, self.inittimer)
         self.inittimer.Start(100)
+
 
     def createMainPanel(self):
         self.Font16=wx.Font(16, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
@@ -258,7 +257,8 @@ class ScanFrame(wx.Frame):
             for inb, span in self.scanpanels.values():
                 span.initialize_positions()
             self.inittimer.Stop()
-            wx.CallAfter(self.onShowPlot)
+            if atGSECARS():
+                wx.CallAfter(self.onShowPlot)
             self.statusbar.SetStatusText('', 0)
             self.statusbar.SetStatusText('Ready', 1)
 
@@ -354,7 +354,7 @@ class ScanFrame(wx.Frame):
         fout.close()
         print 'wrote %s' % sname
 
-        
+
     def onScanTimer(self, evt=None):
         self.statusbar.SetStatusText(self.scandb.get_info('scan_message'), 0)
 
@@ -387,11 +387,13 @@ class ScanFrame(wx.Frame):
         # file
         fmenu = wx.Menu()
         add_menu(self, fmenu, "Read Scan Definition\tCtrl+O",
-                 "Read Scan Defintion",  self.onReadScanDef)
+                 "Read Scan Defintion", self.onReadScanDef)
 
         add_menu(self, fmenu, "Save Scan Definition\tCtrl+S",
                  "Save Scan Definition", self.onSaveScanDef)
 
+        add_menu(self, fmenu, "Read old scan (.scn) File",
+                 "Read old scan (.scn) file", self.onReadOldScanFile)
         fmenu.AppendSeparator()
 
         add_menu(self, fmenu,'Change &Working Folder\tCtrl+W',
@@ -413,13 +415,14 @@ class ScanFrame(wx.Frame):
                  "Setup Detectors and Counters", self.onEditDetectors)
         add_menu(self, pmenu, "Positioners\tCtrl+P",
                  "Setup Motors and Positioners", self.onEditPositioners)
+
+        add_menu(self, pmenu, "Scan Definitions",
+                 "Manage Saved Scans", self.onEditScans)
+
         pmenu.AppendSeparator()
 
         add_menu(self, pmenu, "Extra PVs",
                  "Setup Extra PVs to save with scan", self.onEditExtraPVs)
-
-        add_menu(self, pmenu, "Scan Definitions",
-                 "Manage Saved Scans", self.onEditScans)
 
         # Sequences
         smenu = wx.Menu()
@@ -570,12 +573,41 @@ class ScanFrame(wx.Frame):
         if sname is not None:
             self.load_scan(sname)
 
+
+    def onReadOldScanFile(self, evt=None):
+        "read old scan file"
+
+        wcard = 'Scan files (*.scn)|*.scn|All files (*.*)|*.*'
+        dlg = wx.FileDialog(self,
+                            message="Open old scan file",
+                            wildcard=wcard,
+                            style=wx.OPEN|wx.CHANGE_DIR)
+
+        scanfile = None
+        if dlg.ShowModal() == wx.ID_OK:
+            scanfile = os.path.abspath(dlg.GetPath())
+        dlg.Destroy()
+
+        if scanfile is None:
+            return
+        try:
+            scandict = read_oldscanfile(scanfile)
+        except:
+            scandict = {'type': None}
+
+        stype = scandict['type'].lower()
+        if stype in self.scanpanels:
+            inb, span = self.scanpanels[stype]
+            self.nb.SetSelection(inb)
+            span.load_scandict(scandict)
+
+
     def load_scan(self, scanname):
         """load scan definition from dictionary, as stored
         in scandb scandef.text field
         """
         self.statusbar.SetStatusText("Read Scan '%s'" % scanname)
-        
+
         sdb = self.scandb
         scan = json.loads(sdb.get_scandef(scanname).text)
 
