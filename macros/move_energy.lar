@@ -1,0 +1,39 @@
+from time import sleep, clock
+def move_energy(energy, id_offset=None, id_harmonic=None):
+    """move energy to desired value"""
+
+    if id_harmonic is not None:
+        caput('13IDE:En:id_harmonic.VAL', id_harmonic)
+    #endif
+
+    if id_offset is not None:
+        caput('13IDE:En:id_off.VAL', id_offset)
+    #endif
+
+    caput('13IDE:En:y2_track', 1)
+    caput('13IDE:En:id_track', 1)
+    caput('13IDE:En:id_wait',  0)
+    caput('13IDE:En:Energy.VAL', energy, wait=True)
+    sleep(1.0)
+#enddef
+
+
+def move_instrument(inst_name, position_name, wait=False,
+                    prefix='13XRM:Inst:', timeout=60.0):
+    'move an Epics Instrument to a named position'
+    caput(prefix + 'InstName', inst_name)
+    caput(prefix + 'PosName', position_name)
+    sleep(0.25)
+    if (caget(prefix + 'InstOK') == 1 and
+        caget(prefix + 'PosOK') == 1):
+        caput(prefix + 'Move', 1)
+        if wait:
+            moving, t0 = 1, clock()
+            while moving:
+                sleep(0.25)
+                moving = ((1 == caget(prefix + 'Move')) or
+                          (clock()-t0 > timeout))
+            #endwhile
+        #endif
+    #endif
+#enddef
