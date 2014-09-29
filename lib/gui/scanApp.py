@@ -232,11 +232,11 @@ class ScanFrame(wx.Frame):
         pack(btnpanel, btnsizer)
 
         ir = 3
-        bsizer.Add(btnpanel,  (3, 0), (1, 4), LCEN, 5)
+        bsizer.Add(btnpanel,  (3, 0), (1, 4), wx.ALIGN_LEFT|wx.ALL, 1)
 
         bpanel.SetSizer(bsizer)
         bsizer.Fit(bpanel)
-        sizer.Add(bpanel, 0, ALL_CEN, 5)
+        sizer.Add(bpanel, 0, wx.ALIGN_LEFT|wx.ALL, 3)
         self.SetSizer(sizer)
         sizer.Fit(self)
 
@@ -407,27 +407,30 @@ class ScanFrame(wx.Frame):
 
         # options
         pmenu = wx.Menu()
-        add_menu(self, pmenu, "General Settings",
-                 "General Setup", self.onEditSettings)
-        add_menu(self, pmenu, "Select ROIs\tCtrl+R",
-                 "Select MCA ROIs", self.onEditROIs)
-        add_menu(self, pmenu, "Detectors\tCtrl+D",
-                 "Setup Detectors and Counters", self.onEditDetectors)
-        add_menu(self, pmenu, "Positioners\tCtrl+P",
-                 "Setup Motors and Positioners", self.onEditPositioners)
-
-        add_menu(self, pmenu, "Scan Definitions",
+        add_menu(self, pmenu, "Scan Definitions\tCtrl+D",
                  "Manage Saved Scans", self.onEditScans)
 
-        pmenu.AppendSeparator()
+
+        add_menu(self, pmenu, "Select ROIs\tCtrl+R",
+                 "Select MCA ROIs", self.onEditROIs)
+        
+        add_menu(self, pmenu, "General Settings",
+                 "General Setup", self.onEditSettings)
 
         add_menu(self, pmenu, "Extra PVs",
                  "Setup Extra PVs to save with scan", self.onEditExtraPVs)
 
+        pmenu.AppendSeparator()
+        add_menu(self, pmenu, "Configure Detectors",
+                 "Setup Detectors and Counters", self.onEditDetectors)
+        add_menu(self, pmenu, "Configure Positioners",
+                 "Setup Motors and Positioners", self.onEditPositioners)
+
+
         # Sequences
         smenu = wx.Menu()
-        add_menu(self, smenu, "Sequences",
-                  "Run Sequences of Scans",  self.onEditSequences)
+        # add_menu(self, smenu, "Sequences",
+        #           "Run Sequences of Scans",  self.onEditSequences)
         add_menu(self, smenu, "Macros",
                   "Edit Macros",  self.onEditMacros)
 
@@ -563,8 +566,9 @@ class ScanFrame(wx.Frame):
                 snames.append(sdef.name)
 
         snames.reverse()
-        dlg = wx.SingleChoiceDialog(self, "Select Saved Scan:", "", snames)
-
+        dlg = wx.SingleChoiceDialog(self, "Select Scan Definition:",
+                                    "Select Scan Definition", snames)
+        dlg.SetMinSize((575, 400))
         sname = None
         if dlg.ShowModal() == wx.ID_OK:
             sname =  dlg.GetStringSelection()

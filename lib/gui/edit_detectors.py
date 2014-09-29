@@ -144,7 +144,7 @@ class DetectorDetailsFrame(wx.Frame):
             sizer.Add(txt, (0, i), (1, 1), LCEN, 1)
             i += 1
 
-        sizer.Add(wx.StaticLine(self, size=(150, -1),
+        sizer.Add(wx.StaticLine(self, size=(250, -1),
                                 style=wx.LI_HORIZONTAL),
                   (1, 0), (1, 4), CEN, 0)
 
@@ -177,12 +177,12 @@ class DetectorDetailsFrame(wx.Frame):
             elif key.lower() == 'file_plugin':
                 wid = add_choice(self, AD_CHOICES, default=1)
             elif isinstance(val, (int, float)):
-                wid = FloatCtrl(self, value=val, size=(80, -1))
+                wid = FloatCtrl(self, value=val, size=(150, -1))
             else:
-                wid = wx.TextCtrl(self, value=val, size=(80, -1))
+                wid = wx.TextCtrl(self, value=val, size=(150, -1))
 
             sizer.Add(label, (irow, 0), (1, 1), LCEN,  2)
-            sizer.Add(wid,   (irow, 1), (1, 1), RCEN, 2)
+            sizer.Add(wid,   (irow, 1), (1, 1), RCEN,  2)
             self.wids[key] = wid
             irow  += 1
 
@@ -192,7 +192,7 @@ class DetectorDetailsFrame(wx.Frame):
         sizer.Add(okcancel(self, self.onOK, self.onClose),
                   (irow+1, 0), (1, 3), LCEN, 1)
         wx.EVT_CLOSE(self, self.onClose)        
-        self.SetSize((450, 625))
+        self.SetMinSize((225, 350))
         pack(self, sizer)
         self.Show()
         self.Raise()
