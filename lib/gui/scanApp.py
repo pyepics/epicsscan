@@ -320,8 +320,12 @@ class ScanFrame(wx.Frame):
         # check if this is identical to previous scan
         scan_is_new = True
         if self.last_scanname not in (None, ''):
-            lastscan = json.loads(sdb.get_scandef(self.last_scanname).text)
-            scan_is_new = not compare_scans(scan, lastscan, verbose=False)
+            try:
+                lastscan = json.loads(sdb.get_scandef(self.last_scanname).text)
+                scan_is_new = not compare_scans(scan, lastscan, verbose=False)
+            except:
+                lastscan = ''
+                scan_is_new = True
         if scan_is_new:
             sdb.add_scandef(scanname,  text=json.dumps(scan),
                             type=scan['type'])
@@ -535,11 +539,15 @@ class ScanFrame(wx.Frame):
                                  style=wx.YES_NO|wx.NO_DEFAULT|wx.ICON_QUESTION)
 
                 if (_ok == wx.ID_YES):
+                    print 'Deleting Scan Def ', sname
                     self.scandb.del_scandef(sname)
+                    print 'Deleted Scan Def ', sname
                 else:
                     sname = ''
             if len(sname) > 0:
+                print 'Generate Scan Def ', sname
                 self.generate_scan(scanname=sname)
+                print 'Deleting Scan Def done for ', sname
                 self.statusbar.SetStatusText("Saved scan '%s'" % sname)
             else:
                 self.statusbar.SetStatusText("Could not overwrite scan '%s'" % sname)
