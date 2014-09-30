@@ -21,6 +21,7 @@ ALL_CEN =  wx.ALL|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL
 FNB_STYLE = flat_nb.FNB_NO_X_BUTTON|flat_nb.FNB_SMART_TABS|flat_nb.FNB_NO_NAV_BUTTONS
 
 SCANTYPES = ('linear', 'mesh', 'slew', 'xafs')
+SCANTYPES = ('linear', 'mesh', 'xafs')
 
 
 class RenameDialog(wx.Dialog):
@@ -295,7 +296,7 @@ class ScandefsFrame(wx.Frame) :
         self.nblabels = []
         for pname, creator in (('Linear', LinearScanDefs),
                                ('Mesh',   MeshScanDefs),
-                               ('Slew',   SlewScanDefs),
+                               # ('Slew',   SlewScanDefs),
                                ('XAFS',   XAFSScanDefs)):
 
             table = creator(self, self.scandb, stype=pname.lower())
