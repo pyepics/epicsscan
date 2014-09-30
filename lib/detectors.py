@@ -619,7 +619,7 @@ class Xspress3Counter(DeviceCounter):
                   'All Event', 'All Good', 'Window 1', 'Window 2', 'Pileup')
 
     def __init__(self, prefix, mcs=None, outpvs=None, nmcas=4, nrois=4, rois=None,
-                 nscas=5, nmcs=4, use_unlabeled=False,  use_full=False):
+                 nscas=1, nmcs=4, use_unlabeled=False,  use_full=False):
         if not prefix.endswith(':'):
             prefix = "%s:" % prefix
 
