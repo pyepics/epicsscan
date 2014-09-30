@@ -3,7 +3,7 @@ import socket
 
 def atGSECARS():
     ipaddr = socket.gethostbyname(socket.gethostname())
-    ipaddr.startswith('164.54.160')
+    return ipaddr.startswith('164.54.160')
 
 def strip_quotes(t):
     d3, s3, d1, s1 = '"""', "'''", '"', "'"
