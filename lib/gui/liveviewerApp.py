@@ -519,7 +519,6 @@ class ScanViewerFrame(wx.Frame):
             except:
                 y2expr = ''
             npts = n2pts
-            print "MAKE Y2EXPR NPTS ", npts
 
         lgroup.arr_y1 = np.array( lgroup.arr_y1[:npts])
         lgroup.arr_x  = np.array( lgroup.arr_x[:npts])
