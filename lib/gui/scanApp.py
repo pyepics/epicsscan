@@ -73,7 +73,7 @@ from .edit_general     import SettingsFrame
 from .edit_extrapvs    import ExtraPVsFrame
 from .edit_scandefs    import ScandefsFrame
 from .edit_sequences   import SequencesFrame
-from .edit_macros      import MacrosFrame
+from .edit_macros      import MacroFrame
 
 
 ALL_CEN =  wx.ALL|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL
@@ -183,7 +183,7 @@ class ScanFrame(wx.Frame):
         inb  = 0
         for name, creator in (('Linear',  LinearScanPanel),
                               ('Mesh',    MeshScanPanel),
-                              ('Slew',    SlewScanPanel),
+                              # ('Slew',    SlewScanPanel),
                               ('XAFS',    XAFSScanPanel)):
             span = creator(self, scandb=self.scandb, pvlist=self.pvlist)
             self.nb.AddPage(span, "%s Scan" % name, True)
@@ -417,7 +417,7 @@ class ScanFrame(wx.Frame):
 
         add_menu(self, pmenu, "Select ROIs\tCtrl+R",
                  "Select MCA ROIs", self.onEditROIs)
-        
+
         add_menu(self, pmenu, "General Settings",
                  "General Setup", self.onEditSettings)
 
@@ -435,8 +435,8 @@ class ScanFrame(wx.Frame):
         smenu = wx.Menu()
         # add_menu(self, smenu, "Sequences",
         #           "Run Sequences of Scans",  self.onEditSequences)
-        add_menu(self, smenu, "Macros",
-                  "Edit Macros",  self.onEditMacros)
+        add_menu(self, smenu, "Edit Macro",
+                  "Edit Macro",  self.onEditMacro)
 
         # help
         hmenu = wx.Menu()
@@ -445,7 +445,7 @@ class ScanFrame(wx.Frame):
 
         self.menubar.Append(fmenu, "&File")
         self.menubar.Append(pmenu, "&Setup")
-        self.menubar.Append(smenu, "Sequences")
+        self.menubar.Append(smenu, "Macro")
         self.menubar.Append(hmenu, "&Help")
         self.SetMenuBar(self.menubar)
 
@@ -502,8 +502,8 @@ class ScanFrame(wx.Frame):
     def onEditSequences(self, evt=None):
         self.show_subframe('sequences', SequencesFrame)
 
-    def onEditMacros(self, evt=None):
-        self.show_subframe('macros', MacrosFrame)
+    def onEditMacro(self, evt=None):
+        self.show_subframe('macro', MacroFrame)
 
     def onFolderSelect(self,evt):
         style = wx.DD_DIR_MUST_EXIST|wx.DD_DEFAULT_STYLE
