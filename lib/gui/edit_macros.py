@@ -1,151 +1,131 @@
-
+import os
 import sys
 import time
 
 import wx
 import wx.lib.scrolledpanel as scrolled
+from wx.lib.editor import Editor
 
 from ..ordereddict import OrderedDict
-from .gui_utils import GUIColors, set_font_with_children, YesNo
-from .gui_utils import add_button, pack, SimpleText
-
+from .gui_utils import (GUIColors, set_font_with_children, YesNo,
+                        add_menu, add_button, pack, SimpleText,
+                        FileOpen, FileSave, popup,
+                        FRAMESTYLE, Font)
 
 LEFT = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
 CEN  = wx.ALIGN_CENTER|wx.ALIGN_CENTER_VERTICAL|wx.ALL
 
-class MacrosFrame(wx.Frame) :
+class MacroFrame(wx.Frame) :
     """Edit/Manage Macros (Larch Code)"""
     def __init__(self, parent, pos=(-1, -1)):
 
         self.parent = parent
         self.scandb = parent.scandb
 
-        style    = wx.DEFAULT_FRAME_STYLE|wx.TAB_TRAVERSAL
-        labstyle  = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
-        rlabstyle = wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
-        tstyle    = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL
+        wx.Frame.__init__(self, None, -1,  title='Epics Scanning: Macro',
+                          style=FRAMESTYLE)
 
-        self.Font10=wx.Font(10, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
-        titlefont = wx.Font(13, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
+        self.SetFont(Font(10))
+        sizer = wx.BoxSizer(wx.VERTICAL)
 
-        wx.Frame.__init__(self, None, -1,
-                          'Epics Scanning: Macros Setup')
+        self.createMenus()
 
-        self.SetFont(self.Font10)
-        sizer = wx.GridBagSizer(10, 5)
-        panel = scrolled.ScrolledPanel(self, size=(675, 500))
         self.colors = GUIColors()
-        panel.SetBackgroundColour(self.colors.bg)
+        self.SetBackgroundColour(self.colors.bg)
 
-        # title row
-        title = SimpleText(panel, 'Extra PVs Setup',  font=titlefont,
-                           colour=self.colors.title, style=tstyle)
+        self.editor = wx.TextCtrl(self, -1, size=(400, 400),
+                                  style=wx.TE_MULTILINE|wx.TE_RICH2)
+        self.editor.SetBackgroundColour('#FFFFFF')
+        text = """# Edit Macro text here\n#\n \n"""
 
-        sizer.Add(title,        (0, 0), (1, 3), LEFT, 5)
+        self.editor.SetValue(text)
+        self.editor.SetInsertionPoint(len(text)-2)
 
-        ir = 1
-        sizer.Add(SimpleText(panel, label='Description', size=(175, -1)),
-                  (ir, 0), (1, 1), rlabstyle, 2)
-        sizer.Add(SimpleText(panel, label='PV Name', size=(175, -1)),
-                  (ir, 1), (1, 1), labstyle, 2)
-        sizer.Add(SimpleText(panel, label='Use?', size=(60, -1)),
-                  (ir, 2), (1, 1), labstyle, 2)
-        sizer.Add(SimpleText(panel, label='Erase?', size=(60, -1)),
-                  (ir, 3), (1, 1), labstyle, 2)
+        sizer.Add(self.editor, 1, CEN|wx.GROW|wx.ALL, 3)
 
-        self.widlist = []
-        for this in self.scandb.getall('extrapvs'):
-            desc   = wx.TextCtrl(panel, -1, value=this.name, size=(175, -1))
-            pvctrl = wx.TextCtrl(panel, value=this.pvname,  size=(175, -1))
-            usepv  = YesNo(panel, defaultyes=this.use)
-            delpv  = YesNo(panel, defaultyes=False)
-            
-            ir +=1
-            sizer.Add(desc,   (ir, 0), (1, 1), rlabstyle, 2)
-            sizer.Add(pvctrl, (ir, 1), (1, 1), labstyle, 2)
-            sizer.Add(usepv,  (ir, 2), (1, 1), labstyle, 2)
-            sizer.Add(delpv,  (ir, 3), (1, 1), labstyle, 2)            
-            self.widlist.append((this, desc, pvctrl, usepv, delpv))
 
-        for i in range(3):
-            desc   = wx.TextCtrl(panel, -1, value='', size=(175, -1))
-            pvctrl = wx.TextCtrl(panel, value='', size=(175, -1))
-            usepv  = YesNo(panel, defaultyes=True)
-            ir +=1
-            sizer.Add(desc,   (ir, 0), (1, 1), rlabstyle, 2)
-            sizer.Add(pvctrl, (ir, 1), (1, 1), labstyle, 2)
-            sizer.Add(usepv,  (ir, 2), (1, 1), labstyle, 2)
-            self.widlist.append((None, desc, pvctrl, usepv, None))
-
-        ir += 1
-        sizer.Add(wx.StaticLine(panel, size=(350, 3), style=wx.LI_HORIZONTAL),
-                  (ir, 0), (1, 4), wx.ALIGN_LEFT|wx.EXPAND, 3)
-        #
-        ir += 1
-        sizer.Add(self.make_buttons(panel), (ir, 0), (1, 2), wx.ALIGN_LEFT, 3)
-
-        pack(panel, sizer)
-
-        panel.SetupScrolling()
-
-        mainsizer = wx.BoxSizer(wx.VERTICAL)
-        mainsizer.Add(panel, 1, wx.GROW|wx.ALL, 1)
-
-        pack(self, mainsizer)
+        sizer.Add(self.make_buttons(), 0, wx.ALIGN_LEFT, 3)
+        self.SetMinSize((400, 400))
+        pack(self, sizer)
         self.Show()
         self.Raise()
 
-    def add_subtitle(self, panel, text):
-        p = wx.Panel(panel)
-        s = wx.BoxSizer(wx.HORIZONTAL)
-        s.Add(wx.StaticLine(p, size=(125, 3), style=wx.LI_HORIZONTAL), 0, LEFT, 5)
-        s.Add(SimpleText(p, text,  colour='#333377'),  0, LEFT, 5)
-        s.Add(wx.StaticLine(p, size=(185, 3), style=wx.LI_HORIZONTAL), 1, LEFT, 5)
-        pack(p, s)
-        return p
+    def make_buttons(self):
+        panel = wx.Panel(self)
+        sizer = wx.BoxSizer(wx.HORIZONTAL)
+        sizer.Add(add_button(panel, label='Run Macro', action=self.onApply),
+                  0, wx.ALIGN_LEFT, 2)
+        sizer.Add(add_button(panel, label='Exit',      action=self.onClose),
+                  0, wx.ALIGN_LEFT, 2)
 
-    def make_buttons(self, panel):
-        btnsizer = wx.StdDialogButtonSizer()
-        btn_ok = wx.Button(panel, wx.ID_OK)
-        btn_no = wx.Button(panel, wx.ID_CANCEL)
-        panel.Bind(wx.EVT_BUTTON, self.onApply, btn_ok)
-        panel.Bind(wx.EVT_BUTTON, self.onClose, btn_no)
-        btn_ok.SetDefault()
-        btnsizer.AddButton(btn_ok)
-        btnsizer.AddButton(btn_no)
+        pack(panel, sizer)
+        return panel
 
-        btnsizer.Realize()
-        return btnsizer
+    def createMenus(self):
+        self.menubar = wx.MenuBar()
+        # file
+        fmenu = wx.Menu()
+        add_menu(self, fmenu, "Read Macro\tCtrl+R",
+                 "Read Macro", self.onReadMacro)
+
+        add_menu(self, fmenu, "Save Macro\tCtrl+S",
+                 "Save Macro", self.onSaveMacro)
+
+        fmenu.AppendSeparator()
+        add_menu(self, fmenu, "Quit\tCtrl+Q",
+                 "Quit Macro", self.onClose)
+
+        # options
+        pmenu = wx.Menu()
+        add_menu(self, pmenu, "Insert Position Scan\tCtrl+P",
+                 "Insert Position Scan", self.onInsertText)
+
+        self.menubar.Append(fmenu, "&File")
+        self.menubar.Append(pmenu, "Insert")
+        self.SetMenuBar(self.menubar)
+
+    def onInsertText(self, event=None):
+        print 'Insert ', self.editor.GetInsertionPoint()
+        print 'Last ',   self.editor.GetLastPosition()
+        self.editor.WriteText('<Added text>')
+        print 'Insert ', self.editor.GetInsertionPoint()
+
+
+    def onReadMacro(self, event=None):
+        wcard = 'Scan files (*.lar)|*.lar|All files (*.*)|*.*'
+        fname = FileOpen(self, "Read Macro from File",
+                         default_file='macro.lar',
+                         wildcard=wcard)
+        if fname is not None:
+            try:
+                text = open(fname, 'r').read()
+                self.editor.SetValue(text)
+            except:
+                pass
+
+    def onSaveMacro(self, event=None):
+        wcard = 'Scan files (*.lar)|*.lar|All files (*.*)|*.*'
+        fname = FileSave(self, 'Save Macro to File',
+                         default_file='macro.lar', wildcard=wcard)
+        if fname is not None:
+            if os.path.exists(fname):
+                ret = popup(self, "Overwrite Macro File '%s'?" % fname,
+                            "Really Overwrite Macro File?",
+                            style=wx.YES_NO|wx.NO_DEFAULT|wx.ICON_QUESTION)
+                if ret != wx.ID_YES:
+                    return
+
+                try:
+                    fh = open(fname, 'w')
+                    fh.write('%s\n' % self.editor.GetValue())
+                    fh.close()
+                except:
+                    pass
 
     def onApply(self, event=None):
-        for w in self.widlist:
-            obj, name, pvname, usepv, erase = w
-            if usepv is not None:
-                usepv = usepv.GetSelection()
-            else:
-                usepv = True
-
-            if erase is not None:
-                erase = erase.GetSelection()
-            else:
-                erase = False
-            name   = name.GetValue().strip()
-            pvname = pvname.GetValue().strip()
-            if len(name) < 1 or len(pvname) < 1:
-                continue
-            if erase and obj is not None:
-                self.scandb.del_extrapv(obj.name)
-            elif obj is not None:
-                obj.name = name
-                obj.pvname = pvname
-                obj.use  = usepv
-            elif obj is None:
-                self.scandb.add_extrapv(name, pvname, use=usepv)
-
-        self.scandb.commit()
-        self.Destroy()
-
+        print 'Editor OK'
+        print self.editor.GetValue()
+        #  self.scandb.commit()
 
     def onClose(self, event=None):
         self.Destroy()
-
