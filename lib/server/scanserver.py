@@ -84,9 +84,13 @@ class ScanServer():
         self.scandb.set_info('scan_status', 'running')
         self.scandb.set_command_status(req.id, 'running')
         args = str(req.arguments)
-        if req.output_file is not None:
-            args = "%s, filename='%s'" % (args, str(req.output_file))
-            self.scandb.set_info('filename', str(req.output_file))
+        filename = req.output_file
+        if filename is None: 
+            filename = ''          
+        filename = str(filename)
+        if len(filename) > 0:
+            args = "%s, filename='%s'" % (args, filename)
+            self.scandb.set_info('filename', filename)
 
         if req.command == 'doscan':
             larch_cmd = "do_scan(%s)" % args
@@ -102,13 +106,16 @@ class ScanServer():
                                      {'last_used_time': make_datetime()})
         else:
             larch_cmd = "%s(%s)" % (req.command, args)
-
+            print 'will issue larch command "%s"' % larch_cmd
         self.scandb.set_info('current_command', larch_cmd)
-        out = self.larch.run(larch_cmd)
+        self.larch.error = []
+        out = self.larch.eval(larch_cmd)
         time.sleep(0.5)
+        if len(self.larch.error) > 0:
+            self.scandb.set_info('command_error', self.larch.error[0].msg)
+            print 'Set Larch Error!! ', self.larch.error[0].msg
         self.scandb.set_info('command_running', 0)
-        self.scandb.set_info('command_status', repr(out))
-
+        self.scandb.set_command_output(req.id, out)
         self.scandb.set_command_status(req.id, 'stopping')
 
 
