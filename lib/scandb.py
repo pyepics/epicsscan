@@ -777,6 +777,12 @@ class ScanDB(object):
         table.update(whereclause="id='%i'" % id).execute(status_id=statid)
         self.commit()
 
+    def set_command_output(self, id, value=None):
+        """set the status of a command (by id)"""
+        cls, table = self.get_table('commands')
+        table.update(whereclause="id='%i'" % id).execute(output_value=repr(value))
+        self.commit()
+
     def cancel_command(self, id):
         """cancel command"""
         self.set_command_status(id, 'canceled')
