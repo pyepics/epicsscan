@@ -15,7 +15,7 @@ from ..utils import  strip_quotes
 
 import larch
 class ScanServer():
-    LARCH_SCANDB = '_scan._scandb' 
+    LARCH_SCANDB = '_scan._scandb'
     def __init__(self, dbname=None, _larch=None,  **kwargs):
         self.scandb = None
         self.abort = False
@@ -28,30 +28,11 @@ class ScanServer():
         """connect to Scan Database"""
         self.scandb = ScanDB(dbname=dbname, **kwargs)
         self.larch.symtable.set_symbol(self.LARCH_SCANDB, self.scandb)
-        
-    def scan_prescan(self, scan=None, **kws):
-        pass
 
     def set_scan_message(self, msg, verbose=True):
         self.scandb.set_info('scan_message', msg)
         if verbose:
             print 'ScanServer: ', msg
-        # self.scandb.commit()
-
-    def do_scan(self, cmd_args, filename=None):
-        self.set_scan_message('Server Launching scan')
-        args =  str(cmd_args)
-        words = args.split(',')
-        scanname = strip_quotes(words[0].strip())
-        if filename is not None:
-            args = "%s, filename='%s'" % (args, str(filename))
-        self.scandb.set_info('filename', filename)
-        self.scandb.update_where('scandefs', {'name': scanname},
-                                 {'last_used_time': make_datetime()})
-        out = self.larch.run("do_scan(%s)" % args)
-        
-    def do_caput(self, pvname, value, wait=False, timeout=30.0):
-        epics.caput(pvname, value, wait=wait, timeout=timeout)
 
     def sleep(self, t=0.05):
         try:
@@ -67,7 +48,7 @@ class ScanServer():
 
         workdir = self.scandb.get_info('user_folder')
         os.chdir(nativepath(workdir))
-        
+
 #         print 'req.id      = ', req.id
 #         print 'req.arguments = ', req.arguments
 #         print 'req.status_id, req.status = ', req.status_id
@@ -76,7 +57,11 @@ class ScanServer():
 #         print 'req.modify_time = ', req.modify_time
 #         print 'req.output_value = ', req.output_value
 #         print 'req.output_file = ', req.output_file
-# 
+#
+        self.scandb.set_info('command_running', 1)
+        self.scandb.set_info('command_status', '')
+
+
         cmd_thread = threading.Thread(target=self.do_command,
                                       kwargs=dict(req=req),
                                       name='cmd_thread')
@@ -85,6 +70,10 @@ class ScanServer():
         req_id = req.id
         self.command_in_progress = True
         cmd_thread.start()
+
+        while 1==self.scandb.get_info('command_status'):
+            if self.look_for_interrupt_requests():
+                break
         cmd_thread.join()
         self.scandb.set_command_status(req.id, 'finished')
         self.scandb.set_info('scan_status', 'idle')
@@ -92,14 +81,37 @@ class ScanServer():
         self.command_in_progress = False
 
     def do_command(self, req=None, **kws):
-        self.scandb.set_info('scan_status', 'running')        
+        self.scandb.set_info('scan_status', 'running')
         self.scandb.set_command_status(req.id, 'running')
+        args = str(req.arguments)
+        if req.output_file is not None:
+            args = "%s, filename='%s'" % (args, str(req.output_file))
+            self.scandb.set_info('filename', str(req.output_file))
+
         if req.command == 'doscan':
-            self.do_scan(req.arguments, filename=req.output_file)
-        else: 
-            print 'unknown command ', req.command
-        time.sleep(1.0)
+            larch_cmd = "do_scan(%s)" % args
+            words = args.split(',')
+            scanname = strip_quotes(words[0].strip())
+            self.scandb.update_where('scandefs', {'name': scanname},
+                                     {'last_used_time': make_datetime()})
+        elif req.command == 'do_slewscan':
+            larch_cmd = "do_slewscan(%s)" % (args)
+            words = args.split(',')
+            scanname = strip_quotes(words[0].strip())
+            self.scandb.update_where('scandefs', {'name': scanname},
+                                     {'last_used_time': make_datetime()})
+        else:
+            larch_cmd = "%s(%s)" % (req.command, args)
+
+        self.scandb.set_info('current_command', larch_cmd)
+        out = self.larch.run(larch_cmd)
+        time.sleep(0.5)
+        self.scandb.set_info('command_running', 0)
+        self.scandb.set_info('command_status', repr(out))
+
         self.scandb.set_command_status(req.id, 'stopping')
+
+
 
     def look_for_interrupt_requests(self):
         """set interrupt requests:
@@ -119,7 +131,7 @@ class ScanServer():
         self.set_scan_message('Server Ready')
         while True:
             self.sleep(0.25)
-            if self.abort:   
+            if self.abort:
                 break
             reqs = self.scandb.get_commands('requested')
             if (time.time() - msgtime )> 300:
@@ -136,7 +148,7 @@ class ScanServer():
             elif len(reqs) > 0: # and not self.command_in_progress:
                 print '#Execute Next Command: '
                 self.execute_command(reqs.pop(0))
-                
+
         # mainloop end
         self.finish()
         sys.exit()
@@ -147,5 +159,3 @@ class ScanServer():
 if __name__  == '__main__':
     s = ScanServer(dbname='A.sdb')
     s.mainloop()
-
-
