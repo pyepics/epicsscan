@@ -23,7 +23,7 @@ def find_max(readpv, drivepv, vals, minval=0.1):
 def set_mono_tilt(with_roll=True):
     """ adjust IDE mono tilt and roll DAC to maximize mono pitch"""
 
-    print 'Set Mono Tilt 01-Oct-2014'
+    print 'Set Mono Tilt 02-Oct-2014'
 
     tilt_pv = '13IDA:DAC1_7.VAL'
     roll_pv = '13IDA:DAC1_8.VAL'
@@ -60,11 +60,11 @@ def set_mono_tilt(with_roll=True):
     # re-find best tilt value, now using I0
     out = find_max(i0_pv, tilt_pv, linspace(-1, 1, 51))
     print 'Best Pitch: %.3f at %.3f ' % (out)
-    sleep(0.5)
-
-    caput('13IDA:QE2:ComputePosOffset12.PROC', 1)
-    caput('13IDA:QE2:ComputePosOffset34.PROC', 1)
+    sleep(2.0)
+    print 'pushing PROC vals'
+    caput('13IDA:QE2:ComputePosOffset12.PROC', 1, wait=True)
+    caput('13IDA:QE2:ComputePosOffset34.PROC', 1, wait=True)
     caput('13IDA:efast_pitch_pid.FBON', 0)
-    caput('13IDA:efast_roll_pid.FBON', 1)
-    caput('13XRM:edb:use_fb', 1)
+    caput('13IDA:efast_roll_pid.FBON', 0)
+    caput('13XRM:edb:use_fb', 0)
 #enddef
