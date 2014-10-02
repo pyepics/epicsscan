@@ -152,7 +152,10 @@ class ScanFrame(wx.Frame):
             self.statusbar.SetStatusText(statusbar_fields[i], i)
 
         workdir = self.scandb.get_info('user_folder')
-        os.chdir(nativepath(workdir))
+        try:
+            os.chdir(nativepath(workdir))
+        except:
+            pass
 
         self.scantimer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.onScanTimer, self.scantimer)

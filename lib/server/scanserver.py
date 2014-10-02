@@ -47,7 +47,10 @@ class ScanServer():
         print 'Execute: ', req.id, req.command, req.arguments, req.output_file
 
         workdir = self.scandb.get_info('user_folder')
-        os.chdir(nativepath(workdir))
+        try:
+            os.chdir(nativepath(workdir))
+        except:
+            pass
 
 #         print 'req.id      = ', req.id
 #         print 'req.arguments = ', req.arguments
