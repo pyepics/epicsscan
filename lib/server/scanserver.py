@@ -62,25 +62,18 @@ class ScanServer():
         self.scandb.set_info('command_status', '')
 
 
-        cmd_thread = threading.Thread(target=self.do_command,
-                                      kwargs=dict(req=req),
-                                      name='cmd_thread')
         self.scandb.set_info('scan_status', 'starting')
         self.scandb.set_command_status(req.id, 'starting')
-        req_id = req.id
-        self.command_in_progress = True
-        cmd_thread.start()
 
-        while 1==self.scandb.get_info('command_status'):
-            if self.look_for_interrupt_requests():
-                break
-        cmd_thread.join()
+        self.do_command(req)
+
         self.scandb.set_command_status(req.id, 'finished')
         self.scandb.set_info('scan_status', 'idle')
         self.scandb.commit()
         self.command_in_progress = False
 
     def do_command(self, req=None, **kws):
+        self.command_in_progress = True
         self.scandb.set_info('scan_status', 'running')
         self.scandb.set_command_status(req.id, 'running')
         args = str(req.arguments)
@@ -106,24 +99,22 @@ class ScanServer():
                                      {'last_used_time': make_datetime()})
         else:
             larch_cmd = "%s(%s)" % (req.command, args)
-            print 'will issue larch command "%s"' % larch_cmd
         self.scandb.set_info('current_command', larch_cmd)
         self.larch.error = []
         out = self.larch.eval(larch_cmd)
-        time.sleep(0.5)
+        time.sleep(0.1)
         if len(self.larch.error) > 0:
             self.scandb.set_info('command_error', self.larch.error[0].msg)
-            print 'Set Larch Error!! ', self.larch.error[0].msg
+            # print 'Set Larch Error!! ', self.larch.error[0].msg
         self.scandb.set_info('command_running', 0)
         self.scandb.set_command_output(req.id, out)
         self.scandb.set_command_status(req.id, 'stopping')
 
-
-
     def look_for_interrupt_requests(self):
         """set interrupt requests:
         abort / pause / resume
-        it is expected that
+        it is expected that long-running commands
+        should do something like this....
         """
         def isset(infostr):
             return self.db.get_info(infostr, as_bool=True)
