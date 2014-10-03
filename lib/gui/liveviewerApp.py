@@ -109,14 +109,14 @@ class ScanViewerFrame(wx.Frame):
         except:
             print 'Scan ? '
             return
-        
+
         try:
             npts = len(sdata[-1].data)
         except:
             npts = 0
         if npts <= 0 or msg.lower().startswith('preparing'):
             self.need_column_update = True
-        
+
         cmd = self.scandb.get_mostrecent_command()
         try:
             cmd_stat = cmd.status.name.lower()
@@ -124,25 +124,23 @@ class ScanViewerFrame(wx.Frame):
             cmd_stat = 'unknown'
 
         do_newplot = False
-        
+
         if ((curfile != self.live_scanfile) or
             (npts > 0 and npts < 10 and self.need_column_update)):
             self.need_column_update = False
-            self.scan_inprogress = True            
+            self.scan_inprogress = True
             do_newplot = True
             self.live_scanfile = curfile
             self.title.SetLabel(curfile)
             self.set_column_names(sdata)
-            
+
         elif msg.lower().startswith('scan complete') and self.scan_inprogress:
             self.scan_inprogress = False
             do_newplot = True
 
         self.SetStatusText(msg)
 
-        if (not self.scan_inprogress and
-            not do_newplot and
-            npts == self.live_cpt):
+        if not (self.scan_inprogress or do_newplot):
             return
 
         for row in sdata:
@@ -151,10 +149,12 @@ class ScanViewerFrame(wx.Frame):
                 dat = json.loads(dat.replace('{', '[').replace('}', ']'))
             setattr(self.lgroup, fix_varname(row.name), np.array(dat))
 
-        if npts > 1 and npts != self.live_cpt:
+        if ((npts > 1 and npts != self.live_cpt)  or
+            (time.time() - self.last_column_update) > 10.0):
             if do_newplot:
                 self.force_newplot = True
             self.onPlot(npts=npts)
+            self.last_column_update = time.time()
         self.live_cpt = npts
 
 
@@ -243,7 +243,7 @@ class ScanViewerFrame(wx.Frame):
         self.plotpanel.canvas.figure.set_facecolor((0.98,0.98,0.97))
         self.plotpanel.unzoom     = self.unzoom
         self.plotpanel.popup_menu = None
-        
+
         btnsizer = wx.StdDialogButtonSizer()
         btnpanel = wx.Panel(mainpanel)
         btnsizer.Add(add_button(btnpanel, 'Pause', action=self.onPause))
@@ -487,9 +487,9 @@ class ScanViewerFrame(wx.Frame):
 
             if yy3 != '':
                 label = "(%s)%s%s" % (label, op3, yy3)
-                expr = "(%s)%s" % (expr, op3)                
+                expr = "(%s)%s" % (expr, op3)
                 if yy3 in ('1.0', '0.0'):
-                    expr = "%s%s"  % (expr, yy3)                
+                    expr = "%s%s"  % (expr, yy3)
                 else:
                     expr = "%s%s.%s" % (expr, gn, yy3)
 
@@ -547,13 +547,13 @@ class ScanViewerFrame(wx.Frame):
 #             xlo, xhi = min(lgroup.arr_x), max(lgroup.arr_x)
 #             ylo, yhi = min(lgroup.arr_y1), max(lgroup.arr_y1)
 #             ppnl.conf.set_trace_datarange([xlo, xhi, ylo, yhi], 0)
-# 
+#
 #             for ax in ppnl.fig.get_axes():
 #                 ppnl.data_range[ax] = [xlo, xhi, ylo, yhi]
 #                 ax.set_xlim((xlo, xhi),  emit=True)
 #                 ax.set_ylim((ylo, yhi), emit=True)
 
-            ### 
+            ###
             if y2expr != '':
                 ppnl.set_y2label(y2label)
                 ppnl.update_line(1, lgroup.arr_x, lgroup.arr_y2, side='right',
@@ -563,7 +563,7 @@ class ScanViewerFrame(wx.Frame):
                                         min(lgroup.arr_y2), max(lgroup.arr_y2))
 
         self.force_newplot = False
-        
+
 
     def createMenus(self):
         self.menubar = wx.MenuBar()
