@@ -107,10 +107,10 @@ class ScanServer():
         out = self.larch.eval(larch_cmd)
         time.sleep(0.1)
         if len(self.larch.error) > 0:
-            self.scandb.set_info('command_error', self.larch.error[0].msg)
-            # print 'Set Larch Error!! ', self.larch.error[0].msg
+            print 'Set Larch Error!! ', self.larch.error[0].msg
+            self.scandb.set_info('command_error', repr(self.larch.error[0].msg))
         self.scandb.set_info('command_running', 0)
-        self.scandb.set_command_output(req.id, out)
+        self.scandb.set_command_output(req.id, repr(out))
         self.scandb.set_command_status(req.id, 'stopping')
 
     def look_for_interrupt_requests(self):
