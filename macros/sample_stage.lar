@@ -1,0 +1,72 @@
+import os
+from ConfigParser import ConfigParser
+
+DEFFILE = 'SampleStage_autosave.ini'
+def read_stageconfig(filename=None):
+    """read sample stage configuration file (ini format),
+    returning group with entries:
+     pos      dict of position name, stage values
+     stages   list of PV names for stages
+     mtime    last mod time of stage config file
+
+    """
+    if filename is None: filename = DEFFILE
+    if not os.path.exists(filename):  return None
+
+    stages, positions = [], {}
+    ini = ConfigParser()
+    ini.read(filename)
+
+    for item in ini.options('stages'):
+        line = ini.get('stages', item)
+        words = [i.strip() for i in line.split('||')]
+        stages.append(words[0])
+    #endfor
+
+    for item in ini.options('positions'):
+        line = ini.get('positions', item)
+        words = [i.strip() for i in line.split('||')]
+        name = words[0].lower()
+        vals = [float(i) for i in words[2].split(',')]
+        positions[name] = vals
+    #endfor
+
+    return group(pos=positions, stages=stages,
+                 mtime=os.stat(filename).st_mtime)
+#enddef
+
+def move_samplestage(position, filename=None, wait=True):
+    """move sample stage to named position"""
+    _conf = getattr(_main, 'sampelstageconf', None)
+    if _conf is not None:
+        # check if the stage config file has changed since last reading
+        if filename is None: filename = DEFFILE
+        if os.stat(filename).st_mtime > _conf.mtime: _conf = None
+    #endif
+    if _conf is None:
+        _conf = _main.samplestageconf = read_stageconfig(filename=filename)
+    #endif
+
+    if _conf is None:
+        print(" cannot read stage config '%s;" % filename)
+        return None
+    #endif
+
+    posname = position.lower()
+    if posname not in _conf.pos:
+        print(" cannot find position named '%s;" % position)
+        return None
+    #endif
+
+    # get values for this position, caput without waiting
+    vals = _conf.pos[posname]
+    for pvname, value in zip(_conf.stages, vals):
+        caput(pvname, value, wait=False)
+    #endfor
+
+    if wait:
+        for pvname, value in zip(_conf.stages, vals):
+            caput(pvname, value, wait=True)
+        #endfor
+    #endif
+#enddef

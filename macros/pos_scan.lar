@@ -1,0 +1,10 @@
+
+def pos_scan(pos, scanfile, datafile=None, number=1):
+    move_stage(pos, wait=True)
+    sleep(0.5)
+
+    if datafile is None:
+        datafile = '%s_%s.001' % (scanfile, pos)
+    #endif
+    do_scan(scanfile=scanfile,  datafile=datafile, number=number)
+#enddef

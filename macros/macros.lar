@@ -1,61 +1,11 @@
 
-def save_xrd(t=10, name='sample', ext=1, prefix='13PE1:', timeout=60.0):
-    """save XRD from Perkin Elmer camera
-    use prefix=dp_pe2: for detector pool camera!
-    """
+from utils import detector_distance, move_instrument
 
-    caput(prefix+'cam1:Acquire', 0)
-    sleep(0.1)
+from move_energy import move_energy
 
-    caput(prefix+'TIFF1:EnableCallbacks', 0)
-    caput(prefix+'TIFF1:AutoSave',        0)
-    caput(prefix+'TIFF1:FileName',     name)
-    caput(prefix+'TIFF1:FileNumber',    ext)
-    caput(prefix+'TIFF1:EnableCallbacks', 1)
-    caput(prefix+'cam1:ImageMode',        3)
+from scans import pos_scan
+from preamp_gains  import set_SRSgain, set_i1amp_gain, set_i0amp_gain
+from set_mono_tilt import find_max_intensity, set_mono_tilt
+from sample_stage import read_stageconfig, move_samplestage
 
-    sleep(0.1)
-    acq_time =caget(prefix+'cam1:AcquireTime')
-
-    numimages = int(t*1.0/acq_time)
-    caput(prefix+'cam1:NumImages', numimages)
-
-    # expose
-    sleep(0.1)
-    caput(prefix+'cam1:Acquire', 1)
-    sleep(0.5 + max(0.5, 0.5*t))
-    t0 = systime()
-    while (1 == caget(prefix+'cam1:Acquire') and
-           (systime()-t0 < timeout)):
-        sleep(0.1)
-        count += 1
-    #endwhile
-    print('Acquire Done!')
-    sleep(0.1)
-
-    # clean up, returning to short dwell time
-    caput(prefix+'TIFF1:WriteFile',       1)
-    caput(prefix+'TIFF1:EnableCallbacks', 0)
-    sleep(0.5)
-
-    caput(prefix+'cam1:ImageMode', 2)
-    sleep(0.5)
-    caput(prefix+'cam1:Acquire', 1)
-#enddef
-
-
-def move_to_zn:
-    move_to_energy(9700.0, id_offset=0.100)
-    set_mono_tilt()
-#enddef
-
-def pos_scan(pos, scanfile, datafile=None, number=1):
-    move_stage(pos, wait=True)
-    sleep(1.0)
-
-    if datafile is None:
-        datafile = '%s_%s.001' % (scanfile, pos)
-
-
-    do_scan(scanfile=scanfile,  datafile=datafile, number=number)
-#enddef
+from xrd import save_xrd

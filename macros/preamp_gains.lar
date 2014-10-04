@@ -28,7 +28,3 @@ def set_i1amp_gain(sens, unit, offset=100):
 def set_i0amp_gain(sens, unit, offset=100):
     set_SRSgain(sens, unit, prefix='13IDE:A1', offset=offset)
 #enddef
-
-def detector_distance(val):
-    return caput('13IDE:m19.VAL', val)
-#enddef
