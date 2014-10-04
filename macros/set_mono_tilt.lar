@@ -2,7 +2,7 @@
 # from numpy import linspace
 # from epics import caget, caput
 
-def find_max(readpv, drivepv, vals, minval=0.1):
+def find_max_intensity(readpv, drivepv, vals, minval=0.1):
     """find peak in a reading while sweeping through an
     array of drive values around a current position"""
     _orig = _best = caget(drivepv)
@@ -42,23 +42,23 @@ def set_mono_tilt(with_roll=True):
     caput('13IDA:QE2:ReadData.PROC', 1)
 
     # find best tilt value with BPM sum
-    out = find_max(sum_pv, tilt_pv, linspace(-2.5, 2.5, 101))
+    out = find_max_intensity(sum_pv, tilt_pv, linspace(-2.5, 2.5, 101))
     print 'Best Pitch: %.3f at %.3f ' % (out)
     sleep(0.5)
 
     # find best roll with I0
     if with_roll:
         print 'doing roll..'
-        out = find_max(i0_pv, roll_pv, linspace(-3.0, 3.0, 61))
+        out = find_max_intensity(i0_pv, roll_pv, linspace(-3.0, 3.0, 61))
         if out[0] > 0.1:
-            out = find_max(i0_pv, roll_pv, linspace(1.0, -1.0, 51))
+            out = find_max_intensity(i0_pv, roll_pv, linspace(1.0, -1.0, 51))
         #endif
         print 'Best Roll %.3f at %.3f ' % (out)
         sleep(0.5)
     #endif
 
     # re-find best tilt value, now using I0
-    out = find_max(i0_pv, tilt_pv, linspace(-1, 1, 51))
+    out = find_max_intensity(i0_pv, tilt_pv, linspace(-1, 1, 51))
     print 'Best Pitch: %.3f at %.3f ' % (out)
     sleep(2.0)
     print 'pushing PROC vals'
