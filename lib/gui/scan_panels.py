@@ -113,12 +113,15 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         self.scantime = dtime
         self.est_time.SetLabel(hms(dtime))
 
-    def top_widgets(self, title, dwell_prec=3, dwell_value=1):
-        self.absrel = add_choice(self, ('Absolute', 'Relative'),
-                                 action = self.onAbsRel)
-
+    def top_widgets(self, title, dwell_prec=3, dwell_value=1, with_absrel=True):
         self.absrel_value = 0
-        self.absrel.SetSelection(0)
+        self.absrel = add_choice(self, ('Absolute', 'Relative'),
+                                 size=(100, -1),
+                                 action = self.onAbsRel)
+        self.absrel.SetSelection(self.absrel_value)
+        if not with_absrel:
+            self.absrel.Disable()
+
         self.dwelltime = FloatCtrl(self, precision=dwell_prec,
                                    value=dwell_value,
                                    act_on_losefocus=True,
@@ -256,7 +259,7 @@ class GenericScanPanel(scrolled.ScrolledPanel):
     def use_scandb(self, scandb):
         pass
 
-    def generate_scan(self):
+    def generate_scan_positions(self):
         print 'Def generate scan ', self.__name__
 
 class LinearScanPanel(GenericScanPanel):
@@ -387,7 +390,7 @@ class LinearScanPanel(GenericScanPanel):
                 wids[0].SetItems(self.poslist)
                 wids[0].SetStringSelection(a)
 
-    def generate_scan(self):
+    def generate_scan_positions(self):
         "generate linear scan"
         s = {'type': 'linear',
              'dwelltime':  float(self.dwelltime.GetValue()),
@@ -568,7 +571,7 @@ class XAFSScanPanel(GenericScanPanel):
     def top_widgets(self, title, dwell_prec=3, dwell_value=1):
         "XAFS top widgets"
         self.absrel = add_choice(self, ('Absolute', 'Relative'),
-                                 size=(120, -1),
+                                 size=(100, -1),
                                  action = self.onAbsRel)
         self.absrel_value = 1
         self.absrel.SetSelection(1)
@@ -612,7 +615,7 @@ class XAFSScanPanel(GenericScanPanel):
     def make_e0panel(self):
         p = wx.Panel(self)
         s = wx.BoxSizer(wx.HORIZONTAL)
-        self.e0 = FloatCtrl(p, precision=2, value=7000., minval=0, maxval=1e7,
+        self.e0 = FloatCtrl(p, precision=2, value=7112.0, minval=0, maxval=1e7,
                             size=(80, -1), act_on_losefocus=True,
                             action=Closure(self.onVal, label='e0'))
 
@@ -750,7 +753,7 @@ class XAFSScanPanel(GenericScanPanel):
             e0val = self.larch( "xray_edge('%s', '%s')" % (elem, edge))
             self.e0.SetValue(e0val[0])
 
-    def generate_scan(self):
+    def generate_scan_positions(self):
         "generate xafs scan"
         enpos = str(self.scandb.get_info('xafs_energy', 'Energy'))
         enpos = self.scandb.get_positioner(enpos)
@@ -867,7 +870,7 @@ class MeshScanPanel(GenericScanPanel):
                 wids[0].SetItems(self.poslist)
                 wids[0].SetStringSelection(a)
 
-    def generate_scan(self):
+    def generate_scan_positions(self):
         "generate mesh scan"
         s = {'type': 'mesh',
              'dwelltime':  float(self.dwelltime.GetValue()),
@@ -900,7 +903,8 @@ class SlewScanPanel(GenericScanPanel):
 
         sizer = self.sizer
 
-        ir = self.top_widgets('Slew Scan (Fast Map)')
+        ir = self.top_widgets('Slew Scan (Fast Map)', with_absrel=False,
+                              dwell_value=0.050)
 
         self.dimchoice = add_choice(self, ('1', '2'),
                                  action = self.onDim)
@@ -1010,7 +1014,17 @@ class SlewScanPanel(GenericScanPanel):
             wid.SetItems(vals)
             wid.SetStringSelection(a)
 
-    def generate_scan(self):
+
+    def setScanTime(self):
+        "set estimated scan time"
+        dtime = float(self.dwelltime.GetValue())
+        for p in self.pos_settings:
+            if hasattr(p[6], 'GetValue'):
+                dtime *= float(p[6].GetValue())
+        self.scantime = dtime
+        self.est_time.SetLabel(hms(dtime))
+
+    def generate_scan_positions(self):
         "generate slew scan"
         s = {'type': 'slew',
              'dwelltime':  float(self.dwelltime.GetValue()),
