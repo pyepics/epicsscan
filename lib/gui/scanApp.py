@@ -49,7 +49,7 @@ from epics.wx.utils import popup
 
 from .gui_utils import (SimpleText, FloatCtrl, Closure, pack, add_button,
                         add_menu, add_choice, add_menu, FileOpen,
-                        CEN, LCEN, FRAMESTYLE)
+                        CEN, LCEN, FRAMESTYLE, Font)
 
 from ..utils import normalize_pvname, read_oldscanfile, atGSECARS
 from ..stepscan import StepScan
@@ -77,7 +77,7 @@ from .edit_macros      import MacroFrame
 
 
 ALL_CEN =  wx.ALL|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL
-FNB_STYLE = flat_nb.FNB_NO_X_BUTTON|flat_nb.FNB_SMART_TABS|flat_nb.FNB_NO_NAV_BUTTONS
+FNB_STYLE = flat_nb.FNB_NO_X_BUTTON|flat_nb.FNB_SMART_TABS|flat_nb.FNB_NO_NAV_BUTTONS|flat_nb.FNB_NODRAG
 
 def compare_scans(scan1, scan2, verbose=False):
     "compare dictionary for 2 scans"
@@ -166,14 +166,9 @@ class ScanFrame(wx.Frame):
 
 
     def createMainPanel(self):
-        self.Font16=wx.Font(16, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
-        self.Font14=wx.Font(14, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
-        self.Font12=wx.Font(12, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
-        self.Font11=wx.Font(11, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
-
         self.SetTitle("Epics Scans")
         self.SetSize((750, 600))
-        self.SetFont(self.Font11)
+        self.SetFont(Font(10))
 
         sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -185,8 +180,8 @@ class ScanFrame(wx.Frame):
         self.scanpanels = {}
         inb  = 0
         for name, creator in (('Linear',  LinearScanPanel),
+                              ('Slew',    SlewScanPanel),
                               ('Mesh',    MeshScanPanel),
-                              # ('Slew',    SlewScanPanel),
                               ('XAFS',    XAFSScanPanel)):
             span = creator(self, scandb=self.scandb, pvlist=self.pvlist)
             self.nb.AddPage(span, "%s Scan" % name, True)
@@ -286,11 +281,13 @@ class ScanFrame(wx.Frame):
         self.statusbar.SetStatusText('Epics Ready')
 
     def generate_scan(self, scanname=None, debug=False):
-        """generate scan definition from current values on GUI"""
+        """generate scan definition from current values on GUI
+        return scanname, scan_dict
+        """
         if scanname is None:
             scanname = time.strftime("__%b%d_%H:%M:%S__")
 
-        scan = self.nb.GetCurrentPage().generate_scan()
+        scan = self.nb.GetCurrentPage().generate_scan_positions()
         sdb = self.scandb
         fname = self.filename.GetValue()
         scan['filename'] = fname
@@ -333,24 +330,28 @@ class ScanFrame(wx.Frame):
             sdb.add_scandef(scanname,  text=json.dumps(scan),
                             type=scan['type'])
             self.last_scanname = scanname
-        return self.last_scanname
+        return self.last_scanname, scan
 
     def onStartScan(self, evt=None):
-        scanname = self.generate_scan()
+        sname, dat = self.generate_scan()
         fname    = self.filename.GetValue()
-        nscans   = "nscans=%d" % int(self.nscans.GetValue())
-        comments = "comments='%s'" % self.user_comms.GetValue()
-        args = "'%s', %s, %s" % (scanname, nscans, comments)
+        nscans   = int(self.nscans.GetValue())
+        comments = self.user_comms.GetValue()
 
-        # print 'onStartScan ', args, fname
-        self.scandb.add_command('doscan', arguments=args, output_file=fname)
+        command = 'scan'
+        if dat['type'].lower() == 'slew':
+            command = 'slewscan'
+            nscans = 1
 
+        self.scandb.add_command(command, arguments=sname,
+                                notes=comments, nrepeat=nscans,
+                                output_file=fname)
         self.statusbar.SetStatusText('Waiting....', 0)
         self.scan_started = False
         self.scantimer.Start(100)
 
     def onDebugScan(self, evt=None):
-        scanname, dat = self.generate_scan(debug=True)
+        scanname, dat = self.generate_scan()
         fname = self.filename.GetValue()
         for key, val in dat.items():
             print ' {} = {} '.format(key, val)
@@ -527,6 +528,7 @@ class ScanFrame(wx.Frame):
         dlg = wx.TextEntryDialog(self, "Scan Name:",
                                  "Enter Name for this Scan", "")
         dlg.SetValue(self.last_scanname)
+        sname = None
         if dlg.ShowModal() == wx.ID_OK:
             sname =  dlg.GetValue()
         dlg.Destroy()
@@ -548,9 +550,7 @@ class ScanFrame(wx.Frame):
                 else:
                     sname = ''
             if len(sname) > 0:
-                print 'Generate Scan Def ', sname
-                self.generate_scan(scanname=sname)
-                print 'Deleting Scan Def done for ', sname
+                name, scan = self.generate_scan(scanname=sname)
                 self.statusbar.SetStatusText("Saved scan '%s'" % sname)
             else:
                 self.statusbar.SetStatusText("Could not overwrite scan '%s'" % sname)
