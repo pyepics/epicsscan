@@ -2,7 +2,7 @@ import sys
 import time
 import wx
 import wx.lib.scrolledpanel as scrolled
- 
+
 from .gui_utils import (GUIColors, set_font_with_children, YesNo,
                         add_button, pack, SimpleText, check, okcancel,
                         add_subtitle, Font, LCEN, CEN, RCEN,
@@ -38,7 +38,7 @@ class ExtraPVsFrame(wx.Frame) :
         sizer.Add(SimpleText(panel, label='PV Name', size=(200, -1)),
                   (ir, 0), (1, 1), LCEN, 2)
         sizer.Add(SimpleText(panel, label='Description', size=(200, -1)),
-                  (ir, 1), (1, 1), RCEN, 2)
+                  (ir, 1), (1, 1), LCEN, 2)
         sizer.Add(SimpleText(panel, label='Use?'),
                   (ir, 2), (1, 1), LCEN, 2)
         sizer.Add(SimpleText(panel, label='Erase?', size=(60, -1)),
@@ -118,4 +118,3 @@ class ExtraPVsFrame(wx.Frame) :
 
     def onClose(self, event=None):
         self.Destroy()
-
