@@ -1,11 +1,9 @@
 
-from utils import detector_distance, move_instrument
-
 from move_energy import move_energy
-
-from scans import pos_scan
+from pos_scan import pos_scan
 from preamp_gains  import set_SRSgain, set_i1amp_gain, set_i0amp_gain
 from set_mono_tilt import find_max_intensity, set_mono_tilt
 from sample_stage import read_stageconfig, move_samplestage
 
 from xrd import save_xrd
+from macros_utils import detector_distance, move_instrument
