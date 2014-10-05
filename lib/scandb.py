@@ -268,10 +268,10 @@ class ScanDB(object):
                 self.session.rollback()
                 return None
         # self.session.autoflush = True
-        
+
     def _get_table(self, tablename):
         return self.get_table(tablename)
-    
+
     def get_table(self, tablename):
         "return (self.tables, self.classes) for a table name"
         cls   = self.classes[tablename]
@@ -456,8 +456,8 @@ class ScanDB(object):
 
     def rename_scandef(self, scanid, name):
         cls, table = self.get_table('scandefs')
-        table.update(whereclause="id='%d'" % scanid).execute(name=name)        
-        
+        table.update(whereclause="id='%d'" % scanid).execute(name=name)
+
     def del_scandef(self, name=None, scanid=None):
         """delete scan defn by name"""
         cls, table = self.get_table('scandefs')
@@ -465,7 +465,7 @@ class ScanDB(object):
             self.session.execute(table.delete().where(table.c.name==name))
         elif scanid is not None:
             self.session.execute(table.delete().where(table.c.id==scanid))
-            
+
     def add_scandef(self, name, text='', notes='', type='', **kws):
         """add scan"""
         cls, table = self.get_table('scandefs')
@@ -753,7 +753,7 @@ class ScanDB(object):
         return q.all()[-1]
 
     def add_command(self, command, arguments='',output_value='',
-                    output_file='', **kws):
+                    output_file='', notes='', nrepeat=1, **kws):
         """add command"""
         cls, table = self.get_table('commands')
 
@@ -762,6 +762,8 @@ class ScanDB(object):
         kws.update({'arguments': arguments,
                     'output_file': output_file,
                     'output_value': output_value,
+                    'notes': notes,
+                    'nrepeat': nrepeat,
                     'status_id': statid})
 
         row = self.__addRow(cls, ('command',), (command,), **kws)

@@ -174,7 +174,7 @@ class Commands(_BaseTable):
     status, status_name = None, None
     request_time, start_time, modify_time = None, None, None
     output_value, output_file = None, None
-
+    nrepeat = 1
     def __repr__(self):
         name = self.__class__.__name__
         fields = ['%s' % getattr(self, 'command', 'Unknown')]
@@ -276,6 +276,7 @@ def create_scandb(dbname, server='sqlite', create=True, **kws):
                       cols=[StrCol('command'),
                             StrCol('arguments'),
                             PointerCol('status', default=1),
+                            IntCol('nrepeat',  default=1),
                             Column('request_time', DateTime,
                                    default=datetime.now),
                             Column('start_time',    DateTime),
@@ -287,10 +288,10 @@ def create_scandb(dbname, server='sqlite', create=True, **kws):
     pvtypes = NamedTable('pvtypes', metadata)
     pv      = NamedTable('pvs', metadata,
                          cols=[PointerCol('pvtypes'),
-                               Column('is_monitor', Integer, default=0)])
+                               IntCol('is_monitor', default=0)])
 
     monvals = Table('monitorvalues', metadata,
-                    Column('id', Integer, primary_key=True),
+                    IntCol('id', primary_key=True),
                     PointerCol('pvs'),
                     StrCol('value'),
                     Column('modify_time', DateTime))
@@ -303,32 +304,32 @@ def create_scandb(dbname, server='sqlite', create=True, **kws):
                                  Column('modify_time', DateTime)])
 
     instrument = NamedTable('instruments', metadata,
-                            cols=[Column('show', Integer, default=1),
-                                  Column('display_order', Integer, default=0)])
+                            cols=[IntCol('show', default=1),
+                                  IntCol('display_order', default=0)])
 
     position  = NamedTable('positions', metadata,
                            cols=[Column('modify_time', DateTime),
                                  PointerCol('instruments')])
 
     instrument_precommand = NamedTable('instrument_precommands', metadata,
-                                       cols=[Column('exec_order', Integer),
+                                       cols=[IntCol('exec_order'),
                                              PointerCol('commands'),
                                              PointerCol('instruments')])
 
     instrument_postcommand = NamedTable('instrument_postcommands', metadata,
-                                        cols=[Column('exec_order', Integer),
+                                        cols=[IntCol('exec_order'),
                                               PointerCol('commands'),
                                               PointerCol('instruments')])
 
     instrument_pv = Table('instrument_pv', metadata,
-                          Column('id', Integer, primary_key=True),
+                          IntCol('id', primary_key=True),
                           PointerCol('instruments'),
                           PointerCol('pvs'),
-                          Column('display_order', Integer, default=0))
+                          IntCol('display_order', default=0))
 
 
     position_pv = Table('position_pv', metadata,
-                        Column('id', Integer, primary_key=True),
+                        IntCol('id', primary_key=True),
                         StrCol('notes'),
                         PointerCol('positions'),
                         PointerCol('pvs'),
