@@ -19,15 +19,19 @@ class ScanServer():
     def __init__(self, dbname=None, _larch=None,  **kwargs):
         self.scandb = None
         self.abort = False
+        self.larch = None
         self.command_in_progress = False
-        self.larch = larch.Interpreter()
+        self.req_shutdown = False
         if dbname is not None:
             self.connect(dbname, **kwargs)
 
     def connect(self, dbname, **kwargs):
         """connect to Scan Database"""
         self.scandb = ScanDB(dbname=dbname, **kwargs)
+        self.set_scan_message('Server Starting')
+        self.larch = larch.Interpreter()
         self.larch.symtable.set_symbol(self.LARCH_SCANDB, self.scandb)
+
 
     def set_scan_message(self, msg, verbose=True):
         self.scandb.set_info('scan_message', msg)
@@ -43,75 +47,63 @@ class ScanServer():
     def finish(self):
         print 'shutting down!'
 
-    def execute_command(self, req):
-        print 'Execute: ', req.id, req.command, req.arguments, req.output_file
 
+    def do_command(self, req):
+        print 'Do Command: ', req.id, req.command, req.arguments
         workdir = self.scandb.get_info('user_folder')
         try:
             os.chdir(nativepath(workdir))
         except:
             pass
 
-#         print 'req.id      = ', req.id
-#         print 'req.arguments = ', req.arguments
-#         print 'req.status_id, req.status = ', req.status_id
-#         print 'req.request_time = ', req.request_time
-#         print 'req.start_time = ', req.start_time
-#         print 'req.modify_time = ', req.modify_time
-#         print 'req.output_value = ', req.output_value
-#         print 'req.output_file = ', req.output_file
-#
-        self.scandb.set_info('command_running', 1)
-        self.scandb.set_info('command_status', '')
-
-
+        self.command_in_progress = True
         self.scandb.set_info('scan_status', 'starting')
         self.scandb.set_command_status(req.id, 'starting')
 
-        self.do_command(req)
+        args    = strip_quotes(str(req.arguments))
+        notes   = strip_quotes(str(req.notes))
+        nrepeat = int(req.nrepeat)
+        command = str(req.command)
 
+        filename = req.output_file
+        if filename is None:
+            filename = ''
+        filename = strip_quotes(str(filename))
+
+        if command in ('scan', 'slewscan'):
+            scanname = args
+            args = "'%s'" % scanname
+            if nrepeat > 1 and command != 'slewscan':
+                args = "%s, nscans=%i" % (args, nrepeat)
+            if len(notes) > 0:
+                args = "%s, comments='%s'" % (args, notes)
+            if len(filename) > 0:
+                args = "%s, filename='%s'" % (args, filename)
+                self.scandb.set_info('filename', filename)
+
+            self.scandb.update_where('scandefs', {'name': scanname},
+                                     {'last_used_tqime': make_datetime()})
+
+            command = "do_%s" % command
+        larch_cmd = "%s(%s)" % (command, args)
+
+        self.scandb.set_info('current_command', larch_cmd)
+        self.larch.error = []
+
+        self.scandb.set_info('scan_status', 'running')
+        self.scandb.set_command_status(req.id, 'running')
+
+        out = self.larch.eval(larch_cmd)
+        time.sleep(0.1)
+        if len(self.larch.error) > 0:
+            self.scandb.set_info('command_error', repr(self.larch.error[0].msg))
+
+        self.scandb.set_info('command_running', 0)
+        self.scandb.set_command_output(req.id, repr(out))
         self.scandb.set_command_status(req.id, 'finished')
         self.scandb.set_info('scan_status', 'idle')
         self.scandb.commit()
         self.command_in_progress = False
-
-    def do_command(self, req=None, **kws):
-        self.command_in_progress = True
-        self.scandb.set_info('scan_status', 'running')
-        self.scandb.set_command_status(req.id, 'running')
-        args = str(req.arguments)
-        filename = req.output_file
-        if filename is None: 
-            filename = ''          
-        filename = str(filename)
-        if len(filename) > 0:
-            args = "%s, filename='%s'" % (args, filename)
-            self.scandb.set_info('filename', filename)
-
-        if req.command == 'doscan':
-            larch_cmd = "do_scan(%s)" % args
-            words = args.split(',')
-            scanname = strip_quotes(words[0].strip())
-            self.scandb.update_where('scandefs', {'name': scanname},
-                                     {'last_used_time': make_datetime()})
-        elif req.command == 'do_slewscan':
-            larch_cmd = "do_slewscan(%s)" % (args)
-            words = args.split(',')
-            scanname = strip_quotes(words[0].strip())
-            self.scandb.update_where('scandefs', {'name': scanname},
-                                     {'last_used_time': make_datetime()})
-        else:
-            larch_cmd = "%s(%s)" % (req.command, args)
-        self.scandb.set_info('current_command', larch_cmd)
-        self.larch.error = []
-        out = self.larch.eval(larch_cmd)
-        time.sleep(0.1)
-        if len(self.larch.error) > 0:
-            print 'Set Larch Error!! ', self.larch.error[0].msg
-            self.scandb.set_info('command_error', repr(self.larch.error[0].msg))
-        self.scandb.set_info('command_running', 0)
-        self.scandb.set_command_output(req.id, repr(out))
-        self.scandb.set_command_status(req.id, 'stopping')
 
     def look_for_interrupt_requests(self):
         """set interrupt requests:
@@ -121,42 +113,29 @@ class ScanServer():
         """
         def isset(infostr):
             return self.db.get_info(infostr, as_bool=True)
-        self.abort_request = isset('request_abort')
-        self.pause_request = isset('request_pause')
-        self.resume_request = isset('request_resume')
+        self.req_abort = isset('request_abort')
+        self.req_pause = isset('request_pause')
+        self.req_resume = isset('request_resume')
+        self.req_shutdown = isset('request_shutdown')
 
     def mainloop(self):
-        self.set_scan_message('Server Starting')
+        if self.larch is None:
+            raise ValueError("Scan server not connected!")
+
         self.scandb.set_info('scan_status', 'idle')
         msgtime = time.time()
         self.set_scan_message('Server Ready')
         while True:
             self.sleep(0.25)
-            if self.abort:
+            self.look_for_interrupt_requests()
+            if self.req_shutdown:
                 break
             reqs = self.scandb.get_commands('requested')
-            if (time.time() - msgtime )> 300:
-                print '#Server Alive, nrequests = ', len(reqs)
+            if (time.time() - msgtime )> 600:
+                print '#Server Alive, %i Pending requests' % len(reqs)
                 msgtime = time.time()
-            if self.command_in_progress:
-                self.look_for_interrupt_requests()
-                if self.abort_request:
-                    print '#Abort request'
-                elif self.pause_request:
-                    print '#Pause Request'
-                elif self.resume_request:
-                    print '#Resume Request'
-            elif len(reqs) > 0: # and not self.command_in_progress:
-                print '#Execute Next Command: '
-                self.execute_command(reqs.pop(0))
-
+            elif len(reqs) > 0:
+                self.do_command(reqs.pop(0))
         # mainloop end
         self.finish()
         sys.exit()
-
-
-
-
-if __name__  == '__main__':
-    s = ScanServer(dbname='A.sdb')
-    s.mainloop()
