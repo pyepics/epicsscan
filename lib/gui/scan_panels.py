@@ -807,7 +807,8 @@ class MeshScanPanel(GenericScanPanel):
             pos.SetSelection(i)
             units = wx.StaticText(self, -1, size=(40, -1), label='')
             cur   = PVText(self, pv=None, size=(100, -1))
-            start, stop, step, npts = self.StartStopStepNpts(i)
+            start, stop, step, npts = self.StartStopStepNpts(i,
+                                                    initvals=(-1, 1, 0.1, 11))
 
             self.pos_settings.append((pos, units, cur, start, stop, step, npts))
             ir += 1
@@ -933,8 +934,8 @@ class SlewScanPanel(GenericScanPanel):
             pos.SetSelection(i)
             units = wx.StaticText(self, -1, size=(40, -1), label='')
             cur   = PVText(self, pv=None, size=(100, -1))
-            start, stop, step, npts = self.StartStopStepNpts(i)
-
+            start, stop, step, npts = self.StartStopStepNpts(i,
+                                            initvals=(-0.25, 0.25, 0.002, 251))
             self.pos_settings.append((pos, units, cur, start, stop, step, npts))
             ir += 1
             sizer.Add(lab,   (ir, 0), (1, 1), wx.ALL, 2)
@@ -1014,13 +1015,14 @@ class SlewScanPanel(GenericScanPanel):
             wid.SetItems(vals)
             wid.SetStringSelection(a)
 
-
     def setScanTime(self):
-        "set estimated scan time"
+        "set estimated scan time, addig overhead of 1 sec per row"
         dtime = float(self.dwelltime.GetValue())
-        for p in self.pos_settings:
-            if hasattr(p[6], 'GetValue'):
-                dtime *= float(p[6].GetValue())
+        ninner = float(self.pos_settings[0][6].GetValue())
+        dtime  = 1.0 + dtime*ninner
+        if 1 == self.dimchoice.GetSelection(): # Note : this means a 2-d scan!
+            dtime *= float(self.pos_settings[1][6].GetValue())
+
         self.scantime = dtime
         self.est_time.SetLabel(hms(dtime))
 
@@ -1033,7 +1035,6 @@ class SlewScanPanel(GenericScanPanel):
              'inner': [],
              'outer': []}
 
-        is_relative =  self.absrel.GetSelection()
         for i, wids in enumerate(self.pos_settings):
             pos, u, cur, start, stop, dx, wnpts = wids
             if start.Enabled:
@@ -1043,9 +1044,6 @@ class SlewScanPanel(GenericScanPanel):
                 pvnames = (xpos.drivepv, xpos.readpv)
                 p1 = start.GetValue()
                 p2 = stop.GetValue()
-                if is_relative:
-                    p1 += float(cur.GetLabel())
-                    p2 += float(cur.GetLabel())
                 mname = 'inner'
                 if i > 0: mname = 'outer'
                 s[mname] = [name, pvnames, p1, p2, npts]
