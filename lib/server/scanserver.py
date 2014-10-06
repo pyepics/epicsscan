@@ -112,7 +112,7 @@ class ScanServer():
         should do something like this....
         """
         def isset(infostr):
-            return self.db.get_info(infostr, as_bool=True)
+            return self.scandb.get_info(infostr, as_bool=True)
         self.req_abort = isset('request_abort')
         self.req_pause = isset('request_pause')
         self.req_resume = isset('request_resume')
