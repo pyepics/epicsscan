@@ -327,8 +327,8 @@ class ScanFrame(wx.Frame):
                 lastscan = ''
                 scan_is_new = True
         if scan_is_new:
-            sdb.add_scandef(scanname,  text=json.dumps(scan),
-                            type=scan['type'])
+            sdb.add_scandef(scanname, text=json.dumps(scan), type=scan['type'])
+            sdb.commit()
             self.last_scanname = scanname
         return self.last_scanname, scan
 
@@ -551,6 +551,9 @@ class ScanFrame(wx.Frame):
                     sname = ''
             if len(sname) > 0:
                 name, scan = self.generate_scan(scanname=sname)
+                thisscan = self.scandb.get_scandef(name)
+                
+
                 self.statusbar.SetStatusText("Saved scan '%s'" % sname)
             else:
                 self.statusbar.SetStatusText("Could not overwrite scan '%s'" % sname)
