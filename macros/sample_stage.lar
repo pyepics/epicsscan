@@ -11,7 +11,10 @@ def read_stageconfig(filename=None):
 
     """
     if filename is None: filename = DEFFILE
-    if not os.path.exists(filename):  return None
+    if not os.path.exists(filename): 
+       print 'No stageconfig found!'
+       return None
+    #endif
 
     stages, positions = [], {}
     ini = ConfigParser()
@@ -30,21 +33,22 @@ def read_stageconfig(filename=None):
         vals = [float(i) for i in words[2].split(',')]
         positions[name] = vals
     #endfor
-
-    return group(pos=positions, stages=stages,
+    this = group(pos=positions, stages=stages,
                  mtime=os.stat(filename).st_mtime)
+    _main.stage_conf = this
+    return this
 #enddef
 
 def move_samplestage(position, filename=None, wait=True):
     """move sample stage to named position"""
-    _conf = getattr(_main, 'sampelstageconf', None)
+    _conf = getattr(_main, 'stage_conf', None)
     if _conf is not None:
         # check if the stage config file has changed since last reading
         if filename is None: filename = DEFFILE
         if os.stat(filename).st_mtime > _conf.mtime: _conf = None
     #endif
     if _conf is None:
-        _conf = _main.samplestageconf = read_stageconfig(filename=filename)
+        _conf = read_stageconfig(filename=filename)
     #endif
 
     if _conf is None:
@@ -70,3 +74,6 @@ def move_samplestage(position, filename=None, wait=True):
         #endfor
     #endif
 #enddef
+
+### _main.move_samplestage = move_samplestage
+### _main.read_stageconfig = read_stageconfig

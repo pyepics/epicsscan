@@ -1,9 +1,35 @@
+def move_to_zn():
+    move_to_energy(9700.0, id_offset=0.100)
+    set_mono_tilt()
+#enddef
 
-from move_energy import move_energy
-from pos_scan import pos_scan
-from preamp_gains  import set_SRSgain, set_i1amp_gain, set_i0amp_gain
-from set_mono_tilt import find_max_intensity, set_mono_tilt
-from sample_stage import read_stageconfig, move_samplestage
+def move_to_ti():
+    move_to_energy(5000.0, id_offset=0.03000)
+    set_mono_tilt()
+#enddef
 
-from xrd import save_xrd
-from macros_utils import detector_distance, move_instrument
+def move_to_fe():
+    move_to_energy(7200.0, id_offset=0.040)
+    set_mono_tilt()
+#enddef
+
+def move_to_cu():
+    move_to_energy(9050.0, id_offset=0.070)
+    set_mono_tilt()
+#enddef
+
+def move_to_zn():
+    move_to_energy(9700.0, id_offset=0.070)
+    set_mono_tilt()
+#enddef
+
+def pos_scan(pos, scanfile, datafile=None, number=1):
+    move_stage(pos, wait=True)
+    sleep(1.0)
+    if datafile is None:
+        datafile = '%s_%s.001' % (scanfile, pos)
+    #endif
+    do_scan(scanfile=scanfile,  datafile=datafile, number=number)
+#enddef
+
+
