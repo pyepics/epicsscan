@@ -56,17 +56,17 @@ class ExtraPVsFrame(wx.Frame) :
             sizer.Add(desc,   (ir, 1), (1, 1), LCEN, 2)
             sizer.Add(usepv,  (ir, 2), (1, 1), LCEN, 2)
             sizer.Add(delpv,  (ir, 3), (1, 1), LCEN, 2)
-            self.widlist.append((this, desc, pvctrl, usepv, delpv))
+            self.widlist.append((this, pvctrl, desc, usepv, delpv))
 
         for i in range(3):
-            desc   = wx.TextCtrl(panel, -1, value='', size=(200, -1))
             pvctrl = wx.TextCtrl(panel, value='', size=(200, -1))
+            desc   = wx.TextCtrl(panel, -1, value='', size=(200, -1))
             usepv  = check(panel, default=False)
             ir +=1
-            sizer.Add(desc,   (ir, 0), (1, 1), RCEN, 2)
-            sizer.Add(pvctrl, (ir, 1), (1, 1), LCEN, 2)
+            sizer.Add(pvctrl,   (ir, 0), (1, 1), RCEN, 2)
+            sizer.Add(desc, (ir, 1), (1, 1), LCEN, 2)
             sizer.Add(usepv,  (ir, 2), (1, 1), LCEN, 2)
-            self.widlist.append((None, desc, pvctrl, usepv, None))
+            self.widlist.append((None, pvctrl, desc, usepv, None))
 
         ir += 1
         sizer.Add(wx.StaticLine(panel, size=(350, 3), style=wx.LI_HORIZONTAL),
@@ -89,7 +89,7 @@ class ExtraPVsFrame(wx.Frame) :
 
     def onOK(self, event=None):
         for w in self.widlist:
-            obj, name, pvname, usepv, erase = w
+            obj, pvctrl, desc, usepv, erase = w
             if usepv is not None:
                 usepv = usepv.IsChecked()
             else:
@@ -99,8 +99,8 @@ class ExtraPVsFrame(wx.Frame) :
                 erase = erase.GetSelection()
             else:
                 erase = False
-            name   = name.GetValue().strip()
-            pvname = pvname.GetValue().strip()
+            name   = desc.GetValue().strip()
+            pvname = pvctrl.GetValue().strip()
             if len(name) < 1 or len(pvname) < 1:
                 continue
             if erase and obj is not None:
