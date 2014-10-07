@@ -458,6 +458,9 @@ class ScanDB(object):
         cls, table = self.get_table('scandefs')
         table.update(whereclause="id='%d'" % scanid).execute(name=name)
 
+        # self.update_where('scandefs', {'id': scanid},  {'name': name})
+        
+
     def del_scandef(self, name=None, scanid=None):
         """delete scan defn by name"""
         cls, table = self.get_table('scandefs')
@@ -770,19 +773,23 @@ class ScanDB(object):
         self.session.add(row)
         return row
 
-    def set_command_status(self, id, status):
+    def set_command_status(self, cmdid, status):
         """set the status of a command (by id)"""
         cls, table = self.get_table('commands')
         if status not in self.status_codes:
             status = 'unknown'
         statid = self.status_codes[status]
-        table.update(whereclause="id='%i'" % id).execute(status_id=statid)
+        table.update(whereclause="id='%i'" % cmdid).execute(status_id=statid)
+        # print 'Commands Table update status to ' , statid, cmdid
         self.commit()
+        # print 'After status update:'
+        # print self.get_commands('requested')
 
-    def set_command_output(self, id, value=None):
+
+    def set_command_output(self, cmdid, value=None):
         """set the status of a command (by id)"""
         cls, table = self.get_table('commands')
-        table.update(whereclause="id='%i'" % id).execute(output_value=repr(value))
+        table.update(whereclause="id='%i'" % cmdid).execute(output_value=repr(value))
         self.commit()
 
     def cancel_command(self, id):
