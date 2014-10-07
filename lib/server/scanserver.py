@@ -4,7 +4,7 @@ import time, sys, os
 import threading
 import json
 import numpy as np
-
+import glob
 import epics
 
 from ..scandb import ScanDB, ScanDBException, make_datetime
@@ -14,10 +14,10 @@ from ..utils import  strip_quotes
 
 
 import larch
-
-DARWIN_ROOT = 'Volume/Data/xas_user'
+from larch.larchlib import Procedure
+DARWIN_ROOT  = '/Volumes/Data/xas_user'
 WINDOWS_ROOT = 'T:/xas_user'
-LINUX_ROOT = '/cars5/Data/user'
+LINUX_ROOT   = '/cars5/Data/user'
 
 class ScanServer():
     LARCH_SCANDB = '_scan._scandb'
@@ -27,12 +27,14 @@ class ScanServer():
         self.abort = False
         self.set_basepath(fileroot)
         self.larch = None
+        self.larch_modules_dir = '.'
+        self.larch_modules = {}
         self.command_in_progress = False
         self.req_shutdown = False
         if dbname is not None:
             self.connect(dbname, **kwargs)
 
-    def set_basepaths(self, fileroot):
+    def set_basepath(self, fileroot):
         if fileroot is None:
             if sys.platform == 'darwin':
                 fileroot = DARWIN_ROOT
@@ -47,13 +49,54 @@ class ScanServer():
         self.scandb = ScanDB(dbname=dbname, **kwargs)
         self.set_scan_message('Server Starting')
         self.larch = larch.Interpreter()
+
         symtab = self.larch.symtable
         symtab.set_symbol(self.LARCH_SCANDB, self.scandb)
         macro_folder = self.scandb.get_info('macros folder')
         if macro_folder is None:
             macro_folder = 'scan_config/13ide'
-        symtab._sys.config.usr_larchdir = os.path.join(self.fileroot, 'scan_macros')
-        larch.run("add_plugin('basic_macros')")
+
+        plugindir = os.path.join(self.fileroot, macro_folder, 'plugins')
+        symtab._sys.config.plugin_paths.insert(0, plugindir)
+        self.larch.run("add_plugin('basic_macros')")
+
+        moddir = os.path.join(self.fileroot, macro_folder, 'macros')
+        symtab._sys.path.insert(0, moddir)
+        self.larch_modules_dir = moddir
+        self.load_larch_modules()
+
+        
+    def load_larch_modules(self, verbose=False):
+        """read latest larch modules"""
+        os.chdir(self.larch_modules_dir)
+        for name in glob.glob('*.lar'):
+            modname = name[:-4]
+            this_mtime = os.stat(name).st_mtime
+            if modname in self.larch_modules:
+                last_mtime = self.larch_modules[modname]
+                if this_mtime <= last_mtime:
+                    if verbose: print 'Not rereading ', modname
+                    continue
+
+            self.larch.error = []
+            if verbose: print 'importing ', modname 
+            if modname in  self.larch_modules:
+                self.larch.run('reload(%s)' % modname)
+            else:
+                self.larch.run('import %s' % modname)
+            if len( self.larch.error) > 0:
+                for err in self.larch.error:
+                    print 'Error import %s' % modname
+                    print err.msg
+            else:
+                self.larch_modules[modname] = this_mtime
+                omod = getattr(self.larch.symtable, modname)
+                for s in dir(omod):
+                    thing = getattr(omod, s)
+                    if isinstance(thing, Procedure):
+                        setattr(self.larch.symtable, s, thing)
+                        
+        self.set_path()          
 
     def set_scan_message(self, msg, verbose=True):
         self.scandb.set_info('scan_message', msg)
@@ -69,15 +112,21 @@ class ScanServer():
     def finish(self):
         print 'shutting down!'
 
-
-    def do_command(self, req):
-        print 'Do Command: ', req.id, req.command, req.arguments
-        workdir = self.scandb.get_info('user_folder')
+    def set_path(self):
+        workdir = nativepath(self.scandb.get_info('user_folder'))
+        for root in (WINDOWS_ROOT, LINUX_ROOT, DARWIN_ROOT):
+            proot = nativepath(root)
+            if workdir.startswith(proot):
+                workdir = workdir[len(proot):]
         try:
-            os.chdir(nativepath(workdir))
+            os.chdir(os.path.join(self.fileroot, workdir))
         except:
             pass
 
+    def do_command(self, req):
+        print 'Do Command: ', req.id, req.command, req.arguments
+        self.load_larch_modules()
+        
         self.command_in_progress = True
         self.scandb.set_info('scan_status', 'starting')
         self.scandb.set_command_status(req.id, 'starting')
