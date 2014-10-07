@@ -53,9 +53,16 @@ class MacroFrame(wx.Frame) :
     def make_buttons(self):
         panel = wx.Panel(self)
         sizer = wx.BoxSizer(wx.HORIZONTAL)
-        sizer.Add(add_button(panel, label='Run Macro', action=self.onApply),
+        sizer.Add(add_button(panel, label='Start',  action=self.onStart),
                   0, wx.ALIGN_LEFT, 2)
-        sizer.Add(add_button(panel, label='Exit',      action=self.onClose),
+        sizer.Add(add_button(panel, label='Pause',  action=self.onPause),
+                  0, wx.ALIGN_LEFT, 2)
+        sizer.Add(add_button(panel, label='Resume',  action=self.onResume),
+                  0, wx.ALIGN_LEFT, 2)
+        sizer.Add(add_button(panel, label='Abort',  action=self.onAbort),
+                  0, wx.ALIGN_LEFT, 2)
+
+        sizer.Add(add_button(panel, label='Exit',   action=self.onClose),
                   0, wx.ALIGN_LEFT, 2)
 
         pack(panel, sizer)
@@ -122,8 +129,23 @@ class MacroFrame(wx.Frame) :
                 except:
                     pass
 
-    def onApply(self, event=None):
-        print 'Editor OK'
+    def onStart(self, event=None):
+        print 'Macro Start'
+        print self.editor.GetValue()
+        #  self.scandb.commit()
+
+    def onPause(self, event=None):
+        print 'Macro Pause'
+        print self.editor.GetValue()
+        #  self.scandb.commit()
+
+    def onResume(self, event=None):
+        print 'Macro Resume'
+        print self.editor.GetValue()
+        #  self.scandb.commit()
+
+    def onAbort(self, event=None):
+        print 'Macro Abort'
         print self.editor.GetValue()
         #  self.scandb.commit()
 
