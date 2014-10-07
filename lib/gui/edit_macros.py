@@ -131,23 +131,34 @@ class MacroFrame(wx.Frame) :
 
     def onStart(self, event=None):
         print 'Macro Start'
-        print self.editor.GetValue()
-        #  self.scandb.commit()
+        lines = self.editor.GetValue().split('\n')
+        for lin in lines:
+            lin = lin.strip()
+            if lin.startswith('#'): continue
+            if '#' in lin:
+                lin = lin[:index('#')]
+            lin = lin.strip()
+            if len(lin) > 0:
+                print 'Add Macro line ', lin
+                self.scandb.add_command(lin)
+                
+        self.scandb.commit()
 
     def onPause(self, event=None):
         print 'Macro Pause'
-        print self.editor.GetValue()
-        #  self.scandb.commit()
+        self.scandb.set_info('request_pause', 1)
+        self.scandb.set_info('request_resume', 0)
+        self.scandb.commit()
 
     def onResume(self, event=None):
         print 'Macro Resume'
-        print self.editor.GetValue()
-        #  self.scandb.commit()
+        self.scandb.set_info('request_pause', 0)      
+        self.scandb.set_info('request_resume', 1)
+        self.scandb.commit()
 
     def onAbort(self, event=None):
-        print 'Macro Abort'
-        print self.editor.GetValue()
-        #  self.scandb.commit()
+        self.scandb.set_info('request_abort', 1)
+        self.scandb.commit()
 
     def onClose(self, event=None):
         self.Destroy()
