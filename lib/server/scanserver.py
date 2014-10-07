@@ -14,24 +14,46 @@ from ..utils import  strip_quotes
 
 
 import larch
+
+DARWIN_ROOT = 'Volume/Data/xas_user'
+WINDOWS_ROOT = 'T:/xas_user'
+LINUX_ROOT = '/cars5/Data/user'
+
 class ScanServer():
     LARCH_SCANDB = '_scan._scandb'
-    def __init__(self, dbname=None, _larch=None,  **kwargs):
+    def __init__(self, dbname=None, fileroot=None, _larch=None,  **kwargs):
         self.scandb = None
+        self.fileroot = fileroot
         self.abort = False
+        self.set_basepath(fileroot)
         self.larch = None
         self.command_in_progress = False
         self.req_shutdown = False
         if dbname is not None:
             self.connect(dbname, **kwargs)
 
+    def set_basepaths(self, fileroot):
+        if fileroot is None:
+            if sys.platform == 'darwin':
+                fileroot = DARWIN_ROOT
+            elif os.name == 'nt':
+                fileroot = WINDOWS_ROOT
+            else:
+                fileroot = LINUX_ROOT
+        self.fileroot = fileroot
+
     def connect(self, dbname, **kwargs):
         """connect to Scan Database"""
         self.scandb = ScanDB(dbname=dbname, **kwargs)
         self.set_scan_message('Server Starting')
         self.larch = larch.Interpreter()
-        self.larch.symtable.set_symbol(self.LARCH_SCANDB, self.scandb)
-
+        symtab = self.larch.symtable
+        symtab.set_symbol(self.LARCH_SCANDB, self.scandb)
+        macro_folder = self.scandb.get_info('macros folder')
+        if macro_folder is None:
+            macro_folder = 'scan_config/13ide'
+        symtab._sys.config.usr_larchdir = os.path.join(self.fileroot, 'scan_macros')
+        larch.run("add_plugin('basic_macros')")
 
     def set_scan_message(self, msg, verbose=True):
         self.scandb.set_info('scan_message', msg)
@@ -60,8 +82,8 @@ class ScanServer():
         self.scandb.set_info('scan_status', 'starting')
         self.scandb.set_command_status(req.id, 'starting')
 
-        args    = strip_quotes(str(req.arguments))
-        notes   = strip_quotes(str(req.notes))
+        args    = strip_quotes(str(req.arguments)).strip()
+        notes   = strip_quotes(str(req.notes)).strip()
         nrepeat = int(req.nrepeat)
         command = str(req.command)
 
@@ -70,21 +92,22 @@ class ScanServer():
             filename = ''
         filename = strip_quotes(str(filename))
 
-        if command in ('scan', 'slewscan'):
+        if command.lower() in ('scan', 'slewscan'):
             scanname = args
-            args = "'%s'" % scanname
+            words = ["'%s'" % scanname]
             if nrepeat > 1 and command != 'slewscan':
-                args = "%s, nscans=%i" % (args, nrepeat)
+                words.append("nscans=%i" % nrepeat)
             if len(notes) > 0:
-                args = "%s, comments='%s'" % (args, notes)
+                words.append("comments='%s'" % notes)
             if len(filename) > 0:
-                args = "%s, filename='%s'" % (args, filename)
+                words.append("filename='%s'" % filename)
                 self.scandb.set_info('filename', filename)
 
             self.scandb.update_where('scandefs', {'name': scanname},
-                                     {'last_used_tqime': make_datetime()})
-
+                                     {'last_used_time': make_datetime()})
             command = "do_%s" % command
+            args = ', '.join(words)
+
         larch_cmd = "%s(%s)" % (command, args)
 
         self.scandb.set_info('current_command', larch_cmd)
