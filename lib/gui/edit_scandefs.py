@@ -141,7 +141,7 @@ class ScanDefPanel(wx.Panel):
             self.wids.GetStore().SetValueByRow(newname, row, 0)
 
     def onErase(self, event=None):
-        if self.wids.HasSelection():
+        if not self.wids.HasSelection():
             return
 
         row  = self.wids.GetSelectedRow()
