@@ -459,7 +459,7 @@ class ScanDB(object):
         table.update(whereclause="id='%d'" % scanid).execute(name=name)
 
         # self.update_where('scandefs', {'id': scanid},  {'name': name})
-        
+
 
     def del_scandef(self, name=None, scanid=None):
         """delete scan defn by name"""
@@ -736,30 +736,22 @@ class ScanDB(object):
     def get_commands(self, status=None, **kws):
         """return command by status"""
         cls, table = self.get_table('commands')
-        columns = table.c.keys()
-        q = self.query(cls)
-        q = q.order_by(cls.id)
-        if status is None:
-            return q.all()
+        q = self.query(cls).order_by(cls.id)
         if status not in self.status_codes:
-            status = 'unknown'
-        statid = self.status_codes[status]
-        return q.filter(cls.status_id==statid).all()
+            return q.all()
+        return q.filter(cls.status_id==self.status_codes[status]).all()
 
     # commands -- a more complex interface
     def get_mostrecent_command(self):
         """return command by status"""
         cls, table = self.get_table('commands')
-        columns = table.c.keys()
-        q = self.query(cls)
-        q = q.order_by(cls.request_time)
+        q = self.query(cls).order_by(cls.request_time)
         return q.all()[-1]
 
     def add_command(self, command, arguments='',output_value='',
                     output_file='', notes='', nrepeat=1, **kws):
         """add command"""
         cls, table = self.get_table('commands')
-
         statid = self.status_codes.get('requested', 1)
 
         kws.update({'arguments': arguments,
