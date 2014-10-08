@@ -1,25 +1,20 @@
 def move_to_zn():
-    move_to_energy(9700.0, id_offset=0.100)
+    move_energy(9700.0, id_offset=0.100)
     set_mono_tilt()
 #enddef
 
 def move_to_ti():
-    move_to_energy(5000.0, id_offset=0.03000)
+    move_energy(5000.0, id_offset=0.040)
     set_mono_tilt()
 #enddef
 
 def move_to_fe():
-    move_to_energy(7200.0, id_offset=0.040)
+    move_energy(7200.0, id_offset=0.040)
     set_mono_tilt()
 #enddef
 
 def move_to_cu():
-    move_to_energy(9050.0, id_offset=0.070)
-    set_mono_tilt()
-#enddef
-
-def move_to_zn():
-    move_to_energy(9700.0, id_offset=0.070)
+    move_energy(9050.0, id_offset=0.070)
     set_mono_tilt()
 #enddef
 
