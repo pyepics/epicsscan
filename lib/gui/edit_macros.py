@@ -45,7 +45,7 @@ class MacroFrame(wx.Frame) :
 
 
         sizer.Add(self.make_buttons(), 0, wx.ALIGN_LEFT, 3)
-        self.SetMinSize((400, 400))
+        self.SetMinSize((460, 480))
         pack(self, sizer)
         self.Show()
         self.Raise()
