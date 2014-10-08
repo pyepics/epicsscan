@@ -132,6 +132,8 @@ class MacroFrame(wx.Frame) :
     def onStart(self, event=None):
         print 'Macro Start'
         lines = self.editor.GetValue().split('\n')
+        self.scandb.set_info('request_pause',  1)
+
         for lin in lines:
             lin = lin.strip()
             if lin.startswith('#'): continue
@@ -141,19 +143,16 @@ class MacroFrame(wx.Frame) :
             if len(lin) > 0:
                 print 'Add Macro line ', lin
                 self.scandb.add_command(lin)
-                
         self.scandb.commit()
+        self.scandb.set_info('request_abort',  0)
+        self.scandb.set_info('request_pause',  0)
 
     def onPause(self, event=None):
-        print 'Macro Pause'
         self.scandb.set_info('request_pause', 1)
-        self.scandb.set_info('request_resume', 0)
         self.scandb.commit()
 
     def onResume(self, event=None):
-        print 'Macro Resume'
-        self.scandb.set_info('request_pause', 0)      
-        self.scandb.set_info('request_resume', 1)
+        self.scandb.set_info('request_pause', 0)
         self.scandb.commit()
 
     def onAbort(self, event=None):
