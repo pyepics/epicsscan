@@ -117,12 +117,6 @@ class ScanViewerFrame(wx.Frame):
         if npts <= 0 or msg.lower().startswith('preparing'):
             self.need_column_update = True
 
-        cmd = self.scandb.get_mostrecent_command()
-        try:
-            cmd_stat = cmd.status.name.lower()
-        except AttributeError:
-            cmd_stat = 'unknown'
-
         do_newplot = False
 
         if ((curfile != self.live_scanfile) or
