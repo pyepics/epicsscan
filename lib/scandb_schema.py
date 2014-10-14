@@ -173,8 +173,7 @@ class Commands(_BaseTable):
     command, notes, arguments = None, None, None
     status, status_name = None, None
     request_time, start_time, modify_time = None, None, None
-    output_value, output_file = None, None
-    nrepeat = 1
+    output_value, output_file, nrepeat = None, None, None
     def __repr__(self):
         name = self.__class__.__name__
         fields = ['%s' % getattr(self, 'command', 'Unknown')]
