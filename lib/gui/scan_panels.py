@@ -12,7 +12,7 @@ import wx
 import wx.lib.scrolledpanel as scrolled
 import numpy as np
 import epics
-from epics.wx import EpicsFunction, PVText
+from epics.wx import EpicsFunction, PVText, PVStaticText
 
 from .gui_utils import SimpleText, FloatCtrl, Closure
 from .gui_utils import pack, add_choice, hms
@@ -181,10 +181,15 @@ class GenericScanPanel(scrolled.ScrolledPanel):
 
         wids = self.pos_settings[index]
         # clear current widgets for this row
-        try:
-            wids[2].pv.clear_callbacks()
-        except:
-            pass
+        this_wid = wids[2].GetId()
+        if wids[2].pv is not None:
+            for icb, ccb in wids[2].pv.callbacks.items():
+                if ccb[1].get('wid', None) == this_wid:
+                    try:
+                        wids[2].pv.remove_callback(index=icb)
+                    except:
+                        pass
+
         for i in (1, 2):
             wids[i].SetLabel('')
         if name == 'None':
@@ -222,7 +227,7 @@ class GenericScanPanel(scrolled.ScrolledPanel):
             llim = llim - mpv.value
         wids[1].SetLabel(units)
         wids[2].SetPV(mpv)
-        wids[2].SetBackgroundColour(self.bgcol)
+        # wids[2].SetBackgroundColour(self.bgcol)
         for i in (3, 4):
             wids[i].SetMin(llim)
             wids[i].SetMax(hlim)
@@ -296,8 +301,10 @@ class LinearScanPanel(GenericScanPanel):
                              action=Closure(self.onPos, index=i))
             pos.SetSelection(idefault)
             role  = wx.StaticText(self, -1, label=lab)
-            units = wx.StaticText(self, -1, label='', size=(40, -1))
-            cur   = PVText(self, pv=None, size=(100, -1))
+            units = wx.StaticText(self, -1, label='', size=(40, -1),
+                                  style=wx.ALIGN_CENTER)
+            cur   = PVStaticText(self, pv=None, size=(100, -1), 
+                                 style=wx.ALIGN_CENTER)
             start, stop, step, npts = self.StartStopStepNpts(i, with_npts=(i==0))
             self.pos_settings.append((pos, units, cur, start, stop, step, npts))
             if i > 0:
@@ -636,8 +643,8 @@ class XAFSScanPanel(GenericScanPanel):
         s.Add(self.edgechoice,                 0, LEFT, 3)
         s.Add(SimpleText(p, "   Current Energy:", size=(170, -1),
                          style=wx.ALIGN_LEFT), 0, CEN, 2)
-
-        self.energy_pv = PVText(p, pv=None, size=(100, -1))
+        self.energy_pv = PVStaticText(p, pv=None, size=(100, -1), 
+                                      style=wx.ALIGN_CENTER)
         s.Add(self.energy_pv, 0, CEN, 2)
         pack(p, s)
         return p
@@ -677,7 +684,6 @@ class XAFSScanPanel(GenericScanPanel):
         #if en_pvname in self.pvlist and self.energy_pv.pv is None:
         #    self.energy_pv.SetPV(self.pvlist[en_pvname])
         e0_off = 0
-
         update_esttime = label in ('dtime', 'dwelltime',
                                    'kwpow', 'kwtime', 'step', 'npts')
         if 0 == self.absrel.GetSelection(): # absolute
@@ -806,7 +812,8 @@ class MeshScanPanel(GenericScanPanel):
                              action=Closure(self.onPos, index=i))
             pos.SetSelection(i)
             units = wx.StaticText(self, -1, size=(40, -1), label='')
-            cur   = PVText(self, pv=None, size=(100, -1))
+            cur   = PVStaticText(self, pv=None, size=(100, -1), 
+                                 style=wx.ALIGN_CENTER)
             start, stop, step, npts = self.StartStopStepNpts(i,
                                                     initvals=(-1, 1, 0.1, 11))
 
@@ -919,6 +926,7 @@ class SlewScanPanel(GenericScanPanel):
                                   "Current", "Start","Stop", "Step", " Npts")):
             s  = CEN
             if lab == " Npts": s = LEFT
+            # if lab == "Current": s = RIGHT
             sizer.Add(SimpleText(self, lab), (ir, ic), (1, 1), s, 2)
 
         self.pos_settings = []
@@ -932,8 +940,10 @@ class SlewScanPanel(GenericScanPanel):
             pos = add_choice(self, pchoices, size=(100, -1),
                              action=Closure(self.onPos, index=i))
             pos.SetSelection(i)
-            units = wx.StaticText(self, -1, size=(40, -1), label='')
-            cur   = PVText(self, pv=None, size=(100, -1))
+            units = wx.StaticText(self, -1, size=(40, -1), label='', 
+                                  style=wx.ALIGN_CENTER)
+            cur   = PVStaticText(self, pv=None, size=(100, -1), 
+                                 style=wx.ALIGN_CENTER)
             start, stop, step, npts = self.StartStopStepNpts(i,
                                             initvals=(-0.25, 0.25, 0.002, 251))
             self.pos_settings.append((pos, units, cur, start, stop, step, npts))
