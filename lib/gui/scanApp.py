@@ -339,14 +339,19 @@ class ScanFrame(wx.Frame):
         nscans   = int(self.nscans.GetValue())
         comments = self.user_comms.GetValue()
 
+        print 'On Start ',
+        print ' abort ',  self.scandb.get_info('request_abort')
+        print ' pause ',  self.scandb.get_info('request_pause')
+            
         command = 'scan'
         if dat['type'].lower() == 'slew':
             command = 'slewscan'
             nscans = 1
 
-            self.scandb.add_command(command, arguments=sname,
-                                    notes=comments, nrepeat=nscans,
-                                    output_file=fname)
+        self.scandb.add_command(command, arguments=sname,
+                                notes=comments, nrepeat=nscans,
+                                output_file=fname)
+        print 'Wrote command ', command, sname, nscans
         self.statusbar.SetStatusText('Waiting....', 0)
         self.scan_started = False
         self.scantimer.Start(100)
