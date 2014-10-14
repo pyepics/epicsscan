@@ -197,7 +197,8 @@ class ScanFrame(wx.Frame):
         bpanel = wx.Panel(self)
         bsizer = wx.GridBagSizer(3, 5)
 
-        self.nscans = FloatCtrl(bpanel, precision=0, value=1, minval=0, size=(45, -1))
+        self.nscans = FloatCtrl(bpanel, precision=0, value=1, 
+                                minval=1, maxval=10000, size=(45, -1))
 
         self.filename = wx.TextCtrl(bpanel, -1,
                                     self.scandb.get_info('filename', default=''))
@@ -343,9 +344,9 @@ class ScanFrame(wx.Frame):
             command = 'slewscan'
             nscans = 1
 
-        self.scandb.add_command(command, arguments=sname,
-                                notes=comments, nrepeat=nscans,
-                                output_file=fname)
+            self.scandb.add_command(command, arguments=sname,
+                                    notes=comments, nrepeat=nscans,
+                                    output_file=fname)
         self.statusbar.SetStatusText('Waiting....', 0)
         self.scan_started = False
         self.scantimer.Start(100)
@@ -364,7 +365,10 @@ class ScanFrame(wx.Frame):
 
 
     def onScanTimer(self, evt=None):
-        self.statusbar.SetStatusText(self.scandb.get_info('scan_message'), 0)
+        try:
+            self.statusbar.SetStatusText(self.scandb.get_info('scan_message'), 0)
+        except:
+            pass
 
         status = self.scandb.get_info('scan_status')
         if status == 'running' and not self.scan_started:
