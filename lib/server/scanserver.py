@@ -182,18 +182,17 @@ class ScanServer():
         self.scandb.set_info('scan_status', 'running')
         self.scandb.set_command_status(req.id, 'running')
 
-        print 'RUN LARCH COMMAND ', larch_cmd
         out = self.larch.run(larch_cmd)
         time.sleep(0.1)
         if len(self.larch.error) > 0:
             self.scandb.set_info('command_error', repr(self.larch.error[0].msg))
 
 
-        print "Larch OUT ", out, out.dtimer
-        try:
-            out.dtimer.save("scan_debugtimer.dat")
-        except:
-            pass
+        if hasattr(out, 'dtimer'):
+            try:
+                out.dtimer.save("_debugscantime.dat")
+            except:
+                print('Could not save _debugscantime.dat')
 
         self.scandb.set_command_status(req.id, 'finished')
         self.scandb.set_info('scan_status', 'idle')
