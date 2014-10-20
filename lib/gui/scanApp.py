@@ -334,10 +334,11 @@ class ScanFrame(wx.Frame):
             self.last_scanname = scanname
         return self.last_scanname, scan
 
-    def onSetNScans(self, evt=None):
-        nscans   = int(self.nscans.GetValue())
-        self.scandb.set_info('nscans', nscans)
-
+    def onSetNScans(self,  value=1, **kws):
+        wid = getattr(self, 'nscans', None)
+        if wid is not None:
+            nscans   = int(self.nscans.GetValue())
+            self.scandb.set_info('nscans', nscans)
         
     def onStartScan(self, evt=None):
         sname, dat = self.generate_scan()
