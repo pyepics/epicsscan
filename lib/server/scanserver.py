@@ -1,4 +1,4 @@
- #!/usr/bin/env python
+#!/usr/bin/env python
 
 import time, sys, os
 import threading
@@ -48,7 +48,7 @@ class ScanServer():
     def connect(self, dbname, **kwargs):
         """connect to Scan Database"""
         self.scandb = ScanDB(dbname=dbname, **kwargs)
-        self.set_scan_message('Server Initializing...')
+        self.set_scan_message('Server initializing')
         self.larch = larch.Interpreter()
         self.scandb.set_info('request_abort',    0)
         self.scandb.set_info('request_pause',    0)
@@ -115,7 +115,15 @@ class ScanServer():
             self.abort = True
 
     def finish(self):
-        print 'shutting down!'
+        print 'ScanServer: Shutting down'
+        self.scandb.set_info('request_pause',    0)
+        time.sleep(0.25)
+        self.scandb.set_info('request_abort',    1)
+        time.sleep(0.25)
+        self.scandb.set_info('request_abort',    0)
+        time.sleep(0.25)
+        self.scandb.set_info('request_shutdown', 0)
+        time.sleep(0.25)
 
     def set_path(self):
         workdir = nativepath(self.scandb.get_info('user_folder'))
@@ -151,6 +159,7 @@ class ScanServer():
             words = ["'%s'" % scanname]
             if nrepeat > 1 and command != 'slewscan':
                 words.append("nscans=%i" % nrepeat)
+                self.scandb.set_info('nscans', nrepeat)
             if len(notes) > 0:
                 words.append("comments='%s'" % notes)
             if len(filename) > 0:
@@ -179,11 +188,16 @@ class ScanServer():
         if len(self.larch.error) > 0:
             self.scandb.set_info('command_error', repr(self.larch.error[0].msg))
 
-        # print 'Command near done ', req.id, type(req.id)
+
+        print "Larch OUT ", out, out.dtimer
+        try:
+            out.dtimer.save("scan_debugtimer.dat")
+        except:
+            pass
 
         self.scandb.set_command_status(req.id, 'finished')
-        # self.scandb.set_info('scan_status', 'idle')
-        # self.scandb.commit()
+        self.scandb.set_info('scan_status', 'idle')
+        self.scandb.commit()
         self.command_in_progress = False
 
     def look_for_interrupt_requests(self):
@@ -213,13 +227,13 @@ class ScanServer():
                 self.sleep(0.25)
                 self.look_for_interrupt_requests()
                 if self.req_shutdown:
-                    print 'Shutdown!'
                     break
                 if time.time() > (msgtime + 30):
                     print '#Server Alive, paused=%s' % (repr(self.req_pause))
                     msgtime = time.time()
 
-                if self.req_pause: continue
+                if self.req_pause:
+                    continue
                 reqs = self.scandb.get_commands('requested')
                 if self.req_abort:
                     for req in reqs:
