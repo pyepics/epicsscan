@@ -198,7 +198,8 @@ class ScanFrame(wx.Frame):
         bsizer = wx.GridBagSizer(3, 5)
 
         self.nscans = FloatCtrl(bpanel, precision=0, value=1, 
-                                minval=1, maxval=10000, size=(45, -1))
+                                minval=1, maxval=10000, size=(45, -1),
+                                action=self.onSetNScans)
 
         self.filename = wx.TextCtrl(bpanel, -1,
                                     self.scandb.get_info('filename', default=''))
@@ -333,15 +334,20 @@ class ScanFrame(wx.Frame):
             self.last_scanname = scanname
         return self.last_scanname, scan
 
+    def onSetNScans(self, evt=None):
+        nscans   = int(self.nscans.GetValue())
+        self.scandb.set_info('nscans', nscans)
+
+        
     def onStartScan(self, evt=None):
         sname, dat = self.generate_scan()
         fname    = self.filename.GetValue()
         nscans   = int(self.nscans.GetValue())
         comments = self.user_comms.GetValue()
 
-        print 'On Start ',
-        print ' abort ',  self.scandb.get_info('request_abort')
-        print ' pause ',  self.scandb.get_info('request_pause')
+        self.scandb.set_info('request_abort', 0)
+        self.scandb.set_info('request_pause', 0)
+        self.scandb.set_info('nscans', nscans)
             
         command = 'scan'
         if dat['type'].lower() == 'slew':
@@ -351,7 +357,6 @@ class ScanFrame(wx.Frame):
         self.scandb.add_command(command, arguments=sname,
                                 notes=comments, nrepeat=nscans,
                                 output_file=fname)
-        print 'Wrote command ', command, sname, nscans
         self.statusbar.SetStatusText('Waiting....', 0)
         self.scan_started = False
         self.scantimer.Start(100)
@@ -367,7 +372,6 @@ class ScanFrame(wx.Frame):
         fout.write("%s\n" % json.dumps(dat))
         fout.close()
         print 'wrote %s' % sname
-
 
     def onScanTimer(self, evt=None):
         try:
