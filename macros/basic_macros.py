@@ -3,9 +3,94 @@
 basic larch scanning macros
 """
 
+import os
+from ConfigParser import ConfigParser
+
 from time import sleep, clock
 from numpy import linspace
 from epics import caput, caget
+from larch import Group
+
+DEF_SampleStageFile = 'SampleStage_autosave.ini'
+
+def read_stageconfig(filename=None, _larch=None):
+    """read sample stage configuration file (ini format),
+    returning group with entries:
+     pos      dict of position name, stage values
+     stages   list of PV names for stages
+     mtime    last mod time of stage config file
+
+    """
+    if filename is None: filename = DEF_SampleStageFile
+    if not os.path.exists(filename): 
+       print 'No stageconfig found!'
+       return None
+    #endif
+
+    stages, positions = [], {}
+    ini = ConfigParser()
+    ini.read(filename)
+
+    for item in ini.options('stages'):
+        line = ini.get('stages', item)
+        words = [i.strip() for i in line.split('||')]
+        stages.append(words[0])
+    #endfor
+
+    for item in ini.options('positions'):
+        line = ini.get('positions', item)
+        words = [i.strip() for i in line.split('||')]
+        name = words[0].lower()
+        vals = [float(i) for i in words[2].split(',')]
+        positions[name] = vals
+    #endfor
+    this = Group(pos=positions, stages=stages,
+                 mtime=os.stat(filename).st_mtime)
+    if _larch is not None:
+        if not _larch.symtable.has_group('macros'):
+            _larch.symtable.new_group('macros')
+        _larch.symtable.macros.stage_conf = this
+    return this
+#enddef
+
+def move_samplestage(position, filename=None, wait=True, _larch=None):
+    """move sample stage to named position"""
+    _conf = None
+    if _larch is not None:
+        _conf = getattr(_larch.symtable.macros, 'stage_conf', None)
+    if _conf is not None:
+        # check if the stage config file has changed since last reading
+        if filename is None: filename = DEF_SampleStageFile
+        if os.stat(filename).st_mtime > _conf.mtime: _conf = None
+    #endif
+    if _conf is None:
+        _conf = read_stageconfig(filename=filename)
+    #endif
+
+    if _conf is None:
+        print(" cannot read stage config '%s;" % filename)
+        return None
+    #endif
+
+    posname = position.lower()
+    if posname not in _conf.pos:
+        print(" cannot find position named '%s;" % position)
+        return None
+    #endif
+
+    # get values for this position, caput without waiting
+    vals = _conf.pos[posname]
+    for pvname, value in zip(_conf.stages, vals):
+        caput(pvname, value, wait=False)
+    #endfor
+
+    if wait:
+        for pvname, value in zip(_conf.stages, vals):
+            caput(pvname, value, wait=True)
+        #endfor
+    #endif
+#enddef
+
 
 def detector_distance(val, pvname='13IDE:m19.VAL', wait=True):
     """move detector distance to value"""
@@ -200,4 +285,7 @@ def registerLarchPlugin(): # must have a function with this name!
                       'set_i0amp_gain':    set_i0amp_gain,
                       'find_max_intensity': find_max_intensity,
                       'set_mono_tilt':     set_mono_tilt,
-                      'save_xrd':          save_xrd})
+                      'save_xrd':          save_xrd,
+                      'read_stageconfig': read_stageconfig,
+                      'move_samplestage': move_samplestage,
+                      })
