@@ -12,12 +12,11 @@ from ..scandb import ScanDB, ScanDBException, make_datetime
 from ..file_utils import fix_varname, nativepath
 from ..utils import  strip_quotes
 
-
 import larch
 from larch.larchlib import Procedure
 DARWIN_ROOT  = '/Volumes/Data/xas_user'
 WINDOWS_ROOT = 'T:/xas_user'
-LINUX_ROOT   = '/cars5/Data/user'
+LINUX_ROOT   = '/cars5/Data/xas_user'
 MACRO_FOLDER  = 'scan_config/13ide'
 
 class ScanServer():
@@ -28,7 +27,6 @@ class ScanServer():
         self.abort = False
         self.set_basepath(fileroot)
         self.larch = None
-        self.larch_modules_dir = '.'
         self.larch_modules = {}
         self.command_in_progress = False
         self.req_shutdown = False
@@ -54,26 +52,34 @@ class ScanServer():
         self.scandb.set_info('request_pause',    0)
         self.scandb.set_info('request_shutdown', 0)
 
-
         symtab = self.larch.symtable
         symtab.set_symbol(self.LARCH_SCANDB, self.scandb)
         macro_folder = self.scandb.get_info('macro_folder')
         if macro_folder is None:
             macro_folder = 'scan_config/13ide'
+            self.scandb.set_info('macro_folder', macro_folder)
         self.set_scan_message('Server Loading Plugins...')
         plugindir = os.path.join(self.fileroot, macro_folder, 'plugins')
+        moduledir = os.path.join(self.fileroot, macro_folder, 'macros')
+
         symtab._sys.config.plugin_paths.insert(0, plugindir)
         self.larch.run("add_plugin('basic_macros')")
+        self.load_larch_modules(moduledir)
 
-        moddir = os.path.join(self.fileroot, macro_folder, 'macros')
-        symtab._sys.path.insert(0, moddir)
-        self.larch_modules_dir = moddir
-        self.load_larch_modules()
         self.set_scan_message('Server Connected.')
 
-    def load_larch_modules(self, verbose=False):
+        #print 'Larch symbols:::  '
+        #print dir(self.larch.symtable._main)
+        #for attr in dir(self.larch.symtable.macros):
+        #     print attr, getattr(self.larch.symtable.macros, attr)
+        # print self.larch.symtable.get_symbol('move_to_fe')
+
+
+    def load_larch_modules(self, mod_dir, verbose=False):
         """read latest larch modules"""
-        os.chdir(self.larch_modules_dir)
+        symtab = self.larch.symtable        
+        symtab._sys.path.insert(0, mod_dir)
+        os.chdir(mod_dir)
         for name in glob.glob('*.lar'):
             modname = name[:-4]
             this_mtime = os.stat(name).st_mtime
@@ -84,22 +90,18 @@ class ScanServer():
                     continue
 
             self.larch.error = []
-            if verbose: print 'importing ', modname
-            if modname in  self.larch_modules:
+            if verbose: print 'importing module: ', modname
+            if modname in self.larch_modules:
                 self.larch.run('reload(%s)' % modname)
             else:
                 self.larch.run('import %s' % modname)
-            if len( self.larch.error) > 0:
+            if len(self.larch.error) > 0:
                 for err in self.larch.error:
-                    print 'Error import %s' % modname
-                    print err.msg
+                    print '====Error import %s / %s' % (modname, err.get_error())
             else:
+                if modname not in symtab._sys.searchGroups:
+                    symtab._sys.searchGroups.append(modname)
                 self.larch_modules[modname] = this_mtime
-                omod = getattr(self.larch.symtable, modname)
-                for s in dir(omod):
-                    thing = getattr(omod, s)
-                    if isinstance(thing, Procedure):
-                        setattr(self.larch.symtable, s, thing)
 
         self.set_path()
 
@@ -117,13 +119,13 @@ class ScanServer():
     def finish(self):
         print 'ScanServer: Shutting down'
         self.scandb.set_info('request_pause',    0)
-        time.sleep(0.25)
+        time.sleep(0.1)
         self.scandb.set_info('request_abort',    1)
-        time.sleep(0.25)
+        time.sleep(0.1)
         self.scandb.set_info('request_abort',    0)
-        time.sleep(0.25)
+        time.sleep(0.1)
         self.scandb.set_info('request_shutdown', 0)
-        time.sleep(0.25)
+        time.sleep(0.1)
 
     def set_path(self):
         workdir = nativepath(self.scandb.get_info('user_folder'))
@@ -135,7 +137,14 @@ class ScanServer():
             os.chdir(os.path.join(self.fileroot, workdir))
         except:
             pass
+        finally:
+            self.scandb.set_info('server_fileroot',  self.fileroot)
+            workdir = workdir[len(self.fileroot):]
+            self.scandb.set_info('user_folder',  workdir)
 
+        time.sleep(0.25)
+
+           
     def do_command(self, req):
         print 'Do Command: ', req.id, req.command, req.arguments
         self.load_larch_modules()
@@ -207,10 +216,10 @@ class ScanServer():
         """
         def isset(infostr):
             return self.scandb.get_info(infostr, as_bool=True)
-        self.req_abort = isset('request_abort')
-        self.req_pause = isset('request_pause')
-        self.req_shutdown = isset('request_shutdown')
 
+        self.req_shutdown = isset('request_shutdown')
+        self.req_pause = isset('request_pause')
+        self.req_abort = isset('request_abort')
         return self.req_abort
 
     def mainloop(self):
@@ -222,28 +231,21 @@ class ScanServer():
         self.set_scan_message('Server Ready')
         is_paused = False
         while True:
-            try:
-                self.sleep(0.25)
-                self.look_for_interrupt_requests()
-                if self.req_shutdown:
-                    break
-                if time.time() > (msgtime + 30):
-                    print '#Server Alive, paused=%s' % (repr(self.req_pause))
-                    msgtime = time.time()
+            self.look_for_interrupt_requests()
+            if self.req_shutdown:
+                break
+            if time.time() > (msgtime + 30):
+                print '#Server Alive, paused=%s' % (repr(self.req_pause))
+                msgtime = time.time()
 
-                if self.req_pause:
-                    continue
-                reqs = self.scandb.get_commands('requested')
-                if self.req_abort:
-                    for req in reqs:
-                        self.scandb.set_command_status(req.id, 'aborted')
-                elif len(reqs) > 0:
-                    self.do_command(reqs[0])
-
-            except KeyboardInterrupt:
-                print 'KB Interrupt!'
-                self.scandb.set_info('request_shutdown', 1)
-
+            if self.req_pause:
+                continue
+            reqs = self.scandb.get_commands('requested')
+            if self.req_abort:
+                for req in reqs:
+                    self.scandb.set_command_status(req.id, 'aborted')
+            elif len(reqs) > 0:
+                self.do_command(reqs[0])
 
         # mainloop end
         self.finish()
