@@ -13,27 +13,16 @@ from ..file_utils import fix_varname, nativepath
 from ..utils import  strip_quotes
 
 import larch
-from larch.larchlib import Procedure
-DARWIN_ROOT  = '/Volumes/Data/xas_user'
-WINDOWS_ROOT = 'T:/xas_user'
-LINUX_ROOT   = '/cars5/Data/xas_user'
+
+DARWIN_ROOT  = '/Volumes/Data/xas_user/'
+WINDOWS_ROOT = 'T:/xas_user/'
+LINUX_ROOT   = '/cars5/Data/xas_user/'
 MACRO_FOLDER  = 'scan_config/13ide'
 
 class ScanServer():
     LARCH_SCANDB = '_scan._scandb'
     def __init__(self, dbname=None, fileroot=None, _larch=None,  **kwargs):
-        self.scandb = None
-        self.fileroot = fileroot
-        self.abort = False
-        self.set_basepath(fileroot)
-        self.larch = None
-        self.larch_modules = {}
-        self.command_in_progress = False
-        self.req_shutdown = False
-        if dbname is not None:
-            self.connect(dbname, **kwargs)
 
-    def set_basepath(self, fileroot):
         if fileroot is None:
             if sys.platform == 'darwin':
                 fileroot = DARWIN_ROOT
@@ -43,6 +32,15 @@ class ScanServer():
                 fileroot = LINUX_ROOT
         self.fileroot = fileroot
 
+        self.scandb = None
+        self.abort = False
+        self.larch = None
+        self.larch_modules = {}
+        self.command_in_progress = False
+        self.req_shutdown = False
+        if dbname is not None:
+            self.connect(dbname, **kwargs)
+
     def connect(self, dbname, **kwargs):
         """connect to Scan Database"""
         self.scandb = ScanDB(dbname=dbname, **kwargs)
@@ -51,35 +49,33 @@ class ScanServer():
         self.scandb.set_info('request_abort',    0)
         self.scandb.set_info('request_pause',    0)
         self.scandb.set_info('request_shutdown', 0)
-
         symtab = self.larch.symtable
         symtab.set_symbol(self.LARCH_SCANDB, self.scandb)
-        macro_folder = self.scandb.get_info('macro_folder')
-        if macro_folder is None:
-            macro_folder = 'scan_config/13ide'
-            self.scandb.set_info('macro_folder', macro_folder)
+        macro_dir = self.scandb.get_info('macro_folder')
+        if macro_dir is None:
+            macro_dir = MACRO_FOLDER
+            self.scandb.set_info('macro_folder', macro_dir)
         self.set_scan_message('Server Loading Plugins...')
-        plugindir = os.path.join(self.fileroot, macro_folder, 'plugins')
-        moduledir = os.path.join(self.fileroot, macro_folder, 'macros')
-
+        plugindir = os.path.join(self.fileroot, macro_dir, 'plugins')
+        moduledir = os.path.join(self.fileroot, macro_dir, 'macros')
+        self.module_dir = moduledir
         symtab._sys.config.plugin_paths.insert(0, plugindir)
         self.larch.run("add_plugin('basic_macros')")
-        self.load_larch_modules(moduledir)
+        self.load_larch_modules()
 
         self.set_scan_message('Server Connected.')
-
         #print 'Larch symbols:::  '
         #print dir(self.larch.symtable._main)
         #for attr in dir(self.larch.symtable.macros):
         #     print attr, getattr(self.larch.symtable.macros, attr)
-        # print self.larch.symtable.get_symbol('move_to_fe')
+        #print self.larch.symtable.get_symbol('move_to_fe')
 
 
-    def load_larch_modules(self, mod_dir, verbose=False):
+    def load_larch_modules(self, verbose=False):
         """read latest larch modules"""
         symtab = self.larch.symtable        
-        symtab._sys.path.insert(0, mod_dir)
-        os.chdir(mod_dir)
+        symtab._sys.path.insert(0, self.module_dir)
+        os.chdir(self.module_dir)
         for name in glob.glob('*.lar'):
             modname = name[:-4]
             this_mtime = os.stat(name).st_mtime
@@ -90,7 +86,8 @@ class ScanServer():
                     continue
 
             self.larch.error = []
-            if verbose: print 'importing module: ', modname
+            if verbose:
+                print 'importing module: ', modname
             if modname in self.larch_modules:
                 self.larch.run('reload(%s)' % modname)
             else:
@@ -102,7 +99,6 @@ class ScanServer():
                 if modname not in symtab._sys.searchGroups:
                     symtab._sys.searchGroups.append(modname)
                 self.larch_modules[modname] = this_mtime
-
         self.set_path()
 
     def set_scan_message(self, msg, verbose=True):
@@ -128,27 +124,12 @@ class ScanServer():
         time.sleep(0.1)
 
     def set_path(self):
-        workdir = nativepath(self.scandb.get_info('user_folder'))
-        for root in (WINDOWS_ROOT, LINUX_ROOT, DARWIN_ROOT):
-            proot = nativepath(root)
-            if workdir.startswith(proot):
-                workdir = workdir[len(proot):]
-        try:
-            os.chdir(os.path.join(self.fileroot, workdir))
-        except:
-            pass
-        finally:
-            self.scandb.set_info('server_fileroot',  self.fileroot)
-            workdir = workdir[len(self.fileroot):]
-            self.scandb.set_info('user_folder',  workdir)
-
-        time.sleep(0.25)
-
+        self.scandb.set_path(fileroot=self.fileroot)
            
     def do_command(self, req):
         print 'Do Command: ', req.id, req.command, req.arguments
         self.load_larch_modules()
-
+        
         self.command_in_progress = True
         self.scandb.set_info('scan_status', 'starting')
         self.scandb.set_command_status(req.id, 'starting')
@@ -184,7 +165,7 @@ class ScanServer():
             larch_cmd = command
         else:
             larch_cmd = "%s(%s)" % (command, args)
-
+        print '>>> Larch: ', larch_cmd
         self.scandb.set_info('current_command', larch_cmd)
         self.larch.error = []
 
@@ -229,6 +210,7 @@ class ScanServer():
         self.scandb.set_info('scan_status', 'idle')
         msgtime = time.time()
         self.set_scan_message('Server Ready')
+
         is_paused = False
         while True:
             self.look_for_interrupt_requests()

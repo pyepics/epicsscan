@@ -39,6 +39,7 @@ class ScanDBException(Exception):
         Exception.__init__(self, *args)
         sys.excepthook(*sys.exc_info())
 
+
 def json_encode(val):
     "simple wrapper around json.dumps"
     if val is None or isinstance(val, (str, unicode)):
@@ -101,6 +102,28 @@ class ScanDB(object):
         if connect:
             time.sleep(0.5)
             self.connect(dbname, backup=False, **kws)
+
+    def set_path(self, fileroot=None):
+        workdir = self.get_info('user_folder')
+        workdir = workdir.replace('\\', '/').replace('//', '/')
+        if workdir.startswith('/'): workdir = workdir[1:]
+        if fileroot is None:
+            fileroot = self.get_info('server_fileroot')
+            fileroot = fileroot.replace('\\', '/').replace('//', '/')
+        if workdir.startswith(fileroot):
+            workdir = workdir[len(fileroot):]
+
+        fullpath = os.path.join(fileroot, workdir)
+        fullpath = fullpath.replace('\\', '/').replace('//', '/')
+        try:
+            os.chdir(fullpath)
+            print("ScanDB: Working directory %s " % fullpath)
+        except:
+            pass
+        finally:
+            self.set_info('server_fileroot',  fileroot)
+            self.set_info('user_folder',  workdir)
+        time.sleep(0.1)
 
     def isScanDB(self, dbname, server='sqlite',
                  user='', password='', host='', port=None):

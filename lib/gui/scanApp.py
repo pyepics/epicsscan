@@ -141,6 +141,7 @@ class ScanFrame(wx.Frame):
         self.scandb = ScanDB(dbname=dbname, server=server, host=host,
                  user=user, password=password, port=port, create=create)
 
+
         wx.EVT_CLOSE(self, self.onClose)
 
         self.createMainPanel()
@@ -151,11 +152,8 @@ class ScanFrame(wx.Frame):
         for i in range(len(statusbar_fields)):
             self.statusbar.SetStatusText(statusbar_fields[i], i)
 
-        workdir = self.scandb.get_info('user_folder')
-        try:
-            os.chdir(nativepath(workdir))
-        except:
-            pass
+
+        self.scandb.set_path()
 
         self.scantimer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.onScanTimer, self.scantimer)
@@ -270,7 +268,6 @@ class ScanFrame(wx.Frame):
             span.larch = self._larch
         self.statusbar.SetStatusText('Larch Ready')
         self.larch_status = 1
-
 
     @EpicsFunction
     def connect_epics(self):
@@ -530,12 +527,13 @@ class ScanFrame(wx.Frame):
                            style=style)
 
         if dlg.ShowModal() == wx.ID_OK:
-            basedir = os.path.abspath(str(dlg.GetPath()))
+            basedir = os.path.abspath(str(dlg.GetPath())).replace('\\', '/')
             try:
-                os.chdir(nativepath(basedir))
+                os.chdir(basedir)
             except OSError:
                 pass
             self.scandb.set_info('user_folder', basedir)
+            self.scandb.set_path()
         dlg.Destroy()
 
     def onSaveScanDef(self, evt=None):
