@@ -13,7 +13,7 @@ class SettingsFrame(wx.Frame) :
     """Frame for Setup General Settings:
     DB Connection, Settling Times, Extra PVs
     """
-    def __init__(self, parent, pos=(-1, -1)):
+    def __init__(self, parent, pos=(-1, -1), _larch=None):
         self.parent = parent
         self.pvlist = parent.pvlist
         self.scandb = parent.scandb

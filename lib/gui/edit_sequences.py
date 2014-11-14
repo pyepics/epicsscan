@@ -33,7 +33,7 @@ Buttons = ['Run', 'Pause', 'Cancel All', 'Abort Current Command',
 
 class SequencesFrame(wx.Frame) :
     """Edit/Manage/Run/View Sequences"""
-    def __init__(self, parent, pos=(-1, -1)):
+    def __init__(self, parent, pos=(-1, -1), _larch=None):
 
         self.parent = parent
         self.scandb = parent.scandb

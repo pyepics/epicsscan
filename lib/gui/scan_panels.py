@@ -756,7 +756,7 @@ class XAFSScanPanel(GenericScanPanel):
         edge = self.edgechoice.GetStringSelection()
         elem = self.elemchoice.GetStringSelection()
         if self.larch is not None:
-            e0val = self.larch( "xray_edge('%s', '%s')" % (elem, edge))
+            e0val = self.larch.run("xray_edge('%s', '%s')" % (elem, edge))
             self.e0.SetValue(e0val[0])
 
     def generate_scan_positions(self):

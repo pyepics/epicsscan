@@ -75,10 +75,19 @@ class LarchScanDBServer(object):
         self.scandb.set_path(fileroot=self.fileroot)
         return self.get_macros()
 
+    def __call__(self, arg):
+        return self.larch.run(arg)
+        
     def run(self, command):
         self.larch.error = []
         return self.larch.run(command)
 
+    def set_symbol(self, name, value):
+        self.larch.symtable.set_symbol(name, value)
+    
+    def get_symbol(self, name):
+        getattr(self.larch.symtable, name)
+    
     def get_error(self):
         return self.larch.error
 
