@@ -17,7 +17,7 @@ CEN  = wx.ALIGN_CENTER|wx.ALIGN_CENTER_VERTICAL|wx.ALL
 
 class MacroFrame(wx.Frame) :
     """Edit/Manage Macros (Larch Code)"""
-    def __init__(self, parent, pos=(-1, -1)):
+    def __init__(self, parent, pos=(-1, -1), _larch=None):
 
         self.parent = parent
         self.scandb = parent.scandb

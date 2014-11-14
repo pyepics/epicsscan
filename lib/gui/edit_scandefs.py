@@ -262,7 +262,7 @@ class XAFSScanDefs(ScanDefPanel):
 
 class ScandefsFrame(wx.Frame) :
     """Edit Scan Definitions"""
-    def __init__(self, parent, pos=(-1, -1)):
+    def __init__(self, parent, pos=(-1, -1), _larch=None):
 
         self.parent = parent
         self.scandb = parent.scandb

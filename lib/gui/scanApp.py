@@ -62,6 +62,7 @@ from ..scandb import ScanDB
 from .scan_panels import (LinearScanPanel, MeshScanPanel,
                           SlewScanPanel,   XAFSScanPanel)
 
+from ..larch_interface import LarchScanDBServer
 from ..positioner import Positioner
 from ..detectors import (SimpleDetector, ScalerDetector, McaDetector,
                          MultiMcaDetector, AreaDetector, get_detector)
@@ -262,8 +263,10 @@ class ScanFrame(wx.Frame):
 
     def init_larch(self):
         self.larch_status = -1
-        import larch
-        self._larch = larch.Interpreter()
+        self._larch = LarchScanDBServer(self.scandb)
+        self._larch.set_symbol('_sys.wx.wxapp', wx.GetApp())
+        self._larch.set_symbol('_sys.wx.parent', self)
+        
         for inb, span in self.scanpanels.values():
             span.larch = self._larch
         self.statusbar.SetStatusText('Larch Ready')
@@ -448,8 +451,8 @@ class ScanFrame(wx.Frame):
 
         # Sequences
         smenu = wx.Menu()
-        # add_menu(self, smenu, "Sequences",
-        #           "Run Sequences of Scans",  self.onEditSequences)
+        add_menu(self, smenu, "Sequences",
+                 "Run Sequences of Scans",  self.onEditSequences)
         add_menu(self, smenu, "Edit Macro",
                   "Edit Macro",  self.onEditMacro)
 
@@ -491,7 +494,8 @@ class ScanFrame(wx.Frame):
             except:
                 del self.subframes[name]
         if not shown:
-            self.subframes[name] = frameclass(self)
+            print 'Show ', frameclass
+            self.subframes[name] = frameclass(self, _larch=self._larch)
 
     def onShowPlot(self, evt=None):
         self.show_subframe('plot', ScanViewerFrame)
