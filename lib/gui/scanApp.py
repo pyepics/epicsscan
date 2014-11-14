@@ -494,7 +494,6 @@ class ScanFrame(wx.Frame):
             except:
                 del self.subframes[name]
         if not shown:
-            print 'Show ', frameclass
             self.subframes[name] = frameclass(self, _larch=self._larch)
 
     def onShowPlot(self, evt=None):
