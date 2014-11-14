@@ -16,7 +16,7 @@ CEN  |= wx.ALL
 
 class PositionerFrame(wx.Frame) :
     """Frame to Setup Scan Positioners"""
-    def __init__(self, parent, pos=(-1, -1), _larch=None):
+    def __init__(self, parent, pos=(-1, -1)):
 
         self.parent = parent
         self.scandb = parent.scandb

@@ -27,7 +27,7 @@ AD_CHOICES = ['None'] + list(AD_FILE_PLUGINS)
 
 class ROIFrame(wx.Frame):
     """Select ROIS"""
-    def __init__(self, parent, det=None, _larch=None):
+    def __init__(self, parent, det=None):
         self.parent = parent
         self.scandb = parent.scandb
         title = "Select ROIs"
@@ -222,7 +222,7 @@ class DetectorDetailsFrame(wx.Frame):
 
 class DetectorFrame(wx.Frame) :
     """Frame to Setup Scan Detectors"""
-    def __init__(self, parent, pos=(-1, -1), _larch=None):
+    def __init__(self, parent, pos=(-1, -1)):
         self.parent = parent
         self.scandb = parent.scandb
         self.detailframe = None

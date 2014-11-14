@@ -14,7 +14,7 @@ CEN  |= wx.ALL
 
 class ExtraPVsFrame(wx.Frame) :
     """Set Extra PVs"""
-    def __init__(self, parent, pos=(-1, -1), _larch=None):
+    def __init__(self, parent, pos=(-1, -1)):
         self.parent = parent
         self.scandb = parent.scandb
 

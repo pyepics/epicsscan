@@ -4,6 +4,8 @@ GUI for displaying live plots of column data from StepScan Data objects
 
 Principle features:
    frame for plot a file, with math on right/left columns
+   fitting frame for simple peak fits
+   simple XAS processing (normalization)
 """
 import os
 import time
@@ -21,7 +23,11 @@ from wx._core import PyDeadObjectError
 import epics
 from epics.wx import DelayedEpicsCallback, EpicsFunction
 
-from ..larch_interface import LarchScanDBServer
+from larch import Interpreter, use_plugin_path, isParameter
+from larch.fitting import fit_report
+
+use_plugin_path('math')
+from fitpeak import fit_peak
 
 from wxmplot import PlotFrame, PlotPanel
 from ..datafile import StepScanData
@@ -51,9 +57,8 @@ class ScanViewerFrame(wx.Frame):
     _about = """Scan Viewer,  Matt Newville <newville @ cars.uchicago.edu>  """
     TIME_MSG = 'Point %i/%i, Time Remaining ~ %s, Status=%s'
 
-    def __init__(self, parent, dbname=None, server='sqlite',
-                 host=None, port=None, user=None, password=None,
-                 create=True, _larch=None, **kws):
+    def __init__(self, parent, dbname=None, server='sqlite', host=None,
+                 port=None, user=None, password=None, create=True, **kws):
 
         wx.Frame.__init__(self, None, -1, style=FRAMESTYLE)
         title = "Epics Step Scan Viewer"
@@ -63,15 +68,8 @@ class ScanViewerFrame(wx.Frame):
             self.scandb = ScanDB(dbname=dbname, server=server, host=host,
                                  user=user, password=password, port=port,
                                  create=create)
-        self.larch = _larch
-        if _larch is None:
-            self.larch = LarchScanDBServer(self.scandb)
-            
+        self.larch = None
         self.lgroup = None
-        self.larch.run('%s = group(filename="%s")' % (SCANGROUP, CURSCAN))
-        self.larch.run('_sys.localGroup = %s)' % (SCANGROUP))
-        self.lgroup =  self.larch.get_symbol(SCANGROUP)
-
         self.force_newplot = False
         self.scan_inprogress = False
         self.last_column_update = 0.0
@@ -98,10 +96,8 @@ class ScanViewerFrame(wx.Frame):
             self.scantimer.Start(250)
 
         self.Show()
-        self.SetStatusText('ready')
-        self.title.SetLabel('')
         self.Raise()
-        
+
     def onScanTimer(self, evt=None,  **kws):
         if self.lgroup is None:
             return
@@ -185,6 +181,7 @@ class ScanViewerFrame(wx.Frame):
                 self.yarr[i][j].SetSelection(iy)
 
     def createMainPanel(self):
+        wx.CallAfter(self.init_larch)
         mainpanel = wx.Panel(self)
         mainsizer = wx.BoxSizer(wx.VERTICAL)
         panel = wx.Panel(mainpanel)
@@ -265,6 +262,181 @@ class ScanViewerFrame(wx.Frame):
     def onAbort(self, evt=None):
         self.scandb.set_info('request_abort', 1)
 
+    def CreateFitPanel(self, parent):
+        p = panel = wx.Panel(parent)
+        self.fit_model   = add_choice(panel, size=(100, -1),
+                                      choices=('Gaussian', 'Lorentzian',
+                                               'Voigt', 'Linear', 'Quadratic',
+                                               'Step', 'Rectangle',
+                                               'Exponential'))
+        self.fit_bkg = add_choice(panel, size=(100, -1),
+                                  choices=('None', 'constant', 'linear', 'quadtratic'))
+        self.fit_step = add_choice(panel, size=(100, -1),
+                                  choices=('linear', 'error function', 'arctan'))
+
+        self.fit_report = wx.StaticText(panel, -1, "", (180, 200))
+        sizer = wx.GridBagSizer(10, 4)
+        sizer.Add(SimpleText(p, 'Fit Model: '),           (0, 0), (1, 1), LCEN)
+        sizer.Add(self.fit_model,                         (0, 1), (1, 1), LCEN)
+
+        sizer.Add(SimpleText(p, 'Background: '),          (1, 0), (1, 1), LCEN)
+        sizer.Add(self.fit_bkg,                           (1, 1), (1, 1), LCEN)
+
+        sizer.Add(SimpleText(p, 'Step Function Form: '),  (2, 0), (1, 1), LCEN)
+        sizer.Add(self.fit_step,                          (2, 1), (1, 1), LCEN)
+        sizer.Add(add_button(panel, 'Show Fit', size=(100, -1),
+                             action=self.onFitPeak),       (3, 0), (1, 1), LCEN)
+        sizer.Add(self.fit_report,                         (0, 2), (4, 2), LCEN, 3)
+        pack(panel, sizer)
+        return panel
+
+    def CreateXASPanel(self, parent):
+        p = panel = wx.Panel(parent)
+        self.xas_autoe0   = check(panel, default=True, label='auto?')
+        self.xas_autostep = check(panel, default=True, label='auto?')
+        self.xas_op       = add_choice(panel, size=(95, -1),
+                                       choices=('Raw Data', 'Pre-edged',
+                                                'Normalized', 'Flattened'))
+        self.xas_e0   = FloatCtrl(panel, value  = 0, precision=3, size=(95, -1))
+        self.xas_step = FloatCtrl(panel, value  = 0, precision=3, size=(95, -1))
+        self.xas_pre1 = FloatCtrl(panel, value=-200, precision=1, size=(95, -1))
+        self.xas_pre2 = FloatCtrl(panel, value= -30, precision=1, size=(95, -1))
+        self.xas_nor1 = FloatCtrl(panel, value=  30, precision=1, size=(95, -1))
+        self.xas_nor2 = FloatCtrl(panel, value= 300, precision=1, size=(95, -1))
+        self.xas_vict = add_choice(panel, size=(50, -1), choices=('0', '1', '2', '3'))
+        self.xas_nnor = add_choice(panel, size=(50, -1), choices=('0', '1', '2', '3'))
+        self.xas_vict.SetSelection(1)
+        self.xas_nnor.SetSelection(2)
+        sizer = wx.GridBagSizer(10, 4)
+
+        sizer.Add(SimpleText(p, 'Plot XAS as: '),         (0, 0), (1, 1), LCEN)
+        sizer.Add(SimpleText(p, 'E0 : '),                 (1, 0), (1, 1), LCEN)
+        sizer.Add(SimpleText(p, 'Edge Step: '),           (2, 0), (1, 1), LCEN)
+        sizer.Add(SimpleText(p, 'Pre-edge range: '),      (3, 0), (1, 1), LCEN)
+        sizer.Add(SimpleText(p, 'Normalization range: '), (4, 0), (1, 1), LCEN)
+
+        sizer.Add(self.xas_op,                 (0, 1), (1, 1), LCEN)
+        sizer.Add(self.xas_e0,                 (1, 1), (1, 1), LCEN)
+        sizer.Add(self.xas_step,               (2, 1), (1, 1), LCEN)
+        sizer.Add(self.xas_pre1,               (3, 1), (1, 1), LCEN)
+        sizer.Add(SimpleText(p, ':'),          (3, 2), (1, 1), LCEN)
+        sizer.Add(self.xas_pre2,               (3, 3), (1, 1), LCEN)
+        sizer.Add(self.xas_nor1,               (4, 1), (1, 1), LCEN)
+        sizer.Add(SimpleText(p, ':'),          (4, 2), (1, 1), LCEN)
+        sizer.Add(self.xas_nor2,               (4, 3), (1, 1), LCEN)
+
+        sizer.Add(self.xas_autoe0,             (1, 2), (1, 2), LCEN)
+        sizer.Add(self.xas_autostep,           (2, 2), (1, 2), LCEN)
+
+        sizer.Add(SimpleText(p, 'Victoreen:'), (3, 4), (1, 1), LCEN)
+        sizer.Add(self.xas_vict,               (3, 5), (1, 1), LCEN)
+        sizer.Add(SimpleText(p, 'PolyOrder:'), (4, 4), (1, 1), LCEN)
+        sizer.Add(self.xas_nnor,               (4, 5), (1, 1), LCEN)
+
+        pack(panel, sizer)
+        return panel
+
+    def onFitPeak(self, evt=None):
+        gname = self.groupname
+        if self.dtcorr.IsChecked():
+            print 'fit needs to dt correct!'
+
+        dtext = []
+        model = self.fit_model.GetStringSelection().lower()
+        dtext.append('Fit Model: %s' % model)
+        bkg =  self.fit_bkg.GetStringSelection()
+        if bkg == 'None':
+            bkg = None
+        if bkg is None:
+            dtext.append('No Background')
+        else:
+            dtext.append('Background: %s' % bkg)
+
+        step = self.fit_step.GetStringSelection().lower()
+        if model in ('step', 'rectangle'):
+            dtext.append('Step form: %s' % step)
+        lgroup =  getattr(self.larch.symtable, gname)
+        x = lgroup.arr_x
+        y = lgroup.arr_y1
+        pgroup = fit_peak(x, y, model, background=bkg, step=step,
+                          _larch=self.larch)
+        text = fit_report(pgroup.params, _larch=self.larch)
+        dtext.append('Parameters: ')
+        for pname in dir(pgroup.params):
+            par = getattr(pgroup.params, pname)
+            if isParameter(par):
+                ptxt = "    %s= %.4f" % (par.name, par.value)
+                if (hasattr(par, 'stderr') and par.stderr is not None):
+                    ptxt = "%s(%.4f)" % (ptxt, par.stderr)
+                dtext.append(ptxt)
+
+        dtext = '\n'.join(dtext)
+
+        text = fit_report(pgroup.params, _larch=self.larch)
+        self.fit_report.SetLabel(dtext)
+
+    def xas_process(self, gname, plotopts):
+        """ process (pre-edge/normalize) XAS data from XAS form, overwriting
+        larch group '_y1_' attribute to be plotted
+        """
+        print 'Process XAS ', gname
+        out = self.xas_op.GetStringSelection().lower() # raw, pre, norm, flat
+        if out.startswith('raw'):
+            return plotopts
+
+        preopts = {'group': gname, 'e0': None, 'step': None}
+
+        lgroup = getattr(self.larch.symtable, gname)
+
+        if self.dtcorr.IsChecked():
+            print 'need to dt correct!'
+
+        if not self.xas_autoe0.IsChecked():
+            xmin, xmax = min(lgroup.arr_x),  max(lgroup.arr_x)
+            e0 = self.xas_e0.GetValue()
+            if e0 < xmax and e0 > xmin:
+                preopts['e0'] = e0
+
+        if not self.xas_autostep.IsChecked():
+            preopts['step'] = self.xas_step.GetValue()
+
+        preopts['pre1']  = self.xas_pre1.GetValue()
+        preopts['pre2']  = self.xas_pre2.GetValue()
+        preopts['norm1'] = self.xas_nor1.GetValue()
+        preopts['norm2'] = self.xas_nor2.GetValue()
+
+        preopts['nvict'] = self.xas_vict.GetSelection()
+        preopts['nnorm'] = self.xas_nnor.GetSelection()
+
+        preopts = ", ".join(["%s=%s" %(k, v) for k,v in preopts.items()])
+        preedge_cmd = "pre_edge(%s._x1_, %s._y1_, %s)" % (gname, gname, preopts)
+
+        self.larch(preedge_cmd)
+
+        self.xas_e0.SetValue(lgroup.e0)
+        self.xas_step.SetValue(lgroup.edge_step)
+
+        if out.startswith('pre'):
+            self.larch('%s._y1_ = %s.norm * %s.edge_step' % (gname, gname, gname))
+        elif out.startswith('norm'):
+            self.larch('%s._y1_ = %s.norm' % (gname, gname))
+        elif out.startswith('flat'):
+            self.larch('%s._y1_ = %s.flat' % (gname, gname))
+
+        return plotopts
+
+    def init_larch(self):
+        t0 = time.time()
+        from larch.wxlib import inputhook
+        self.larch = Interpreter()
+        self.larch.symtable.set_symbol('_sys.wx.wxapp', wx.GetApp())
+        self.larch.symtable.set_symbol('_sys.wx.parent', self)
+        self.larch('%s = group(filename="%s")' % (SCANGROUP, CURSCAN))
+        self.larch('_sys.localGroup = %s)' % (SCANGROUP))
+        self.lgroup =  getattr(self.larch.symtable, SCANGROUP)
+        self.SetStatusText('ready')
+        self.title.SetLabel('')
+
     def write_message(self, s, panel=0):
         """write a message to the Status Bar"""
         self.SetStatusText(s, panel)
@@ -323,8 +495,8 @@ class ScanViewerFrame(wx.Frame):
         ylabel, yexpr = make_array(self.yops, 0)
         if yexpr == '':
             return
-        self.larch.run("%s.arr_x = %s.%s" % (gname, gname, x))
-        self.larch.run("%s.arr_y1 = %s"   % (gname, yexpr))
+        self.larch("%s.arr_x = %s.%s" % (gname, gname, x))
+        self.larch("%s.arr_y1 = %s"   % (gname, yexpr))
         try:
             npts = min(len(lgroup.arr_x), len(lgroup.arr_y1))
         except AttributeError:
@@ -332,7 +504,7 @@ class ScanViewerFrame(wx.Frame):
 
         y2label, y2expr = make_array(self.yops, 1)
         if y2expr != '':
-            self.larch.run("%s.arr_y2 = %s" % (gname, y2expr))
+            self.larch("%s.arr_y2 = %s" % (gname, y2expr))
             n2pts = npts
             try:
                 n2pts = min(len(lgroup.arr_x), len(lgroup.arr_y1),
@@ -366,6 +538,14 @@ class ScanViewerFrame(wx.Frame):
             ppnl.user_limits[ax] = (min(lgroup.arr_x),  max(lgroup.arr_x),
                                     min(lgroup.arr_y1), max(lgroup.arr_y1))
 
+#             xlo, xhi = min(lgroup.arr_x), max(lgroup.arr_x)
+#             ylo, yhi = min(lgroup.arr_y1), max(lgroup.arr_y1)
+#             ppnl.conf.set_trace_datarange([xlo, xhi, ylo, yhi], 0)
+#
+#             for ax in ppnl.fig.get_axes():
+#                 ppnl.data_range[ax] = [xlo, xhi, ylo, yhi]
+#                 ax.set_xlim((xlo, xhi),  emit=True)
+#                 ax.set_ylim((ylo, yhi), emit=True)
 
             ###
             if y2expr != '':
@@ -453,6 +633,11 @@ class ScanViewerFrame(wx.Frame):
                 obj.Destroy()
             except:
                 pass
+        for nam in dir(self.larch.symtable._sys.wx):
+            obj = getattr(self.larch.symtable._sys.wx, nam)
+            del obj
+
+        self.Destroy()
 
 class ScanViewerApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
     def __init__(self, dbname=None, server='sqlite', host=None,
