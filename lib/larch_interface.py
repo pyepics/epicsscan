@@ -86,7 +86,7 @@ class LarchScanDBServer(object):
         self.larch.symtable.set_symbol(name, value)
     
     def get_symbol(self, name):
-        getattr(self.larch.symtable, name)
+        return getattr(self.larch.symtable, name)
     
     def get_error(self):
         return self.larch.error
