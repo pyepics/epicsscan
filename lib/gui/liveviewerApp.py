@@ -349,7 +349,12 @@ class ScanViewerFrame(wx.Frame):
         path, fname = os.path.split(self.live_scanfile)
         popts.update({'title': fname, 'xlabel': xlabel,
                       'ylabel': ylabel, 'y2label': y2label})
-
+        if len(lgroup.arr_x) < 2 or len(lgroup.arr_y1) < 2:
+            print 'No data to plot '
+            return
+        if len(lgroup.arr_x) != len(lgroup.arr_y1):
+            print 'data length mismatch ', len(lgroup.arr_x), len(lgroup.arr_y1)
+            return
         ppnl = self.plotpanel
         if new_plot:
             ppnl.plot(lgroup.arr_x, lgroup.arr_y1,
