@@ -139,6 +139,7 @@ class ScanViewerFrame(wx.Frame):
         self.SetStatusText(msg)
 
         if not (self.scan_inprogress or do_newplot):
+            # print 'Scan Timer no reason to plot', do_newplot, self.scan_inprogress
             return
 
         for row in sdata:
@@ -270,7 +271,7 @@ class ScanViewerFrame(wx.Frame):
         self.SetStatusText(s, panel)
 
     def onPlot(self, evt=None, npts=None):
-        """drow plot of newest data"""
+        """draw plot of newest data"""
 
         new_plot = self.force_newplot or npts < 3
         lgroup, gname = self.lgroup, SCANGROUP
@@ -328,7 +329,7 @@ class ScanViewerFrame(wx.Frame):
         try:
             npts = min(len(lgroup.arr_x), len(lgroup.arr_y1))
         except AttributeError:
-            return
+            print 'Problem getting arrays!'
 
         y2label, y2expr = make_array(self.yops, 1)
         if y2expr != '':
