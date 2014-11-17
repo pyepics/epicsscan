@@ -71,7 +71,7 @@ class ScanServer():
            
     def do_command(self, req):
         print 'Do Command: ', req.id, req.command, req.arguments
-        all_macros = self.larch.load__modules()
+        all_macros = self.larch.load_modules()
         
         self.command_in_progress = True
         self.scandb.set_info('scan_status', 'starting')
