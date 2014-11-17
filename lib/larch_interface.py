@@ -80,7 +80,7 @@ class LarchScanDBServer(object):
         
     def run(self, command):
         self.larch.error = []
-        return self.larch.run(command)
+        return self.larch.run(str(command))
 
     def set_symbol(self, name, value):
         self.larch.symtable.set_symbol(name, value)
