@@ -535,7 +535,7 @@ class ScanFrame(wx.Frame):
             basedir = basedir[len(fileroot):]
             print 'trimmed basedir to ', basedir
         self.scandb.set_info('user_folder', basedir)
-        fullpath = os.path.join(fileroot, workdir)
+        fullpath = os.path.join(fileroot, basedir)
         fullpath = fullpath.replace('\\', '/').replace('//', '/')
         try:
             os.chdir(fullpath)
