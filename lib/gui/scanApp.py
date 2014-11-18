@@ -94,8 +94,16 @@ def compare_scans(scan1, scan2, verbose=False):
 
     def equal(this, other):
         if verbose: print ' comp? ', this, other
-        if isinstance(this, unicode):
-            return str(this) == str(other)
+        if isinstance(this, (str, unicode)):
+            try:
+                this = str(this)
+            except:
+                pass
+            try:
+                other = str(other)
+            except:
+                pass
+            return this == other
         elif isinstance(this, (list, tuple)):
             out = True
             for thisitem, otheritem in zip(this, other):
@@ -110,22 +118,19 @@ def compare_scans(scan1, scan2, verbose=False):
     for comp in REQ_COMPS:
         try:
             if not equal(scan1[comp], scan2[comp]):
-                print 'Compare Scans unequal at comp=', comp
                 print scan1[comp], scan2[comp]
                 return False
         except:
-            print 'Compare Scans exception at comp=', comp
             return False
+
     for comp in OPT_COMPS:
         if comp in scan1:
             try:
                 if not equal(scan1[comp], scan2[comp]):
-                    print 'Compare Scans unequal at comp=', comp
                     print scan1[comp], scan2[comp]
 
                     return False
             except:
-                print 'Compare Scans exception at comp=', comp
                 return False
     return True
 
@@ -337,7 +342,6 @@ class ScanFrame(wx.Frame):
             except:
                 lastscan = ''
                 scan_is_new = True
-        print 'Generate Scan ', scan_is_new
         if scan_is_new:
             sdb.add_scandef(scanname, text=json.dumps(scan), type=scan['type'])
             sdb.commit()
@@ -375,8 +379,8 @@ class ScanFrame(wx.Frame):
     def onDebugScan(self, evt=None):
         scanname, dat = self.generate_scan()
         fname = self.filename.GetValue()
-        for key, val in dat.items():
-            print ' {} = {} '.format(key, val)
+        #for key, val in dat.items():
+        #    print ' {} = {} '.format(key, val)
 
         sname = fix_filename('%s.ini' % scanname)
         fout = open(sname, 'w')
@@ -523,6 +527,8 @@ class ScanFrame(wx.Frame):
 
     def onEditScans(self, evt=None):
         self.show_subframe('scan', ScandefsFrame)
+        current_nb = self.nb.GetSelection()
+        self.subframes['scan'].nb.SetSelection(current_nb)
 
     def onEditSettings(self, evt=None):
         self.show_subframe('settings', SettingsFrame)
