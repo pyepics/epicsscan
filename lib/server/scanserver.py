@@ -104,9 +104,6 @@ class ScanServer():
             command = "do_%s" % command
             args = ', '.join(words)
 
-        if command not in all_macros:
-            print '>>> Unknown Larch Command: ', command
-
         if len(args) == 0:
             larch_cmd = command
         else:
