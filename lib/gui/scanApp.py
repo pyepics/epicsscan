@@ -156,7 +156,7 @@ class ScanFrame(wx.Frame):
             self.statusbar.SetStatusText(statusbar_fields[i], i)
 
 
-        self.scandb.set_path()
+        self.set_workdir()
 
         self.scantimer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.onScanTimer, self.scantimer)
@@ -525,6 +525,24 @@ class ScanFrame(wx.Frame):
     def onEditMacro(self, evt=None):
         self.show_subframe('macro', MacroFrame)
 
+    def set_workdir(self, basedir=None):
+        """set working dir"""
+        if basedir is None:
+            basedir = self.scandb.get_info('user_folder')
+        basedir = str(basedir)
+        fileroot = str(get_fileroot())
+        if basedir.startswith(fileroot):
+            basedir = basedir[len(fileroot):]
+            print 'trimmed basedir to ', basedir
+        self.scandb.set_info('user_folder', basedir)
+        fullpath = os.path.join(fileroot, workdir)
+        fullpath = fullpath.replace('\\', '/').replace('//', '/')
+        try:
+            os.chdir(fullpath)
+        except:
+            print("ScanApp: Could not set working directory to %s " % fullpath)
+        print("ScanApp working folder: %s " % os.getcwd())
+        
     def onFolderSelect(self,evt):
         style = wx.DD_DIR_MUST_EXIST|wx.DD_DEFAULT_STYLE
 
@@ -533,18 +551,8 @@ class ScanFrame(wx.Frame):
 
         if dlg.ShowModal() == wx.ID_OK:
             basedir = os.path.abspath(str(dlg.GetPath())).replace('\\', '/')
-            try:
-                os.chdir(basedir)
-            except OSError:
-                pass
-            print ' - On Folder Select -- ', basedir, get_fileroot()
-            froot = str(get_fileroot())
-            basedir = str(basedir)
-            if basedir.startswith(froot):
-                basedir = basedir[len(froot):]
-                print 'trimmed basedir to ', basedir
-            self.scandb.set_info('user_folder', basedir)
-            self.scandb.set_path()
+            self.set_workdir(basedir=basedir)
+
         dlg.Destroy()
 
     def onSaveScanDef(self, evt=None):
