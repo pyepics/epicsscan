@@ -110,15 +110,22 @@ def compare_scans(scan1, scan2, verbose=False):
     for comp in REQ_COMPS:
         try:
             if not equal(scan1[comp], scan2[comp]):
+                print 'Compare Scans unequal at comp=', comp
+                print scan1[comp], scan2[comp]
                 return False
         except:
+            print 'Compare Scans exception at comp=', comp
             return False
     for comp in OPT_COMPS:
         if comp in scan1:
             try:
                 if not equal(scan1[comp], scan2[comp]):
+                    print 'Compare Scans unequal at comp=', comp
+                    print scan1[comp], scan2[comp]
+
                     return False
             except:
+                print 'Compare Scans exception at comp=', comp
                 return False
     return True
 
@@ -330,6 +337,7 @@ class ScanFrame(wx.Frame):
             except:
                 lastscan = ''
                 scan_is_new = True
+        print 'Generate Scan ', scan_is_new
         if scan_is_new:
             sdb.add_scandef(scanname, text=json.dumps(scan), type=scan['type'])
             sdb.commit()
