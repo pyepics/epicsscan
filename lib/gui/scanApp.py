@@ -540,11 +540,9 @@ class ScanFrame(wx.Frame):
             print ' - On Folder Select -- ', basedir, get_fileroot()
             froot = str(get_fileroot())
             basedir = str(basedir)
-            if basedir.startwsith(froot):
+            if basedir.startswith(froot):
                 basedir = basedir[len(froot):]
                 print 'trimmed basedir to ', basedir
-                
-            
             self.scandb.set_info('user_folder', basedir)
             self.scandb.set_path()
         dlg.Destroy()
