@@ -117,7 +117,6 @@ class ScanDB(object):
         fullpath = fullpath.replace('\\', '/').replace('//', '/')
         try:
             os.chdir(fullpath)
-            print("ScanDB: Working directory %s " % fullpath)
         except:
             print("ScanDB: Could not set working directory to %s " % fullpath)
             
@@ -125,7 +124,7 @@ class ScanDB(object):
         finally:
             self.set_info('server_fileroot',  fileroot)
             self.set_info('user_folder',  workdir)
-        print("ScanDB: Working directory %s " % os.getcwd())
+        # print("ScanDB: Working directory %s " % os.getcwd())
         time.sleep(0.1)
 
     def isScanDB(self, dbname, server='sqlite',
