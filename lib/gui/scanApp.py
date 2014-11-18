@@ -62,6 +62,8 @@ from ..scandb import ScanDB
 from .scan_panels import (LinearScanPanel, MeshScanPanel,
                           SlewScanPanel,   XAFSScanPanel)
 
+from ..site_config import get_fileroot
+
 from ..larch_interface import LarchScanDBServer
 from ..positioner import Positioner
 from ..detectors import (SimpleDetector, ScalerDetector, McaDetector,
@@ -535,6 +537,14 @@ class ScanFrame(wx.Frame):
                 os.chdir(basedir)
             except OSError:
                 pass
+            print ' - On Folder Select -- ', basedir, get_fileroot()
+            froot = str(get_fileroot())
+            basedir = str(basedir)
+            if basedir.startwsith(froot):
+                basedir = basedir[len(froot):]
+                print 'trimmed basedir to ', basedir
+                
+            
             self.scandb.set_info('user_folder', basedir)
             self.scandb.set_path()
         dlg.Destroy()

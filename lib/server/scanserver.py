@@ -31,7 +31,7 @@ class ScanServer():
     def connect(self, dbname, **kwargs):
         """connect to Scan Database"""
         self.scandb = ScanDB(dbname=dbname, **kwargs)
-        self.set_scan_message('Server initializing')
+        self.set_scan_message('Server initializing ', self.fileroot)
         self.larch = LarchScanDBServer(self.scandb, fileroot=self.fileroot)
         
         self.scandb.set_info('request_abort',    0)

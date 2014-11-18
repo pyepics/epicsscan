@@ -43,7 +43,7 @@ class LarchScanDBServer(object):
             macro_dir = self.macro_dir
 
         moduledir = os.path.join(self.fileroot, macro_dir, 'macros')
-
+        origdir = os.getcwd()
         _sys = self.larch.symtable._sys
         if moduledir not in _sys.path:
             _sys.path.insert(0, moduledir)
