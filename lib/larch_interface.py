@@ -70,6 +70,8 @@ class LarchScanDBServer(object):
                 if modname not in _sys.searchGroups:
                     _sys.searchGroups.append(modname)
                 self.loaded_modules[modname] = this_mtime
+                thismod  = self.larch.symtable.get_symbol(modname)
+                _sys.searchGroupObjects.append(thismod)
 
         # move back to working folder
         self.scandb.set_path(fileroot=self.fileroot)
@@ -80,7 +82,10 @@ class LarchScanDBServer(object):
         
     def run(self, command):
         self.larch.error = []
-        return self.larch.run(str(command))
+        out = self.larch.run(str(command))
+        if len(self.larch.error) > 0:
+            print 'Error: ', self.larch.error[0].msg
+        return out
 
     def set_symbol(self, name, value):
         self.larch.symtable.set_symbol(name, value)
