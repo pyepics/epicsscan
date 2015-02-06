@@ -159,7 +159,7 @@ class ScanServer():
             self.look_for_interrupt_requests()
             if self.req_shutdown:
                 break
-            if time.time() > (msgtime + 30):
+            if time.time() > (msgtime + 120):
                 print '#Server Alive, paused=%s' % (repr(self.req_pause))
                 msgtime = time.time()
 
