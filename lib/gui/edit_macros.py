@@ -16,7 +16,7 @@ from .gui_utils import (GUIColors, set_font_with_children, YesNo,
 LEFT = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
 CEN  = wx.ALIGN_CENTER|wx.ALIGN_CENTER_VERTICAL|wx.ALL
 
-AUTOSAVE_FILE = 'macrose_autosave.lar'
+AUTOSAVE_FILE = 'macros_autosave.lar'
 
 class MacroFrame(wx.Frame) :
     """Edit/Manage Macros (Larch Code)"""
@@ -101,7 +101,6 @@ class MacroFrame(wx.Frame) :
     def onInsertText(self, event=None):
         self.editor.WriteText('<Added text>')
 
-
     def onReadMacro(self, event=None):
         wcard = 'Scan files (*.lar)|*.lar|All files (*.*)|*.*'
         fname = FileOpen(self, "Read Macro from File",
@@ -111,7 +110,7 @@ class MacroFrame(wx.Frame) :
             self.ReadMacroFile(fname)
 
     def ReadMacroFile(self, fname):
-        if os.exists(fname):
+        if os.path.exists(fname):
             try:
                 text = open(fname, 'r').read()
             except:
@@ -124,13 +123,15 @@ class MacroFrame(wx.Frame) :
         wcard = 'Scan files (*.lar)|*.lar|All files (*.*)|*.*'
         fname = FileSave(self, 'Save Macro to File',
                          default_file='macro.lar', wildcard=wcard)
+        fname = os.path.join(os.getcwd(), fname)
         if fname is not None:
             if os.path.exists(fname):
                 ret = popup(self, "Overwrite Macro File '%s'?" % fname,
                             "Really Overwrite Macro File?",
                             style=wx.YES_NO|wx.NO_DEFAULT|wx.ICON_QUESTION)
-                if ret == wx.ID_YES:
-                    self.SaveMacroFile(fname)
+                if ret != wx.ID_YES:
+                    return
+            self.SaveMacroFile(fname)
                 
     def SaveMacroFile(self, fname):
         try:
