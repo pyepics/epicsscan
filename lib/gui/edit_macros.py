@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import logging
 
 import wx
 import wx.lib.scrolledpanel as scrolled
@@ -14,6 +15,8 @@ from .gui_utils import (GUIColors, set_font_with_children, YesNo,
 
 LEFT = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
 CEN  = wx.ALIGN_CENTER|wx.ALIGN_CENTER_VERTICAL|wx.ALL
+
+AUTOSAVE_FILE = 'macrose_autosave.lar'
 
 class MacroFrame(wx.Frame) :
     """Edit/Manage Macros (Larch Code)"""
@@ -36,19 +39,23 @@ class MacroFrame(wx.Frame) :
         self.editor = wx.TextCtrl(self, -1, size=(400, 400),
                                   style=wx.TE_MULTILINE|wx.TE_RICH2)
         self.editor.SetBackgroundColour('#FFFFFF')
-        text = """# Edit Macro text here\n#\n \n"""
 
+        text = """# Edit Macro text here\n#\n \n"""
         self.editor.SetValue(text)
         self.editor.SetInsertionPoint(len(text)-2)
+        self.ReadMacroFile(AUTOSAVE_FILE)
 
+        
         sizer.Add(self.editor, 1, CEN|wx.GROW|wx.ALL, 3)
 
 
         sizer.Add(self.make_buttons(), 0, wx.ALIGN_LEFT, 3)
+        wx.EVT_CLOSE(self, self.onClose)
         self.SetMinSize((460, 480))
         pack(self, sizer)
         self.Show()
         self.Raise()
+
 
     def make_buttons(self):
         panel = wx.Panel(self)
@@ -92,10 +99,7 @@ class MacroFrame(wx.Frame) :
         self.SetMenuBar(self.menubar)
 
     def onInsertText(self, event=None):
-        print 'Insert ', self.editor.GetInsertionPoint()
-        print 'Last ',   self.editor.GetLastPosition()
         self.editor.WriteText('<Added text>')
-        print 'Insert ', self.editor.GetInsertionPoint()
 
 
     def onReadMacro(self, event=None):
@@ -104,12 +108,18 @@ class MacroFrame(wx.Frame) :
                          default_file='macro.lar',
                          wildcard=wcard)
         if fname is not None:
+            self.ReadMacroFile(fname)
+
+    def ReadMacroFile(self, fname):
+        if os.exists(fname):
             try:
                 text = open(fname, 'r').read()
-                self.editor.SetValue(text)
             except:
-                pass
-
+                logging.exception('could not read MacroFile %s' % fname)
+            finally:
+                self.editor.SetValue(text)
+                self.editor.SetInsertionPoint(len(text)-2)
+            
     def onSaveMacro(self, event=None):
         wcard = 'Scan files (*.lar)|*.lar|All files (*.*)|*.*'
         fname = FileSave(self, 'Save Macro to File',
@@ -119,15 +129,16 @@ class MacroFrame(wx.Frame) :
                 ret = popup(self, "Overwrite Macro File '%s'?" % fname,
                             "Really Overwrite Macro File?",
                             style=wx.YES_NO|wx.NO_DEFAULT|wx.ICON_QUESTION)
-                if ret != wx.ID_YES:
-                    return
-
-                try:
-                    fh = open(fname, 'w')
-                    fh.write('%s\n' % self.editor.GetValue())
-                    fh.close()
-                except:
-                    pass
+                if ret == wx.ID_YES:
+                    self.SaveMacroFile(fname)
+                
+    def SaveMacroFile(self, fname):
+        try:
+            fh = open(fname, 'w')
+            fh.write('%s\n' % self.editor.GetValue())
+            fh.close()
+        except:
+            logging.exception('could not save MacroFile %s' % fname)            
 
     def onStart(self, event=None):
         print 'Macro Start'
@@ -160,4 +171,5 @@ class MacroFrame(wx.Frame) :
         self.scandb.commit()
 
     def onClose(self, event=None):
+        self.SaveMacroFile(AUTOSAVE_FILE)
         self.Destroy()
