@@ -364,7 +364,7 @@ class ScanDB(object):
         elif as_bool:
             if out is None: out = 0
             out = bool(int(out))
-        elif full_row::
+        elif full_row:
             out = thisrow
         return out
 
