@@ -193,8 +193,10 @@ class ScanDB(object):
         self.mapprops, self.mapkeys = mapprops, mapkeys
 
         self.status_codes = {}
+        self.status_names = {}
         for row in self.getall('status'):
             self.status_codes[row.name] = row.id
+            self.status_names[row.id] = row.name
         atexit.register(self.close)
 
     def read_station_config(self, config):
@@ -334,12 +336,13 @@ class ScanDB(object):
         return q.execute().fetchall()
 
     def get_info(self, key=None, default=None,
-                 as_int=False, as_bool=False, with_notes=False):
+                 as_int=False, as_bool=False,
+                 full_row=False):
         """get a value for an entry in the info table,
         if this key doesn't exist, it will be added with the default
         value and the default value will be returned.
 
-        use as_int, as_bool and with_notes to alter the output.
+        use as_int, as_bool and full_row to alter the output.
         """
         errmsg = "get_info expected 1 or None value for name='%s'"
         cls, table = self.get_table('info')
@@ -358,13 +361,11 @@ class ScanDB(object):
         if as_int:
             if out is None: out = 0
             out = int(float(out))
-        if as_bool:
+        elif as_bool:
             if out is None: out = 0
             out = bool(int(out))
-        if with_notes:
-            notes = ''
-            if thisrow is not None: notes = thisrow.notes
-            out = out, notes
+        elif full_row::
+            out = thisrow
         return out
 
     def set_info(self, key, value, notes=None):
@@ -758,13 +759,15 @@ class ScanDB(object):
         return query.execute().fetchall()
 
     # commands -- a more complex interface
-    def get_commands(self, status=None, **kws):
+    def get_commands(self, status=None, requested_since=None, **kws):
         """return command by status"""
         cls, table = self.get_table('commands')
-        q = self.query(cls).order_by(cls.id)
-        if status not in self.status_codes:
-            return q.all()
-        return q.filter(cls.status_id==self.status_codes[status]).all()
+        q = table.select().order_by(cls.id.desc())
+        if status in self.status_codes:
+            q = q.where(table.c.status_id == self.status_codes[status])
+        if requested_since is not None:
+            q = q.where(table.c.request_time >= requested_since)
+        return q.execute().fetchall()
 
     # commands -- a more complex interface
     def get_mostrecent_command(self):

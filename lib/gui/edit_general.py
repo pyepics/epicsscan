@@ -52,9 +52,9 @@ class SettingsFrame(wx.Frame) :
             ir += 1
             sizer.Add(add_subtitle(panel, '%s:' % sect),  (ir, 0),  (1, 4), LCEN, 1)
             for vname, as_bool in vars:
-                val, label = self.scandb.get_info(vname, as_bool=as_bool, with_notes=True)
-
-                desc = wx.StaticText(panel, -1, label="  %s: " % label, size=(300, -1))
+                row = self.scandb.get_info(vname, full_row=True)
+                val = bool(int(row.value))
+                desc = wx.StaticText(panel, -1, label="  %s: " % row.notes, size=(300, -1))
                 if as_bool:
                     ctrl = check(panel, default=val)
                 else:
