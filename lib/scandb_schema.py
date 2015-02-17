@@ -7,6 +7,7 @@ Main Class for full Database:  ScanDB
 import os
 import time
 from datetime import datetime
+import logging
 
 # from utils import backup_versions, save_backup
 
@@ -375,7 +376,8 @@ def map_scandb(metadata):
     try:
         clear_mappers()
     except:
-        pass
+        logging.exception("error clearing mappers")
+
 
     for cls in (Info, Status, PVs, PVTypes, MonitorValues, Macros, ExtraPVs,
                 Commands, ScanData, ScanPositioners, ScanCounters,

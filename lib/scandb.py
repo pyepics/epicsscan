@@ -9,6 +9,8 @@ import sys
 import json
 import time
 import atexit
+import logging
+
 from socket import gethostname
 from datetime import datetime
 
@@ -118,9 +120,7 @@ class ScanDB(object):
         try:
             os.chdir(fullpath)
         except:
-            print("ScanDB: Could not set working directory to %s " % fullpath)
-            
-            pass
+            logging.exception("ScanDB: Could not set working directory to %s " % fullpath)
         finally:
             self.set_info('server_fileroot',  fileroot)
             self.set_info('user_folder',  workdir)
@@ -268,7 +268,7 @@ class ScanDB(object):
         try:
             return self.session.commit()
         except:
-            pass
+            logging.exception("could not commit")
 
     def close(self):
         "close session"
@@ -278,7 +278,7 @@ class ScanDB(object):
             self.session.close()
             self.conn.close()
         except:
-            pass
+            logging.exception("could not close session")
 
     def query(self, *args, **kws):
         "generic query"
@@ -293,6 +293,7 @@ class ScanDB(object):
                 return self.session.query(*args, **kws)
             except:
                 self.session.rollback()
+                logging.exception("rolling back session at query", args, kws)
                 return None
         # self.session.autoflush = True
 
@@ -516,7 +517,6 @@ class ScanDB(object):
     def get_macro(self, name):
         """return macro by name"""
         return self.getrow('macros', name, one_or_none=True)
-
 
     def add_macro(self, name, text, arguments='',
                   output='', notes='', **kws):
