@@ -36,7 +36,9 @@ class LarchScanDBServer(object):
         plugindir = os.path.join(self.fileroot, macro_dir, 'plugins')
         self.larch.symtable._sys.config.plugin_paths.insert(0, plugindir)
         for pyfile in glob.glob(os.path.join(plugindir, '*.py')):
-            self.larch.run("add_plugin('%s')" % os.path.split(pyfile)[1][:-3])
+            plugin_name = str(os.path.split(pyfile)[1][:-3])
+            out = self.larch.run("add_plugin('%s')" % plugin_name)
+            print("add_plugin('%s') --> %s" % (plugin_name, out))
 
     def load_modules(self, macro_dir=None, verbose=False):
         """read latest larch modules"""
