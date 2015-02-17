@@ -13,10 +13,13 @@ from .gui_utils import (GUIColors, set_font_with_children, YesNo,
                         FileOpen, FileSave, popup,
                         FRAMESTYLE, Font)
 
+import larch
+from larch.wxlib.readlinetextctrl import ReadlineTextCtrl
 LEFT = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
 CEN  = wx.ALIGN_CENTER|wx.ALIGN_CENTER_VERTICAL|wx.ALL
 
 AUTOSAVE_FILE = 'macros_autosave.lar'
+MACRO_HISTORY = 'scan_macro_history.lar'
 
 class MacroFrame(wx.Frame) :
     """Edit/Manage Macros (Larch Code)"""
@@ -45,9 +48,11 @@ class MacroFrame(wx.Frame) :
         self.editor.SetInsertionPoint(len(text)-2)
         self.ReadMacroFile(AUTOSAVE_FILE)
 
-        
+
         sizer.Add(self.editor, 1, CEN|wx.GROW|wx.ALL, 3)
 
+        sizer.Add(self.InputPanel(),  0, border=2,
+                  flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL|wx.EXPAND)
 
         sizer.Add(self.make_buttons(), 0, wx.ALIGN_LEFT, 3)
         wx.EVT_CLOSE(self, self.onClose)
@@ -98,6 +103,34 @@ class MacroFrame(wx.Frame) :
         self.menubar.Append(pmenu, "Insert")
         self.SetMenuBar(self.menubar)
 
+    def InputPanel(self):
+        panel = wx.Panel(self, -1)
+        self.prompt = wx.StaticText(panel, -1, '>', size = (50,-1),
+                                    style=wx.ALIGN_CENTER|wx.ALIGN_RIGHT)
+        histFile = os.path.join(larch.site_config.usr_larchdir, MACRO_HISTORY)
+        self.input = ReadlineTextCtrl(panel, -1,  '', size=(525,-1),
+                                 historyfile=histFile, mode='emacs',
+                                 style=wx.ALIGN_LEFT|wx.TE_PROCESS_ENTER)
+
+        self.input.Bind(wx.EVT_TEXT_ENTER, self.onText)
+        sizer = wx.BoxSizer(wx.HORIZONTAL)
+
+        sizer.Add(self.prompt,  0, wx.BOTTOM|wx.CENTER)
+        sizer.Add(self.input,   1, wx.ALIGN_LEFT|wx.ALIGN_CENTER|wx.EXPAND)
+        panel.SetSizer(sizer)
+        sizer.Fit(panel)
+        return panel
+
+    def onText(self, event=None):
+        text = event.GetString().strip()
+        self.input.Clear()
+        self.input.AddToHistory(text)
+        # self.scandb.set_info('request_pause',  1)
+        self.scandb.add_command(text)
+        self.scandb.commit()
+        # self.scandb.set_info('request_abort',  0)
+        # self.scandb.set_info('request_pause',  0)
+
     def onInsertText(self, event=None):
         self.editor.WriteText('<Added text>')
 
@@ -118,7 +151,7 @@ class MacroFrame(wx.Frame) :
             finally:
                 self.editor.SetValue(text)
                 self.editor.SetInsertionPoint(len(text)-2)
-            
+
     def onSaveMacro(self, event=None):
         wcard = 'Scan files (*.lar)|*.lar|All files (*.*)|*.*'
         fname = FileSave(self, 'Save Macro to File',
@@ -132,14 +165,14 @@ class MacroFrame(wx.Frame) :
                 if ret != wx.ID_YES:
                     return
             self.SaveMacroFile(fname)
-                
+
     def SaveMacroFile(self, fname):
         try:
             fh = open(fname, 'w')
             fh.write('%s\n' % self.editor.GetValue())
             fh.close()
         except:
-            logging.exception('could not save MacroFile %s' % fname)            
+            logging.exception('could not save MacroFile %s' % fname)
 
     def onStart(self, event=None):
         print 'Macro Start'
