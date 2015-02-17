@@ -807,10 +807,6 @@ class ScanDB(object):
             status = 'unknown'
         statid = self.status_codes[status]
         table.update(whereclause="id='%i'" % cmdid).execute(status_id=statid)
-        # print 'Commands Table update status to ' , statid, cmdid
-        # self.commit()
-        # print 'After status update:'
-        # print self.get_commands('requested')
 
 
     def set_command_output(self, cmdid, value=None):
