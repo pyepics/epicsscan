@@ -15,6 +15,7 @@ from socket import gethostname
 from datetime import datetime
 
 # from utils import backup_versions, save_backup
+import sqlalchemy
 from sqlalchemy import MetaData, Table, select, and_, create_engine
 from sqlalchemy.orm import sessionmaker, mapper
 
@@ -264,11 +265,12 @@ class ScanDB(object):
                                   {'pvname': pvname})
 
     def commit(self):
-        "commit session state"
-        try:
-            return self.session.commit()
-        except:
-            logging.exception("could not commit")
+        "commit session state -- null op since using autocommit"
+        pass
+        #try:
+        #    return self.session.commit()
+        #except:
+        #    logging.exception("could not commit")
 
     def close(self):
         "close session"
@@ -418,7 +420,6 @@ class ScanDB(object):
             setattr(table, key, val)
         try:
             self.session.add(table)
-            # self.session.commit()
         except IntegrityError, msg:
             self.session.rollback()
             raise Warning('Could not add data to table %s\n%s' % (table, msg))
@@ -461,7 +462,7 @@ class ScanDB(object):
         constraints = ["%s=%s" % (str(k), repr(v)) for k, v in where.items()]
         whereclause = ' AND '.join(constraints)
         table.update(whereclause=whereclause).execute(**vals)
-        self.commit()
+        # self.commit()
 
 
     def getrow(self, table, name, one_or_none=False):
@@ -726,7 +727,7 @@ class ScanDB(object):
             self.pvs[name] = thispv.id
         return thispv
 
-    def record_monitorpv(self, pvname, value, commit=False):
+    def record_monitorpv(self, pvname, value):
         """save value for monitor pvs"""
         pvname = normalize_pvname(pvname)
         if pvname not in self.pvs:
@@ -793,6 +794,12 @@ class ScanDB(object):
         self.session.add(row)
         return row
 
+    def get_command_status(self, cmdid):
+        "get status for a command by id"
+        cls, table = self.get_table('commands')
+        ret = table.select().where(table.c.id==cmdid).execute().fetchone()
+        return self.status_names[ret.status_id]
+        
     def set_command_status(self, cmdid, status):
         """set the status of a command (by id)"""
         cls, table = self.get_table('commands')
@@ -801,7 +808,7 @@ class ScanDB(object):
         statid = self.status_codes[status]
         table.update(whereclause="id='%i'" % cmdid).execute(status_id=statid)
         # print 'Commands Table update status to ' , statid, cmdid
-        self.commit()
+        # self.commit()
         # print 'After status update:'
         # print self.get_commands('requested')
 
@@ -810,7 +817,6 @@ class ScanDB(object):
         """set the status of a command (by id)"""
         cls, table = self.get_table('commands')
         table.update(whereclause="id='%i'" % cmdid).execute(output_value=repr(value))
-        self.commit()
 
     def cancel_command(self, id):
         """cancel command"""
