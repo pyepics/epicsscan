@@ -35,7 +35,8 @@ class LarchScanDBServer(object):
             macro_dir = self.macro_dir
         plugindir = os.path.join(self.fileroot, macro_dir, 'plugins')
         self.larch.symtable._sys.config.plugin_paths.insert(0, plugindir)
-        self.larch.run("add_plugin('basic_macros')")
+        for pyfile in glob.glob(os.path.join(plugindir, '*.py')):
+            self.larch.run("add_plugin('%s')" % os.path.split(pyfile)[1][:-3])
 
     def load_modules(self, macro_dir=None, verbose=False):
         """read latest larch modules"""
@@ -47,6 +48,9 @@ class LarchScanDBServer(object):
         _sys = self.larch.symtable._sys
         if moduledir not in _sys.path:
             _sys.path.insert(0, moduledir)
+        if not os.path.exists(moduledir):
+            return
+
         os.chdir(moduledir)
         for name in glob.glob('*.lar'):
             modname = name[:-4]
@@ -79,7 +83,7 @@ class LarchScanDBServer(object):
 
     def __call__(self, arg):
         return self.larch.run(arg)
-        
+
     def run(self, command):
         self.larch.error = []
         out = self.larch.run(str(command))
@@ -89,10 +93,10 @@ class LarchScanDBServer(object):
 
     def set_symbol(self, name, value):
         self.larch.symtable.set_symbol(name, value)
-    
+
     def get_symbol(self, name):
         return getattr(self.larch.symtable, name)
-    
+
     def get_error(self):
         return self.larch.error
 

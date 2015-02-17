@@ -33,7 +33,7 @@ class ScanServer():
         self.scandb = ScanDB(dbname=dbname, **kwargs)
         self.set_scan_message('Server initializing ', self.fileroot)
         self.larch = LarchScanDBServer(self.scandb, fileroot=self.fileroot)
-        
+
         self.scandb.set_info('request_abort',    0)
         self.scandb.set_info('request_pause',    0)
         self.scandb.set_info('request_shutdown', 0)
@@ -68,11 +68,11 @@ class ScanServer():
 
     def set_path(self):
         self.scandb.set_path(fileroot=self.fileroot)
-           
+
     def do_command(self, req):
         print 'Do Command: ', req.id, req.command, req.arguments
         all_macros = self.larch.load_modules()
-        
+
         self.command_in_progress = True
         self.scandb.set_info('scan_status', 'starting')
         self.scandb.set_command_status(req.id, 'starting')
@@ -103,6 +103,9 @@ class ScanServer():
                                      {'last_used_time': make_datetime()})
             command = "do_%s" % command
             args = ', '.join(words)
+        elif command.lower() == 'reload':
+            self.set_scan_message('Server Reloading Larch Plugins...')
+            self.larch.load_plugins()
 
         if len(args) == 0:
             larch_cmd = command
