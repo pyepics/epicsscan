@@ -39,7 +39,7 @@ class MacroFrame(wx.Frame) :
         self.colors = GUIColors()
         self.SetBackgroundColour(self.colors.bg)
 
-        self.editor = wx.TextCtrl(self, -1, size=(400, 400),
+        self.editor = wx.TextCtrl(self, -1, size=(400, 250),
                                   style=wx.TE_MULTILINE|wx.TE_RICH2)
         self.editor.SetBackgroundColour('#FFFFFF')
 
@@ -48,15 +48,21 @@ class MacroFrame(wx.Frame) :
         self.editor.SetInsertionPoint(len(text)-2)
         self.ReadMacroFile(AUTOSAVE_FILE)
 
+        sfont = wx.Font(11,  wx.SWISS, wx.NORMAL, wx.BOLD, False)
+        self.output = wx.TextCtrl(self, -1,  '## Output Buffer\n', size=(400, 200),
+                                  style=wx.TE_MULTILINE|wx.TE_RICH|wx.TE_READONLY)
+        self.output.CanCopy()
+        self.output.SetInsertionPointEnd()
+        self.output.SetDefaultStyle(wx.TextAttr('black', 'white', sfont))
 
+        sizer.Add(self.make_buttons(), 0, wx.ALIGN_LEFT, 3)
         sizer.Add(self.editor, 1, CEN|wx.GROW|wx.ALL, 3)
-
+        sizer.Add(self.output, 1, CEN|wx.GROW|wx.ALL, 3)
         sizer.Add(self.InputPanel(),  0, border=2,
                   flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL|wx.EXPAND)
 
-        sizer.Add(self.make_buttons(), 0, wx.ALIGN_LEFT, 3)
         wx.EVT_CLOSE(self, self.onClose)
-        self.SetMinSize((460, 480))
+        self.SetMinSize((460, 525))
         pack(self, sizer)
         self.Show()
         self.Raise()
@@ -105,12 +111,12 @@ class MacroFrame(wx.Frame) :
 
     def InputPanel(self):
         panel = wx.Panel(self, -1)
-        self.prompt = wx.StaticText(panel, -1, '>', size = (50,-1),
+        self.prompt = wx.StaticText(panel, -1, ' >>>', size = (30,-1),
                                     style=wx.ALIGN_CENTER|wx.ALIGN_RIGHT)
-        histFile = os.path.join(larch.site_config.usr_larchdir, MACRO_HISTORY)
+        self.histfile = os.path.join(larch.site_config.usr_larchdir, MACRO_HISTORY)
         self.input = ReadlineTextCtrl(panel, -1,  '', size=(525,-1),
-                                 historyfile=histFile, mode='emacs',
-                                 style=wx.ALIGN_LEFT|wx.TE_PROCESS_ENTER)
+                                      historyfile=self.histfile, mode='emacs',
+                                      style=wx.ALIGN_LEFT|wx.TE_PROCESS_ENTER)
 
         self.input.Bind(wx.EVT_TEXT_ENTER, self.onText)
         sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -123,13 +129,17 @@ class MacroFrame(wx.Frame) :
 
     def onText(self, event=None):
         text = event.GetString().strip()
+        if len(text) < 1: 
+            return
         self.input.Clear()
         self.input.AddToHistory(text)
-        # self.scandb.set_info('request_pause',  1)
-        self.scandb.add_command(text)
+        out = self.scandb.add_command(text)
         self.scandb.commit()
-        # self.scandb.set_info('request_abort',  0)
-        # self.scandb.set_info('request_pause',  0)
+        time.sleep(0.01)
+        pos0 = self.output.GetLastPosition()
+        if not text.endswith('\n'):
+            text = '%s\n' % text
+        self.output.WriteText(text)
 
     def onInsertText(self, event=None):
         self.editor.WriteText('<Added text>')
@@ -206,4 +216,7 @@ class MacroFrame(wx.Frame) :
 
     def onClose(self, event=None):
         self.SaveMacroFile(AUTOSAVE_FILE)
+        print 'onClose ', AUTOSAVE_FILE
+        print self.histfile
+        self.input.SaveHistory(self.histfile)
         self.Destroy()
