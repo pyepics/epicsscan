@@ -9,6 +9,7 @@ import os
 import time
 import shutil
 import json
+import logging
 import numpy as np
 from random import randrange
 
@@ -68,8 +69,9 @@ class ScanViewerFrame(wx.Frame):
             self.larch = LarchScanDBServer(self.scandb)
             
         self.lgroup = None
-        self.larch.run('%s = group(filename="%s")' % (SCANGROUP, CURSCAN))
-        self.larch.run('_sys.localGroup = %s)' % (SCANGROUP))
+        self.larch.run("%s = group(filename='%s')" % (SCANGROUP, CURSCAN))
+        self.larch.run("_sys.localGroup = %s" % (SCANGROUP))
+        # self.larch.run("show(_sys)")
         self.lgroup =  self.larch.get_symbol(SCANGROUP)
 
         self.force_newplot = False
@@ -111,8 +113,7 @@ class ScanViewerFrame(wx.Frame):
             scan_stat = self.get_info('scan_status')
             msg       = self.get_info('scan_message')
         except:
-            print 'Scan ? '
-            return
+            logging.exception("No Scan at ScanTime")
 
         try:
             npts = len(sdata[-1].data)
@@ -284,7 +285,8 @@ class ScanViewerFrame(wx.Frame):
             xunits = lgroup.array_units[ix]
             xlabel = '%s (%s)' % (xlabel, xunits)
         except:
-            pass
+            logging.exception("No units at onPlot")
+
 
         def make_array(wids, iy):
             gn  = SCANGROUP
@@ -329,7 +331,7 @@ class ScanViewerFrame(wx.Frame):
         try:
             npts = min(len(lgroup.arr_x), len(lgroup.arr_y1))
         except AttributeError:
-            print 'Problem getting arrays!'
+            logging.exception("Problem getting arrays")
 
         y2label, y2expr = make_array(self.yops, 1)
         if y2expr != '':
