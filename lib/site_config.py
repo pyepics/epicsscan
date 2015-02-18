@@ -3,11 +3,9 @@
 import os
 import sys
 
-DARWIN_ROOT  = '/Volumes/Data/xas_user/'
+DARWIN_ROOT  = os.path.join(os.environ.get('HOME', '/') , '.larch')
 WINDOWS_ROOT = 'T:/xas_user/'
 LINUX_ROOT   = '/cars5/Data/xas_user/'
-MACRO_FOLDER  = 'scan_config/13ide'
-
 LARCH_SCANDB = '_scan._scandb'
 
 def get_fileroot(fileroot=None):
@@ -18,4 +16,3 @@ def get_fileroot(fileroot=None):
         elif sys.platform == 'darwin':
             fileroot = DARWIN_ROOT
     return fileroot
-    
