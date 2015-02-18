@@ -303,13 +303,6 @@ class ScandefsFrame(wx.Frame) :
         self.nb.SetSelection(0)
         sizer.Add(self.nb, 1, wx.ALL|wx.EXPAND, 5)
 
-#         bpanel = wx.Panel(panel)
-#         bsizer = wx.BoxSizer(wx.HORIZONTAL)
-#         bsizer.Add(add_button(bpanel, label='Done',   action=self.onDone))
-#
-#         pack(bpanel, bsizer)
-#         sizer.Add(bpanel, 0, LCEN, 5)
-
         pack(panel, sizer)
         panel.SetupScrolling()
 
