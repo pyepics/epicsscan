@@ -43,7 +43,7 @@ class EpicsScanDB(epics.Device):
         return property(lambda self:     self.__Fget(attr),
                         lambda self, val: self.__Fput(attr, val),
                         None, None)
-    
+
     status   = pv_property('status')
     message  = pv_property('message')
     last_error = pv_property('last_error')
@@ -57,10 +57,9 @@ class EpicsScanDB(epics.Device):
 
 class ScanServer():
     def __init__(self, dbname=None, fileroot=None, _larch=None,  **kwargs):
-
         self.epicsdb = EpicsScanDB(prefix='13XRM:SCANDB:')
         time.sleep(0.01)
-        
+
         self.fileroot = get_fileroot(fileroot)
         self.scandb = None
         self.abort = False
@@ -69,15 +68,12 @@ class ScanServer():
         self.command_in_progress = False
         self.req_shutdown = False
 
-
         self.epicsdb.Shutdown = 0
         self.epicsdb.Abort = 0
-        
         if dbname is not None:
             self.connect(dbname, **kwargs)
 
-            
-            
+
     def connect(self, dbname, **kwargs):
         """connect to Scan Database"""
         self.scandb = ScanDB(dbname=dbname, **kwargs)
@@ -99,7 +95,7 @@ class ScanServer():
         workdir = self.scandb.get_info('user_folder')
         self.epicsdb.workdir = str(workdir)
 
-        
+
     def set_scan_message(self, msg, verbose=True):
         self.scandb.set_info('scan_message', msg)
         self.epicsdb.message = msg
@@ -125,7 +121,7 @@ class ScanServer():
     def set_status(self, status):
         self.scandb.set_info('scan_status', status)
         self.epicsdb.status = status
-        
+
     def set_path(self):
         self.scandb.set_path(fileroot=self.fileroot)
 
@@ -138,7 +134,7 @@ class ScanServer():
         command = str(req.command)
         if len(command) < 1:
             return
-        
+
         all_macros = self.larch.load_modules()
         self.command_in_progress = True
         self.set_status('Starting')
@@ -147,12 +143,12 @@ class ScanServer():
         args    = strip_quotes(str(req.arguments)).strip()
         notes   = strip_quotes(str(req.notes)).strip()
         nrepeat = int(req.nrepeat)
-        
+
         filename = req.output_file
         if filename is None:
             filename = ''
         filename = strip_quotes(str(filename))
-        
+
         if command.lower() in ('scan', 'slewscan'):
             scanname = args
             words = ["'%s'" % scanname]
@@ -180,7 +176,7 @@ class ScanServer():
             larch_cmd = "%s(%s)" % (command, args)
 
         print 'Executing -> ', larch_cmd
-        self.scandb.set_info('command_error',   '')
+        self.scandb.set_info('error_message',   '')
         self.scandb.set_info('current_command', larch_cmd)
         self.set_status('Running')
         self.scandb.set_command_status(req.id, 'Running')
@@ -189,9 +185,9 @@ class ScanServer():
 
         out = self.larch.run(larch_cmd)
         time.sleep(0.1)
-        if len(self.larch.get_error()) > 0:
-            err = self.larch.get_error()[0]
-            self.scandb.set_info('command_error', repr(err.msg))
+        if len(self.larch.error) > 0:
+            errmsg = '\n'.join(self.larch.error[0].get_error())
+            self.scandb.set_info('error_message', errmsg)
 
         if hasattr(out, 'dtimer'):
             try:
