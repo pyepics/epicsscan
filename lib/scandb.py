@@ -266,7 +266,7 @@ class ScanDB(object):
 
     def commit(self):
         "commit session state -- null op since using autocommit"
-        pass
+        self.session.flush()
         #try:
         #    return self.session.commit()
         #except:
@@ -462,7 +462,7 @@ class ScanDB(object):
         constraints = ["%s=%s" % (str(k), repr(v)) for k, v in where.items()]
         whereclause = ' AND '.join(constraints)
         table.update(whereclause=whereclause).execute(**vals)
-        # self.commit()
+        self.commit()
 
 
     def getrow(self, table, name, one_or_none=False):
@@ -790,9 +790,15 @@ class ScanDB(object):
                     'nrepeat': nrepeat,
                     'status_id': statid})
 
-        row = self.__addRow(cls, ('command',), (command,), **kws)
-        self.session.add(row)
-        return row
+        this  = cls()
+        this.command = command
+        for key, val in kws.items():
+            if key == 'attributes':
+                val = json_encode(val)
+            setattr(this, key, val)
+        
+        self.session.add(this)
+        return this
 
     def get_command_status(self, cmdid):
         "get status for a command by id"
