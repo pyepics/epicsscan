@@ -45,7 +45,7 @@ class SequencesFrame(wx.Frame) :
                  ('Created',    125),
                  )
 
-    def __init__(self, parent, pos=(-1, -1), _larch=None):
+    def __init__(self, parent, pos=(-1, -1), size=(750, 275), _larch=None):
         self.parent = parent
         self.scandb = parent.scandb
 
@@ -57,35 +57,41 @@ class SequencesFrame(wx.Frame) :
         self.Font10=wx.Font(10, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
         titlefont = wx.Font(13, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
 
-        wx.Frame.__init__(self, None, -1, 'Epics Scanning: Command Sequence')
+        wx.Frame.__init__(self, None, -1, 
+                          'Epics Scanning: Command Sequence',  size=size)
 
         self.SetFont(self.Font10)
 
-        self.panel = scrolled.ScrolledPanel(self, size=(700, 325))
+        spanel = scrolled.ScrolledPanel(self, size=(725, 325))
         self.colors = GUIColors()
-        self.panel.SetBackgroundColour(self.colors.bg)
-
-        self.cmdlist = dv.DataViewListCtrl(self.panel,
+        spanel.SetBackgroundColour(self.colors.bg)
+        self.cmdlist = dv.DataViewListCtrl(spanel,
                                         style=dv.DV_VERT_RULES|dv.DV_ROW_LINES|dv.DV_SINGLE)
 
-        self.cmdlist.SetMinSize((725, 200))
+        self.cmdlist.SetMinSize((725, 250))
 
-        self.panel.SetupScrolling()
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(self.cmdlist, 1, wx.ALIGN_LEFT|wx.ALL|wx.GROW)
+        pack(spanel, sizer)
+        
+        spanel.SetupScrolling()
 
         bpanel = wx.Panel(self)
         bsizer = wx.BoxSizer(wx.HORIZONTAL)
         bsizer.Add(add_button(bpanel, label='Cancel Selected',  action=self.onCancel))
         bsizer.Add(add_button(bpanel, label='Abort Current',    action=self.onAbort))
         bsizer.Add(add_button(bpanel, label='Abort All',        action=self.onAbortAll))
+        bsizer.Add(add_button(bpanel, label='Show Details',     action=self.onShow))
         bsizer.Add(add_button(bpanel, label='Done',             action=self.onDone))
         pack(bpanel, bsizer)
 
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(self.cmdlist, 1, wx.ALIGN_LEFT)
-        sizer.Add(bpanel, 0, LCEN, 5)
-        self.SetAutoLayout(True)
-        self.SetSizer(sizer)
-        self.Fit()
+        mainsizer = wx.BoxSizer(wx.VERTICAL)
+        mainsizer.Add(spanel, 1, wx.GROW|wx.ALL, 1)
+        mainsizer.Add(bpanel, 0, wx.GROW|wx.ALL, 1)
+        pack(self, mainsizer)
+        self.Show()
+        self.Raise()
+
         self.make_titles()
         self.utimer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.fill_rows, self.utimer)
@@ -135,6 +141,13 @@ class SequencesFrame(wx.Frame) :
 
     def onAbortAll(self, event=None):
         print 'onAbort All '
+        if self.cmdlist.HasSelection():
+            row  = self.cmdlist.GetSelectedRow()
+            print 'selection ', row
+            print 'cmd id ', self.cmdlist.GetStore().GetValueByRow(row, 0)
+
+    def onShow(self, event=None):
+        print 'onshow '
         if self.cmdlist.HasSelection():
             row  = self.cmdlist.GetSelectedRow()
             print 'selection ', row
