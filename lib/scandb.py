@@ -760,10 +760,14 @@ class ScanDB(object):
         return query.execute().fetchall()
 
     # commands -- a more complex interface
-    def get_commands(self, status=None, requested_since=None, **kws):
+    def get_commands(self, status=None, reverse=False,
+                     requested_since=None, **kws):
         """return command by status"""
         cls, table = self.get_table('commands')
-        q = table.select().order_by(cls.id.desc())
+        order = cls.id
+        if reverse:
+            order = cls.id.desc()
+        q = table.select().order_by(order)
         if status in self.status_codes:
             q = q.where(table.c.status_id == self.status_codes[status])
         if requested_since is not None:
