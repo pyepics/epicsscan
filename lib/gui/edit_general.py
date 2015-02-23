@@ -37,9 +37,9 @@ class SettingsFrame(wx.Frame) :
         ir = 0
         self.wids = {}
         for sect, vars in (('User Setup',
-                            (('user_name', False),
+                            (# ('user_name', False),
                              # ('user_folder', False),
-                             ('experiment_id', False),
+                             # ('experiment_id', False),
                              ('scangui_verify_quit', True))
                             ),
                            ('Scan Definitions',
@@ -53,7 +53,12 @@ class SettingsFrame(wx.Frame) :
             sizer.Add(add_subtitle(panel, '%s:' % sect),  (ir, 0),  (1, 4), LCEN, 1)
             for vname, as_bool in vars:
                 row = self.scandb.get_info(vname, full_row=True)
-                val = bool(int(row.value))
+                val = row.value
+                try:
+                    val = bool(int(row.value))
+                except: 
+                    print 'Could not convert value to bool ', val
+
                 desc = wx.StaticText(panel, -1, label="  %s: " % row.notes, size=(300, -1))
                 if as_bool:
                     ctrl = check(panel, default=val)
