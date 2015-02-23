@@ -126,6 +126,7 @@ class ScanServer():
         self.scandb.set_path(fileroot=self.fileroot)
 
     def do_command(self, req):
+        # print 'DO Command ' , req, req.id
         cmd_stat = self.scandb.get_command_status(req.id).lower()
         if not cmd_stat.startswith('request'):
             print 'Skipping command ', cmd_stat, req
@@ -175,7 +176,7 @@ class ScanServer():
         else:
             larch_cmd = "%s(%s)" % (command, args)
 
-        print 'Executing -> ', larch_cmd
+        print 'Server Executing: ', larch_cmd
         self.scandb.set_info('error_message',   '')
         self.scandb.set_info('current_command', larch_cmd)
         self.set_status('Running')
@@ -231,7 +232,7 @@ class ScanServer():
                 self.epicsdb.setTime()
             if self.req_pause:
                 continue
-            reqs = self.scandb.get_commands('requested')
+            reqs = self.scandb.get_commands(status='requested', reverse=False)
             if self.epicsdb.Abort == 1 or self.req_abort:
                 for req in reqs:
                     self.scandb.set_command_status(req.id, 'aborted')
