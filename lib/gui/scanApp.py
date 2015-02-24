@@ -376,14 +376,15 @@ class ScanFrame(wx.Frame):
         self.scandb.set_info('request_pause', 0)
         self.scandb.set_info('nscans', nscans)
             
+        fmt = "do_%s('%s', filename='%s', comments='%s', nscans=%i)" % 
+
         command = 'scan'
         if dat['type'].lower() == 'slew':
             command = 'slewscan'
             nscans = 1
 
-        self.scandb.add_command(command, arguments=sname,
-                                notes=comments, nrepeat=nscans,
-                                output_file=fname)
+        command = fmt % (command, sname, fname, comments, nscans)
+        self.scandb.add_command(command)
         self.statusbar.SetStatusText('Waiting....', 0)
         self.scan_started = False
         self.scantimer.Start(100)
