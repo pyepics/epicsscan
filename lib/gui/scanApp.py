@@ -376,7 +376,7 @@ class ScanFrame(wx.Frame):
         self.scandb.set_info('request_pause', 0)
         self.scandb.set_info('nscans', nscans)
             
-        fmt = "do_%s('%s', filename='%s', comments='%s', nscans=%i)" % 
+        fmt = "do_%s('%s', filename='%s', comments='%s', nscans=%i)" 
 
         command = 'scan'
         if dat['type'].lower() == 'slew':
