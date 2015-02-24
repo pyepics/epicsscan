@@ -64,7 +64,7 @@ from .scan_panels import (LinearScanPanel, MeshScanPanel,
 
 from ..site_config import get_fileroot
 
-from ..larch_interface import LarchScanDBServer
+from ..larch_interface import LarchScanDBServer, larch_site_config
 from ..positioner import Positioner
 from ..detectors import (SimpleDetector, ScalerDetector, McaDetector,
                          MultiMcaDetector, AreaDetector, get_detector)
@@ -78,7 +78,7 @@ from .edit_scandefs    import ScandefsFrame
 from .edit_sequences   import SequencesFrame
 from .edit_macros      import MacroFrame
 
-
+ICON_FILE = 'epics_scan.ico'
 ALL_CEN =  wx.ALL|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL
 FNB_STYLE = flat_nb.FNB_NO_X_BUTTON|flat_nb.FNB_SMART_TABS|flat_nb.FNB_NO_NAV_BUTTONS|flat_nb.FNB_NODRAG
 
@@ -252,6 +252,8 @@ class ScanFrame(wx.Frame):
         sizer.Add(bpanel, 0, wx.ALIGN_LEFT|wx.ALL, 3)
         self.SetSizer(sizer)
         sizer.Fit(self)
+        self._icon = None
+
 
     def onInitTimer(self, evt=None):
         # print 'on init ', self.larch_status, self.epics_status, time.ctime()
@@ -285,6 +287,16 @@ class ScanFrame(wx.Frame):
             span.larch = self._larch
         self.statusbar.SetStatusText('Larch Ready')
         self.larch_status = 1
+
+        try:
+            fico = os.path.join(larch_site_config.sys_larchdir, 
+                                'bin', ICON_FILE)
+            self._icon = wx.Icon(fico, wx.BITMAP_TYPE_ICO)
+            self.SetIcon(self._icon)
+        except:
+            print "No icon Set"
+            pass
+
 
     @EpicsFunction
     def connect_epics(self):
@@ -509,6 +521,8 @@ class ScanFrame(wx.Frame):
                 del self.subframes[name]
         if not shown:
             self.subframes[name] = frameclass(self, _larch=self._larch)
+            if self._icon is not None:
+                self.subframes[name].SetIcon(self._icon)
 
     def onShowPlot(self, evt=None):
         self.show_subframe('plot', ScanViewerFrame)
