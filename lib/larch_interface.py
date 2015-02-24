@@ -9,6 +9,7 @@ from .site_config import get_fileroot, LARCH_SCANDB
 
 import larch
 from larch.utils import OrderedDict
+larch_site_config = larch.site_config
 
 class LarchScanDBServer(object):
     """      """
