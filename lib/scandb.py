@@ -813,6 +813,7 @@ class ScanDB(object):
     def set_command_status(self, cmdid, status):
         """set the status of a command (by id)"""
         cls, table = self.get_table('commands')
+        status = status.lower()
         if status not in self.status_codes:
             status = 'unknown'
         statid = self.status_codes[status]

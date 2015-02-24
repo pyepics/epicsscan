@@ -119,6 +119,7 @@ class ScanServer():
         time.sleep(0.1)
 
     def set_status(self, status):
+        print 'Setting Scan Status ', status
         self.scandb.set_info('scan_status', status)
         self.epicsdb.status = status
 
@@ -138,8 +139,8 @@ class ScanServer():
 
         all_macros = self.larch.load_modules()
         self.command_in_progress = True
-        self.set_status('Starting')
-        self.scandb.set_command_status(req.id, 'Starting')
+        self.set_status('starting')
+        self.scandb.set_command_status(req.id, 'starting')
 
         args    = strip_quotes(str(req.arguments)).strip()
         notes   = strip_quotes(str(req.notes)).strip()
@@ -179,15 +180,15 @@ class ScanServer():
         print 'Server Executing: ', larch_cmd
         self.scandb.set_info('error_message',   '')
         self.scandb.set_info('current_command', larch_cmd)
-        self.set_status('Running')
-        self.scandb.set_command_status(req.id, 'Running')
+        self.set_status('running')
+        self.scandb.set_command_status(req.id, 'running')
         self.epicsdb.cmd_id = req.id
         self.epicsdb.command = larch_cmd
 
         out = self.larch.run(larch_cmd)
         time.sleep(0.1)
-        if len(self.larch.error) > 0:
-            errmsg = '\n'.join(self.larch.error[0].get_error())
+        if len(self.larch.get_error()) > 0:
+            errmsg = '\n'.join(self.larch.get_error()[0].get_error())
             self.scandb.set_info('error_message', errmsg)
 
         if hasattr(out, 'dtimer'):
@@ -197,7 +198,7 @@ class ScanServer():
                 print('Could not save _debugscantime.dat')
 
         self.scandb.set_command_status(req.id, 'finished')
-        self.set_status('Idle')
+        self.set_status('idle')
         self.command_in_progress = False
 
     def look_for_interrupt_requests(self):
@@ -217,7 +218,7 @@ class ScanServer():
         if self.larch is None:
             raise ValueError("Scan server not connected!")
 
-        self.set_status('Idle')
+        self.set_status('idle')
         msgtime = time.time()
         self.set_scan_message('Server Ready')
         is_paused = False
