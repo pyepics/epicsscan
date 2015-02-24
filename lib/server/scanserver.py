@@ -121,7 +121,7 @@ class ScanServer():
     def set_status(self, status):
         print 'Setting Scan Status ', status
         self.scandb.set_info('scan_status', status)
-        self.epicsdb.status = status
+        self.epicsdb.status = status.title()
 
     def set_path(self):
         self.scandb.set_path(fileroot=self.fileroot)
