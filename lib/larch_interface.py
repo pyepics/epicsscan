@@ -11,6 +11,9 @@ import larch
 from larch.utils import OrderedDict
 larch_site_config = larch.site_config
 
+larch.use_plugin_path('epics')
+from stepscan_utils import EpicsScanDB
+
 class LarchScanDBServer(object):
     """      """
     def __init__(self, scandb, fileroot=None):
