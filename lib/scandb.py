@@ -383,7 +383,8 @@ class ScanDB(object):
         else:
             table = table.update(whereclause="keyname='%s'" % key)
         table.execute(**data)
-
+        self.commit()
+        
     def clobber_all_info(self):
         """dangerous!!!! clear all info --
         can leave a DB completely broken and unusable
