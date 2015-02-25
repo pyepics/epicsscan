@@ -158,6 +158,7 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         stop  = FloatCtrl(self, size=fsize, value=s1, act_on_losefocus=True,
                           action=Closure(self.onVal, index=i, label='stop'))
         step  = FloatCtrl(self, size=fsize, value=ds, act_on_losefocus=True,
+                          precision=4,
                           action=Closure(self.onVal, index=i, label='step'))
         if with_npts:
             npts  = FloatCtrl(self, precision=0,  value=ns, size=(50, -1),
