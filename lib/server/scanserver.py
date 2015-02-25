@@ -40,6 +40,7 @@ class ScanServer():
         self.set_scan_message('Server initializing ', self.fileroot)
         self.larch = LarchScanDBServer(self.scandb, fileroot=self.fileroot)
 
+        self.scandb.set_hostpid()
         self.scandb.set_info('request_abort',    0)
         self.scandb.set_info('request_pause',    0)
         self.scandb.set_info('request_shutdown', 0)
