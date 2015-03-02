@@ -15,6 +15,8 @@ from ..utils import  strip_quotes
 from ..site_config import get_fileroot
 from ..larch_interface import LarchScanDBServer, EpicsScanDB
 
+DEBUG_TIMER = False
+
 class ScanServer():
     def __init__(self, dbname=None, fileroot=None, _larch=None,  **kwargs):
         self.epicsdb = EpicsScanDB(prefix='13XRM:SCANDB:')
@@ -80,7 +82,6 @@ class ScanServer():
         time.sleep(0.1)
 
     def set_status(self, status):
-        print 'Setting Scan Status ', status
         self.scandb.set_info('scan_status', status)
         self.epicsdb.status = status.title()
 
@@ -88,10 +89,9 @@ class ScanServer():
         self.scandb.set_path(fileroot=self.fileroot)
 
     def do_command(self, req):
-        # print 'DO Command ' , req, req.id
         cmd_stat = self.scandb.get_command_status(req.id).lower()
         if not cmd_stat.startswith('request'):
-            print 'Skipping command ', cmd_stat, req
+            self.set_scan_message("Warning: skipping command '%s'" % repr(req))
             return
 
         command = str(req.command)
@@ -137,8 +137,6 @@ class ScanServer():
             larch_cmd = command
         else:
             larch_cmd = "%s(%s)" % (command, args)
-
-        print 'Server Executing: ', larch_cmd
         self.scandb.set_info('error_message',   '')
         self.scandb.set_info('current_command', larch_cmd)
         self.set_status('running')
@@ -152,7 +150,7 @@ class ScanServer():
             errmsg = '\n'.join(self.larch.get_error()[0].get_error())
             self.scandb.set_info('error_message', errmsg)
 
-        if hasattr(out, 'dtimer'):
+        if DEBUG_TIMER and hasattr(out, 'dtimer'):
             try:
                 out.dtimer.save("_debugscantime.dat")
             except:
