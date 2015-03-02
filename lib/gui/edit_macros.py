@@ -28,6 +28,7 @@ class MacroFrame(wx.Frame) :
         self.parent = parent
         self.scandb = parent.scandb
         self.winfo = OrderedDict()
+        self.db_stats = {'scan_message': 0, 'error_message': 0}
 
         wx.Frame.__init__(self, None, -1,  title='Epics Scanning: Macro',
                           style=FRAMESTYLE)
@@ -84,6 +85,12 @@ class MacroFrame(wx.Frame) :
             val = str(self.scandb.get_info(attr, '--'))
             if key in self.winfo:
                 self.winfo[key].SetLabel(val)
+
+        info_mapping = {'File Name': 'filename', 
+                        'Current Command': 'current_command',
+                        'Status': 'scan_status', 
+                        'Timestamp': 'heartbeat'}
+
 
     def make_info(self):
         panel = wx.Panel(self)
