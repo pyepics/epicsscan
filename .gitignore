@@ -3,6 +3,7 @@
 *.BAK
 *#
 *.dat
+scan_credentials.py
 doc/_build
 doc/*.pdf
 tests/.coverage*

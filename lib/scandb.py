@@ -267,10 +267,6 @@ class ScanDB(object):
     def commit(self):
         "commit session state -- null op since using autocommit"
         self.session.flush()
-        #try:
-        #    return self.session.commit()
-        #except:
-        #    logging.exception("could not commit")
 
     def close(self):
         "close session"
