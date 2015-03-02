@@ -39,10 +39,10 @@ def tfmt(dt):
 class SequencesFrame(wx.Frame) :
     """Edit/Manage/Run/View Sequences"""
     colLabels = (('ID',          50),
-                 ('Status',     100),
-                 ('Command',    300),
-                 ('Modifed',    125),
-                 ('Created',    125),
+                 ('Status',      75),
+                 ('Command',    375),
+                 ('Requested',  125),
+                 ('Modified',   125),
                  )
 
     def __init__(self, parent, pos=(-1, -1), size=(750, 275), _larch=None):
@@ -78,12 +78,20 @@ class SequencesFrame(wx.Frame) :
 
         bpanel = wx.Panel(self)
         bsizer = wx.BoxSizer(wx.HORIZONTAL)
-        bsizer.Add(add_button(bpanel, label='Cancel Selected',  action=self.onCancel))
-        bsizer.Add(add_button(bpanel, label='Abort Current',    action=self.onAbort))
-        bsizer.Add(add_button(bpanel, label='Abort All',        action=self.onAbortAll))
-        bsizer.Add(add_button(bpanel, label='Show Details',     action=self.onShow))
-        bsizer.Add(add_button(bpanel, label='Done',             action=self.onDone))
+        b1 = add_button(bpanel, label='Cancel Selected',  action=self.onCancel)
+        b2 = add_button(bpanel, label='Abort Current',    action=self.onAbort)
+        b3 = add_button(bpanel, label='Abort All',        action=self.onAbortAll)
+        # b4 = add_button(bpanel, label='Show Details',     action=self.onShow)
+        b5 = add_button(bpanel, label='Done',             action=self.onDone)
+
+        bsizer.Add(b1)
+        bsizer.Add(b2)
+        bsizer.Add(b3)
+        # bsizer.Add(b4)
+        bsizer.Add(b5)
         pack(bpanel, bsizer)
+
+        for b in (b1, b2, b3, b4, b5): b.Disable()
 
         mainsizer = wx.BoxSizer(wx.VERTICAL)
         mainsizer.Add(spanel, 1, wx.GROW|wx.ALL, 1)
