@@ -27,6 +27,7 @@ class MacroFrame(wx.Frame) :
 
         self.parent = parent
         self.scandb = parent.scandb
+        self.winfo = OrderedDict()
 
         wx.Frame.__init__(self, None, -1,  title='Epics Scanning: Macro',
                           style=FRAMESTYLE)
@@ -39,7 +40,7 @@ class MacroFrame(wx.Frame) :
         self.colors = GUIColors()
         self.SetBackgroundColour(self.colors.bg)
 
-        self.editor = wx.TextCtrl(self, -1, size=(400, 250),
+        self.editor = wx.TextCtrl(self, -1, size=(550, 250),
                                   style=wx.TE_MULTILINE|wx.TE_RICH2)
         self.editor.SetBackgroundColour('#FFFFFF')
 
@@ -49,24 +50,71 @@ class MacroFrame(wx.Frame) :
         self.ReadMacroFile(AUTOSAVE_FILE)
 
         sfont = wx.Font(11,  wx.SWISS, wx.NORMAL, wx.BOLD, False)
-        self.output = wx.TextCtrl(self, -1,  '## Output Buffer\n', size=(400, 200),
+        self.output = wx.TextCtrl(self, -1,  '## Output Buffer\n', size=(550, 250),
                                   style=wx.TE_MULTILINE|wx.TE_RICH|wx.TE_READONLY)
         self.output.CanCopy()
         self.output.SetInsertionPointEnd()
         self.output.SetDefaultStyle(wx.TextAttr('black', 'white', sfont))
 
+        sizer.Add(self.make_info(),    0, wx.ALIGN_LEFT, 3)
         sizer.Add(self.make_buttons(), 0, wx.ALIGN_LEFT, 3)
         sizer.Add(self.editor, 1, CEN|wx.GROW|wx.ALL, 3)
+
         sizer.Add(self.output, 1, CEN|wx.GROW|wx.ALL, 3)
         sizer.Add(self.InputPanel(),  0, border=2,
                   flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL|wx.EXPAND)
 
+        self._stimer = wx.Timer(self)
+        self.Bind(wx.EVT_TIMER, self.update_info, self._stimer)
+        self._stimer.Start(500)
+
         wx.EVT_CLOSE(self, self.onClose)
-        self.SetMinSize((460, 525))
+        self.SetMinSize((600, 450))
         pack(self, sizer)
         self.Show()
         self.Raise()
 
+    def update_info(self, evt=None):
+        info_mapping = {'File Name': 'filename', 
+                        'Current Command': 'current_command',
+                        'Status': 'scan_status', 
+                        'Timestamp': 'heartbeat'}
+
+        for key, attr in info_mapping.items():
+            val = str(self.scandb.get_info(attr, '--'))
+            if key in self.winfo:
+                self.winfo[key].SetLabel(val)
+
+    def make_info(self):
+        panel = wx.Panel(self)
+        sizer = wx.GridBagSizer(8, 4)
+
+        self.winfo = OrderedDict()
+        opts1 = {'label':' '*99, 'colour': '#000088', 'size': (425, -1), 
+                 'minsize': (375, -1), 'style': wx.ALIGN_LEFT}
+        opts2 = {'label':' '*50, 'colour': '#000088', 'size': (275, -1),
+                 'minsize': (200, -1), 'style': wx.ALIGN_LEFT}
+        self.winfo['File Name']       = SimpleText(panel, **opts1)
+        self.winfo['Current Command'] = SimpleText(panel, **opts1)
+        self.winfo['Status']     = SimpleText(panel, **opts2)
+        self.winfo['Timestamp']  = SimpleText(panel, **opts2)
+
+        irow = 0
+        for attr in ('Current Command', 'File Name'):
+            lab  = SimpleText(panel, "%s:" % attr, size=(120, -1))
+            sizer.Add(lab,               (irow, 0), (1, 1), LEFT, 1)
+            sizer.Add(self.winfo[attr],  (irow, 1), (1, 3), LEFT, 1)
+            irow += 1
+
+        icol = 0
+        for attr in ('Status', 'Timestamp'):
+            lab  = SimpleText(panel, "%s:" % attr, size=(120, -1))
+            sizer.Add(lab,               (irow, icol),   (1, 1), LEFT, 1)
+            sizer.Add(self.winfo[attr],  (irow, icol+1), (1, 1), LEFT, 1)
+            icol +=2
+
+        pack(panel, sizer)
+        return panel
 
     def make_buttons(self):
         panel = wx.Panel(self)
@@ -79,7 +127,8 @@ class MacroFrame(wx.Frame) :
                   0, wx.ALIGN_LEFT, 2)
         sizer.Add(add_button(panel, label='Abort',  action=self.onAbort),
                   0, wx.ALIGN_LEFT, 2)
-
+        sizer.Add(add_button(panel, label='Cancel All', action=self.onCancelAll),
+                  0, wx.ALIGN_LEFT, 2)
         sizer.Add(add_button(panel, label='Exit',   action=self.onClose),
                   0, wx.ALIGN_LEFT, 2)
 
@@ -211,6 +260,11 @@ class MacroFrame(wx.Frame) :
         self.scandb.commit()
 
     def onAbort(self, event=None):
+        self.scandb.set_info('request_abort', 1)
+        self.scandb.commit()
+
+    def onCancelAll(self, event=None):
+        print 'CANCEL ALL '
         self.scandb.set_info('request_abort', 1)
         self.scandb.commit()
 
