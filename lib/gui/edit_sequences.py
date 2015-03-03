@@ -81,17 +81,15 @@ class SequencesFrame(wx.Frame) :
         b1 = add_button(bpanel, label='Cancel Selected',  action=self.onCancel)
         b2 = add_button(bpanel, label='Abort Current',    action=self.onAbort)
         b3 = add_button(bpanel, label='Abort All',        action=self.onAbortAll)
-        # b4 = add_button(bpanel, label='Show Details',     action=self.onShow)
-        b5 = add_button(bpanel, label='Done',             action=self.onDone)
+        b4 = add_button(bpanel, label='Done',             action=self.onDone)
 
         bsizer.Add(b1)
         bsizer.Add(b2)
         bsizer.Add(b3)
-        # bsizer.Add(b4)
-        bsizer.Add(b5)
+        bsizer.Add(b4)
         pack(bpanel, bsizer)
 
-        for b in (b1, b2, b3, b4, b5): b.Disable()
+        for b in (b1, b2, b3, b4): b.Disable()
 
         mainsizer = wx.BoxSizer(wx.VERTICAL)
         mainsizer.Add(spanel, 1, wx.GROW|wx.ALL, 1)
