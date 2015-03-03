@@ -139,6 +139,7 @@ class ScanServer():
             larch_cmd = "%s(%s)" % (command, args)
         self.scandb.set_info('error_message',   '')
         self.scandb.set_info('current_command', larch_cmd)
+        self.scandb.set_info('current_command_id', req.id)
         self.set_status('running')
         self.scandb.set_command_status(req.id, 'running')
         self.epicsdb.cmd_id = req.id
@@ -192,7 +193,8 @@ class ScanServer():
                 self.epicsdb.setTime()
             if self.req_pause:
                 continue
-            reqs = self.scandb.get_commands(status='requested', reverse=False)
+            reqs = self.scandb.get_commands(status='requested',
+                                            reverse=False)
             if self.epicsdb.Abort == 1 or self.req_abort:
                 for req in reqs:
                     self.scandb.set_command_status(req.id, 'aborted')
