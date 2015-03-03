@@ -92,6 +92,12 @@ class MacroFrame(wx.Frame) :
             val = str(self.scandb.get_info(attr, '--'))
             if key in self.winfo:
                 self.winfo[key].SetLabel(val)
+            if key == 'Status':
+                if val.lower().startswith('idle'):
+                    self.start_btn.Enable()
+                else:
+                    self.start_btn.Disable()
+
 
         for key in self.output_fields:
             row = self.scandb.get_info(key, full_row=True)
@@ -136,8 +142,8 @@ class MacroFrame(wx.Frame) :
     def make_buttons(self):
         panel = wx.Panel(self)
         sizer = wx.BoxSizer(wx.HORIZONTAL)
-        sizer.Add(add_button(panel, label='Start',  action=self.onStart),
-                  0, wx.ALIGN_LEFT, 2)
+        self.start_btn = add_button(panel, label='Start',  action=self.onStart)
+        sizer.Add(self.start_btn, 0, wx.ALIGN_LEFT, 2)
         sizer.Add(add_button(panel, label='Pause',  action=self.onPause),
                   0, wx.ALIGN_LEFT, 2)
         sizer.Add(add_button(panel, label='Resume',  action=self.onResume),
@@ -293,13 +299,12 @@ class MacroFrame(wx.Frame) :
         self.scandb.commit()
 
     def onCancelAll(self, event=None):
-        print 'CANCEL ALL '
+        self.scandb.cancel_remaining_commands()
         self.scandb.set_info('request_abort', 1)
         self.scandb.commit()
 
     def onClose(self, event=None):
         self.SaveMacroFile(AUTOSAVE_FILE)
-        print 'onClose ', AUTOSAVE_FILE
         print self.histfile
         self.input.SaveHistory(self.histfile)
         self.Destroy()
