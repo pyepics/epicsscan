@@ -773,10 +773,20 @@ class ScanDB(object):
 
     # commands -- a more complex interface
     def get_mostrecent_command(self):
-        """return command by status"""
+        """return last command entered"""
         cls, table = self.get_table('commands')
         q = self.query(cls).order_by(cls.request_time)
         return q.all()[-1]
+
+    def get_current_command(self):
+        """return command by status"""
+        cmd_id  = self.get_info('current_command_id', default=0)
+        if cmd_id == 0:
+            cmd_id = self.get_mostrecent_command().id
+
+        cls, table = self.get_table('commands')
+        q = table.select().where(table.c.id==cmd_id)
+        return q.execute().fetchall()[0]
 
     def add_command(self, command, arguments='',output_value='',
                     output_file='', notes='', nrepeat=1, **kws):
@@ -829,12 +839,12 @@ class ScanDB(object):
     def cancel_remaining_commands(self):
         """cancel all commmands to date"""
         cls, table = self.get_table('commands')
-        cancel = 8
-        for key, val in self.status_codes:
+        cancel = 3
+        for key, val in self.status_codes.items():
             if key.lower().startswith('cancel'):
                 cancel = val
                 break
-        cmd = self.get_mostrecent_command()
+        cmd = self.get_current_command()
         cmdid = cmd.id
         table.update(whereclause="id>'%i'" % cmdid).execute(status_id=cancel)
 
