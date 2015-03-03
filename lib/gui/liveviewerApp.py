@@ -111,7 +111,7 @@ class ScanViewerFrame(wx.Frame):
             curfile   = fix_filename(self.get_info('filename'))
             sdata     = self.scandb.get_scandata()
             scan_stat = self.get_info('scan_status')
-            msg       = self.get_info('scan_message')
+            msg       = self.get_info('scan_progress')
         except:
             logging.exception("No Scan at ScanTime")
 

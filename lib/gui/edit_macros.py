@@ -31,6 +31,7 @@ class MacroFrame(wx.Frame) :
     info_mapping = {'File Name': 'filename',
                     'Current Command': 'current_command',
                     'Status': 'scan_status',
+                    'Progress': 'scan_progress',
                     'Timestamp': 'heartbeat'}
 
     def __init__(self, parent, pos=(-1, -1), _larch=None):
@@ -69,11 +70,11 @@ class MacroFrame(wx.Frame) :
         self.output.SetInsertionPointEnd()
         self.output.SetDefaultStyle(wx.TextAttr('black', 'white', sfont))
 
+        sizer.Add(self.editor, 1, CEN|wx.GROW|wx.ALL, 3)
+        sizer.Add(self.output, 1, CEN|wx.GROW|wx.ALL, 3)
         sizer.Add(self.make_info(),    0, wx.ALIGN_LEFT, 3)
         sizer.Add(self.make_buttons(), 0, wx.ALIGN_LEFT, 3)
-        sizer.Add(self.editor, 1, CEN|wx.GROW|wx.ALL, 3)
 
-        sizer.Add(self.output, 1, CEN|wx.GROW|wx.ALL, 3)
         sizer.Add(self.InputPanel(),  0, border=2,
                   flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL|wx.EXPAND)
 
@@ -123,7 +124,7 @@ class MacroFrame(wx.Frame) :
         self.winfo['Timestamp']  = SimpleText(panel, **opts2)
 
         irow = 0
-        for attr in ('Current Command', 'File Name'):
+        for attr in ('Current Command', 'File Name', 'Progress'):
             lab  = SimpleText(panel, "%s:" % attr, size=(120, -1))
             sizer.Add(lab,               (irow, 0), (1, 1), LEFT, 1)
             sizer.Add(self.winfo[attr],  (irow, 1), (1, 3), LEFT, 1)

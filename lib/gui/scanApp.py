@@ -405,7 +405,8 @@ class ScanFrame(wx.Frame):
 
     def onScanTimer(self, evt=None):
         try:
-            self.statusbar.SetStatusText(self.scandb.get_info('scan_message'), 0)
+            prog =self.scandb.get_info('scan_progress')
+            self.statusbar.SetStatusText(prog, 0)
         except:
             pass
 
