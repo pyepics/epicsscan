@@ -2,7 +2,7 @@ import os
 import sys
 import time
 import logging
-
+from datetime import datetime, timedelta
 import wx
 import wx.lib.scrolledpanel as scrolled
 from wx.lib.editor import Editor
@@ -20,15 +20,26 @@ CEN  = wx.ALIGN_CENTER|wx.ALIGN_CENTER_VERTICAL|wx.ALL
 
 AUTOSAVE_FILE = 'macros_autosave.lar'
 MACRO_HISTORY = 'scan_macro_history.lar'
+LONG_AGO = datetime.now()-timedelta(2000)
 
 class MacroFrame(wx.Frame) :
     """Edit/Manage Macros (Larch Code)"""
+    output_colors = {'error_message':'#BB0000'}
+    output_fields = ('error_message', 'scan_message')
+
+    info_mapping = {'File Name': 'filename',
+                    'Current Command': 'current_command',
+                    'Status': 'scan_status',
+                    'Timestamp': 'heartbeat'}
+
     def __init__(self, parent, pos=(-1, -1), _larch=None):
 
         self.parent = parent
         self.scandb = parent.scandb
         self.winfo = OrderedDict()
-        self.db_stats = {'scan_message': 0, 'error_message': 0}
+        self.output_stats = {}
+        for key in self.output_fields:
+            self.output_stats[key] = LONG_AGO
 
         wx.Frame.__init__(self, None, -1,  title='Epics Scanning: Macro',
                           style=FRAMESTYLE)
@@ -45,7 +56,7 @@ class MacroFrame(wx.Frame) :
                                   style=wx.TE_MULTILINE|wx.TE_RICH2)
         self.editor.SetBackgroundColour('#FFFFFF')
 
-        text = """# Edit Macro text here\n#\n \n"""
+        text = """## Edit Macro text here\n#\n"""
         self.editor.SetValue(text)
         self.editor.SetInsertionPoint(len(text)-2)
         self.ReadMacroFile(AUTOSAVE_FILE)
@@ -76,28 +87,25 @@ class MacroFrame(wx.Frame) :
         self.Raise()
 
     def update_info(self, evt=None):
-        info_mapping = {'File Name': 'filename', 
-                        'Current Command': 'current_command',
-                        'Status': 'scan_status', 
-                        'Timestamp': 'heartbeat'}
-
-        for key, attr in info_mapping.items():
+        for key, attr in self.info_mapping.items():
             val = str(self.scandb.get_info(attr, '--'))
             if key in self.winfo:
                 self.winfo[key].SetLabel(val)
 
-        info_mapping = {'File Name': 'filename', 
-                        'Current Command': 'current_command',
-                        'Status': 'scan_status', 
-                        'Timestamp': 'heartbeat'}
-
+        for key in self.output_fields:
+            row = self.scandb.get_info(key, full_row=True)
+            mtime = self.output_stats.get(key, LONG_AGO)
+            if row.modify_time > mtime:
+                self.output_stats[key] = row.modify_time
+            self.writeOutput(row.vaue,
+                             color=self.output_colors.get(key, None))
 
     def make_info(self):
         panel = wx.Panel(self)
         sizer = wx.GridBagSizer(8, 4)
 
         self.winfo = OrderedDict()
-        opts1 = {'label':' '*99, 'colour': '#000088', 'size': (425, -1), 
+        opts1 = {'label':' '*99, 'colour': '#000088', 'size': (425, -1),
                  'minsize': (375, -1), 'style': wx.ALIGN_LEFT}
         opts2 = {'label':' '*50, 'colour': '#000088', 'size': (275, -1),
                  'minsize': (200, -1), 'style': wx.ALIGN_LEFT}
@@ -185,17 +193,29 @@ class MacroFrame(wx.Frame) :
 
     def onText(self, event=None):
         text = event.GetString().strip()
-        if len(text) < 1: 
+        if len(text) < 1:
             return
         self.input.Clear()
         self.input.AddToHistory(text)
         out = self.scandb.add_command(text)
         self.scandb.commit()
         time.sleep(0.01)
+        self.writeOutput(text)
+
+    def writeOutput(self, text, color=None):
         pos0 = self.output.GetLastPosition()
         if not text.endswith('\n'):
             text = '%s\n' % text
         self.output.WriteText(text)
+        if color is not None:
+            style = self.output.GetDefaultStyle()
+            bgcol = style.GetBackgroundColour()
+            sfont = style.GetFont()
+            pos1  = self.output.GetLastPosition()
+            self.output.SetStyle(pos0, pos1, wx.TextAttr(color, bgcol, sfont)
+        self.output.SetInsertionPoint(self.output.GetLastPosition())
+        self.output.Refresh()
+
 
     def onInsertText(self, event=None):
         self.editor.WriteText('<Added text>')
