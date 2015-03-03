@@ -114,7 +114,8 @@ class _BaseTable(object):
     "generic class to encapsulate SQLAlchemy table"
     def __repr__(self):
         name = self.__class__.__name__
-        fields = ['%s' % getattr(self, 'name', 'UNNAMED')]
+        fields = ['%s' % getattr(self, 'name', 'UNNAMED'),
+                  'id=%d' % getattr(self, 'id', 'NOID')]
         return "<%s(%s)>" % (name, ', '.join(fields))
 
 class Info(_BaseTable):
@@ -177,7 +178,8 @@ class Commands(_BaseTable):
     output_value, output_file, nrepeat = None, None, None
     def __repr__(self):
         name = self.__class__.__name__
-        fields = ['%s' % getattr(self, 'command', 'Unknown')]
+        fields = ['%s' % getattr(self, 'command', 'Unknown'),
+                  'id=%d' % getattr(self, 'id', 'NOID')]
         return "<%s(%s)>" % (name, ', '.join(fields))
 
 class ScanData(_BaseTable):
