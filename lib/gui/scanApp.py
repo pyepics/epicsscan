@@ -274,6 +274,8 @@ class ScanFrame(wx.Frame):
             self.inittimer.Stop()
             if atGSECARS():
                 wx.CallAfter(self.onShowPlot)
+                wx.CallAfter(self.onEditMacro)
+
             self.statusbar.SetStatusText('', 0)
             self.statusbar.SetStatusText('Ready', 1)
 
