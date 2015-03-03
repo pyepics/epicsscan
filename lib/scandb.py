@@ -380,7 +380,7 @@ class ScanDB(object):
             table = table.update(whereclause="keyname='%s'" % key)
         table.execute(**data)
         self.commit()
-        
+
     def clobber_all_info(self):
         """dangerous!!!! clear all info --
         can leave a DB completely broken and unusable
@@ -797,7 +797,7 @@ class ScanDB(object):
             if key == 'attributes':
                 val = json_encode(val)
             setattr(this, key, val)
-        
+
         self.session.add(this)
         return this
 
@@ -806,7 +806,7 @@ class ScanDB(object):
         cls, table = self.get_table('commands')
         ret = table.select().where(table.c.id==cmdid).execute().fetchone()
         return self.status_names[ret.status_id]
-        
+
     def set_command_status(self, cmdid, status):
         """set the status of a command (by id)"""
         cls, table = self.get_table('commands')
@@ -825,6 +825,18 @@ class ScanDB(object):
     def cancel_command(self, id):
         """cancel command"""
         self.set_command_status(id, 'canceled')
+
+    def cancel_remaining_commands(self):
+        """cancel all commmands to date"""
+        cls, table = self.get_table('commands')
+        cancel = 8
+        for key, val in self.status_codes:
+            if key.lower().startswith('cancel'):
+                cancel = val
+                break
+        cmd = self.get_mostrecent_command()
+        cmdid = cmd.id
+        table.update(whereclause="id>'%i'" % cmdid).execute(status_id=cancel)
 
 
 if __name__ == '__main__':
