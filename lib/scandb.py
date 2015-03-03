@@ -26,7 +26,6 @@ from sqlalchemy.orm.exc import  NoResultFound
 from sqlalchemy.dialects import sqlite, postgresql
 
 from scandb_schema import get_dbengine, create_scandb, map_scandb
-
 from scandb_schema import (Info, Status, PVs, MonitorValues, ExtraPVs,
                            Macros, Commands, ScanData, ScanPositioners,
                            ScanCounters, ScanDetectors, ScanDefs,
@@ -41,7 +40,6 @@ class ScanDBException(Exception):
     def __init__(self, *args):
         Exception.__init__(self, *args)
         sys.excepthook(*sys.exc_info())
-
 
 def json_encode(val):
     "simple wrapper around json.dumps"
@@ -281,7 +279,6 @@ class ScanDB(object):
     def query(self, *args, **kws):
         "generic query"
         try:
-            # self.session.autoflush = False
             return self.session.query(*args, **kws)
         except sqlalchemy.StatementError():
             time.sleep(0.01)
@@ -482,9 +479,6 @@ class ScanDB(object):
     def rename_scandef(self, scanid, name):
         cls, table = self.get_table('scandefs')
         table.update(whereclause="id='%d'" % scanid).execute(name=name)
-
-        # self.update_where('scandefs', {'id': scanid},  {'name': name})
-
 
     def del_scandef(self, name=None, scanid=None):
         """delete scan defn by name"""
