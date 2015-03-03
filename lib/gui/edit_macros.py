@@ -24,7 +24,8 @@ LONG_AGO = datetime.now()-timedelta(2000)
 
 class MacroFrame(wx.Frame) :
     """Edit/Manage Macros (Larch Code)"""
-    output_colors = {'error_message':'#BB0000'}
+    output_colors = {'error_message':'#BB0000',
+                     'scan_message':'#0000BB'}
     output_fields = ('error_message', 'scan_message')
 
     info_mapping = {'File Name': 'filename',
@@ -97,8 +98,9 @@ class MacroFrame(wx.Frame) :
             mtime = self.output_stats.get(key, LONG_AGO)
             if row.modify_time > mtime:
                 self.output_stats[key] = row.modify_time
-            self.writeOutput(row.vaue,
-                             color=self.output_colors.get(key, None))
+                if len(row.value) > 0:
+                    self.writeOutput(row.value,
+                                     color=self.output_colors.get(key, None))
 
     def make_info(self):
         panel = wx.Panel(self)
@@ -212,7 +214,7 @@ class MacroFrame(wx.Frame) :
             bgcol = style.GetBackgroundColour()
             sfont = style.GetFont()
             pos1  = self.output.GetLastPosition()
-            self.output.SetStyle(pos0, pos1, wx.TextAttr(color, bgcol, sfont)
+            self.output.SetStyle(pos0, pos1, wx.TextAttr(color, bgcol, sfont))
         self.output.SetInsertionPoint(self.output.GetLastPosition())
         self.output.Refresh()
 
