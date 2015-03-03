@@ -147,16 +147,12 @@ class ScanServer():
 
         out = self.larch.run(larch_cmd)
         time.sleep(0.1)
-        if len(self.larch.get_error()) > 0:
-            errmsg = '\n'.join(self.larch.get_error()[0].get_error())
-            self.scandb.set_info('error_message', errmsg)
 
         if DEBUG_TIMER and hasattr(out, 'dtimer'):
             try:
                 out.dtimer.save("_debugscantime.dat")
             except:
                 print('Could not save _debugscantime.dat')
-        self.set_scan_message("Completed '%s' " % larch_cmd)
         self.scandb.set_command_status(req.id, 'finished')
         self.set_status('idle')
         self.command_in_progress = False
