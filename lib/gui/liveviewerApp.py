@@ -296,7 +296,6 @@ class ScanViewerFrame(wx.Frame):
             yy1 = self.yarr[iy][0].GetStringSelection()
             yy2 = self.yarr[iy][1].GetStringSelection()
             yy3 = self.yarr[iy][2].GetStringSelection()
-
             if yy1 in ('0', '1', '', None) or len(yy1) < 0:
                 return '', ''
             label = yy1
@@ -319,8 +318,10 @@ class ScanViewerFrame(wx.Frame):
                     expr = "%s%s.%s" % (expr, gn, yy3)
 
             if op1 != '':
-                label = "%s(%s)" % (op1, label)
-                expr  = "%s(%s)" % (op1, expr)
+                end = ''
+                if '(' in op1: end = ')'
+                label = "%s(%s)%s" % (op1, label, end)
+                expr  = "%s(%s)%s" % (op1, expr, end)
             return label, expr
 
         ylabel, yexpr = make_array(self.yops, 0)
@@ -328,6 +329,7 @@ class ScanViewerFrame(wx.Frame):
             return
         self.larch.run("%s.arr_x = %s.%s" % (gname, gname, x))
         self.larch.run("%s.arr_y1 = %s"   % (gname, yexpr))
+
         try:
             npts = min(len(lgroup.arr_x), len(lgroup.arr_y1))
         except AttributeError:
@@ -352,7 +354,6 @@ class ScanViewerFrame(wx.Frame):
         popts.update({'title': fname, 'xlabel': xlabel,
                       'ylabel': ylabel, 'y2label': y2label})
         if len(lgroup.arr_x) < 2 or len(lgroup.arr_y1) < 2:
-            print 'No data to plot '
             return
         if len(lgroup.arr_x) != len(lgroup.arr_y1):
             print 'data length mismatch ', len(lgroup.arr_x), len(lgroup.arr_y1)
@@ -374,8 +375,6 @@ class ScanViewerFrame(wx.Frame):
             ppnl.user_limits[ax] = (min(lgroup.arr_x),  max(lgroup.arr_x),
                                     min(lgroup.arr_y1), max(lgroup.arr_y1))
 
-
-            ###
             if y2expr != '':
                 ppnl.set_y2label(y2label)
                 ppnl.update_line(1, lgroup.arr_x, lgroup.arr_y2, side='right',
