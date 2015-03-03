@@ -21,11 +21,14 @@ CEN  = wx.ALIGN_CENTER|wx.ALIGN_CENTER_VERTICAL|wx.ALL
 AUTOSAVE_FILE = 'macros_autosave.lar'
 MACRO_HISTORY = 'scan_macro_history.lar'
 LONG_AGO = datetime.now()-timedelta(2000)
+COLOR_OK   = '#0000BB'
+COLOR_WARN = '#BB9900'
+COLOR_ERR  = '#BB0000'
 
 class MacroFrame(wx.Frame) :
     """Edit/Manage Macros (Larch Code)"""
-    output_colors = {'error_message':'#BB0000',
-                     'scan_message':'#0000BB'}
+    output_colors = {'error_message': COLOR_ERR,
+                     'scan_message':COLOR_OK}
     output_fields = ('error_message', 'scan_message')
 
     info_mapping = {'File Name': 'filename',
@@ -40,6 +43,7 @@ class MacroFrame(wx.Frame) :
         self.scandb = parent.scandb
         self.winfo = OrderedDict()
         self.output_stats = {}
+        self.last_heartbeat = LONG_AGO
         for key in self.output_fields:
             self.output_stats[key] = LONG_AGO
 
@@ -70,10 +74,11 @@ class MacroFrame(wx.Frame) :
         self.output.SetInsertionPointEnd()
         self.output.SetDefaultStyle(wx.TextAttr('black', 'white', sfont))
 
-        sizer.Add(self.editor, 1, CEN|wx.GROW|wx.ALL, 3)
-        sizer.Add(self.output, 1, CEN|wx.GROW|wx.ALL, 3)
         sizer.Add(self.make_info(),    0, wx.ALIGN_LEFT, 3)
         sizer.Add(self.make_buttons(), 0, wx.ALIGN_LEFT, 3)
+        sizer.Add(self.editor, 1, CEN|wx.GROW|wx.ALL, 3)
+        sizer.Add(self.output, 1, CEN|wx.GROW|wx.ALL, 3)
+
 
         sizer.Add(self.InputPanel(),  0, border=2,
                   flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL|wx.EXPAND)
@@ -83,7 +88,7 @@ class MacroFrame(wx.Frame) :
         self._stimer.Start(500)
 
         wx.EVT_CLOSE(self, self.onClose)
-        self.SetMinSize((600, 450))
+        self.SetMinSize((600, 520))
         pack(self, sizer)
         self.Show()
         self.Raise()
@@ -109,33 +114,45 @@ class MacroFrame(wx.Frame) :
                     self.writeOutput(row.value,
                                      color=self.output_colors.get(key, None))
 
+        row = self.scandb.get_info('heartbeat', full_row=True)
+        if row.modify_time > self.last_heartbeat:
+            self.last_heartbeat = row.modify_time
+        col = COLOR_OK
+        if self.last_heartbeat < datetime.now()-timedelta(seconds=15):
+            col = COLOR_WARN
+        if self.last_heartbeat < datetime.now()-timedelta(seconds=120):
+            col = COLOR_ERR
+        self.winfo['Timestamp'].SetForegroundColour(col)
+
     def make_info(self):
         panel = wx.Panel(self)
         sizer = wx.GridBagSizer(8, 4)
 
         self.winfo = OrderedDict()
-        opts1 = {'label':' '*99, 'colour': '#000088', 'size': (425, -1),
+        opts1 = {'label':' '*99, 'colour': COLOR_OK, 'size': (425, -1),
                  'minsize': (375, -1), 'style': wx.ALIGN_LEFT}
-        opts2 = {'label':' '*50, 'colour': '#000088', 'size': (275, -1),
+        opts2 = {'label':' '*50, 'colour': COLOR_OK, 'size': (275, -1),
                  'minsize': (200, -1), 'style': wx.ALIGN_LEFT}
         self.winfo['File Name']       = SimpleText(panel, **opts1)
         self.winfo['Current Command'] = SimpleText(panel, **opts1)
+        self.winfo['Progress']        = SimpleText(panel, **opts1)
         self.winfo['Status']     = SimpleText(panel, **opts2)
         self.winfo['Timestamp']  = SimpleText(panel, **opts2)
 
-        irow = 0
-        for attr in ('Current Command', 'File Name', 'Progress'):
-            lab  = SimpleText(panel, "%s:" % attr, size=(120, -1))
-            sizer.Add(lab,               (irow, 0), (1, 1), LEFT, 1)
-            sizer.Add(self.winfo[attr],  (irow, 1), (1, 3), LEFT, 1)
-            irow += 1
 
-        icol = 0
+        irow, icol = 0, 0
         for attr in ('Status', 'Timestamp'):
             lab  = SimpleText(panel, "%s:" % attr, size=(120, -1))
             sizer.Add(lab,               (irow, icol),   (1, 1), LEFT, 1)
             sizer.Add(self.winfo[attr],  (irow, icol+1), (1, 1), LEFT, 1)
             icol +=2
+
+        irow += 1
+        for attr in ('Current Command', 'File Name', 'Progress'):
+            lab  = SimpleText(panel, "%s:" % attr, size=(120, -1))
+            sizer.Add(lab,               (irow, 0), (1, 1), LEFT, 1)
+            sizer.Add(self.winfo[attr],  (irow, 1), (1, 3), LEFT, 1)
+            irow += 1
 
         pack(panel, sizer)
         return panel
