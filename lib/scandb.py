@@ -23,7 +23,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import  NoResultFound
 
 # needed for py2exe?
-from sqlalchemy.dialects import sqlite, mysql, postgresql
+from sqlalchemy.dialects import sqlite, postgresql
 
 from scandb_schema import get_dbengine, create_scandb, map_scandb
 
