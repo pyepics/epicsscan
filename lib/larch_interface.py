@@ -22,7 +22,7 @@ class LarchScanDBServer(object):
         self.larch = larch.Interpreter()
         self.symtab = self.larch.symtable
         self.symtab.set_symbol(LARCH_SCANDB, self.scandb)
-        self.symtab._sys.color_exceptions = True
+        self.symtab._sys.color_exceptions = False
 
         self.macro_dir = self.scandb.get_info('macro_folder')
         self.loaded_modules = {}
@@ -88,17 +88,16 @@ class LarchScanDBServer(object):
                 self.loaded_modules[modname] = this_mtime
                 thismod  = self.symtab.get_symbol(modname)
                 _sys.searchGroupObjects.append(thismod)
-
         # move back to working folder
         self.scandb.set_path(fileroot=self.fileroot)
         return self.get_macros()
-
+    
     def __call__(self, arg):
         return self.run(arg)
 
     def run(self, command):
         self.larch.error = []
-        out = self.larch.run(str(command))
+        out = self.larch.eval(str(command))
         if len(self.larch.error) > 0:
             emsg = '\n'.join(self.larch.error[0].get_error())
             self.scandb.set_info('error_message', emsg)
