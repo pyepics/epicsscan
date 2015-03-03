@@ -297,11 +297,13 @@ class MacroFrame(wx.Frame) :
     def onAbort(self, event=None):
         self.scandb.set_info('request_abort', 1)
         self.scandb.commit()
+        time.sleep(1.0)
+        self.scandb.set_info('request_abort', 0)
+        self.scandb.commit()
 
     def onCancelAll(self, event=None):
         self.scandb.cancel_remaining_commands()
-        self.scandb.set_info('request_abort', 1)
-        self.scandb.commit()
+        self.onAbort()
 
     def onClose(self, event=None):
         self.SaveMacroFile(AUTOSAVE_FILE)
