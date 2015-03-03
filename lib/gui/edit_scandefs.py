@@ -6,7 +6,6 @@ import wx
 import wx.lib.agw.flatnotebook as flat_nb
 
 import wx.lib.scrolledpanel as scrolled
-import wx.grid as gridlib
 import wx.dataview as dv
 
 from .gui_utils import (GUIColors, set_font_with_children, YesNo, popup,
