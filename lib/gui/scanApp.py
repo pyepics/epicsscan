@@ -291,8 +291,8 @@ class ScanFrame(wx.Frame):
         self.larch_status = 1
 
         try:
-            fico = os.path.join(larch_site_config.sys_larchdir, 
-                                'bin', ICON_FILE)
+            fico = os.path.join(larch_site_config.larchdir, 
+                                'icons', ICON_FILE)
             self._icon = wx.Icon(fico, wx.BITMAP_TYPE_ICO)
             self.SetIcon(self._icon)
         except:

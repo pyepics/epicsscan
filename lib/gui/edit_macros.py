@@ -203,7 +203,7 @@ class MacroFrame(wx.Frame) :
         panel = wx.Panel(self, -1)
         self.prompt = wx.StaticText(panel, -1, ' >>>', size = (30,-1),
                                     style=wx.ALIGN_CENTER|wx.ALIGN_RIGHT)
-        self.histfile = os.path.join(larch.site_config.usr_larchdir, MACRO_HISTORY)
+        self.histfile = os.path.join(larch.site_config.larchdir, MACRO_HISTORY)
         self.input = ReadlineTextCtrl(panel, -1,  '', size=(525,-1),
                                       historyfile=self.histfile, mode='emacs',
                                       style=wx.ALIGN_LEFT|wx.TE_PROCESS_ENTER)
