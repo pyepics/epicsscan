@@ -76,24 +76,16 @@ class SequencesFrame(wx.Frame) :
         
         spanel.SetupScrolling()
 
-        bpanel = wx.Panel(self)
-        bsizer = wx.BoxSizer(wx.HORIZONTAL)
-        b1 = add_button(bpanel, label='Cancel Selected',  action=self.onCancel)
-        b2 = add_button(bpanel, label='Abort Current',    action=self.onAbort)
-        b3 = add_button(bpanel, label='Abort All',        action=self.onAbortAll)
-        b4 = add_button(bpanel, label='Done',             action=self.onDone)
+        bpan = wx.Panel(self)
+        bsiz = wx.BoxSizer(wx.HORIZONTAL)
+        bsiz.Add(add_button(bpan, label='Abort Scan', action=self.onAbort))
+        bsiz.Add(add_button(bpan, label='Cancel All', action=self.onCancelAll))
 
-        bsizer.Add(b1)
-        bsizer.Add(b2)
-        bsizer.Add(b3)
-        bsizer.Add(b4)
-        pack(bpanel, bsizer)
-
-        for b in (b1, b2, b3, b4): b.Disable()
+        pack(bpan, bsiz)
 
         mainsizer = wx.BoxSizer(wx.VERTICAL)
         mainsizer.Add(spanel, 1, wx.GROW|wx.ALL, 1)
-        mainsizer.Add(bpanel, 0, wx.GROW|wx.ALL, 1)
+        mainsizer.Add(bpan, 0, wx.GROW|wx.ALL, 1)
         pack(self, mainsizer)
         self.Show()
         self.Raise()
@@ -138,7 +130,19 @@ class SequencesFrame(wx.Frame) :
             print 'selection ', row
             print 'cmd id ', self.cmdlist.GetStore().GetValueByRow(row, 0)
 
+
     def onAbort(self, event=None):
+        self.scandb.set_info('request_abort', 1)
+        self.scandb.commit()
+        time.sleep(3.0)
+        self.scandb.set_info('request_abort', 0)
+        self.scandb.commit()
+
+    def onCancelAll(self, event=None):
+        self.scandb.cancel_remaining_commands()
+        self.onAbort()
+
+    def onAbortOLD(self, event=None):
         print 'onAbort '
         if self.cmdlist.HasSelection():
             row  = self.cmdlist.GetSelectedRow()
