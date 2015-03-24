@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import time, sys, os
 import threading
 import json
@@ -7,7 +9,7 @@ import numpy as np
 import glob
 import epics
 
-from ..scandb import ScanDB, ScanDBException, make_datetime
+from ..scandb import ScanDB, ScanDBException, ScanDBAbort, make_datetime
 
 from ..file_utils import fix_varname, nativepath
 from ..utils import  strip_quotes
@@ -71,7 +73,7 @@ class ScanServer():
             self.abort = True
 
     def finish(self):
-        print 'ScanServer: Shutting down'
+        print( 'ScanServer: Shutting down')
         self.scandb.set_info('request_pause',    0)
         time.sleep(0.1)
         self.scandb.set_info('request_abort',    1)
@@ -95,7 +97,7 @@ class ScanServer():
             return
 
         command = str(req.command)
-        if len(command) < 1:
+        if len(command) < 1 or command is 'None':
             return
 
         all_macros = self.larch.load_modules()
@@ -145,19 +147,31 @@ class ScanServer():
         self.epicsdb.cmd_id = req.id
         self.epicsdb.command = larch_cmd
 
-        out = self.larch.run(larch_cmd)
-        time.sleep(0.1)
+        try:
+            print("Larch Run " , larch_cmd)
+            out = self.larch.run(larch_cmd)
+        except:
+            pass
+        status, msg = 'finished', 'scan complete'
+        err = self.larch.get_error()
+        if len(err) > 0:
+            err = err[0]
+            exc_type, exc_val, exc_tb = err.exc_info
+            if 'ScanDBAbort' in repr( exc_type):
+                status = 'aborted'
+                msg = 'scan aborted'
+            else:
+                emsg = '\n'.join(err.get_error())
+                self.scandb.set_info('error_message', emsg)
+                msg = 'scan completed with error'
 
-        if DEBUG_TIMER and hasattr(out, 'dtimer'):
-            try:
-                out.dtimer.save("_debugscantime.dat")
-            except:
-                print('Could not save _debugscantime.dat')
-        self.scandb.set_command_status(req.id, 'finished')
+        time.sleep(0.1)
+        self.scandb.set_info('scan_progress', msg)
+        self.scandb.set_command_status(req.id, status)
         self.set_status('idle')
         self.command_in_progress = False
-
-    def look_for_interrupt_requests(self):
+        
+    def look_for_interrupts(self):
         """set interrupt requests:
         abort / pause / resume
         it is expected that long-running commands
@@ -180,7 +194,7 @@ class ScanServer():
         is_paused = False
         while True:
             epics.poll(0.001, 1.0)
-            self.look_for_interrupt_requests()
+            self.look_for_interrupts()
             if self.epicsdb.Shutdown == 1 or self.req_shutdown:
                 break
             if time.time() > msgtime + 1:
