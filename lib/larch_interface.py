@@ -6,6 +6,7 @@ import numpy as np
 import glob
 from .file_utils import nativepath
 from .site_config import get_fileroot, LARCH_SCANDB
+from . import scandb
 
 import larch
 from larch.utils import OrderedDict
@@ -95,13 +96,11 @@ class LarchScanDBServer(object):
     def __call__(self, arg):
         return self.run(arg)
 
-    def run(self, command):
+    def run(self, command=None):
         self.larch.error = []
-        out = self.larch.eval(str(command))
-        if len(self.larch.error) > 0:
-            emsg = '\n'.join(self.larch.error[0].get_error())
-            self.scandb.set_info('error_message', emsg)
-        return out
+        if command is None:
+            return
+        return self.larch.eval(str(command))
 
     def set_symbol(self, name, value):
         self.symtab.set_symbol(name, value)
