@@ -55,6 +55,9 @@ class MacroFrame(wx.Frame) :
 
         self.createMenus()
 
+        print 'Edit Macros ', _larch
+        print _larch.loaded_macros
+        
         self.colors = GUIColors()
         self.SetBackgroundColour(self.colors.bg)
 
@@ -170,9 +173,6 @@ class MacroFrame(wx.Frame) :
                   0, wx.ALIGN_LEFT, 2)
         sizer.Add(add_button(panel, label='Cancel All', action=self.onCancelAll),
                   0, wx.ALIGN_LEFT, 2)
-        sizer.Add(add_button(panel, label='Exit',   action=self.onClose),
-                  0, wx.ALIGN_LEFT, 2)
-
         pack(panel, sizer)
         return panel
 
@@ -287,18 +287,16 @@ class MacroFrame(wx.Frame) :
             logging.exception('could not save MacroFile %s' % fname)
 
     def onStart(self, event=None):
-        print 'Macro Start'
+        self.start_btn.Disable()        
         lines = self.editor.GetValue().split('\n')
         self.scandb.set_info('request_pause',  1)
 
         for lin in lines:
-            lin = lin.strip()
-            if lin.startswith('#'): continue
             if '#' in lin:
-                lin = lin[:index('#')]
+                icom = lin.index('#')
+                lin = lin[:icom]
             lin = lin.strip()
             if len(lin) > 0:
-                print 'Add Macro line ', lin
                 self.scandb.add_command(lin)
         self.scandb.commit()
         self.scandb.set_info('request_abort',  0)
@@ -325,6 +323,5 @@ class MacroFrame(wx.Frame) :
 
     def onClose(self, event=None):
         self.SaveMacroFile(AUTOSAVE_FILE)
-        print self.histfile
         self.input.SaveHistory(self.histfile)
         self.Destroy()
