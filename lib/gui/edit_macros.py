@@ -59,10 +59,9 @@ class MacroFrame(wx.Frame) :
 
         self.createMenus()
 
-        print 'Edit Macros ', _larch
+        # print 'Edit Macros ', _larch
         _larch.load_plugins()
         _larch.load_modules()
-        print _larch.loaded_modules
         
         self.colors = GUIColors()
         self.SetBackgroundColour(self.colors.bg)
