@@ -13,6 +13,8 @@ from .gui_utils import (GUIColors, set_font_with_children, YesNo,
                         FileOpen, FileSave, popup,
                         FRAMESTYLE, Font)
 
+from .abort_slewscan import abort_slewscan
+
 import larch
 from larch.wxlib.readlinetextctrl import ReadlineTextCtrl
 LEFT = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
@@ -24,6 +26,7 @@ LONG_AGO = datetime.now()-timedelta(2000)
 COLOR_OK   = '#0000BB'
 COLOR_WARN = '#BB9900'
 COLOR_ERR  = '#BB0000'
+
 
 class MacroFrame(wx.Frame) :
     """Edit/Manage Macros (Larch Code)"""
@@ -44,6 +47,7 @@ class MacroFrame(wx.Frame) :
         self.winfo = OrderedDict()
         self.output_stats = {}
         self.last_heartbeat = LONG_AGO
+        self.last_start_request = 0
         for key in self.output_fields:
             self.output_stats[key] = LONG_AGO
 
@@ -56,7 +60,9 @@ class MacroFrame(wx.Frame) :
         self.createMenus()
 
         print 'Edit Macros ', _larch
-        print _larch.loaded_macros
+        _larch.load_plugins()
+        _larch.load_modules()
+        print _larch.loaded_modules
         
         self.colors = GUIColors()
         self.SetBackgroundColour(self.colors.bg)
@@ -287,6 +293,11 @@ class MacroFrame(wx.Frame) :
             logging.exception('could not save MacroFile %s' % fname)
 
     def onStart(self, event=None):
+        now = time.time()
+        if (now - self.last_start_request) < 5.0:
+            print "double clicked start?"
+            return 
+        self.last_start_request = now
         self.start_btn.Disable()        
         lines = self.editor.GetValue().split('\n')
         self.scandb.set_info('request_pause',  1)
@@ -313,9 +324,8 @@ class MacroFrame(wx.Frame) :
     def onAbort(self, event=None):
         self.scandb.set_info('request_abort', 1)
         self.scandb.commit()
+        abort_slewscan()
         time.sleep(1.0)
-        self.scandb.set_info('request_abort', 0)
-        self.scandb.commit()
 
     def onCancelAll(self, event=None):
         self.scandb.cancel_remaining_commands()
