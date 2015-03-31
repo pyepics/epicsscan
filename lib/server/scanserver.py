@@ -65,7 +65,6 @@ class ScanServer():
     def set_scan_message(self, msg, verbose=True):
         self.scandb.set_info('scan_message', msg)
         self.epicsdb.message = msg
-        print(msg)
 
     def sleep(self, t=0.05):
         try:
@@ -165,7 +164,6 @@ class ScanServer():
                 emsg = '\n'.join(err.get_error())
                 self.scandb.set_info('error_message', emsg)
                 msg = 'scan completed with error'
-
         time.sleep(0.1)
         self.scandb.set_info('scan_progress', msg)
         self.scandb.set_command_status(req.id, status)
@@ -218,10 +216,10 @@ class ScanServer():
             reqs = self.scandb.get_commands(status='requested',
                                             reverse=False)
             if self.epicsdb.Abort == 1 or self.req_abort:
-                for req in reqs:
+                if len(reqs) > 0:
+                    req = reqs[0]
                     self.scandb.set_command_status(req.id, 'aborted')
-                    time.sleep(0.05)
-                abort_slewscan()
+                    abort_slewscan()
                 time.sleep(1.0)
                 self.epicsdb.Abort = 0
                 self.clear_interrupts()
