@@ -78,7 +78,7 @@ from .edit_scandefs    import ScandefsFrame
 from .edit_sequences   import SequencesFrame
 from .edit_macros      import MacroFrame
 
-from .abort_slewscan import abort_slewscan
+from ..abort_slewscan import abort_slewscan
 
 ICON_FILE = 'epics_scan.ico'
 ALL_CEN =  wx.ALL|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL
