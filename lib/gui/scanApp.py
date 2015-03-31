@@ -78,6 +78,8 @@ from .edit_scandefs    import ScandefsFrame
 from .edit_sequences   import SequencesFrame
 from .edit_macros      import MacroFrame
 
+from .abort_slewscan import abort_slewscan
+
 ICON_FILE = 'epics_scan.ico'
 ALL_CEN =  wx.ALL|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL
 FNB_STYLE = flat_nb.FNB_NO_X_BUTTON|flat_nb.FNB_SMART_TABS|flat_nb.FNB_NO_NAV_BUTTONS|flat_nb.FNB_NODRAG
@@ -429,10 +431,12 @@ class ScanFrame(wx.Frame):
             self.onDebugScan()
         elif cmd == 'abort':
             self.scandb.set_info('request_abort', 1)
+            abort_slewscan()
         elif cmd == 'pause':
             self.scandb.set_info('request_pause', 1)
         elif cmd == 'resume':
             self.scandb.set_info('request_pause', 0)
+        time.sleep(0.5)
 
     def createMenus(self):
         self.menubar = wx.MenuBar()
