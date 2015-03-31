@@ -13,7 +13,7 @@ from .gui_utils import (GUIColors, set_font_with_children, YesNo,
                         FileOpen, FileSave, popup,
                         FRAMESTYLE, Font)
 
-from .abort_slewscan import abort_slewscan
+from ..abort_slewscan import abort_slewscan
 
 import larch
 from larch.wxlib.readlinetextctrl import ReadlineTextCtrl

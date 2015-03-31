@@ -18,7 +18,7 @@ import wx.grid as gridlib
 
 import wx.dataview as dv
 
-from .abort_slewscan import abort_slewscan
+from ..abort_slewscan import abort_slewscan
 
 LEFT = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
 CEN  = wx.ALIGN_CENTER|wx.ALIGN_CENTER_VERTICAL|wx.ALL
