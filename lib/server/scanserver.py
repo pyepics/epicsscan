@@ -16,6 +16,7 @@ from ..utils import  strip_quotes
 
 from ..site_config import get_fileroot
 from ..larch_interface import LarchScanDBServer, EpicsScanDB
+from ..abort_slewscan import abort_slewscan
 
 DEBUG_TIMER = False
 
@@ -184,6 +185,17 @@ class ScanServer():
         self.req_abort = isset('request_abort')
         return self.req_abort
 
+    def clear_interrupts(self):
+        """re-set interrupt requests:
+        abort / pause / resume
+        if scandb is being used, these are looked up from database.
+        otherwise local larch variables are used.
+        """
+        self.req_abort = self.req_pause = False
+        self.scandb.set_info('request_abort', 0)
+        self.scandb.set_info('request_pause', 0)
+        self.scandb.set_info('request_resume', 0)
+
     def mainloop(self):
         if self.larch is None:
             raise ValueError("Scan server not connected!")
@@ -208,7 +220,11 @@ class ScanServer():
             if self.epicsdb.Abort == 1 or self.req_abort:
                 for req in reqs:
                     self.scandb.set_command_status(req.id, 'aborted')
-                    time.sleep(0.1)
+                    time.sleep(0.05)
+                abort_slewscan()
+                time.sleep(1.0)
+                self.epicsdb.Abort = 0
+                self.clear_interrupts()
                 time.sleep(1.0)
             elif len(reqs) > 0:
                 self.do_command(reqs[0])
