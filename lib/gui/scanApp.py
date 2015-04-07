@@ -243,8 +243,8 @@ class ScanFrame(wx.Frame):
 
         btnsizer = wx.BoxSizer(wx.HORIZONTAL)
         btnpanel = wx.Panel(bpanel)
-        for ibtn, label in enumerate(("Start", "Pause", "Resume", 
-                                      "Abort Scan", "Debug")):
+        for ibtn, label in enumerate(("Start Scan", "Abort Scan",
+                                      "Pause Scan", "Resume Scan")):
             btn = add_button(btnpanel, label, size=(120, -1),
                              action=Closure(self.onCtrlScan, cmd=label))
             btnsizer.Add(btn, 0, CEN, 8)
@@ -429,16 +429,16 @@ class ScanFrame(wx.Frame):
 
     def onCtrlScan(self, evt=None, cmd=''):
         cmd = cmd.lower()
-        if cmd == 'start':
+        if cmd.startswith('start'):
             self.onStartScan()
-        elif cmd == 'debug':
+        elif cmd.startswith('debug'):
             self.onDebugScan()
-        elif cmd == 'abort':
+        elif cmd.startswith('abort'):
             self.scandb.set_info('request_abort', 1)
             abort_slewscan()
-        elif cmd == 'pause':
+        elif cmd.startswith('pause'):
             self.scandb.set_info('request_pause', 1)
-        elif cmd == 'resume':
+        elif cmd.startswith('resume'):
             self.scandb.set_info('request_pause', 0)
         time.sleep(0.5)
 
