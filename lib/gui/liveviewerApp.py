@@ -241,19 +241,19 @@ class ScanViewerFrame(wx.Frame):
         self.plotpanel.messenger = self.write_message
         self.plotpanel.canvas.figure.set_facecolor((0.98,0.98,0.97))
         self.plotpanel.unzoom     = self.unzoom
-        self.plotpanel.popup_menu = None
+        # self.plotpanel.popup_menu = None
 
-        btnsizer = wx.StdDialogButtonSizer()
-        btnpanel = wx.Panel(mainpanel)
-        btnsizer.Add(add_button(btnpanel, 'Pause', action=self.onPause))
-        btnsizer.Add(add_button(btnpanel, 'Resume', action=self.onResume))
-        btnsizer.Add(add_button(btnpanel, 'Abort', action=self.onAbort))
-        btnsizer.Add(add_button(btnpanel, 'Unzoom', action=self.unzoom))
-        pack(btnpanel, btnsizer)
+        # btnsizer = wx.StdDialogButtonSizer()
+        # btnpanel = wx.Panel(mainpanel)
+        #btnsizer.Add(add_button(btnpanel, 'Pause', action=self.onPause))
+        #btnsizer.Add(add_button(btnpanel, 'Resume', action=self.onResume))
+        # btnsizer.Add(add_button(btnpanel, 'Abort Scan', action=self.onAbort))
+        # btnsizer.Add(add_button(btnpanel, 'Unzoom', action=self.unzoom))
+        # pack(btnpanel, btnsizer)
 
         mainsizer.Add(panel,   0, LCEN|wx.EXPAND, 2)
         mainsizer.Add(self.plotpanel, 1, wx.GROW|wx.ALL, 1)
-        mainsizer.Add(btnpanel, 0, wx.GROW|wx.ALL, 1)
+        # mainsizer.Add(btnpanel, 0, wx.GROW|wx.ALL, 1)
 
         pack(mainpanel, mainsizer)
         return mainpanel
