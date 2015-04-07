@@ -193,14 +193,17 @@ class ScanFrame(wx.Frame):
         self.SetBackgroundColour('#F0F0E8')
 
         self.scanpanels = {}
+        self.scanpanels_nid = {}
         inb  = 0
         for name, creator in (('Linear',  LinearScanPanel),
                               ('Slew',    SlewScanPanel),
-                              ('Mesh',    MeshScanPanel),
+                              # ('Mesh',    MeshScanPanel),
                               ('XAFS',    XAFSScanPanel)):
             span = creator(self, scandb=self.scandb, pvlist=self.pvlist)
             self.nb.AddPage(span, "%s Scan" % name, True)
-            self.scanpanels[name.lower()] =  (inb, span)
+            nlow = name.lower()
+            self.scanpanels[nlow] =  span
+            self.scanpanels_nid[nlow] =  inb
             inb += 1
 
         self.nb.SetSelection(0)
@@ -271,7 +274,7 @@ class ScanFrame(wx.Frame):
             time.sleep(0.05)
             self.ini_larch_thread.join()
             self.ini_epics_thread.join()
-            for inb, span in self.scanpanels.values():
+            for span in self.scanpanels.values():
                 span.initialize_positions()
             self.inittimer.Stop()
             if atGSECARS():
@@ -287,7 +290,7 @@ class ScanFrame(wx.Frame):
         self._larch.set_symbol('_sys.wx.wxapp', wx.GetApp())
         self._larch.set_symbol('_sys.wx.parent', self)
         
-        for inb, span in self.scanpanels.values():
+        for span in self.scanpanels.values():
             span.larch = self._larch
         self.statusbar.SetStatusText('Larch Ready')
         self.larch_status = 1
@@ -636,9 +639,9 @@ class ScanFrame(wx.Frame):
         stype = None
         if not _alltypes:
             inb =  self.nb.GetSelection()
-            for key, val in self.scanpanels.items():
-                if val[0] == inb:
-                    stype = key
+            for pname in self.scanpanels:
+                if inb == self.scanpanels_nid[pname]
+                    stype = pname
 
         snames = []
         for sdef in self.scandb.getall('scandefs', orderby='last_used_time'):
@@ -682,9 +685,8 @@ class ScanFrame(wx.Frame):
 
         stype = scandict['type'].lower()
         if stype in self.scanpanels:
-            inb, span = self.scanpanels[stype]
-            self.nb.SetSelection(inb)
-            span.load_scandict(scandict)
+            self.nb.SetSelection(self.scanpanels_nid[stype])
+            self.scanpanels[stype].load_scandict(scandict)
 
 
     def load_scan(self, scanname):
@@ -746,9 +748,8 @@ class ScanFrame(wx.Frame):
         self.last_scanname = scanname
         stype = scan['type'].lower()
         if stype in self.scanpanels:
-            inb, span = self.scanpanels[stype]
-            self.nb.SetSelection(inb)
-            span.load_scandict(scan)
+            self.nb.SetSelection(self.scanpanels_nid[stype])
+            self.scanpanels[stype].load_scandict(scandict)
 
 
 class ScanApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
