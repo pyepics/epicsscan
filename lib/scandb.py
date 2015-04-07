@@ -849,6 +849,20 @@ class ScanDB(object):
         cmdid = cmd.id
         table.update(whereclause="id>'%i'" % cmdid).execute(status_id=cancel)
 
+    def test_abort(self, msg='scan abort'):
+        """look for abort, raise ScanDBAbort if set"""
+        if self.get_info('request_abort', as_bool=True):
+            raise ScanDBAbort(msg)
+
+    def wait_for_pause(self, timeout=86400.0):
+        """if request_pause is set, wait until it is unset"""
+        paused = self.get_info('request_pause', as_bool=True)
+        if paused:
+            t0 = time.time()
+            while paused:
+                time.sleep(0.25)
+                paused = (self.get_info('request_pause', as_bool=True) and
+                          (time.time() - t0) < timeout)
 
 if __name__ == '__main__':
     dbname = 'Test.sdb'
