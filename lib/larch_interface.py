@@ -77,8 +77,6 @@ class LarchScanDBServer(object):
                     if len(self.larch.error) > 0:
                         emsg = '\n'.join(self.larch.error[0].get_error())
                         self.scandb.set_info('error_message', emsg)
-                else:
-                    print("Added plugin '%s'" % (plugin_name))
 
     def load_modules(self, macro_dir=None, verbose=False):
         """read latest larch modules"""
