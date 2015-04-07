@@ -291,7 +291,7 @@ class ScandefsFrame(wx.Frame) :
         self.nblabels = []
         for pname, creator in (('Linear', LinearScanDefs),
                                ('Slew',   SlewScanDefs),
-                               ('Mesh',   MeshScanDefs),
+                               # ('Mesh',   MeshScanDefs),
                                ('XAFS',   XAFSScanDefs)):
 
             table = creator(self, self.scandb, stype=pname.lower())

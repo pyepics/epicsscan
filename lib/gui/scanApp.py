@@ -243,7 +243,8 @@ class ScanFrame(wx.Frame):
 
         btnsizer = wx.BoxSizer(wx.HORIZONTAL)
         btnpanel = wx.Panel(bpanel)
-        for ibtn, label in enumerate(("Start", "Pause", "Resume", "Abort", "Debug")):
+        for ibtn, label in enumerate(("Start", "Pause", "Resume", 
+                                      "Abort Scan", "Debug")):
             btn = add_button(btnpanel, label, size=(120, -1),
                              action=Closure(self.onCtrlScan, cmd=label))
             btnsizer.Add(btn, 0, CEN, 8)
@@ -640,7 +641,7 @@ class ScanFrame(wx.Frame):
         if not _alltypes:
             inb =  self.nb.GetSelection()
             for pname in self.scanpanels:
-                if inb == self.scanpanels_nid[pname]
+                if inb == self.scanpanels_nid[pname]:
                     stype = pname
 
         snames = []
@@ -749,7 +750,7 @@ class ScanFrame(wx.Frame):
         stype = scan['type'].lower()
         if stype in self.scanpanels:
             self.nb.SetSelection(self.scanpanels_nid[stype])
-            self.scanpanels[stype].load_scandict(scandict)
+            self.scanpanels[stype].load_scandict(scan)
 
 
 class ScanApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
