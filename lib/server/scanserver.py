@@ -175,7 +175,7 @@ class ScanServer():
         get_info = self.scandb.get_info
         self.req_abort = get_info('request_abort', as_bool=True)
         self.req_pause = get_info('request_pause', as_bool=True)
-        self.req_shutdown = get_info('request_pause', as_bool=True)
+        self.req_shutdown = get_info('request_shutdown', as_bool=True)
         return self.req_abort
 
     def clear_interrupts(self):
