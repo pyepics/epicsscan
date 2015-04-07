@@ -8,6 +8,8 @@ from .file_utils import nativepath
 from .site_config import get_fileroot, LARCH_SCANDB
 from . import scandb
 
+import epics
+
 import larch
 from larch.utils import OrderedDict
 larch_site_config = larch.site_config
@@ -27,8 +29,36 @@ class LarchScanDBServer(object):
 
         self.macro_dir = self.scandb.get_info('macro_folder')
         self.loaded_modules = {}
+        self.enable_abort()
         #self.load_plugins(macro_dir)
         #self.load_modules(macro_dir)
+
+    def check_abort_pause(self, msg='at caget'):
+        self.scandb.test_abort(msg)
+        self.scandb.wait_for_pause(timeout=86400.0)
+
+    def enable_abort(self):
+        """this replaes several larch functions with
+        functions that support raising ScanDBAbort exceptions
+        """
+        def caget(pvname, _larch=None, **kws):
+            amsg = "at caget('%s')" % pvname
+            self.check_abort_pause(msg=amsg)
+            return epics.caget(pvname, **kws)
+
+        def caput(pvname, value, _larch=None, **kws):
+            amsg = "at caput('%s', %s)" % (pvname, repr(value))
+            self.check_abort_pause(msg=amsg)
+            return epics.caput(pvname, value, **kws)
+
+        def PV(pvname, _larch=None, **kws):
+            amsg = "at PV('%s')" % pvname
+            self.check_abort_pause(msg=amsg)
+            return epics.get_pv(pvname, **kws)
+
+        self.symtab.set_symbol('_epics.caget', caget)
+        self.symtab.set_symbol('_epics.caput', caput)
+        self.symtab.set_symbol('_epics.PV', PV)
 
     def load_plugins(self, macro_dir=None):
         if macro_dir is None:
