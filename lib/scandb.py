@@ -47,7 +47,6 @@ class ScanDBAbort(Exception):
         Exception.__init__(self, *args)
         sys.excepthook(*sys.exc_info())
 
-
 def json_encode(val):
     "simple wrapper around json.dumps"
     if val is None or isinstance(val, (str, unicode)):
@@ -857,12 +856,15 @@ class ScanDB(object):
     def wait_for_pause(self, timeout=86400.0):
         """if request_pause is set, wait until it is unset"""
         paused = self.get_info('request_pause', as_bool=True)
-        if paused:
-            t0 = time.time()
-            while paused:
-                time.sleep(0.25)
-                paused = (self.get_info('request_pause', as_bool=True) and
-                          (time.time() - t0) < timeout)
+        if not paused:
+            return
+
+        t0 = time.time()
+        while paused:
+            time.sleep(0.25)
+            paused = (self.get_info('request_pause', as_bool=True) and
+                      (time.time() - t0) < timeout)
+
 
 if __name__ == '__main__':
     dbname = 'Test.sdb'
