@@ -171,16 +171,11 @@ class ScanServer():
         self.command_in_progress = False
         
     def look_for_interrupts(self):
-        """set interrupt requests:
-        abort / pause / resume
-        it is expected that long-running commands
-        should do something like this....
-        """
-        def isset(infostr):
-            return self.scandb.get_info(infostr, as_bool=True)
-        self.req_shutdown = isset('request_shutdown')
-        self.req_pause = isset('request_pause')
-        self.req_abort = isset('request_abort')
+        """look for aborts"""
+        get_info = self.scandb.get_info
+        self.req_abort = get_info('request_abort', as_bool=True)
+        self.req_pause = get_info('request_pause', as_bool=True)
+        self.req_shutdown = get_info('request_pause', as_bool=True)
         return self.req_abort
 
     def clear_interrupts(self):
@@ -192,7 +187,6 @@ class ScanServer():
         self.req_abort = self.req_pause = False
         self.scandb.set_info('request_abort', 0)
         self.scandb.set_info('request_pause', 0)
-        self.scandb.set_info('request_resume', 0)
 
     def mainloop(self):
         if self.larch is None:
