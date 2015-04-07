@@ -102,16 +102,17 @@ class MacroFrame(wx.Frame) :
         self.Raise()
 
     def update_info(self, evt=None):
+        paused = self.scandb.get_info('request_pause', as_bool=True)
+
         for key, attr in self.info_mapping.items():
             val = str(self.scandb.get_info(attr, '--'))
             if key in self.winfo:
                 self.winfo[key].SetLabel(val)
             if key == 'Status':
-                if val.lower().startswith('idle'):
+                if not paused and val.lower().startswith('idle'):
                     self.start_btn.Enable()
                 else:
                     self.start_btn.Disable()
-
 
         for key in self.output_fields:
             row = self.scandb.get_info(key, full_row=True)
@@ -143,10 +144,9 @@ class MacroFrame(wx.Frame) :
                  'minsize': (200, -1), 'style': wx.ALIGN_LEFT}
         self.winfo['File Name']       = SimpleText(panel, **opts1)
         self.winfo['Current Command'] = SimpleText(panel, **opts1)
-        self.winfo['Progress']        = SimpleText(panel, **opts1)
+        self.winfo['Progress']   = SimpleText(panel, **opts1)
         self.winfo['Status']     = SimpleText(panel, **opts2)
         self.winfo['Timestamp']  = SimpleText(panel, **opts2)
-
 
         irow, icol = 0, 0
         for attr in ('Status', 'Timestamp'):
@@ -168,16 +168,17 @@ class MacroFrame(wx.Frame) :
     def make_buttons(self):
         panel = wx.Panel(self)
         sizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.start_btn = add_button(panel, label='Start',  action=self.onStart)
-        sizer.Add(self.start_btn, 0, wx.ALIGN_LEFT, 2)
-        sizer.Add(add_button(panel, label='Pause',  action=self.onPause),
-                  0, wx.ALIGN_LEFT, 2)
-        sizer.Add(add_button(panel, label='Resume',  action=self.onResume),
-                  0, wx.ALIGN_LEFT, 2)
-        sizer.Add(add_button(panel, label='Abort',  action=self.onAbort),
-                  0, wx.ALIGN_LEFT, 2)
-        sizer.Add(add_button(panel, label='Cancel All', action=self.onCancelAll),
-                  0, wx.ALIGN_LEFT, 2)
+        self.start_btn  = add_button(panel, label='Start',  action=self.onStart)
+        self.pause_btn  = add_button(panel, label='Pause',  action=self.onPause)
+        self.resume_btn = add_button(panel, label='Resume',  action=self.onResume)
+        self.abort_btn  = add_button(panel, label='Abort Command',  action=self.onAbort)
+        self.cancel_btn = add_button(panel, label='Cancel All', action=self.onCancelAll)
+
+        sizer.Add(self.start_btn,  0, wx.ALIGN_LEFT, 2)
+        sizer.Add(self.pause_btn,  0, wx.ALIGN_LEFT, 2)
+        sizer.Add(self.resume_btn, 0, wx.ALIGN_LEFT, 2)
+        sizer.Add(self.abort_btn,  0, wx.ALIGN_LEFT, 2)
+        sizer.Add(self.cancel_btn, 0, wx.ALIGN_LEFT, 2)
         pack(panel, sizer)
         return panel
 
@@ -315,10 +316,17 @@ class MacroFrame(wx.Frame) :
     def onPause(self, event=None):
         self.scandb.set_info('request_pause', 1)
         self.scandb.commit()
+        self.pause_btn.Disable()
+        self.start_btn.Disable()
+        self.resume_btn.SetBackgroundColour("#D1D122")
 
     def onResume(self, event=None):
         self.scandb.set_info('request_pause', 0)
         self.scandb.commit()
+        self.pause_btn.Enable()
+        fg = self.pause_btn.GetBackgroundColour()
+        self.resume_btn.SetBackgroundColour(fg)
+
 
     def onAbort(self, event=None):
         self.scandb.set_info('request_abort', 1)
@@ -327,8 +335,11 @@ class MacroFrame(wx.Frame) :
         time.sleep(1.0)
 
     def onCancelAll(self, event=None):
+        self.onPause()
         self.scandb.cancel_remaining_commands()
         self.onAbort()
+        time.sleep(1.0)
+        self.onResume()
 
     def onClose(self, event=None):
         self.SaveMacroFile(AUTOSAVE_FILE)
