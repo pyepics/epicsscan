@@ -523,7 +523,8 @@ class XAFSScanPanel(GenericScanPanel):
         if elem:
             self.elemchoice.SetStringSelection(elem)
         self.e0.SetValue(scan['e0'])
-        self.absrel.SetSelection({True:1, False:0}[scan['is_relative']])   # relative!!
+        self.absrel_value = {True:1, False:0}[scan['is_relative']]
+        self.absrel.SetSelection(self.absrel_value) 
         nregs = len(scan['regions'])
         self.nregs_wid.SetValue(nregs)
         for ireg, reg in enumerate(self.reg_settings):
