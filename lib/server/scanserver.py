@@ -12,7 +12,7 @@ import epics
 from ..scandb import ScanDB, ScanDBException, ScanDBAbort, make_datetime
 
 from ..file_utils import fix_varname, nativepath
-from ..utils import  strip_quotes
+from ..utils import  strip_quotes, plain_ascii
 
 from ..site_config import get_fileroot
 from ..larch_interface import LarchScanDBServer, EpicsScanDB
@@ -57,9 +57,9 @@ class ScanServer():
         self.set_scan_message('Server Connected.')
 
         basedir = self.scandb.get_info('server_fileroot')
-        self.epicsdb.basedir = str(basedir)
+        self.epicsdb.basedir = plain_ascii(basedir)
         workdir = self.scandb.get_info('user_folder')
-        self.epicsdb.workdir = str(workdir)
+        self.epicsdb.workdir = plain_ascii(workdir)
 
 
     def set_scan_message(self, msg, verbose=True):
@@ -96,7 +96,7 @@ class ScanServer():
             self.set_scan_message("Warning: skipping command '%s'" % repr(req))
             return
 
-        command = str(req.command)
+        command = plain_ascii(req.command)
         if len(command) < 1 or command is 'None':
             return
 
@@ -105,14 +105,14 @@ class ScanServer():
         self.set_status('starting')
         self.scandb.set_command_status(req.id, 'starting')
 
-        args    = strip_quotes(str(req.arguments)).strip()
-        notes   = strip_quotes(str(req.notes)).strip()
+        args    = strip_quotes(plain_ascii(req.arguments)).strip()
+        notes   = strip_quotes(plain_ascii(req.notes)).strip()
         nrepeat = int(req.nrepeat)
 
         filename = req.output_file
         if filename is None:
             filename = ''
-        filename = strip_quotes(str(filename))
+        filename = strip_quotes(plain_ascii(filename))
 
         if command.lower() in ('scan', 'slewscan'):
             scanname = args

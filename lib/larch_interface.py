@@ -6,6 +6,7 @@ import numpy as np
 import glob
 from .file_utils import nativepath
 from .site_config import get_fileroot, LARCH_SCANDB
+from .utils import plain_ascii
 from . import scandb
 
 import epics
@@ -70,7 +71,7 @@ class LarchScanDBServer(object):
             plugindir = os.path.join(self.fileroot, macro_dir, 'plugins')
             self.symtab._sys.config.plugin_paths.insert(0, plugindir)
             for pyfile in glob.glob(os.path.join(plugindir, '*.py')):
-                plugin_name = str(os.path.split(pyfile)[1][:-3])
+                plugin_name = plain_ascii(os.path.split(pyfile)[1][:-3])
                 out = self.larch.run("add_plugin('%s')" % plugin_name)
                 if not out:
                     print("Error adding plugin '%s'" % (plugin_name))
@@ -128,7 +129,7 @@ class LarchScanDBServer(object):
         self.larch.error = []
         if command is None:
             return
-        return self.larch.eval(str(command))
+        return self.larch.eval(plain_ascii(command))
 
     def set_symbol(self, name, value):
         self.symtab.set_symbol(name, value)
