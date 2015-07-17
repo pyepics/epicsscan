@@ -68,8 +68,9 @@ class LarchScanDBServer(object):
             return
         else:
             plugindir = os.path.join(self.fileroot, macro_dir, 'plugins')
-            self.symtab._sys.config.plugin_paths.insert(0, plugindir)
+            self.symtab._sys.config.plugins_path.insert(0, plugindir)
             for pyfile in glob.glob(os.path.join(plugindir, '*.py')):
+                # print(" LARCH Load Plugins: ", pyfile)
                 plugin_name = str(os.path.split(pyfile)[1][:-3])
                 out = self.larch.run("add_plugin('%s')" % plugin_name)
                 if not out:
