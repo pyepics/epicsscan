@@ -25,6 +25,8 @@ from sqlalchemy.orm.exc import  NoResultFound
 # needed for py2exe?
 from sqlalchemy.dialects import sqlite, postgresql
 
+import epics
+
 from scandb_schema import get_dbengine, create_scandb, map_scandb
 from scandb_schema import (Info, Status, PVs, MonitorValues, ExtraPVs,
                            Macros, Commands, ScanData, ScanPositioners,
@@ -711,7 +713,7 @@ class ScanDB(object):
             return
         name = normalize_pvname(name)
         cls, table = self.get_table('pvs')
-        vals  = self.query(table).filter(cls.name == name).all()
+        vals  = self.query(table).filter(table.c.name == name).all()
         ismon = {False:0, True:1}[monitor]
         if len(vals) < 1:
             table.insert().execute(name=name, notes=notes, is_monitor=ismon)
@@ -720,9 +722,45 @@ class ScanDB(object):
             table.update(whereclause=where).execute(notes=notes,
                                                     is_monitor=ismon)
         thispv = self.query(table).filter(cls.name == name).one()
-        if name not in self.pvs:
-            self.pvs[name] = thispv.id
+        self.connect_pvs(names=[name])                    
         return thispv
+
+    def get_pvrow(self, name):
+        """return db row for a PV"""
+        if len(name) < 2:
+            return
+
+        cls, table = self.get_table('pvs')
+        return self.query(table).filter(table.c.name == name).one()
+
+    def get_pv(self, name):
+        """return pv object from known PVs"""
+        if len(name) > 2:
+            name = normalize_pvname(name)
+            if name in self.pvs:
+                return self.pvs[name]
+
+    def connect_pvs(self, names=None):
+        "connect all PVs in pvs table"
+        if names is None:
+            cls, table = self.get_table('pvs')
+            names = [str(row.name) for row in self.query(table).all()]
+
+        _connect = []
+        for name in names:
+            name = normalize_pvname(name)
+            if len(name) < 2:
+                continue
+            if name not in self.pvs:
+                self.pvs[name] = epics.PV(name)
+                _connect.append(name)
+        
+        for name in _connect:
+            connected, count = False, 0
+            while not connected:
+                time.sleep(0.001)
+                count += 1
+                connected = self.pvs[name].connected or count > 100
 
     def record_monitorpv(self, pvname, value):
         """save value for monitor pvs"""

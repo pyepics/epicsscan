@@ -197,7 +197,7 @@ class ScanFrame(wx.Frame):
         inb  = 0
         for name, creator in (('Linear',  LinearScanPanel),
                               ('Slew',    SlewScanPanel),
-                              # ('Mesh',    MeshScanPanel),
+                              ('Mesh',    MeshScanPanel),
                               ('XAFS',    XAFSScanPanel)):
             span = creator(self, scandb=self.scandb, pvlist=self.pvlist)
             self.nb.AddPage(span, "%s Scan" % name, True)
@@ -316,7 +316,7 @@ class ScanFrame(wx.Frame):
         time.sleep(0.05)
         self.statusbar.SetStatusText('Epics Ready')
 
-    def generate_scan(self, scanname=None, debug=False):
+    def generate_scan(self, scanname=None, debug=False, force_save=False):
         """generate scan definition from current values on GUI
         return scanname, scan_dict
         """
@@ -362,7 +362,7 @@ class ScanFrame(wx.Frame):
             except:
                 lastscan = ''
                 scan_is_new = True
-        if scan_is_new:
+        if scan_is_new or force_save:
             sdb.add_scandef(scanname, text=json.dumps(scan), type=scan['type'])
             sdb.commit()
             self.last_scanname = scanname
@@ -375,7 +375,7 @@ class ScanFrame(wx.Frame):
             self.scandb.set_info('nscans', nscans)
         
     def onStartScan(self, evt=None):
-        sname, dat = self.generate_scan()
+        sname, dat = self.generate_scan(force_save=False)
         fname    = self.filename.GetValue()
         nscans   = int(self.nscans.GetValue())
         comments = self.user_comms.GetValue()
@@ -573,7 +573,6 @@ class ScanFrame(wx.Frame):
         fileroot = str(get_fileroot())
         if basedir.startswith(fileroot):
             basedir = basedir[len(fileroot):]
-            print 'trimmed basedir to ', basedir
         self.scandb.set_info('user_folder', basedir)
         fullpath = os.path.join(fileroot, basedir)
         fullpath = fullpath.replace('\\', '/').replace('//', '/')
@@ -621,10 +620,8 @@ class ScanFrame(wx.Frame):
                 else:
                     sname = ''
             if len(sname) > 0:
-                name, scan = self.generate_scan(scanname=sname)
+                name, scan = self.generate_scan(scanname=sname, force_save=True)
                 thisscan = self.scandb.get_scandef(name)
-                
-
                 self.statusbar.SetStatusText("Saved scan '%s'" % sname)
             else:
                 self.statusbar.SetStatusText("Could not overwrite scan '%s'" % sname)

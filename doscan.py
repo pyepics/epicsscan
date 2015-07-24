@@ -1,26 +1,30 @@
 from lib import scandb
-from lib.station_config import StationConfig
-from lib.server import run_scan
-from lib.detectors import get_detector
+# from lib.station_config import StationConfig
+# from lib.server import run_scan
+# from lib.detectors import get_detector
+
+
+from lib.larch_interface import LarchScanDBServer
+
+
+
+import epics
+p = epics.PV('13IDE:SIS1:mca1')
+print p.get()
+
+             
 import json
 
-sdb = scandb.ScanDB('epics_scan', # 'test_escan001',
-                    server='postgresql',
-                    host='mini.cars.aps.anl.gov',
-                    user='epics', 
-                    password = 'epics',
-                    create=True)
- 
-# def read_conf(fname='epicsscan.ini'):
-#     conf = StationConfig(fname)
-#     sdb.read_station_config(conf)
+from scan_credentials import conn
+sdb = scandb.ScanDB(**conn)
 
-print sdb
+_larch = LarchScanDBServer(sdb)
+_larch.load_plugins()
+_larch.load_modules()
 
-# sx = run_scan(conf)
-# for detpars in conf['detectors']:
-#     print type(detpars)
-#     det = get_detector(**detpars)
-#     print det
+scandef = sdb.get_scandef('testmap')
+print scandef
+
+
 
 
