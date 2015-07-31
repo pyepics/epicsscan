@@ -32,7 +32,15 @@ def get_units(pv, default):
         units = default
     return units
 
+
+
 def normalize_pvname(name):
+    """ make sure Epics PV name either ends with .VAL or .SOMETHING!"""
+    if  '.' in name:
+        return name
+    return "%s.VAL" % name
+
+def pv_fullname(name):
     """ make sure Epics PV name either ends with .VAL or .SOMETHING!"""
     if  '.' in name:
         return name
