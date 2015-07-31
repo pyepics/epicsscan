@@ -15,7 +15,7 @@ from sqlalchemy import (MetaData, and_, create_engine, text, func,
                         Table, Column, ColumnDefault, ForeignKey,
                         Integer, Float, String, Text, DateTime)
 
-from sqlalchemy.orm import sessionmaker, mapper, clear_mappers, relationship
+from sqlalchemy.orm import sessionmaker, mapper, relationship
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.pool import SingletonThreadPool
@@ -95,11 +95,11 @@ def PointerCol(name, other=None, keyid='id', **kws):
     return Column("%s_%s" % (name, keyid), None,
                   ForeignKey('%s.%s' % (other, keyid)), **kws)
 
-def NamedTable(tablename, metadata, keyid='id', nameid='name',
+def NamedTable(tablename, metadata, keyid='id', nameid='name', name_unique=True,
                name=True, notes=True, with_pv=False, with_use=False, cols=None):
     args  = [Column(keyid, Integer, primary_key=True)]
     if name:
-        args.append(StrCol(nameid, size=512, nullable=False, unique=True))
+        args.append(StrCol(nameid, size=512, nullable=False, unique=name_unique))
     if notes:
         args.append(StrCol('notes'))
     if with_pv:
@@ -115,7 +115,7 @@ class _BaseTable(object):
     def __repr__(self):
         name = self.__class__.__name__
         fields = ['%s' % getattr(self, 'name', 'UNNAMED'),
-                  'id=%d' % getattr(self, 'id', 'NOID')]
+                  'id=%s' % repr(getattr(self, 'id', 'NOID'))]
         return "<%s(%s)>" % (name, ', '.join(fields))
 
 class Info(_BaseTable):
@@ -191,7 +191,7 @@ class Instruments(_BaseTable):
 
 class Positions(_BaseTable):
     "position table"
-    pvs, date, name, notes = None, None, None, None
+    pvs, date, name, notes, image = None, None, None, None, None
     instrument, instrument_id = None, None
 
 class Position_PV(_BaseTable):
@@ -199,7 +199,7 @@ class Position_PV(_BaseTable):
     name, notes, pv, value = None, None, None, None
     def __repr__(self):
         name = self.__class__.__name__
-        fields = ['%s=%s' % (getattr(self, 'pv', '?'),
+        fields = ['%s=%s' % (getattr(self, 'pvs_id', '?'),
                              getattr(self, 'value', '?'))]
         return "<%s(%s)>" % (name, ', '.join(fields))
 
@@ -259,10 +259,10 @@ def create_scandb(dbname, server='sqlite', create=True, **kws):
     cnts   = NamedTable('scancounters', metadata, with_pv=True, with_use=True)
     det    = NamedTable('scandetectors', metadata, with_pv=True, with_use=True,
                         cols=[StrCol('kind',   size=128),
-                              StrCol('options', size=2048)])
+                              StrCol('options')])
 
     scans = NamedTable('scandefs', metadata,
-                       cols=[StrCol('text', size=4096),
+                       cols=[StrCol('text'),
                              StrCol('type'),
                              Column('modify_time', DateTime),
                              Column('last_used_time', DateTime)])
@@ -309,8 +309,9 @@ def create_scandb(dbname, server='sqlite', create=True, **kws):
                             cols=[IntCol('show', default=1),
                                   IntCol('display_order', default=0)])
 
-    position  = NamedTable('positions', metadata,
+    position  = NamedTable('positions', metadata, name_unique=False,
                            cols=[Column('modify_time', DateTime),
+                                 StrCol('image'),
                                  PointerCol('instruments')])
 
     instrument_precommand = NamedTable('instrument_precommands', metadata,
@@ -338,7 +339,6 @@ def create_scandb(dbname, server='sqlite', create=True, **kws):
                         StrCol('value'))
 
     metadata.create_all()
-
     session = sessionmaker(bind=engine)()
 
     # add some initial data:
@@ -375,11 +375,6 @@ def map_scandb(metadata):
     classes = {}
     map_props = {}
     keyattrs = {}
-    try:
-        clear_mappers()
-    except:
-        logging.exception("error clearing mappers")
-
 
     for cls in (Info, Status, PVs, PVTypes, MonitorValues, Macros, ExtraPVs,
                 Commands, ScanData, ScanPositioners, ScanCounters,
