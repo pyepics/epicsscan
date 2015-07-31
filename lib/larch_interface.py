@@ -5,8 +5,9 @@ import json
 import numpy as np
 import glob
 from .file_utils import nativepath
-from .site_config import get_fileroot, LARCH_SCANDB
+from .site_config import get_fileroot, LARCH_SCANDB, LARCH_INSTDB
 from .utils import plain_ascii
+from .scandb import InstrumentDB
 from . import scandb
 
 import epics
@@ -18,6 +19,7 @@ larch_site_config = larch.site_config
 larch.use_plugin_path('epics')
 from stepscan_utils import EpicsScanDB
 
+
 class LarchScanDBServer(object):
     """      """
     def __init__(self, scandb, fileroot=None):
@@ -26,6 +28,7 @@ class LarchScanDBServer(object):
         self.larch = larch.Interpreter()
         self.symtab = self.larch.symtable
         self.symtab.set_symbol(LARCH_SCANDB, self.scandb)
+        self.symtab.set_symbol(LARCH_INSTDB, InstrumentDB(self.scandb))
         self.symtab._sys.color_exceptions = False
 
         self.macro_dir = self.scandb.get_info('macro_folder')
@@ -69,12 +72,14 @@ class LarchScanDBServer(object):
             return
         else:
             plugindir = os.path.join(self.fileroot, macro_dir, 'plugins')
+            print plugindir
             self.symtab._sys.config.plugins_path.insert(0, plugindir)
             for pyfile in glob.glob(os.path.join(plugindir, '*.py')):
-                # print(" LARCH Load Plugins: ", pyfile)
-                plugin_name = plain_ascii(os.path.split(pyfile)[1][:-3])
+                print(" LARCH Load Plugins: ", pyfile)
+                plugin_name = str(os.path.split(pyfile)[1][:-3])
                 out = self.larch.run("add_plugin('%s')" % plugin_name)
-                if not out:
+                print 'Add  ', plugin_name, out
+                if  not out:
                     print("Error adding plugin '%s'" % (plugin_name))
                     if len(self.larch.error) > 0:
                         emsg = '\n'.join(self.larch.error[0].get_error())
