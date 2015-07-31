@@ -197,7 +197,7 @@ class ScanFrame(wx.Frame):
         inb  = 0
         for name, creator in (('Linear',  LinearScanPanel),
                               ('Slew',    SlewScanPanel),
-                              ('Mesh',    MeshScanPanel),
+                              # ('Mesh',    MeshScanPanel),
                               ('XAFS',    XAFSScanPanel)):
             span = creator(self, scandb=self.scandb, pvlist=self.pvlist)
             self.nb.AddPage(span, "%s Scan" % name, True)
