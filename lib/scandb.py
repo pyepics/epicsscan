@@ -35,7 +35,7 @@ from scandb_schema import (Info, Status, PVs, MonitorValues, ExtraPVs,
                            Instruments, Instrument_PV,
                            Instrument_Precommands, Instrument_Postcommands)
 
-from .utils import strip_quotes, normalize_pvname, asciikeys
+from .utils import strip_quotes, normalize_pvname, asciikeys, pv_fullname
 
 class ScanDBException(Exception):
     """Scan Exception: General Errors"""
@@ -94,6 +94,7 @@ class ScanDB(object):
     """
     def __init__(self, dbname=None, server='sqlite', create=False, **kws):
         self.dbname = dbname
+        if server == 'sqlite3': server = 'sqlite'
         self.server = server
         self.tables = None
         self.engine = None
@@ -140,7 +141,7 @@ class ScanDB(object):
         must be a sqlite db file, with tables named
         'postioners', 'detectors', and 'scans'
         """
-        if server == 'sqlite':
+        if server.startswith('sqlite'):
             if not os.path.exists(dbname):
                 return False
         else:
@@ -206,70 +207,6 @@ class ScanDB(object):
             self.status_names[row.id] = row.name
         atexit.register(self.close)
 
-    def read_station_config(self, config):
-        """convert station config to db entries
-        DEPRECATED - kept for compatibility only"""
-
-        for key, val in config.setup.items():
-            self.set_info(key, val)
-
-        for key, val in config.xafs.items():
-            self.set_info(key, val)
-
-        for key, val in config.slewscan.items():
-            self.set_info('slew_%s' % key, val)
-
-        for name, pvname in config.extrapvs.items():
-            pvname = normalize_pvname(pvname)
-            this = self.get_extrapv(name)
-            if this is None:
-                self.add_extrapv(name, pvname)
-            else:
-                self.update_where('extrapvs', {'name': name},
-                                  {'pvname': pvname})
-
-        for name, data in config.detectors.items():
-            thisdet  = self.get_detector(name)
-            pvname, opts = data
-            pvname = normalize_pvname(pvname)
-            dkind = strip_quotes(opts.pop('kind'))
-            opts = json_encode(opts)
-            if thisdet is None:
-                self.add_detector(name, pvname, kind=dkind, options=opts)
-            else:
-                self.update_where('scandetectors', {'name': name},
-                                  {'pvname': pvname, 'kind': dkind,
-                                   'options': opts})
-
-        for name, data in config.positioners.items():
-            thispos  = self.get_positioner(name)
-            drivepv = normalize_pvname(data[0])
-            readpv = normalize_pvname(data[1])
-            if thispos is None:
-                self.add_positioner(name, drivepv, readpv=readpv)
-            else:
-                self.update_where('scanpositioners', {'name': name},
-                                  {'drivepv': drivepv, 'readpv': readpv})
-
-        for name, data in config.slewscan_positioners.items():
-            thispos  = self.get_slewpositioner(name)
-            drivepv = normalize_pvname(data[0])
-            readpv = normalize_pvname(data[1])
-            if thispos is None:
-                self.add_slewpositioner(name, drivepv, readpv=readpv)
-            else:
-                self.update_where('slewscanpositioners', {'name': name},
-                                  {'drivepv': drivepv, 'readpv': readpv})
-
-        for name, pvname in config.counters.items():
-            pvname = normalize_pvname(pvname)
-            this  = self.get_counter(name)
-            if this is None:
-                self.add_counter(name, pvname)
-            else:
-                self.update_where('scancounters', {'name': name},
-                                  {'pvname': pvname})
-
     def commit(self):
         "commit session state -- null op since using autocommit"
         self.session.flush()
@@ -288,7 +225,7 @@ class ScanDB(object):
         "generic query"
         try:
             return self.session.query(*args, **kws)
-        except sqlalchemy.StatementError():
+        except sqlalchemy.exc.StatementError():
             time.sleep(0.01)
             self.session.rollback()
             time.sleep(0.01)
@@ -403,7 +340,7 @@ class ScanDB(object):
 
     def check_hostpid(self):
         """check whether hostname and process ID match current config"""
-        if self.server != 'sqlite':
+        if not self.server.startswith('sqlite'):
             return True
         db_host_name = self.get_info('host_name', default='')
         db_process_id  = self.get_info('process_id', default='0')
@@ -465,7 +402,6 @@ class ScanDB(object):
         whereclause = ' AND '.join(constraints)
         table.update(whereclause=whereclause).execute(**vals)
         self.commit()
-
 
     def getrow(self, table, name, one_or_none=False):
         """return named row from a table"""
@@ -529,7 +465,7 @@ class ScanDB(object):
         self.session.add(row)
         return row
 
-    # scan data
+    ### scan data
     def get_scandata(self, **kws):
         return self.getall('scandata', orderby='id', **kws)
 
@@ -562,7 +498,7 @@ class ScanDB(object):
             return
         self.session.execute(table.delete().where(table.c.id != 0))
 
-    # positioners
+    ### positioners
     def get_positioners(self, **kws):
         return self.getall('scanpositioners', orderby='id', **kws)
 
@@ -592,12 +528,12 @@ class ScanDB(object):
         """add positioner"""
         cls, table = self.get_table('scanpositioners')
         name = name.strip()
-        drivepv = normalize_pvname(drivepv)
+        drivepv = pv_fullname(drivepv)
         if readpv is not None:
-            readpv = normalize_pvname(readpv)
+            readpv = pv_fullname(readpv)
         epvlist = []
         if extrapvs is not None:
-            epvlist = [normalize_pvname(p) for p in extrapvs]
+            epvlist = [pv_fullname(p) for p in extrapvs]
         kws.update({'notes': notes, 'drivepv': drivepv,
                     'readpv': readpv, 'extrapvs':json.dumps(epvlist)})
 
@@ -619,12 +555,12 @@ class ScanDB(object):
         """add slewscan positioner"""
         cls, table = self.get_table('slewscanpositioners')
         name = name.strip()
-        drivepv = normalize_pvname(drivepv)
+        drivepv = pv_fullname(drivepv)
         if readpv is not None:
-            readpv = normalize_pvname(readpv)
+            readpv = pv_fullname(readpv)
         epvlist = []
         if extrapvs is not None:
-            epvlist = [normalize_pvname(p) for p in extrapvs]
+            epvlist = [pv_fullname(p) for p in extrapvs]
         kws.update({'notes': notes, 'drivepv': drivepv,
                     'readpv': readpv, 'extrapvs':json.dumps(evpvlist)})
 
@@ -637,7 +573,7 @@ class ScanDB(object):
             self.add_pv(epv)
         return row
 
-    # detectors
+    ### detectors
     def get_detector(self, name):
         """return detector by name"""
         return self.getrow('scandetectors', name, one_or_none=True)
@@ -651,14 +587,14 @@ class ScanDB(object):
         """add detector"""
         cls, table = self.get_table('scandetectors')
         name = name.strip()
-        pvname = normalize_pvname(pvname)
+        pvname = pv_fullname(pvname)
         kws.update({'pvname': pvname,
                     'kind': kind, 'options': options})
         row = self.__addRow(cls, ('name',), (name,), **kws)
         self.session.add(row)
         return row
 
-    # counters -- simple, non-triggered PVs to add to detectors
+    ### counters -- simple, non-triggered PVs to add to detectors
     def get_counters(self, **kws):
         return self.getall('scancounters', orderby='id', **kws)
 
@@ -674,7 +610,7 @@ class ScanDB(object):
     def add_counter(self, name, pvname, **kws):
         """add counter (non-triggered detector)"""
         cls, table = self.get_table('scancounters')
-        pvname = normalize_pvname(pvname)
+        pvname = pv_fullname(pvname)
         name = name.strip()
         kws.update({'pvname': pvname})
         row = self.__addRow(cls, ('name',), (name,), **kws)
@@ -682,7 +618,7 @@ class ScanDB(object):
         self.add_pv(pvname, notes=name)
         return row
 
-    # extra pvs: pvs recorded at breakpoints of scans
+    ### extra pvs: pvs recorded at breakpoints of scans
     def get_extrapvs(self, **kws):
         return self.getall('extrapvs', orderby='id', **kws)
 
@@ -699,7 +635,7 @@ class ScanDB(object):
         """add extra pv (recorded at breakpoints in scans"""
         cls, table = self.get_table('extrapvs')
         name = name.strip()
-        pvname = normalize_pvname(pvname)
+        pvname = pv_fullname(pvname)
         kws.update({'pvname': pvname, 'use': int(use)})
         row = self.__addRow(cls, ('name',), (name,), **kws)
         self.session.add(row)
@@ -711,7 +647,7 @@ class ScanDB(object):
         """add pv to PV table if not already there """
         if len(name) < 2:
             return
-        name = normalize_pvname(name)
+        name = pv_fullname(name)
         cls, table = self.get_table('pvs')
         vals  = self.query(table).filter(table.c.name == name).all()
         ismon = {False:0, True:1}[monitor]
@@ -722,21 +658,21 @@ class ScanDB(object):
             table.update(whereclause=where).execute(notes=notes,
                                                     is_monitor=ismon)
         thispv = self.query(table).filter(cls.name == name).one()
-        self.connect_pvs(names=[name])                    
+        self.connect_pvs(names=[name])
         return thispv
 
     def get_pvrow(self, name):
         """return db row for a PV"""
         if len(name) < 2:
             return
-
         cls, table = self.get_table('pvs')
-        return self.query(table).filter(table.c.name == name).one()
+        out = table.select().where(table.c.name == name).execute().fetchall()
+        return None_or_one(out, 'get_pvrow expected 1 or None PV')
 
     def get_pv(self, name):
         """return pv object from known PVs"""
         if len(name) > 2:
-            name = normalize_pvname(name)
+            name = pv_fullname(name)
             if name in self.pvs:
                 return self.pvs[name]
 
@@ -748,13 +684,13 @@ class ScanDB(object):
 
         _connect = []
         for name in names:
-            name = normalize_pvname(name)
+            name = pv_fullname(name)
             if len(name) < 2:
                 continue
             if name not in self.pvs:
                 self.pvs[name] = epics.PV(name)
                 _connect.append(name)
-        
+
         for name in _connect:
             connected, count = False, 0
             while not connected:
@@ -764,24 +700,26 @@ class ScanDB(object):
 
     def record_monitorpv(self, pvname, value):
         """save value for monitor pvs"""
-        pvname = normalize_pvname(pvname)
+
+        pvname = pv_fullname(pvname)
         if pvname not in self.pvs:
             pv = self.add_pv(pvname, monitor=True)
-            self.pvs[pvname] = pv.id
 
-        cls, table = self.get_table('monitorvalues')
-        mval = cls()
-        mval.pv_id = self.pvs[pvname]
-        mval.value = value
-        self.session.add(mval)
+
+        #cls, table = self.get_table('monitorvalues')
+        #mval = cls()
+        ## mval.pv_id = self.pvs[pvname]
+        #mval.value = value
+        #self.session.add(mval)
+        pass
 
     def get_monitorvalues(self, pvname, start_date=None, end_date=None):
         """get (value, time) pairs for a monitorpvs given a time range
         """
-        pvname = normalize_pvname(pvname)
+        pvname = pv_fullname(pvname)
         if pvname not in self.pvs:
             pv = self.add_monitorpv(pvname)
-            self.pvs[pvname] = pv.id
+            # self.pvs[pvname] = pv.id
 
         cls, valtab = self.get_table('monitorvalues')
 
@@ -793,8 +731,9 @@ class ScanDB(object):
             query = query.where(valtab.c.time <= end_date)
 
         return query.execute().fetchall()
+        pass
 
-    # commands -- a more complex interface
+    ### commands -- a more complex interface
     def get_commands(self, status=None, reverse=False,
                      requested_since=None, **kws):
         """return command by status"""
@@ -903,6 +842,252 @@ class ScanDB(object):
             paused = (self.get_info('request_pause', as_bool=True) and
                       (time.time() - t0) < timeout)
 
+class InstrumentDB(object):
+    """Instruments/Positions class using a scandb instance"""
+
+    def __init__(self, scandb):
+        self.scandb = scandb
+
+    def __addRow(self, table, argnames, argvals, **kws):
+        """add generic row"""
+        table = table()
+        for name, val in zip(argnames, argvals):
+            setattr(table, name, val)
+        for key, val in kws.items():
+            if key == 'attributes':
+                val = json_encode(val)
+            setattr(table, key, val)
+        try:
+            self.scandb.session.add(table)
+        except IntegrityError, msg:
+            self.scandb.session.rollback()
+            raise Warning('Could not add data to table %s\n%s' % (table, msg))
+
+
+    ### Instrument Functions
+    def add_instrument(self, name, pvs=None, notes=None,
+                       attributes=None, **kws):
+        """add instrument
+        notes and attributes optional
+        returns Instruments instance"""
+        kws['notes'] = notes
+        kws['attributes'] = attributes
+        name = name.strip()
+        inst = self.get_instrument(name)
+        if inst is None:
+            out = self.__addRow(Instruments, ('name',), (name,), **kws)
+            inst = self.get_instrument(name)
+        cls, jointable = self.scandb.get_table('instrument_pv')
+        if pvs is not None:
+            pvlist = []
+            for pvname in pvs:
+                thispv = self.scandb.get_pvrow(pvname)
+                if thispv is None:
+                    thispv = self.scandb.add_pv(pvname)
+                pvlist.append(thispv)
+            for dorder, pv in enumerate(pvlist):
+                data = {'display_order': dorder, 'pvs_id': pv.id,
+                        'instruments_id': inst.id}
+                jointable.insert().execute(**data)
+
+        self.scandb.session.add(inst)
+        self.scandb.commit()
+        return inst
+
+    def get_all_instruments(self):
+        """return instrument list
+        """
+        cls, table = self.scandb.get_table('instruments')
+        return self.scandb.query(cls).order_by(cls.display_order).all()
+
+    def get_instrument(self, name):
+        """return instrument by name
+        """
+        if isinstance(name, Instruments):
+            return name
+        cls, table = self.scandb.get_table('instruments')
+        out = self.scandb.query(cls).filter(cls.name==name).all()
+        return None_or_one(out, 'get_instrument expected 1 or None Instruments')
+
+    def remove_position(self, instname, posname):
+        inst = self.get_instrument(instname)
+        if inst is None:
+            raise ScanDBException('remove_position needs valid instrument')
+
+        posname = posname.strip()
+        pos  = self.get_position(instname, posname)
+        if pos is None:
+            raise ScanDBException("Postion '%s' not found for '%s'" %
+                                        (posname, inst.name))
+
+        cls, tab = self.scandb.get_table('position_pv')
+        self.scandb.conn.execute(tab.delete().where(tab.c.positions_id==pos.id))
+        self.scandb.conn.execute(tab.delete().where(tab.c.positions_id==None))
+
+        cls, ptab = self.scandb.get_table('positions')
+        self.scandb.conn.execute(ptab.delete().where(ptab.c.id==pos.id))
+        self.scandb.commit()
+
+    def remove_all_positions(self, instname):
+        for posname in self.get_positionlist(instname):
+            self.remove_position(instname, posname)
+
+    def remove_instrument(self, inst):
+        inst = self.get_instrument(inst)
+        if inst is None:
+            raise ScanDBException('Save Postion needs valid instrument')
+
+        tab = self.scandb.tables['instruments']
+        self.scandb.conn.execute(tab.delete().where(tab.c.id==inst.id))
+
+        for tablename in ('position', 'instrument_pv', 'instrument_precommand',
+                          'instrument_postcommand'):
+            tab = self.scandb.tables[tablename]
+            self.scandb.conn.execute(tab.delete().where(tab.c.instrument.id==inst.id))
+
+    def save_position(self, instname, posname, values, image=None, notes=None, **kw):
+        """save position for instrument
+        """
+        inst = self.get_instrument(instname)
+        if inst is None:
+            raise ScanDBException('Save Postion needs valid instrument')
+
+        posname = posname.strip()
+        pos  = self.get_position(instname, posname)
+        pos_cls, pos_table = self.scandb.get_table('positions')
+        if pos is None:
+            pos = pos_cls()
+            pos.name = posname
+            pos.instruments_id = inst.id
+
+        pos.modify_time = datetime.now()
+        if image is not None:
+            pos.image = image
+        if notes is not None:
+            pos.notes = notes
+
+        pvnames = [str(pv.name) for pv in inst.pvs]
+
+        # check for missing pvs in values
+        missing_pvs = []
+        for pv in pvnames:
+            if pv not in values:
+                missing_pvs.append(pv)
+
+        if len(missing_pvs) > 0:
+            raise ScanDBException('save_position: missing pvs:\n %s' %
+                                        missing_pvs)
+
+        ppos_cls, ppos_tab = self.scandb.get_table('position_pv')
+        doexec = self.scandb.conn.execute
+        doexec(ppos_tab.delete().where(ppos_tab.c.positions_id == None))
+        doexec(ppos_tab.delete().where(ppos_tab.c.positions_id == pos.id))
+
+        pos_pvs = []
+        for name in pvnames:
+            pvrow =  self.scandb.get_pvrow(name)
+            ppv = ppos_cls()
+            ppv.pvs_id = pvrow.id
+            ppv.notes = "'%s' / '%s'" % (inst.name, posname)
+            ppv.value = float(values[name])
+            pos_pvs.append(ppv)
+
+        pos.pvs = pos_pvs
+        self.scandb.session.add(pos)
+        self.scandb.commit()
+
+
+    def save_current_position(self, instname, posname, image=None, notes=None):
+        """save current values for an instrument to posname
+        """
+        inst = self.get_instrument(instname)
+        if inst is None:
+            raise ScanDBException('Save Postion needs valid instrument')
+        vals = {}
+        for pv in inst.pvs:
+            vals[pv.name] = epics.caget(pv.name)
+        self.save_position(instname, posname,  vals, image=image, notes=notes)
+
+    def restore_complete(self):
+        "return whether last restore_position has completed"
+        if len(self.restoring_pvs) > 0:
+            return all([p.put_complete for p in self.restoring_pvs])
+        return True
+
+    def rename_position(self, inst, oldname, newname):
+        """rename a position"""
+        pos = self.get_position(inst, oldname)
+        if pos is not None:
+            pos.name = newname
+            self.scandb.commit()
+
+    def get_position(self, instname, posname):
+        """return position from namea and instrument
+        """
+        inst = self.get_instrument(instname)
+        cls, table = self.scandb.get_table('positions')
+        filter = and_(cls.name==posname,
+                      cls.instruments_id==inst.id)
+        out = self.scandb.query(cls).filter(filter).all()
+        return None_or_one(out, 'get_position expected 1 or None Position')
+
+    def get_positionlist(self, instname):
+        """return list of position names for an instrument
+        """
+        inst = self.get_instrument(instname)
+        cls, table = self.scandb.get_table('positions')
+        q = self.scandb.query(cls)
+        q = q.filter(cls.instruments_id==inst.id)
+        q = q.order_by(cls.modify_time)
+        return [p.name for p in q.all()]
+
+    def restore_position(self, instname, posname, wait=False, timeout=5.0,
+                         exclude_pvs=None):
+        """
+        restore named position for instrument
+        """
+        inst = self.get_instrument(instname)
+        if inst is None:
+            raise ScanDBException('restore_postion needs valid instrument')
+
+        posname = posname.strip()
+        pos  = self.get_position(inst, posname)
+
+        cls, tab = self.scandb.get_table('position_pv')
+        pospvs = self.scandb.query(cls).filter(tab.c.positions_id==pos.id).all()
+        
+        if pos is None:
+            raise ScanDBException(
+                "restore_postion  position '%s' not found" % posname)
+
+        if exclude_pvs is None:
+            exclude_pvs = []
+
+        pcls, ptab = self.scandb.get_table('pvs')
+
+        pv_vals = []
+        for ppv in pospvs:
+            pv = ptab.select().where(ptab.c.id==ppv.pvs_id).execute().fetchone()
+            if pv.name not in exclude_pvs:
+                thispv = epics.PV(pv.name)
+                pv_vals.append((thispv, float(ppv.value)))
+
+        epics.ca.poll()
+        # put values without waiting
+        for thispv, val in pv_vals:
+            if not thispv.connected:
+                thispv.wait_for_connection(timeout=timeout)
+            try:
+                 thispv.put(val)
+            except:
+                pass
+
+        if wait:
+            for thispv, val in pv_vals:
+                try:
+                    thispv.put(val, wait=True)
+                except:
+                    pass
 
 if __name__ == '__main__':
     dbname = 'Test.sdb'
