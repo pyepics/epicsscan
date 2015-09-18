@@ -134,8 +134,8 @@ class MacroFrame(wx.Frame) :
                 else:
                     self.start_btn.Disable()
 
-        for line in self.db_messages.get_new_messages():
-            self.writeOutput(line.text, color=COLOR_MSG)
+        for msg in self.db_messages.get_new_messages():
+            self.writeOutput(msg.text, color=COLOR_MSG, with_nl=False)
 
         for key in self.output_fields:
             row = self.scandb.get_info(key, full_row=True)
@@ -257,9 +257,9 @@ class MacroFrame(wx.Frame) :
         time.sleep(0.01)
         self.writeOutput(text)
 
-    def writeOutput(self, text, color=None):
+    def writeOutput(self, text, color=None, with_nl=True):
         pos0 = self.output.GetLastPosition()
-        if not text.endswith('\n'):
+        if with_nl and not text.endswith('\n'):
             text = '%s\n' % text
         self.output.WriteText(text)
         if color is not None:
