@@ -278,9 +278,8 @@ class ScanFrame(wx.Frame):
             for span in self.scanpanels.values():
                 span.initialize_positions()
             self.inittimer.Stop()
-            if atGSECARS():
-                wx.CallAfter(self.onShowPlot)
-                wx.CallAfter(self.onEditMacro)
+            wx.CallAfter(self.onShowPlot)
+            wx.CallAfter(self.onEditMacro)
 
             self.statusbar.SetStatusText('', 0)
             self.statusbar.SetStatusText('Ready', 1)
@@ -489,10 +488,10 @@ class ScanFrame(wx.Frame):
 
         # Sequences
         smenu = wx.Menu()
-        add_menu(self, smenu, "Sequences",
-                 "Run Sequences of Scans",  self.onEditSequences)
         add_menu(self, smenu, "Edit Macro",
                   "Edit Macro",  self.onEditMacro)
+        add_menu(self, smenu, "Sequences",
+                 "Run Sequences of Scans",  self.onEditSequences)
 
         # help
         hmenu = wx.Menu()
