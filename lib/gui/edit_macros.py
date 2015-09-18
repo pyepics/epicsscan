@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import logging
+from sqlalchemy.sql import func as sqlfunc
 from datetime import datetime, timedelta
 import wx
 import wx.lib.scrolledpanel as scrolled
@@ -23,10 +24,28 @@ CEN  = wx.ALIGN_CENTER|wx.ALIGN_CENTER_VERTICAL|wx.ALL
 AUTOSAVE_FILE = 'macros_autosave.lar'
 MACRO_HISTORY = 'scan_macro_history.lar'
 LONG_AGO = datetime.now()-timedelta(2000)
+COLOR_MSG  = '#0099BB'
 COLOR_OK   = '#0000BB'
 COLOR_WARN = '#BB9900'
 COLOR_ERR  = '#BB0000'
 
+
+class ScanDBMessageQueue(object):
+    """ScanDB Messages"""
+    def __init__(self, scandb):
+        self.scandb = scandb
+        self.cls, self.tab = scandb.get_table('messages')
+        # get last ID
+        out = scandb.query(sqlfunc.max(self.cls.id)).one()
+        self.last_id = out[0]
+
+    def get_new_messages(self):
+        q = self.tab.select(whereclause="id>'%i'" % self.last_id)
+        out = q.order_by(self.cls.id).execute().fetchall()
+        if len(out) > 0:
+            self.last_id = out[-1].id
+        return out
+        
 
 class MacroFrame(wx.Frame) :
     """Edit/Manage Macros (Larch Code)"""
@@ -62,7 +81,8 @@ class MacroFrame(wx.Frame) :
         # print 'Edit Macros ', _larch
         _larch.load_plugins()
         _larch.load_modules()
-        
+        self.db_messages = ScanDBMessageQueue(self.scandb)
+
         self.colors = GUIColors()
         self.SetBackgroundColour(self.colors.bg)
 
@@ -113,6 +133,9 @@ class MacroFrame(wx.Frame) :
                     self.start_btn.Enable()
                 else:
                     self.start_btn.Disable()
+
+        for line in self.db_messages.get_new_messages():
+            self.writeOutput(line.text, color=COLOR_MSG)
 
         for key in self.output_fields:
             row = self.scandb.get_info(key, full_row=True)
