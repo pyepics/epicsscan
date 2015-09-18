@@ -35,6 +35,8 @@ from scandb_schema import (Info, Status, PVs, MonitorValues, ExtraPVs,
                            Instruments, Instrument_PV,
                            Instrument_Precommands, Instrument_Postcommands)
 
+
+
 from .utils import strip_quotes, normalize_pvname, asciikeys, pv_fullname
 
 class ScanDBException(Exception):
@@ -308,6 +310,12 @@ class ScanDB(object):
         elif full_row:
             out = thisrow
         return out
+
+    def set_message(self, text):
+        """add message to messages table"""
+        cls, table = self.get_table('messages')
+        table.insert().execute(text=text)
+        self.commit()
 
     def set_info(self, key, value, notes=None):
         """set key / value in the info table"""
@@ -699,8 +707,7 @@ class ScanDB(object):
                 connected = self.pvs[name].connected or count > 100
 
     def record_monitorpv(self, pvname, value):
-        """save value for monitor pvs"""
-
+        """save value for monitor pvs
         pvname = pv_fullname(pvname)
         if pvname not in self.pvs:
             pv = self.add_pv(pvname, monitor=True)
@@ -711,11 +718,12 @@ class ScanDB(object):
         ## mval.pv_id = self.pvs[pvname]
         #mval.value = value
         #self.session.add(mval)
+        """
         pass
 
     def get_monitorvalues(self, pvname, start_date=None, end_date=None):
         """get (value, time) pairs for a monitorpvs given a time range
-        """
+
         pvname = pv_fullname(pvname)
         if pvname not in self.pvs:
             pv = self.add_monitorpv(pvname)
@@ -731,6 +739,7 @@ class ScanDB(object):
             query = query.where(valtab.c.time <= end_date)
 
         return query.execute().fetchall()
+        """
         pass
 
     ### commands -- a more complex interface
@@ -1052,10 +1061,6 @@ class InstrumentDB(object):
 
         posname = posname.strip()
         pos  = self.get_position(inst, posname)
-
-        cls, tab = self.scandb.get_table('position_pv')
-        pospvs = self.scandb.query(cls).filter(tab.c.positions_id==pos.id).all()
-        
         if pos is None:
             raise ScanDBException(
                 "restore_postion  position '%s' not found" % posname)
@@ -1063,14 +1068,12 @@ class InstrumentDB(object):
         if exclude_pvs is None:
             exclude_pvs = []
 
-        pcls, ptab = self.scandb.get_table('pvs')
-
         pv_vals = []
-        for ppv in pospvs:
-            pv = ptab.select().where(ptab.c.id==ppv.pvs_id).execute().fetchone()
-            if pv.name not in exclude_pvs:
-                thispv = epics.PV(pv.name)
-                pv_vals.append((thispv, float(ppv.value)))
+        for pvpos in pos.pvs:
+            pvname = pvpos.pv.name
+            if pvname not in exclude_pvs:
+                thispv = epics.PV(pvname)
+                pv_vals.append((thispv, float(pvpos.value)))
 
         epics.ca.poll()
         # put values without waiting
@@ -1078,7 +1081,7 @@ class InstrumentDB(object):
             if not thispv.connected:
                 thispv.wait_for_connection(timeout=timeout)
             try:
-                 thispv.put(val)
+                thispv.put(val)
             except:
                 pass
 
@@ -1089,7 +1092,3 @@ class InstrumentDB(object):
                 except:
                     pass
 
-if __name__ == '__main__':
-    dbname = 'Test.sdb'
-    create_scandb(dbname)
-    print '''%s  created and initialized.''' % dbname
