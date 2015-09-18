@@ -20,12 +20,39 @@ larch.use_plugin_path('epics')
 from stepscan_utils import EpicsScanDB
 
 
+class LarchScanDBWriter(object):
+    """Writer for Larch Interface that writes to both Stdout
+    and Messages table of scandb
+    """
+    def __init__(self, stdout=None, scandb=None, _larch=None):
+        if stdout is None:
+            stdout = sys.stdout
+        self.scandb = scandb
+        self.writer = stdout
+        self._larch = _larch
+
+    def write(self, text, color=None, bkg=None, **kws):
+        """write text to writer
+        write('hello', color='red', bkg='grey', bold=True, blink=True)
+        """
+        attrs = []
+        self.writer.write(text)
+        if self.scandb is not None:
+            self.scandb.set_message(text)
+
+    def flush(self):
+        self.writer.flush()
+        if self.scandb is not None:
+            self.scandb.commit()
+
+                
 class LarchScanDBServer(object):
     """      """
     def __init__(self, scandb, fileroot=None):
         self.scandb = scandb
         self.fileroot = get_fileroot(fileroot)
-        self.larch = larch.Interpreter()
+        self.writer = LarchScanDBWriter(scandb=scandb)
+        self.larch  = larch.Interpreter(writer=self.writer)
         self.symtab = self.larch.symtable
         self.symtab.set_symbol(LARCH_SCANDB, self.scandb)
         self.symtab.set_symbol(LARCH_INSTDB, InstrumentDB(self.scandb))
