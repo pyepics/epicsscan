@@ -156,7 +156,10 @@ class ScanDefPanel(wx.Panel):
         data = []
         for scan in self._getscans():
             sdat  = json.loads(scan.text)
-            data.append([scan.name, scan.modify_time, scan.last_used_time])
+            axis  = sdat['positioners'][0][0]
+            npts  = sdat['positioners'][0][4]
+            data.append([scan.name, axis, npts, 
+                         scan.modify_time, scan.last_used_time])
         self.ncols = len(data[0])
         return data
 
