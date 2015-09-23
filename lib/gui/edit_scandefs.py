@@ -148,11 +148,13 @@ class ScanDefPanel(wx.Panel):
             col.Alignment = wx.ALIGN_LEFT
             icol += 1
 
+    def _getscans(self, orderby='last_used_time'):
+        return self.scandb.select('scandefs', 
+                                  type=self.scantype,
+                                  orderby=orderby)
     def get_data(self):
         data = []
-        for scan in self.scandb.getall('scandefs', orderby='last_used_time'):
-            if str(scan.type) != self.scantype:
-                continue
+        for scan in self._getscans():
             sdat  = json.loads(scan.text)
             axis  = sdat['positioners'][0][0]
             npts  = sdat['positioners'][0][4]
@@ -279,13 +281,10 @@ class MeshScanDefs(ScanDefPanel):
 
     def get_data(self):
         data = []
-        for scan in self.scandb.getall('scandefs',
-                                       orderby='last_used_time'):
-            if str(scan.type) != self.scantype:
-                continue
+        for scan in self._getscans():
             sdat  = json.loads(scan.text)
-            inner  = sdat['inner'][0]
-            outer  = sdat['outer'][0]
+            inner = sdat['inner'][0]
+            outer = sdat['outer'][0]
             npts  = int(sdat['outer'][4]) * int(sdat['inner'][4])
             data.append([scan.name, inner, outer, npts, 
                          scan.modify_time, scan.last_used_time])
@@ -305,10 +304,7 @@ class SlewScanDefs(ScanDefPanel):
 
     def get_data(self):
         data = []
-        for scan in self.scandb.getall('scandefs',
-                                       orderby='last_used_time'):
-            if str(scan.type) != self.scantype:
-                continue
+        for scan in self._getscans():
             sdat  = json.loads(scan.text)
             inner = sdat['inner'][0]
             npts  = int(sdat['inner'][4])
@@ -336,11 +332,8 @@ class XAFSScanDefs(ScanDefPanel):
 
     def get_data(self):
         data = []
-        for scan in self.scandb.getall('scandefs',
-                                       orderby='last_used_time'):
-            if str(scan.type) != self.scantype:
-                continue
-            sdat  = json.loads(scan.text)
+        for scan in self._getscans():
+            sdat = json.loads(scan.text)
             e0   = sdat['e0']
             nreg = len(sdat['regions'])
             npts = 1 - nreg
