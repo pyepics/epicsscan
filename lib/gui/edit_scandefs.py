@@ -156,21 +156,9 @@ class ScanDefPanel(wx.Panel):
         data = []
         for scan in self._getscans():
             sdat  = json.loads(scan.text)
-            axis  = sdat['positioners'][0][0]
-            npts  = sdat['positioners'][0][4]
-            data.append([scan.name, axis, npts, 
-                         scan.modify_time, scan.last_used_time])
+            data.append([scan.name, scan.modify_time, scan.last_used_time])
         self.ncols = len(data[0])
         return data
-
-    def rebuild(self):
-        "get data and re-fill all data"
-        self.model.data = self.get_data()
-        print "REBUILT DATA ", self.ncols
-        #for row, dat in enumerate(self.model.data):
-        #    for col in range(self.ncols):
-        #        val = self.model.data[row][col]
-        #        self.model.SetValueByRow(val, row, col)
 
     def model_get_value(self, row, col):  
         dat = self.model.data[row][col]
@@ -247,11 +235,8 @@ class ScanDefPanel(wx.Panel):
             if scan.name == name and scan.type == self.scantype:
                 self.scandb.del_scandef(scanid=scan.id)
             self.scandb.commit()
-            #for col in range(self.ncols):
-            #    self.model.SetValueByRow(' ', row, col)
             self.model.DeleteRows([row])
-            # self.rebuild()
-            
+           
     def onDone(self, event=None):
         self.parent.Destroy()
 
