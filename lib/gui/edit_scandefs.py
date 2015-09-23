@@ -7,7 +7,7 @@ import wx.lib.agw.flatnotebook as flat_nb
 
 import wx.lib.scrolledpanel as scrolled
 import wx.dataview as dv
-
+from datetime import datetime
 from .gui_utils import (GUIColors, set_font_with_children, YesNo, popup,
                         add_button, pack, SimpleText, check, okcancel,
                         add_subtitle, Font, LCEN, CEN, RCEN, FRAMESTYLE)
@@ -79,58 +79,52 @@ class ScanDefModel(dv.PyDataViewIndexListModel):
         self.RowAppended()
 
     def GetValueByRow(self, row, col):  
-        dat = self.data[row][col]
         if self._getval is not None:
-            dat = self._getval(self.data, row, col)
-        return dat
+            return self._getval(row, col)
+        return self.data[row][col]
 
     def GetAttrByRow(self, row, col, attr):
-        out = False
         if self._getattr is not None:
-            out = self._getattr(row, col, attr)
-        return out
+            return self._getattr(row, col, attr)
+        return False
 
     def Compare(self, item1, item2, col, ascending):
         if self._compare is not None:
-            return self._compare(self.data, item1, item2, col, ascending)
+            return self._compare(item1, item2, col, ascending)
         
         if not ascending: # swap sort order?
             item2, item1 = item1, item2
         row1 = self.GetRow(item1)
         row2 = self.GetRow(item2)
-        if col == 2:
-            return cmp(int(self.data[row1][col]), int(self.data[row2][col]))
-        else:
-            return cmp(self.data[row1][col], self.data[row2][col])
+        return cmp(self.data[row1][col], self.data[row2][col])
 
 
 class ScanDefPanel(wx.Panel):
-    colLabels = (('Scan Name',  175),
+    colLabels = (('Scan Name',  200),
                  ('Positioner', 100),
                  ('# Points',    80),
-                 ('Created',    150),
-                 ('Last Used',  150))
+                 ('Created',    140),
+                 ('Last Used',  140))
+    scantype = 'linear'
 
-    def __init__(self, parent, scandb, stype='linear'):
+    def __init__(self, parent, scandb):
         wx.Panel.__init__(self, parent)
         self.parent = parent
         self.scandb = scandb
-        self.stype  = stype.lower()
-
         dvstyle = wx.BORDER_THEME|dv.DV_VERT_RULES|dv.DV_ROW_LINES|dv.DV_SINGLE
         self.dvc = dv.DataViewCtrl(self, style=dvstyle)
-        
-        self.data  = self.get_data(scantype=stype)
-        self.model = ScanDefModel(self.data, 
+        self.ncols = 0
+        self.model = ScanDefModel(self.get_data(),
                                   get_value=self.model_get_value, 
                                   get_attr=self.model_get_attr,
                                   compare=self.model_compare)
+
         self.dvc.AssociateModel(self.model)
         self.make_titles()
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.dvc, 1, wx.ALIGN_LEFT)
-        self.dvc.SetMinSize((775, 400))
+        self.dvc.SetMinSize((775, 450))
 
         bpanel = wx.Panel(self)
         bsizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -154,55 +148,64 @@ class ScanDefPanel(wx.Panel):
             col.Alignment = wx.ALIGN_LEFT
             icol += 1
 
-    def get_data(self, scantype='linear'):
+    def get_data(self):
         data = []
-        for scan in self.scandb.getall('scandefs',
-                                       orderby='last_used_time'):
-            if str(scan.type) != str(scantype.lower()):
+        for scan in self.scandb.getall('scandefs', orderby='last_used_time'):
+            if str(scan.type) != self.scantype:
                 continue
             sdat  = json.loads(scan.text)
             axis  = sdat['positioners'][0][0]
             npts  = sdat['positioners'][0][4]
             data.append([scan.name, axis, npts, 
                          scan.modify_time, scan.last_used_time])
+        self.ncols = len(data[0])
         return data
 
-    def model_get_value(self, data, row, col):  
-        dat = data[row][col]
-        if col == 2:
+    def rebuild(self):
+        "get data and re-fill all data"
+        self.model.data = self.get_data()
+        print "REBUILT DATA ", self.ncols
+        #for row, dat in enumerate(self.model.data):
+        #    for col in range(self.ncols):
+        #        val = self.model.data[row][col]
+        #        self.model.SetValueByRow(val, row, col)
+
+    def model_get_value(self, row, col):  
+        dat = self.model.data[row][col]
+        if isinstance(dat, int):
             dat = "%d" % dat
-        elif col in (3, 4):
+        elif isinstance(dat, datetime):
             dat = dat.strftime("%Y-%b-%d %H:%M")
         return dat
 
     def model_get_attr(self, row, col, attr):
-        if col in (3, 4):
+        if col > self.ncols - 3:
             attr.SetColour('blue')
             attr.SetBold(True)
             return True
         return False
 
-    def model_compare(self, data, item1, item2, col, ascending):
-        if not ascending: # swap sort order?
+    def model_compare(self, item1, item2, col, ascending):
+        if not ascending:
             item2, item1 = item1, item2
         row1 = self.model.GetRow(item1)
         row2 = self.model.GetRow(item2)
-        if col == 2:
-            return cmp(int(data[row1][col]), int(data[row2][col]))
-        else:
-            return cmp(data[row1][col], data[row2][col])
+        return cmp(self.model.data[row1][col], 
+                   self.model.data[row2][col])
 
     def onLoad(self, event=None):
         if self.dvc.HasSelection():
-            row  = self.dvc.GetSelectedRow()
-            name = self.dvc.GetStore().GetValueByRow(row, 0)
-            main = self.parent.parent.load_scan(name)
+            row  = self.model.GetRow(self.dvc.GetSelection())
+            name = self.model.data[row][0]
+            self.parent.parent.load_scan(name)
 
     def onRename(self, event=None):
         if not self.dvc.HasSelection():
             return
-        row  = self.dvc.GetSelectedRow()
-        name = self.dvc.GetStore().GetValueByRow(row, 0)
+
+        row  = self.model.GetRow(self.dvc.GetSelection())
+        name = self.model.data[row][0]
+
         dlg = RenameDialog(self, name)
         if dlg.ShowModal() != wx.ID_OK:
             return
@@ -219,18 +222,16 @@ class ScanDefPanel(wx.Panel):
         scans = self.scandb.query(table).filter(cls.name==name).all()
         if scans is not None:
             scan = scans[0]
-            if scan.name == name and scan.type == self.stype:
+            if scan.name == name and scan.type == self.scantype:
                 self.scandb.rename_scandef(scan.id, newname)
             self.scandb.commit()
-            self.dvc.GetStore().SetValueByRow(newname, row, 0)
+            self.model.SetValueByRow(newname, row, 0)
 
     def onErase(self, event=None):
         if not self.dvc.HasSelection():
             return
-
-        row  = self.dvc.GetSelectedRow()
-        name = self.dvc.GetStore().GetValueByRow(row, 0)
-        stype = self.stype
+        row  = self.model.GetRow(self.dvc.GetSelection())
+        name = self.model.data[row][0]
         ret = popup(self, "Erase scan definition '%s'?" % name,
                     "Really Erase Scan definition?",
                     style=wx.YES_NO|wx.NO_DEFAULT|wx.ICON_QUESTION)
@@ -241,97 +242,103 @@ class ScanDefPanel(wx.Panel):
         scans = self.scandb.query(table).filter(cls.name==name).all()
         if scans is not None:
             scan = scans[0]
-            if scan.name == name and scan.type == self.stype:
+            if scan.name == name and scan.type == self.scantype:
                 self.scandb.del_scandef(scanid=scan.id)
             self.scandb.commit()
-            self.dvc.GetStore().SetValueByRow(' ', row, 0)
-            wx.CallAfter(self.fill_rows)
-
+            #for col in range(self.ncols):
+            #    self.model.SetValueByRow(' ', row, col)
+            self.model.DeleteRows([row])
+            # self.rebuild()
+            
     def onDone(self, event=None):
         self.parent.Destroy()
 
 
 class LinearScanDefs(ScanDefPanel):
-    colLabels = (('Scan Name',  175),
+    colLabels = (('Scan Name',  200),
                  ('Positioner', 100),
                  ('# Points',    80),
-                 ('Created',    150),
-                 ('Last Used',  150))
-
-    def __init__(self, parent, scandb, stype='linear'):
-        ScanDefPanel.__init__(self, parent, scandb, stype=stype)
+                 ('Created',    140),
+                 ('Last Used',  140))
+    scantype = 'linear'
+    def __init__(self, parent, scandb):
+        ScanDefPanel.__init__(self, parent, scandb)
 
 
 class MeshScanDefs(ScanDefPanel):
-    colLabels = (('Scan Name',  175),
-                 ('Inner',      100),
-                 ('Outer',      100),
+    colLabels = (('Scan Name',  200),
+                 ('Inner',       80),
+                 ('Outer',       80),
                  ('# Points',    80),
-                 ('Created',    150),
-                 ('Last Used',  150))
+                 ('Created',    140),
+                 ('Last Used',  140))
 
-    def __init__(self, parent, scandb, stype='mesh'):
-        ScanDefPanel.__init__(self, parent, scandb, stype=stype)
+    scantype = 'mesh'
+    def __init__(self, parent, scandb):
+        ScanDefPanel.__init__(self, parent, scandb)
 
-    def fill_rows(self):
-        self.dvc.DeleteAllItems()
+    def get_data(self):
+        data = []
         for scan in self.scandb.getall('scandefs',
                                        orderby='last_used_time'):
-            if str(scan.type) != str(self.stype):
+            if str(scan.type) != self.scantype:
                 continue
             sdat  = json.loads(scan.text)
             inner  = sdat['inner'][0]
             outer  = sdat['outer'][0]
             npts  = int(sdat['outer'][4]) * int(sdat['inner'][4])
-            mtime = scan.modify_time.strftime("%Y-%b-%d %H:%M")
-            utime = scan.last_used_time.strftime("%Y-%b-%d %H:%M")
-            self.dvc.AppendItem((scan.name, inner, outer, "%d"%npts, mtime, utime))
+            data.append([scan.name, inner, outer, npts, 
+                         scan.modify_time, scan.last_used_time])
+        self.ncols = len(data[0])
+        return data
 
 class SlewScanDefs(ScanDefPanel):
-    colLabels = (('Scan Name',  175),
-                 ('Inner',      100),
-                 ('Outer',      100),
+    colLabels = (('Scan Name',  200),
+                 ('Inner',       80),
+                 ('Outer',       80),
                  ('# Points',    80),
-                 ('Created',    150),
-                 ('Last Used',  150))
+                 ('Created',    140),
+                 ('Last Used',  140))
+    scantype = 'slew'
+    def __init__(self, parent, scandb):
+        ScanDefPanel.__init__(self, parent, scandb)
 
-    def __init__(self, parent, scandb, stype='slew'):
-        ScanDefPanel.__init__(self, parent, scandb, stype=stype)
-
-    def fill_rows(self):
-        self.dvc.DeleteAllItems()
+    def get_data(self):
+        data = []
         for scan in self.scandb.getall('scandefs',
                                        orderby='last_used_time'):
-            if str(scan.type) != str(self.stype):
+            if str(scan.type) != self.scantype:
                 continue
             sdat  = json.loads(scan.text)
             inner = sdat['inner'][0]
-            outer = 'None'
             npts  = int(sdat['inner'][4])
+            outer = 'None'
             if sdat['dimension'] > 1:
                 outer  = sdat['outer'][0]
                 npts *= int(sdat['outer'][4])
-            mtime = scan.modify_time.strftime("%Y-%b-%d %H:%M")
-            utime = scan.last_used_time.strftime("%Y-%b-%d %H:%M")
-            self.dvc.AppendItem((scan.name, inner, outer, "%d"%npts, mtime, utime))
+            data.append([scan.name, inner, outer, npts, 
+                         scan.modify_time, scan.last_used_time])
+        self.ncols = len(data[0])
+        return data
 
 
 class XAFSScanDefs(ScanDefPanel):
-    colLabels = (('Scan Name',  175),
+    colLabels = (('Scan Name',  200),
                  ('E0  ',        80),
                  ('# Regions',   80),
                  ('# Points',    80),
-                 ('Created',    150),
-                 ('Last Used',  150))
+                 ('Created',    140),
+                 ('Last Used',  140))
 
-    def __init__(self, parent, scandb, stype='xafs'):
-        ScanDefPanel.__init__(self, parent, scandb, stype=stype)
+    scantype = 'xafs'
+    def __init__(self, parent, scandb):
+        ScanDefPanel.__init__(self, parent, scandb)
 
-    def fill_rows(self):
-        self.dvc.DeleteAllItems()
+    def get_data(self):
+        data = []
         for scan in self.scandb.getall('scandefs',
                                        orderby='last_used_time'):
-            if str(scan.type) != str(self.stype):
+            if str(scan.type) != self.scantype:
                 continue
             sdat  = json.loads(scan.text)
             e0   = sdat['e0']
@@ -339,9 +346,10 @@ class XAFSScanDefs(ScanDefPanel):
             npts = 1 - nreg
             for ireg in range(nreg):
                 npts += sdat['regions'][ireg][2]
-            mtime = scan.modify_time.strftime("%Y-%b-%d %H:%M")
-            utime = scan.last_used_time.strftime("%Y-%b-%d %H:%M")
-            self.dvc.AppendItem((scan.name, "%.1f"%e0, nreg, "%d"%npts, mtime, utime))
+            data.append([scan.name, e0, nreg, npts,
+                         scan.modify_time, scan.last_used_time])
+        self.ncols = len(data[0])
+        return data
 
 
 class ScandefsFrame(wx.Frame) :
@@ -375,12 +383,12 @@ class ScandefsFrame(wx.Frame) :
         self.tables = {}
         self.nblabels = []
         for pname, creator in (('Linear', LinearScanDefs),
-                               # ('Slew',   SlewScanDefs),
+                               ('Slew',   SlewScanDefs),
                                # ('Mesh',   MeshScanDefs),
-                               # ('XAFS',   XAFSScanDefs)
+                               ('XAFS',   XAFSScanDefs)
                            ):
 
-            table = creator(self, self.scandb, stype=pname.lower())
+            table = creator(self, self.scandb)
             self.tables[pname.lower()] = table
             self.nb.AddPage(table, "%s Scans" % pname)
             self.nblabels.append((pname.lower(), table))
