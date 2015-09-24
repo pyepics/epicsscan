@@ -171,16 +171,15 @@ class DetectorDetailsFrame(wx.Frame):
             label = SimpleText(self, label, style=LCEN)
             val = strip_quotes(val)
 
-            if val in (True, False, 'Yes', 'No'):
+            if key.lower() == 'file_plugin':
+                wid = add_choice(self, AD_CHOICES, default=1)
+            elif val in (True, False, 'Yes', 'No'):
                 defval = val in (True, 'Yes')
                 wid = check(self, default=defval)
-            elif key.lower() == 'file_plugin':
-                wid = add_choice(self, AD_CHOICES, default=1)
             elif isinstance(val, (int, float)):
                 wid = FloatCtrl(self, value=val, size=(150, -1))
             else:
                 wid = wx.TextCtrl(self, value=val, size=(150, -1))
-
             sizer.Add(label, (irow, 0), (1, 1), LCEN,  2)
             sizer.Add(wid,   (irow, 1), (1, 1), RCEN,  2)
             self.wids[key] = wid
@@ -207,6 +206,8 @@ class DetectorDetailsFrame(wx.Frame):
                     val = float(val)
                 except:
                     pass
+            elif isinstance(wid, wx.Choice):
+                val =  wid.GetStringSelection()
             elif isinstance(wid, wx.CheckBox):
                 val =  wid.IsChecked()
             elif isinstance(wid, YesNo):
