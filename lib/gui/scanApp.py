@@ -35,6 +35,7 @@ import shutil
 import numpy as np
 import json
 import socket
+from collections import OrderedDict
 from datetime import timedelta
 from threading import Thread
 
@@ -279,7 +280,7 @@ class ScanFrame(wx.Frame):
                 span.initialize_positions()
             self.inittimer.Stop()
             wx.CallAfter(self.onShowPlot)
-            wx.CallAfter(self.onEditMacro)
+            # wx.CallAfter(self.onEditMacro)
 
             self.statusbar.SetStatusText('', 0)
             self.statusbar.SetStatusText('Ready', 1)
@@ -443,65 +444,58 @@ class ScanFrame(wx.Frame):
 
     def createMenus(self):
         self.menubar = wx.MenuBar()
-        # file
-        fmenu = wx.Menu()
-        add_menu(self, fmenu, "Read Scan Definition\tCtrl+O",
-                 "Read Scan Defintion", self.onReadScanDef)
+        menu_dat = OrderedDict()
+        menu_dat['&File'] = (("Read Scan Definition\tCtrl+O",
+                              "Read Scan Defintion", self.onReadScanDef),
+                             ("Save Scan Definition\tCtrl+S",
+                              "Save Scan Definition", self.onSaveScanDef),
+                             ("<separator>", "", None),
+                             ("Quit\tCtrl+Q",
+                              "Quit program", self.onClose))
 
-        add_menu(self, fmenu, "Save Scan Definition\tCtrl+S",
-                 "Save Scan Definition", self.onSaveScanDef)
-
-        add_menu(self, fmenu, "Read old scan (.scn) File",
-                 "Read old scan (.scn) file", self.onReadOldScanFile)
-        fmenu.AppendSeparator()
-
-        add_menu(self, fmenu,'Change &Working Folder\tCtrl+W',
-                 "Choose working directory",  self.onFolderSelect)
-        add_menu(self, fmenu,'Show Plot Window',
-                 "Show Window for Plotting Scan", self.onShowPlot)
-
-        fmenu.AppendSeparator()
-        add_menu(self, fmenu, "Quit\tCtrl+Q",
-        "Quit program", self.onClose)
-
-        # options
-        pmenu = wx.Menu()
-        add_menu(self, pmenu, "Scan Definitions\tCtrl+D",
-                 "Manage Saved Scans", self.onEditScans)
+        menu_dat['Setup'] = (("General Settings",
+                              "General Setup", self.onEditSettings),
+                             ('Change &Working Folder\tCtrl+W',
+                              "Choose working directory",  self.onFolderSelect),
+                             ('Show Plot Window\tCtrl+P',
+                              "Show Window for Plotting Scan", self.onShowPlot),
+                             ("Show Macro/Command Window\tCtrl+M",
+                              "Edit Macros, Run Commands",  self.onEditMacro))
 
 
-        add_menu(self, pmenu, "Select ROIs\tCtrl+R",
-                 "Select MCA ROIs", self.onEditROIs)
+        menu_dat['Scans'] = (("Scan Definitions\tCtrl+D",
+                              "Browsn and Manage Saved Scans", self.onEditScans),
+                             ("Show Sequences and Scan Queue",
+                               "Show Scans Queue",  self.onEditSequences),
+                             ("<separator>", "", None),
+                             ("Read Scan Definition\tCtrl+O",
+                              "Read Scan Defintion", self.onReadScanDef),
+                             ("Save Scan Definition\tCtrl+S",
+                              "Save Scan Definition", self.onSaveScanDef),
+                             ("Read old scan (.scn) File",
+                              "Read old scan (.scn) file", self.onReadOldScanFile))
 
-        add_menu(self, pmenu, "General Settings",
-                 "General Setup", self.onEditSettings)
+        menu_dat['Positioners'] = (("Configure",
+                                    "Setup Motors and Positioners", self.onEditPositioners),
+                                   ("Extra PVs", 
+                                    "Setup Extra PVs to save with scan", self.onEditExtraPVs))
 
-        add_menu(self, pmenu, "Extra PVs",
-                 "Setup Extra PVs to save with scan", self.onEditExtraPVs)
+        menu_dat['Detectors'] = (("Configure",
+                                  "Setup Detectors and Counters", self.onEditDetectors),
+                                 ("Select ROIs\tCtrl+R",
+                                  "Select MCA ROIs", self.onEditROIs))
 
-        pmenu.AppendSeparator()
-        add_menu(self, pmenu, "Configure Detectors",
-                 "Setup Detectors and Counters", self.onEditDetectors)
-        add_menu(self, pmenu, "Configure Positioners",
-                 "Setup Motors and Positioners", self.onEditPositioners)
+        menu_dat['&Help'] = (("About",
+                               "More information about this program",  self.onAbout),)
 
-
-        # Sequences
-        smenu = wx.Menu()
-        add_menu(self, smenu, "Edit Macro",
-                  "Edit Macro",  self.onEditMacro)
-        add_menu(self, smenu, "Sequences",
-                 "Run Sequences of Scans",  self.onEditSequences)
-
-        # help
-        hmenu = wx.Menu()
-        add_menu(self, hmenu, "&About",
-                  "More information about this program",  self.onAbout)
-
-        self.menubar.Append(fmenu, "&File")
-        self.menubar.Append(pmenu, "&Setup")
-        self.menubar.Append(smenu, "Macro")
-        self.menubar.Append(hmenu, "&Help")
+        for key, dat in menu_dat.items():
+            menu = wx.Menu()
+            for label, helper, callback in dat:
+                if label.startswith('<separ'):
+                    menu.AppendSeparator()
+                else:
+                    add_menu(self, menu, label, helper, callback)
+            self.menubar.Append(menu, key)
         self.SetMenuBar(self.menubar)
 
     def onAbout(self,evt):
