@@ -13,11 +13,14 @@ from . import scandb
 import epics
 
 import larch
-from larch.utils import OrderedDict
+# not used here, but imported from here
 larch_site_config = larch.site_config
 
-larch.use_plugin_path('epics')
-from stepscan_utils import EpicsScanDB
+from collections import OrderedDict
+
+
+# larch.use_plugin_path('epics')
+# from stepscan_utils import EpicsScanDB
 
 
 class LarchScanDBWriter(object):
@@ -99,13 +102,10 @@ class LarchScanDBServer(object):
             return
         else:
             plugindir = os.path.join(self.fileroot, macro_dir, 'plugins')
-            print plugindir
             self.symtab._sys.config.plugins_path.insert(0, plugindir)
             for pyfile in glob.glob(os.path.join(plugindir, '*.py')):
-                print(" LARCH Load Plugins: ", pyfile)
                 plugin_name = str(os.path.split(pyfile)[1][:-3])
                 out = self.larch.run("add_plugin('%s')" % plugin_name)
-                print 'Add  ', plugin_name, out
                 if  not out:
                     print("Error adding plugin '%s'" % (plugin_name))
                     if len(self.larch.error) > 0:
