@@ -65,8 +65,8 @@ class ROIFrame(wx.Frame):
             return
 
         sizer = wx.GridBagSizer(20, 4)
-        sizer.SetHGap(1)
-        sizer.SetVGap(1)
+        sizer.SetHGap(2)
+        sizer.SetVGap(2)
         # title row
         irow = 0
         txt =SimpleText(self, ' ROI', minsize=(80, -1), style=LEFT)
@@ -137,8 +137,8 @@ class DetectorDetailsFrame(wx.Frame):
 
         self.SetFont(parent.GetFont())
         sizer = wx.GridBagSizer(10, 3)
-        sizer.SetHGap(1)
-        sizer.SetVGap(1)
+        sizer.SetHGap(2)
+        sizer.SetVGap(2)
         # title row
         i = 0
         for titleword in (' Setting ', 'Value'):
@@ -240,8 +240,8 @@ class DetectorFrame(wx.Frame) :
         self.SetFont(Font(9))
 
         sizer = wx.GridBagSizer(12, 5)
-        sizer.SetHGap(1)
-        sizer.SetVGap(1)        
+        sizer.SetHGap(2)
+        sizer.SetVGap(2)        
         panel = scrolled.ScrolledPanel(self) # , size=(675, 625))
         self.SetMinSize((650, 625))
         self.colors = GUIColors()

@@ -24,8 +24,8 @@ class SettingsFrame(wx.Frame) :
 
         self.SetFont(Font(9))
         sizer = wx.GridBagSizer(10, 5)
-        sizer.SetHGap(1)
-        sizer.SetVGap(1)
+        sizer.SetHGap(2)
+        sizer.SetVGap(2)
 
         panel = scrolled.ScrolledPanel(self)
         self.SetMinSize((550, 500))
