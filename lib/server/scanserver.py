@@ -14,8 +14,10 @@ from ..scandb import ScanDB, ScanDBException, ScanDBAbort, make_datetime
 from ..file_utils import fix_varname, nativepath
 from ..utils import  strip_quotes, plain_ascii
 
+from ..larch_interface import LarchScanDBServer
+
 from ..site_config import get_fileroot
-from ..larch_interface import LarchScanDBServer, EpicsScanDB
+from ..epics_scandb import EpicsScanDB
 from ..abort_slewscan import abort_slewscan
 
 DEBUG_TIMER = False
@@ -38,11 +40,11 @@ class ScanServer():
         if dbname is not None:
             self.connect(dbname, **kwargs)
 
-
     def connect(self, dbname, **kwargs):
         """connect to Scan Database"""
         self.scandb = ScanDB(dbname=dbname, **kwargs)
-        self.set_scan_message('Server initializing ', self.fileroot)
+
+        self.set_scan_message('Server Initializing ', self.fileroot)
         self.larch = LarchScanDBServer(self.scandb, fileroot=self.fileroot)
 
         self.scandb.set_hostpid()
@@ -65,6 +67,7 @@ class ScanServer():
     def set_scan_message(self, msg, verbose=True):
         self.scandb.set_info('scan_message', msg)
         self.epicsdb.message = msg
+        print(msg)
 
     def sleep(self, t=0.05):
         try:
