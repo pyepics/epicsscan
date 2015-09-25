@@ -424,7 +424,7 @@ class ScanViewerFrame(wx.Frame):
                                    transparent=True, dpi=300)
 
     def onPrint(self, evt=None):
-        self.plotpanel.Print(evet)
+        self.plotpanel.Print(evt)
 
     def onPrintSetup(self, evt=None):
         self.plotpanel.PrintSetup(evt)
