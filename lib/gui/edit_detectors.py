@@ -153,7 +153,9 @@ class DetectorDetailsFrame(wx.Frame):
 
         self.wids = {}
         prefix = self.det.pvname
-        opts   = json.loads(self.det.options)
+        kind   = self.det.kind
+        opts   = DET_DEFAULT_OPTS.get(kind, {})
+        opts.update(json.loads(self.det.options))
         optkeys = opts.keys()
         optkeys.sort()
         irow = 2
@@ -176,6 +178,8 @@ class DetectorDetailsFrame(wx.Frame):
 
             if key.lower() == 'file_plugin':
                 wid = add_choice(self, AD_CHOICES, default=1)
+                if val in AD_CHOICES:
+                    wid.SetStringSelection(val)
             elif val in (True, False, 'Yes', 'No'):
                 defval = val in (True, 'Yes')
                 wid = check(self, default=defval)
