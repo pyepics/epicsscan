@@ -103,8 +103,8 @@ class ScanDefPanel(wx.Panel):
     colLabels = (('Scan Name',  200),
                  ('Positioner', 100),
                  ('# Points',    80),
-                 ('Created',    140),
-                 ('Last Used',  140))
+                 ('Created',    150),
+                 ('Last Used',  150))
     scantype = 'linear'
 
     def __init__(self, parent, scandb):
@@ -167,6 +167,8 @@ class ScanDefPanel(wx.Panel):
         dat = self.model.data[row][col]
         if isinstance(dat, int):
             dat = "%d" % dat
+        elif isinstance(dat, float):
+            dat = "%.1f" % dat
         elif isinstance(dat, datetime):
             dat = dat.strftime("%Y-%b-%d %H:%M")
         return dat
@@ -248,8 +250,8 @@ class LinearScanDefs(ScanDefPanel):
     colLabels = (('Scan Name',  200),
                  ('Positioner', 100),
                  ('# Points',    80),
-                 ('Created',    140),
-                 ('Last Used',  140))
+                 ('Created',    150),
+                 ('Last Used',  150))
     scantype = 'linear'
     def __init__(self, parent, scandb):
         ScanDefPanel.__init__(self, parent, scandb)
@@ -260,8 +262,8 @@ class MeshScanDefs(ScanDefPanel):
                  ('Inner',       80),
                  ('Outer',       80),
                  ('# Points',    80),
-                 ('Created',    140),
-                 ('Last Used',  140))
+                 ('Created',    150),
+                 ('Last Used',  150))
 
     scantype = 'mesh'
     def __init__(self, parent, scandb):
@@ -284,8 +286,8 @@ class SlewScanDefs(ScanDefPanel):
                  ('Inner',       80),
                  ('Outer',       80),
                  ('# Points',    80),
-                 ('Created',    140),
-                 ('Last Used',  140))
+                 ('Created',    150),
+                 ('Last Used',  150))
     scantype = 'slew'
     def __init__(self, parent, scandb):
         ScanDefPanel.__init__(self, parent, scandb)
@@ -311,8 +313,8 @@ class XAFSScanDefs(ScanDefPanel):
                  ('E0  ',        80),
                  ('# Regions',   80),
                  ('# Points',    80),
-                 ('Created',    140),
-                 ('Last Used',  140))
+                 ('Created',    150),
+                 ('Last Used',  150))
 
     scantype = 'xafs'
     def __init__(self, parent, scandb):

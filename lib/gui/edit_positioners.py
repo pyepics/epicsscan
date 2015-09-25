@@ -26,6 +26,8 @@ class PositionerFrame(wx.Frame) :
 
         self.SetFont(Font(9))
         sizer = wx.GridBagSizer(10, 5)
+        sizer.SetHGap(1)
+        sizer.SetVGap(1)
         panel = scrolled.ScrolledPanel(self)
         self.SetMinSize((625, 750))
         self.colors = GUIColors()

@@ -24,6 +24,9 @@ class SettingsFrame(wx.Frame) :
 
         self.SetFont(Font(9))
         sizer = wx.GridBagSizer(10, 5)
+        sizer.SetHGap(1)
+        sizer.SetVGap(1)
+
         panel = scrolled.ScrolledPanel(self)
         self.SetMinSize((550, 500))
 
@@ -37,9 +40,9 @@ class SettingsFrame(wx.Frame) :
         ir = 0
         self.wids = {}
         for sect, vars in (('User Setup',
-                            (# ('user_name', False),
-                             # ('user_folder', False),
-                             # ('experiment_id', False),
+                            (('user_name', False),
+                             ('user_folder', False),
+                             ('experiment_id', False),
                              ('scangui_verify_quit', True))
                             ),
                            ('Scan Definitions',
@@ -51,6 +54,8 @@ class SettingsFrame(wx.Frame) :
             
             ir += 1
             sizer.Add(add_subtitle(panel, '%s:' % sect),  (ir, 0),  (1, 4), LCEN, 1)
+            # print("Section ", sect)
+            # print("  -- data ", vars)
             for vname, as_bool in vars:
                 row = self.scandb.get_info(vname, full_row=True)
                 val = row.value
