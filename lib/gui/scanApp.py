@@ -745,8 +745,8 @@ class ScanFrame(wx.Frame):
 
 class ScanApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
     def __init__(self, dbname='TestScan.db', server='sqlite', host=None,
-                 port=None, user=None, password=None, create=True, **kws):
-
+                 port=None, user=None, password=None, create=True, debug=False, **kws):
+        self.debug = debug
         self.scan_opts = dict(dbname=dbname, server=server, host=host,
                               port=port, create=create, user=user,
                               password=password)
@@ -758,4 +758,6 @@ class ScanApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
         frame = ScanFrame(**self.scan_opts)
         frame.Show()
         self.SetTopWindow(frame)
+        if self.debug:
+            self.ShowInspectionTool()
         return True
