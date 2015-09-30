@@ -580,7 +580,8 @@ class Xspress3Detector(DetectorMixin):
 
         self.nmcas = nmcas = int(nmcas)
         self.nrois = nrois = int(nrois)
-
+        DetectorMixin.__init__(self, prefix, label=label)
+        
         self.prefix     = prefix
         self.dwelltime  = None
         self.dwelltime_pv = get_pv('%sAcquireTime' % prefix)
