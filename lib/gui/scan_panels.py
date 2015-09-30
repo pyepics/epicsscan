@@ -7,6 +7,7 @@ Current scan types:
     XAFS Scans
     Fly Scans (optional)
 """
+import time
 import json
 import wx
 import wx.lib.scrolledpanel as scrolled

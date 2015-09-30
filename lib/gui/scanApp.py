@@ -280,7 +280,7 @@ class ScanFrame(wx.Frame):
                 span.initialize_positions()
             self.inittimer.Stop()
             wx.CallAfter(self.onShowPlot)
-            # wx.CallAfter(self.onEditMacro)
+            wx.CallAfter(self.onEditMacro)
 
             self.statusbar.SetStatusText('', 0)
             self.statusbar.SetStatusText('Ready', 1)
