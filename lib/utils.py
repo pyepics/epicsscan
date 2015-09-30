@@ -2,8 +2,10 @@
 import socket
 
 def atGSECARS():
-    ipaddr = socket.gethostbyname(socket.gethostname())
-    return ipaddr.startswith('164.54.160')
+
+    hostname, aliaslist, ipaddrs = socket.gethostbyname_ex(socket.gethostname())
+    hostname = socket.getfqdn()
+    return 'cars.aps.anl.gov' in hostname.lower()
 
 def strip_quotes(t):
     d3, s3, d1, s1 = '"""', "'''", '"', "'"

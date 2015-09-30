@@ -205,10 +205,12 @@ class GenericScanPanel(scrolled.ScrolledPanel):
             return
         pvnames[0] = normalize_pvname(pvnames[0])
         pvnames[1] = normalize_pvname(pvnames[1])
-        if pvnames[0] not in self.pvlist:
-            self.pvlist[pvnames[0]] = epics.PV(pvnames[0])
-            self.pvlist[pvnames[1]] = epics.PV(pvnames[1])
-            return
+        for pvn in pvnames:
+            if pvn not in self.pvlist:
+                self.pvlist[pvn] = epics.PV(pvn)
+                time.sleep(0.01)
+                self.pvlist[pvn].connect()
+
         unitspv = pvnames[1][:-4] + '.EGU'
         has_unitspv = unitspv in self.pvlist
         if not has_unitspv:
@@ -852,6 +854,7 @@ class MeshScanPanel(GenericScanPanel):
     def update_positioners(self):
         """meant to be overwritten"""
         self.get_positioners()
+
         for irow, row in enumerate(self.pos_settings):
             thispos = row[0]
             cur = thispos.GetStringSelection()
