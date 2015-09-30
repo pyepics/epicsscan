@@ -1061,6 +1061,7 @@ class InstrumentDB(object):
 
         posname = posname.strip()
         pos  = self.get_position(inst, posname)
+
         if pos is None:
             raise ScanDBException(
                 "restore_postion  position '%s' not found" % posname)
@@ -1069,12 +1070,16 @@ class InstrumentDB(object):
             exclude_pvs = []
 
         pv_vals = []
-        for pvpos in pos.pvs:
-            pvname = pvpos.pv.name
-            if pvname not in exclude_pvs:
-                thispv = epics.PV(pvname)
-                pv_vals.append((thispv, float(pvpos.value)))
+        ppos_cls, ppos_tab = self.scandb.get_table('position_pv')
+        pv_cls, pv_tab     = self.scandb.get_table('pvs')
+        pvnames = dict([(pv.id, str(pv.name)) for pv in pv_tab.select().execute().fetchall()])
 
+        pv_vals = []
+        for pvval in ppos_tab.select().where(ppos_tab.c.positions_id == pos.id).execute().fetchall():
+            pvname = pvnames[pvval.pvs_id]
+            if pvname not in exclude_pvs:
+                pv_vals.append((epics.get_pv(pvname), float(pvval.value)))
+        
         epics.ca.poll()
         # put values without waiting
         for thispv, val in pv_vals:
