@@ -114,6 +114,8 @@ class LarchScanDBServer(object):
 
     def load_modules(self, macro_dir=None, verbose=False):
         """read latest larch modules"""
+        # print(" LOAD MODULES " , macro_dir)
+        # verbose = True
         if macro_dir is None:
             macro_dir = self.macro_dir
 
@@ -183,13 +185,18 @@ class LarchScanDBServer(object):
         """
         macros = OrderedDict()
         symtab = self.symtab
-        for group in (symtab._epics, symtab._scan, symtab.macros):
+        modlist = [symtab, symtab._epics, symtab._scan]
+        for mod in self.loaded_modules:
+            if hasattr(symtab, mod):
+                modlist.append(getattr(symtab, mod))
+        
+        for group in modlist:
             for name in dir(group):
                 obj = getattr(group, name)
-                if callable(obj):
+                if callable(obj) and not name.startswith('_'):
                     doc  = obj.__doc__
                     if doc is None:
-                        doc = 'PRIVATE'
+                        doc = ''
                         if hasattr(obj, '_signature'):
                             doc = obj._signature()
                     if 'PRIVATE' not in doc:
