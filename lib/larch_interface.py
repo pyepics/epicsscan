@@ -4,23 +4,30 @@ import time, sys, os
 import json
 import numpy as np
 import glob
+from collections import OrderedDict
+
 from .file_utils import nativepath
 from .site_config import get_fileroot, LARCH_SCANDB, LARCH_INSTDB
 from .utils import plain_ascii
 from .scandb import InstrumentDB
 from . import scandb
 
+
 import epics
 
-import larch
-# not used here, but imported from here
-larch_site_config = larch.site_config
+# larch_site_config is not used here, but is imported from here
+class Empty:
+    pass
+larch_site_config = Empty()
+larch_site_config.larchdir = ''
 
-from collections import OrderedDict
-
-
-# larch.use_plugin_path('epics')
-# from stepscan_utils import EpicsScanDB
+HAS_LARCH = False
+try:
+    import larch
+    larch_site_config = larch.site_config
+    HAS_LARCH = True
+except:
+    pass
 
 
 class LarchScanDBWriter(object):
@@ -55,15 +62,19 @@ class LarchScanDBServer(object):
         self.scandb = scandb
         self.fileroot = get_fileroot(fileroot)
         self.writer = LarchScanDBWriter(scandb=scandb)
-        self.larch  = larch.Interpreter(writer=self.writer)
-        self.symtab = self.larch.symtable
-        self.symtab.set_symbol(LARCH_SCANDB, self.scandb)
-        self.symtab.set_symbol(LARCH_INSTDB, InstrumentDB(self.scandb))
-        self.symtab._sys.color_exceptions = False
-
         self.macro_dir = self.scandb.get_info('macro_folder')
         self.loaded_modules = {}
-        self.enable_abort()
+
+
+        self.larch = self.symtab = None
+        if HAS_LARCH:
+            self.larch  = larch.Interpreter(writer=self.writer)
+            self.symtab = self.larch.symtable
+            self.symtab.set_symbol(LARCH_SCANDB, self.scandb)
+            self.symtab.set_symbol(LARCH_INSTDB, InstrumentDB(self.scandb))
+            self.symtab._sys.color_exceptions = False
+            self.enable_abort()
+
         #self.load_plugins(macro_dir)
         #self.load_modules(macro_dir)
 
@@ -95,6 +106,8 @@ class LarchScanDBServer(object):
         self.symtab.set_symbol('_epics.PV', PV)
 
     def load_plugins(self, macro_dir=None):
+        if not HAS_LARCH:
+            return
         if macro_dir is None:
             macro_dir = self.macro_dir
         if macro_dir is None:
@@ -112,10 +125,11 @@ class LarchScanDBServer(object):
                         emsg = '\n'.join(self.larch.error[0].get_error())
                         self.scandb.set_info('error_message', emsg)
 
-    def load_modules(self, macro_dir=None, verbose=False):
+    def load_modules(self, macro_dir=None, verbose=False):        
         """read latest larch modules"""
-        # print(" LOAD MODULES " , macro_dir)
-        # verbose = True
+        if not HAS_LARCH:
+            return
+
         if macro_dir is None:
             macro_dir = self.macro_dir
 
@@ -161,6 +175,9 @@ class LarchScanDBServer(object):
         return self.run(arg)
 
     def run(self, command=None):
+        if not HAS_LARCH:
+            print("No Larch to run command ", command)
+            return
         self.larch.error = []
         if command is None:
             return
