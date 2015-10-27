@@ -13,7 +13,8 @@ import logging
 
 from sqlalchemy import (MetaData, and_, create_engine, text, func,
                         Table, Column, ColumnDefault, ForeignKey,
-                        Integer, Float, String, Text, DateTime)
+                        Integer, Float, String, Text, DateTime, 
+                        UniqueConstraint)
 
 from sqlalchemy.orm import sessionmaker, mapper, relationship
 from sqlalchemy.exc import IntegrityError
@@ -314,14 +315,16 @@ def create_scandb(dbname, server='sqlite', create=True, **kws):
                                  StrCol('breakpoints', default=''),
                                  Column('modify_time', DateTime)])
 
-    instrument = NamedTable('instruments', metadata,
+    instrument = NamedTable('instruments', metadata, name_unique=True,
                             cols=[IntCol('show', default=1),
                                   IntCol('display_order', default=0)])
 
     position  = NamedTable('positions', metadata, name_unique=False,
                            cols=[Column('modify_time', DateTime),
                                  StrCol('image'),
-                                 PointerCol('instruments')])
+                                 PointerCol('instruments'),
+                                 UniqueConstraint('name', 'instruments_id', name='pos_inst_name')])
+
 
     instrument_precommand = NamedTable('instrument_precommands', metadata,
                                        cols=[IntCol('exec_order'),
