@@ -1040,6 +1040,22 @@ class InstrumentDB(object):
         out = self.scandb.query(cls).filter(filter).all()
         return None_or_one(out, 'get_position expected 1 or None Position')
 
+    def get_position_vals(self, instname, posname):
+        """return position with dictionary of PVName:Value pairs"""
+        pos = self.get_position(instname, posname)
+
+        pv_vals = {}
+        _c, ppos_tab = self.scandb.get_table('position_pv')
+        _c, pv_tab   = self.scandb.get_table('pvs')
+        pvnames = dict([(pv.id, str(pv.name)) for pv in pv_tab.select().execute().fetchall()])
+
+        for pvval in ppos_tab.select().where(ppos_tab.c.positions_id == pos.id).execute().fetchall():
+            pvname = pvnames[pvval.pvs_id]
+            if pvname not in exclude_pvs:
+                pv_vals[pvname]= float(pvval.value)
+        return pv_vals
+        
+
     def get_positionlist(self, instname):
         """return list of position names for an instrument
         """
@@ -1050,6 +1066,7 @@ class InstrumentDB(object):
         q = q.order_by(cls.modify_time)
         return [p.name for p in q.all()]
 
+        
     def restore_position(self, instname, posname, wait=False, timeout=5.0,
                          exclude_pvs=None):
         """
