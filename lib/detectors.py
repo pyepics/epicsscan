@@ -9,7 +9,6 @@ from .ordereddict import OrderedDict
 
 from epics import PV, get_pv, caget, caput, poll
 from epics.devices import Scaler, MCA, Struck
-from epics.devices.xspress3 import Xspress3
 
 # from larch import use_plugin_path
 # use_plugin_path('epics')

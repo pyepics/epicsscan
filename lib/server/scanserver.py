@@ -14,7 +14,7 @@ from ..scandb import ScanDB, ScanDBException, ScanDBAbort, make_datetime
 from ..file_utils import fix_varname, nativepath
 from ..utils import  strip_quotes, plain_ascii
 
-from ..larch_interface import LarchScanDBServer
+from ..larch_interface import LarchScanDBServer, HAS_LARCH
 
 from ..site_config import get_fileroot
 from ..epics_scandb import EpicsScanDB
@@ -24,9 +24,7 @@ DEBUG_TIMER = False
 
 class ScanServer():
     def __init__(self, dbname=None, fileroot=None, _larch=None,  **kwargs):
-        self.epicsdb = EpicsScanDB(prefix='13XRM:SCANDB:')
-        time.sleep(0.01)
-
+        self.epicsdb = None
         self.fileroot = get_fileroot(fileroot)
         self.scandb = None
         self.abort = False
@@ -45,28 +43,37 @@ class ScanServer():
         self.scandb = ScanDB(dbname=dbname, **kwargs)
 
         self.set_scan_message('Server Initializing ', self.fileroot)
-        self.larch = LarchScanDBServer(self.scandb, fileroot=self.fileroot)
-
         self.scandb.set_hostpid()
         self.scandb.set_info('request_abort',    0)
         self.scandb.set_info('request_pause',    0)
         self.scandb.set_info('request_shutdown', 0)
 
-        self.set_scan_message('Server Loading Larch Plugins...')
-        self.larch.load_plugins()
-        self.set_scan_message('Server Loading Larch Macros...')
-        self.larch.load_modules()
-        self.set_scan_message('Server Connected.')
+        if HAS_LARCH:
+            self.larch = LarchScanDBServer(self.scandb, fileroot=self.fileroot)
 
+            self.set_scan_message('Server Loading Larch Plugins...')
+            self.larch.load_plugins()
+            self.set_scan_message('Server Loading Larch Macros...')
+            self.larch.load_modules()
+            self.set_scan_message('Server Connected.')
+
+        eprefix = self.scandb.get_info('epics_status_prefix')
         basedir = self.scandb.get_info('server_fileroot')
-        self.epicsdb.basedir = plain_ascii(basedir)
         workdir = self.scandb.get_info('user_folder')
-        self.epicsdb.workdir = plain_ascii(workdir)
+
+        if eprefix is not None:
+            self.epicsdb = EpicsScanDB(prefix=eprefix)
+            time.sleep(0.1)
+            self.epicsdb.Shutdown = 0
+            self.epicsdb.Abort = 0
+            self.epicsdb.basedir = plain_ascii(basedir)
+            self.epicsdb.workdir = plain_ascii(workdir)
 
 
     def set_scan_message(self, msg, verbose=True):
         self.scandb.set_info('scan_message', msg)
-        self.epicsdb.message = msg
+        if self.epicsdb is not None:
+            self.epicsdb.message = msg
         print(msg)
 
     def sleep(self, t=0.05):
@@ -88,7 +95,8 @@ class ScanServer():
 
     def set_status(self, status):
         self.scandb.set_info('scan_status', status)
-        self.epicsdb.status = status.title()
+        if self.epicsdb is not None:
+            self.epicsdb.status = status.title()
 
     def set_path(self):
         self.scandb.set_path(fileroot=self.fileroot)
@@ -103,7 +111,8 @@ class ScanServer():
         if len(command) < 1 or command is 'None':
             return
 
-        all_macros = self.larch.load_modules()
+        if HAS_LARCH:
+            all_macros = self.larch.load_modules()
         self.command_in_progress = True
         self.set_status('starting')
         self.scandb.set_command_status(req.id, 'starting')
@@ -135,7 +144,8 @@ class ScanServer():
             args = ', '.join(words)
         elif command.lower().startswith('load_plugins'):
             self.set_scan_message('Server Reloading Larch Plugins...')
-            self.larch.load_plugins()
+            if HAS_LARCH:
+                self.larch.load_plugins()
             return
 
         if len(args) == 0:
@@ -147,26 +157,31 @@ class ScanServer():
         self.scandb.set_info('current_command_id', req.id)
         self.set_status('running')
         self.scandb.set_command_status(req.id, 'running')
-        self.epicsdb.cmd_id = req.id
-        self.epicsdb.command = larch_cmd
+        if self.epicsdb is not None:
+            self.epicsdb.cmd_id = req.id
+            self.epicsdb.command = larch_cmd
 
-        try:
-            print("Larch Run " , larch_cmd)
-            out = self.larch.run(larch_cmd)
-        except:
-            pass
-        status, msg = 'finished', 'scan complete'
-        err = self.larch.get_error()
-        if len(err) > 0:
-            err = err[0]
-            exc_type, exc_val, exc_tb = err.exc_info
-            if 'ScanDBAbort' in repr( exc_type):
-                status = 'aborted'
-                msg = 'scan aborted'
-            else:
-                emsg = '\n'.join(err.get_error())
-                self.scandb.set_info('error_message', emsg)
-                msg = 'scan completed with error'
+        if HAS_LARCH:
+            try:
+                print("Larch Run " , larch_cmd)
+                out = self.larch.run(larch_cmd)
+            except:
+                pass
+            status, msg = 'finished', 'scan complete'
+            err = self.larch.get_error()
+            if len(err) > 0:
+                err = err[0]
+                exc_type, exc_val, exc_tb = err.exc_info
+                if 'ScanDBAbort' in repr( exc_type):
+                    status = 'aborted'
+                    msg = 'scan aborted'
+                else:
+                    emsg = '\n'.join(err.get_error())
+                    self.scandb.set_info('error_message', emsg)
+                    msg = 'scan completed with error'
+
+        else:
+            msg = 'Larch available to run commands'
         time.sleep(0.1)
         self.scandb.set_info('scan_progress', msg)
         self.scandb.set_command_status(req.id, status)
@@ -202,23 +217,27 @@ class ScanServer():
         while True:
             epics.poll(0.001, 1.0)
             self.look_for_interrupts()
-            if self.epicsdb.Shutdown == 1 or self.req_shutdown:
+            if (self.req_shutdown or (self.epicsdb is not None
+                                     and  self.epicsdb.Shutdown == 1)):
                 break
             if time.time() > msgtime + 1:
                 msgtime = time.time()
                 self.scandb.set_info('heartbeat', time.ctime())
-                self.epicsdb.setTime()
+                if self.epicsdb is not None:
+                    self.epicsdb.setTime()
             if self.req_pause:
                 continue
             reqs = self.scandb.get_commands(status='requested',
                                             reverse=False)
-            if self.epicsdb.Abort == 1 or self.req_abort:
+            if (self.req_abort or (self.epicsdb is not None
+                                   and  self.epicsdb.Abort == 1)):
                 if len(reqs) > 0:
                     req = reqs[0]
                     self.scandb.set_command_status(req.id, 'aborted')
                     abort_slewscan()
                 time.sleep(1.0)
-                self.epicsdb.Abort = 0
+                if self.epicsdb is not None:
+                    self.epicsdb.Abort = 0
                 self.clear_interrupts()
                 time.sleep(1.0)
             elif len(reqs) > 0:
