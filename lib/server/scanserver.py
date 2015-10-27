@@ -32,9 +32,6 @@ class ScanServer():
         self.larch_modules = {}
         self.command_in_progress = False
         self.req_shutdown = False
-
-        self.epicsdb.Shutdown = 0
-        self.epicsdb.Abort = 0
         if dbname is not None:
             self.connect(dbname, **kwargs)
 
