@@ -964,6 +964,10 @@ class InstrumentDB(object):
         posname = posname.strip()
         pos  = self.get_position(instname, posname)
         pos_cls, pos_table = self.scandb.get_table('positions')
+        _, ppos_tab = self.scandb.get_table('position_pv')
+        _, pvs_tab  = self.scandb.get_table('pvs')
+        _, ipv_tab  = self.scandb.get_table('instrument_pv')
+        
         if pos is None:
             pos = pos_cls()
             pos.name = posname
@@ -974,9 +978,16 @@ class InstrumentDB(object):
             pos.image = image
         if notes is not None:
             pos.notes = notes
+        self.scandb.session.add(pos)
+        pos  = self.get_position(instname, posname)
+        ## print("  Position: ", pos, pos.id)
 
-        pvnames = [str(pv.name) for pv in inst.pvs]
-
+        pvnames = []
+        for pvs in ipv_tab.select().where(ipv_tab.c.instruments_id==inst.id).execute().fetchall():
+            name = pvs_tab.select().where(pvs_tab.c.id==pvs.pvs_id).execute().fetchone().name
+            pvnames.append(str(name))
+            
+        ## print("@ Save Position: ", posname, pvnames, values)
         # check for missing pvs in values
         missing_pvs = []
         for pv in pvnames:
@@ -987,22 +998,18 @@ class InstrumentDB(object):
             raise ScanDBException('save_position: missing pvs:\n %s' %
                                         missing_pvs)
 
-        ppos_cls, ppos_tab = self.scandb.get_table('position_pv')
         doexec = self.scandb.conn.execute
         doexec(ppos_tab.delete().where(ppos_tab.c.positions_id == None))
         doexec(ppos_tab.delete().where(ppos_tab.c.positions_id == pos.id))
 
         pos_pvs = []
         for name in pvnames:
-            pvrow =  self.scandb.get_pvrow(name)
-            ppv = ppos_cls()
-            ppv.pvs_id = pvrow.id
-            ppv.notes = "'%s' / '%s'" % (inst.name, posname)
-            ppv.value = float(values[name])
-            pos_pvs.append(ppv)
-
-        pos.pvs = pos_pvs
-        self.scandb.session.add(pos)
+            thispv = self.scandb.get_pvrow(name)            
+            ppos_tab.insert().execute(pvs_id=thispv.id, 
+                                      positions_id = pos.id,
+                                      notes= "'%s' / '%s'" % (inst.name, posname),
+                                      value = float(values[name]))
+            ## print  "   ", thispv, thispv.id, pos.id, float(values[name])
         self.scandb.commit()
 
 
@@ -1052,7 +1059,6 @@ class InstrumentDB(object):
             pv_vals[ pvnames[pvval.pvs_id]]= float(pvval.value)
         return pv_vals
         
-
     def get_positionlist(self, instname):
         """return list of position names for an instrument
         """
@@ -1062,7 +1068,6 @@ class InstrumentDB(object):
         q = q.filter(cls.instruments_id==inst.id)
         q = q.order_by(cls.modify_time)
         return [p.name for p in q.all()]
-
         
     def restore_position(self, instname, posname, wait=False, timeout=5.0,
                          exclude_pvs=None):
