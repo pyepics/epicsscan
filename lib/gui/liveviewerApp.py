@@ -234,9 +234,7 @@ class ScanViewerFrame(wx.Frame):
         pack(panel, sizer)
 
 
-        self.plotpanel = PlotPanel(mainpanel, size=(520, 550),
-                                   axissize=(0.18, 0.18, 0.70, 0.70),
-                                   fontsize=8)
+        self.plotpanel = PlotPanel(mainpanel, size=(520, 550), fontsize=8)
 
         self.plotpanel.messenger = self.write_message
         self.plotpanel.canvas.figure.set_facecolor((0.98,0.98,0.97))
