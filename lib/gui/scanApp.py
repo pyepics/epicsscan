@@ -698,7 +698,10 @@ class ScanFrame(wx.Frame):
         ep = [x.pvname for x in sdb.select('extrapvs')]
         for name, pvname in scan['extra_pvs']:
             if pvname not in ep:
-                self.scandb.add_extrapv(name, pvname)
+                try:
+                    self.scandb.add_extrapv(name, pvname)
+                except:
+                    pass
 
         for detdat in scan['detectors']:
             det = sdb.get_detector(detdat['label'])
