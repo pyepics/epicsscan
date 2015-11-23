@@ -624,6 +624,9 @@ class Xspress3Detector(DetectorMixin):
         if self._counter is None:
             self.connect_counters()
         self._counter._get_counters()
+        self.counters = self._counter.counters
+        self.extra_pvs = self._counter.extra_pvs
+
         if (self.dwelltime is not None and
             isinstance(self.dwelltime_pv, PV)):
             self.dwelltime_pv.put(self.dwelltime)
