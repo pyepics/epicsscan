@@ -615,6 +615,7 @@ class Xspress3Detector(DetectorMixin):
         return e
         
     def connect_counters(self):
+        # print("Xspres3 connect_counters ", self._connect_args)
         self._counter = Xspress3Counter(self.prefix, **self._connect_args)
         self.counters = self._counter.counters
         self.extra_pvs = self._counter.extra_pvs
@@ -622,6 +623,7 @@ class Xspress3Detector(DetectorMixin):
     def pre_scan(self, scan=None, **kws):
         if self._counter is None:
             self.connect_counters()
+        self._counter._get_counters()
         if (self.dwelltime is not None and
             isinstance(self.dwelltime_pv, PV)):
             self.dwelltime_pv.put(self.dwelltime)
@@ -672,7 +674,7 @@ class Xspress3Counter(DeviceCounter):
         self.roilist = []
         if rois is not None and len(rois)>0:
             self.roilist = [s.lower().strip() for s in rois]
-        self._get_counters()
+        # self._get_counters()
 
     def _get_counters(self):
         prefix = self.prefix
@@ -758,4 +760,5 @@ def get_detector(prefix, kind=None, label=None, **kws):
     else:
         kind = kind.lower()
     builder = dtypes.get(kind, SimpleDetector)
+    # print("Get Detector: ", prefix, label, kws)
     return builder(prefix, label=label, **kws)
