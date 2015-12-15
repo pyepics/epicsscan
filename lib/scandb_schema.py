@@ -131,6 +131,10 @@ class Messages(_BaseTable):
     "messages table"
     text = None
 
+class Config(_BaseTable):
+    "Miscelleneous Configuration table"
+    name, notes = None, None
+
 class Status(_BaseTable):
     "status table"
     name, notes = None, None
@@ -255,6 +259,7 @@ def create_scandb(dbname, server='sqlite', create=True, **kws):
                  StrCol('text'),
                  Column('modify_time', DateTime, default=datetime.now))
 
+    config = NamedTable('config', metadata)
     status = NamedTable('status', metadata)
     slewpos    = NamedTable('slewscanpositioners', metadata, with_use=True,
                             cols=[StrCol('drivepv', size=128),
@@ -387,7 +392,7 @@ def map_scandb(metadata):
     classes = {}
     map_props = {}
     keyattrs = {}
-    for cls in (Info, Messages, Status, PVs, PVTypes, MonitorValues,
+    for cls in (Info, Messages, Config, Status, PVs, PVTypes, MonitorValues,
                 Macros, ExtraPVs, Commands, ScanData, ScanPositioners,
                 ScanCounters, ScanDetectors, ScanDefs, SlewScanPositioners,
                 Positions, Position_PV, Instruments, Instrument_PV,
