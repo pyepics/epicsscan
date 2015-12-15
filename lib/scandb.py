@@ -312,13 +312,13 @@ class ScanDB(object):
         return out
 
     def set_config(self, name, text):
-        """add configuration / general purpose message"""
+        """add configuration, general purpose table"""
         cls, table = self.get_table('config')
-        table.insert().execute(name=name, text=text)
+        table.insert().execute(name=name, notes=text)
         self.commit()
 
     def get_config(self, name):
-        """add message to messages table"""
+        """get configuration, general purpose table"""
         cls, table = self.get_table('config')
         return self.query(cls).filter(cls.name==name).all()
 
