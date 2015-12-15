@@ -319,8 +319,7 @@ class ScanDB(object):
 
     def get_config(self, name):
         """get configuration, general purpose table"""
-        cls, table = self.get_table('config')
-        return self.query(cls).filter(cls.name==name).all()
+        return getrow('config', name, one_or_none=True)
 
     def set_message(self, text):
         """add message to messages table"""
