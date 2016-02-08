@@ -319,7 +319,7 @@ class ScanDB(object):
 
     def get_config(self, name):
         """get configuration, general purpose table"""
-        return getrow('config', name, one_or_none=True)
+        return self.getrow('config', name, one_or_none=True)
 
     def set_message(self, text):
         """add message to messages table"""
