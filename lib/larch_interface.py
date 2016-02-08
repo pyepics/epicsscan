@@ -12,7 +12,6 @@ from .utils import plain_ascii
 from .scandb import InstrumentDB
 from . import scandb
 
-
 import epics
 
 # larch_site_config is not used here, but is imported from here
@@ -134,40 +133,43 @@ class LarchScanDBServer(object):
             macro_dir = self.macro_dir
 
         moduledir = os.path.join(self.fileroot, macro_dir, 'macros')
-        origdir = os.getcwd()
         _sys = self.symtab._sys
         if moduledir not in _sys.path:
             _sys.path.insert(0, moduledir)
         if not os.path.exists(moduledir):
             return
 
-        os.chdir(moduledir)
-        for name in glob.glob('*.lar'):
-            modname = name[:-4]
-            this_mtime = os.stat(name).st_mtime
-            if modname in self.loaded_modules:
-                last_mtime = self.loaded_modules[modname]
-                if this_mtime < last_mtime:
-                    continue
+        try:
+            origdir = os.getcwd()
+            os.chdir(moduledir)
+            for name in glob.glob('*.lar'):
+                modname = name[:-4]
+                this_mtime = os.stat(name).st_mtime
+                if modname in self.loaded_modules:
+                    last_mtime = self.loaded_modules[modname]
+                    if this_mtime < last_mtime:
+                        continue
 
-            self.larch.error = []
-            if verbose:
-                print 'importing module: ', modname
-            if modname in self.loaded_modules:
-                self.larch.run('reload(%s)' % modname)
-            else:
-                self.larch.run('import %s' % modname)
-            if len(self.larch.error) > 0:
-                emsg = '\n'.join(self.larch.error[0].get_error())
-                self.scandb.set_info('error_message', emsg)
-                print '==Import Error %s/%s' % (modname, emsg)
-            else:
-                if modname not in _sys.searchGroups:
-                    _sys.searchGroups.append(modname)
-                self.loaded_modules[modname] = this_mtime
-                thismod  = self.symtab.get_symbol(modname)
-                _sys.searchGroupObjects.append(thismod)
-        # move back to working folder
+                self.larch.error = []
+                if verbose:
+                    print 'importing module: ', modname
+                if modname in self.loaded_modules:
+                    self.larch.run('reload(%s)' % modname)
+                else:
+                    self.larch.run('import %s' % modname)
+                if len(self.larch.error) > 0:
+                    emsg = '\n'.join(self.larch.error[0].get_error())
+                    self.scandb.set_info('error_message', emsg)
+                    print '==Import Error %s/%s' % (modname, emsg)
+                else:
+                    if modname not in _sys.searchGroups:
+                        _sys.searchGroups.append(modname)
+                    self.loaded_modules[modname] = this_mtime
+                    thismod  = self.symtab.get_symbol(modname)
+                    _sys.searchGroupObjects.append(thismod)
+            os.chdir(origdir)
+        except OSError: 
+            pass
         self.scandb.set_path(fileroot=self.fileroot)
         return self.get_macros()
     
