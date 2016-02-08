@@ -21,6 +21,7 @@ from ..epics_scandb import EpicsScanDB
 from ..abort_slewscan import abort_slewscan
 
 DEBUG_TIMER = False
+ALWAYS_LOAD_MODULES = False
 
 class ScanServer():
     def __init__(self, dbname=None, fileroot=None, _larch=None,  **kwargs):
@@ -108,7 +109,7 @@ class ScanServer():
         if len(command) < 1 or command is 'None':
             return
 
-        if HAS_LARCH:
+        if HAS_LARCH and ALWAYS_LOAD_MODULES:
             all_macros = self.larch.load_modules()
         self.command_in_progress = True
         self.set_status('starting')
@@ -144,6 +145,12 @@ class ScanServer():
             if HAS_LARCH:
                 self.larch.load_plugins()
             return
+        elif command.lower().startswith('load_modules'):
+            self.set_scan_message('Server Reloading Larch Modules...')
+            if HAS_LARCH:
+                self.larch.load_modules()
+            return
+
 
         if len(args) == 0:
             larch_cmd = command
