@@ -22,7 +22,7 @@ DET_DEFAULT_OPTS = {'scaler': {'use_calc': True, 'nchans': 8},
                                      'auto_increment': True},
                     'mca': {'nrois': 32, 'use_full': False,
                             'use_net': False},
-                    'xspress3': {'nrois': 32, 'nmcas': 4, 
+                    'xspress3': {'nrois': 32, 'nmcas': 4,
                                  'use_full': False},
                     'multimca': {'nrois': 32, 'nmcas': 4,
                                  'use_full': False, 'use_net': False}}
@@ -272,7 +272,7 @@ class MultiMcaCounter(DeviceCounter):
                 namepv = '%s%s.R%iNM' % (prefix, mca, i)
                 rhipv  = '%s%s.R%iHI' % (prefix, mca, i)
                 roi    = pvs[namepv].get()
-                if roi.lower().strip() not in roilist:
+                if roi is None or (roi.lower().strip() not in roilist):
                     continue
                 roi_hi = pvs[rhipv].get()
                 label = '%s %s'% (roi, mca)
@@ -390,7 +390,7 @@ class AreaDetector(DetectorMixin):
     trigger_suffix = 'cam1:Acquire'
     settings = {'cam1:ImageMode': 0,
                 'cam1:ArrayCallbacks': 1}
-    
+
     def __init__(self, prefix, file_plugin=None, fileroot='', **kws):
         if not prefix.endswith(':'):
             prefix = "%s:" % prefix
@@ -580,7 +580,7 @@ class Xspress3Detector(DetectorMixin):
         self.nmcas = nmcas = int(nmcas)
         self.nrois = nrois = int(nrois)
         DetectorMixin.__init__(self, prefix, label=label)
-        
+
         self.prefix     = prefix
         self.dwelltime  = None
         self.dwelltime_pv = get_pv('%sAcquireTime' % prefix)
@@ -613,7 +613,7 @@ class Xspress3Detector(DetectorMixin):
              ('mca3 tau(nsec)', '13IDE:userTran3.C'),
              ('mca4 tau(nsec)', '13IDE:userTran3.D')]
         return e
-        
+
     def connect_counters(self):
         # print("Xspres3 connect_counters ", self._connect_args)
         self._counter = Xspress3Counter(self.prefix, **self._connect_args)
