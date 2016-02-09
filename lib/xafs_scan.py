@@ -37,6 +37,8 @@ class XAFS_Scan(StepScan):
         self.energies = []
         self.regions = []
         StepScan.__init__(self, **kws)
+        self.is_qxafs = False
+        self.scantype = 'xafs'
         self.dwelltime = []
         self.energy_pos = None
         self.set_energy_pv(energy_pv, read_pv=read_pv, extra_pvs=extra_pvs)
@@ -54,7 +56,7 @@ class XAFS_Scan(StepScan):
 
     def add_region(self, start, stop, step=None, npts=None,
                    relative=True, use_k=False, e0=None,
-                   dtime=None, dtime_final=None, dtime_wt=1):
+                   dtime=None, dtime_final=None, dtime_wt=1, min_estep=0.01):
         """add a region to an EXAFS scan.
         Note that scans must be added in order of increasing energy
         """
@@ -62,11 +64,13 @@ class XAFS_Scan(StepScan):
             e0 = self.e0
         if dtime is None:
             dtime = self.dtime
+        if min_estep < 0:
+            min_estep = 0.01
         self.e0 = e0
         self.dtime = dtime
 
         if npts is None and step is None:
-            print 'add_region needs start, stop, and either step on npts'
+            print('add_region needs start, stop, and either step on npts')
             return
 
         if step is not None:
@@ -85,17 +89,17 @@ class XAFS_Scan(StepScan):
                                        dtime_wt=dtime_wt))
 
         if use_k:
-            for i, k in enumerate(en_arr):
-                en_arr[i] = e0 + ktoe(k)
+            en_arr = [e0 + ktoe(v) for v in en_arr]
         elif relative:
-            for i, v in enumerate(en_arr):
-                en_arr[i] = e0 + v
+            en_arr = [e0 +    v    for v in en_arr]
 
-        # check that all energy values in this region are greater
-        # than previously defined regions
+        # check that all energy values in this region are
+        # greater than previously defined regions
         en_arr.sort()
-        if len(self.energies)  > 0:
-            en_arr = [e for e in en_arr if e > max(self.energies)]
+        min_energy = min_estep
+        if len(self.energies) > 0:
+            min_energy += max(self.energies)
+        en_arr = [e for e in en_arr if e > min_energy]
 
         npts   = len(en_arr)
 
@@ -106,5 +110,5 @@ class XAFS_Scan(StepScan):
             dt_arr= [dtime + _vtime *i**dtime_wt for i in range(npts)]
         self.energies.extend(en_arr)
         self.dwelltime.extend(dt_arr)
-        self.energy_pos.array = np.array(self.energies)
-
+        if self.energy_pos is not None:
+            self.energy_pos.array = np.array(self.energies)
