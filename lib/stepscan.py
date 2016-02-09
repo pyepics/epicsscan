@@ -159,14 +159,13 @@ class StepScan(object):
     """
     def __init__(self, filename=None, auto_increment=True,
                  comments=None, messenger=None, scandb=None,
-                 prescan_func=None):
+                 prescan_func=None, **kws):
         self.pos_settle_time = MIN_POLL_TIME
         self.det_settle_time = MIN_POLL_TIME
         self.pos_maxmove_time = 3600.0
         self.det_maxcount_time = 86400.0
         self.dwelltime = None
         self.comments = comments
-
         self.filename = filename
         self.auto_increment = auto_increment
         self.filetype = 'ASCII'
