@@ -81,8 +81,8 @@ class MacroFrame(wx.Frame) :
         # print 'Edit Macros ', _larch
         # _larch.load_plugins()
         # _larch.load_modules()
-        self.scandb.add_command('load_plugins()')
-        self.scandb.add_command('load_modules()')
+        # self.scandb.add_command('load_plugins()')
+        self.scandb.add_command('load_macros()')
         self.db_messages = ScanDBMessageQueue(self.scandb)
 
         self.colors = GUIColors()
