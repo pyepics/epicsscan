@@ -49,7 +49,8 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         scrolled.ScrolledPanel.__init__(self, parent,
                                         size=size, style=style,
                                         name=self.__name__)
-        self.Font13=wx.Font(13, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
+        self.Font13 = wx.Font(13, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
+        self.Font12 = wx.Font(12, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
         self.sizer = wx.GridBagSizer(8, 8)
         self.scantime = -1.0
         self.get_positioners()
@@ -133,7 +134,6 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         self.est_time  = SimpleText(self, '  00:00:00  ')
         title  =  SimpleText(self, " %s" % title, style=LEFT,
                              font=self.Font13, colour='#880000')
-
         alabel = SimpleText(self, ' Mode: ', size=(60, -1))
         dlabel = SimpleText(self, ' Time/Point (sec):')
         tlabel = SimpleText(self, ' Estimated Scan Time:  ')
@@ -509,6 +509,11 @@ class XAFSScanPanel(GenericScanPanel):
         sizer.Add(SimpleText(self, "Max Time:"),  (ir, 4,), (1, 1), CEN, 3)
         sizer.Add(self.kwtimemax, (ir, 5), (1, 1), LEFT, 2)
 
+        self.xafs_message = SimpleText(self, " ", style=LEFT,
+                                       font=self.Font12, colour='#991111')
+        ir += 1
+        sizer.Add(self.xafs_message,  (ir, 0), (1, 6), LEFT, 3)
+
         self.layout()
         self.inittimer = wx.Timer(self)
         self.initcounter = 0
@@ -659,7 +664,7 @@ class XAFSScanPanel(GenericScanPanel):
         enpos = str(self.scandb.get_info('xafs_energy', 'Energy'))
         pos = self.scandb.get_positioner(enpos)
         self.initcounter += 1
-        self.onEdgeChoice()
+        # self.onEdgeChoice()
         if pos is None and self.initcounter > 10:
             self.inittimer.Stop()
         if pos is not None:
@@ -760,9 +765,20 @@ class XAFSScanPanel(GenericScanPanel):
     def onEdgeChoice(self, evt=None):
         edge = self.edgechoice.GetStringSelection()
         elem = self.elemchoice.GetStringSelection()
+        # print(" On Edge Choice! ", elem, edge)
         if self.larch is not None:
             e0val = self.larch.run("xray_edge('%s', '%s')" % (elem, edge))
             self.e0.SetValue(e0val[0])
+            self.xafs_message.SetLabel("  Warning: Check ROIs for   '%s %s'!" % (elem, edge))
+            self.warn_timer = wx.Timer(self)
+            self.Bind(wx.EVT_TIMER, self.remove_xafs_warning, self.warn_timer)
+            self.warn_timer.Start(30000)
+
+    def remove_xafs_warning(self, evt=None):
+        self.xafs_message.SetLabel(" ")
+        self.warn_timer.Stop()
+
+
 
     def generate_scan_positions(self):
         "generate xafs scan"
