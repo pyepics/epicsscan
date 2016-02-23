@@ -40,7 +40,7 @@ class ScanServer():
         """connect to Scan Database"""
         self.scandb = ScanDB(dbname=dbname, **kwargs)
 
-        self.set_scan_message('Server Initializing ', self.fileroot)
+        self.set_scan_message('Server Initializing')
         self.scandb.set_hostpid()
         self.scandb.set_info('request_abort',    0)
         self.scandb.set_info('request_pause',    0)
@@ -50,9 +50,11 @@ class ScanServer():
             self.larch = LarchScanDBServer(self.scandb, fileroot=self.fileroot)
 
             self.set_scan_message('Server Loading Larch Plugins...')
-            self.larch.load_plugins()
+            # self.larch.load_plugins()
+
             self.set_scan_message('Server Loading Larch Macros...')
-            self.larch.load_modules()
+            time.sleep(0.5)
+            self.larch.load_macros()
             self.set_scan_message('Server Connected.')
 
         eprefix = self.scandb.get_info('epics_status_prefix')
@@ -141,54 +143,47 @@ class ScanServer():
             command = "do_%s" % command
             args = ', '.join(words)
         elif command.lower().startswith('load_plugins'):
-            self.set_scan_message('Server Reloading Larch Plugins...')
-            if HAS_LARCH:
-                self.larch.load_plugins()
-            return
-        elif command.lower().startswith('load_modules'):
-            self.set_scan_message('Server Reloading Larch Modules...')
+            pass
+        elif (command.lower().startswith('load_modules') or
+              command.lower().startswith('load_macro')):
+            self.set_scan_message('Server Reloading Larch Macros...')
             if HAS_LARCH:
                 self.larch.load_modules()
-            return
-
-
-        if len(args) == 0:
-            larch_cmd = command
         else:
-            larch_cmd = "%s(%s)" % (command, args)
-        self.scandb.set_info('error_message',   '')
-        self.scandb.set_info('current_command', larch_cmd)
-        self.scandb.set_info('current_command_id', req.id)
-        self.set_status('running')
-        self.scandb.set_command_status(req.id, 'running')
-        if self.epicsdb is not None:
-            self.epicsdb.cmd_id = req.id
-            self.epicsdb.command = larch_cmd
+            if len(args) == 0:
+                larch_cmd = command
+            else:
+                larch_cmd = "%s(%s)" % (command, args)
+            self.scandb.set_info('error_message',   '')
+            self.scandb.set_info('current_command', larch_cmd)
+            self.scandb.set_info('current_command_id', req.id)
+            self.set_status('running')
+            self.scandb.set_command_status(req.id, 'running')
+            if self.epicsdb is not None:
+                self.epicsdb.cmd_id = req.id
+                self.epicsdb.command = larch_cmd
 
-        if HAS_LARCH:
-            try:
-                print("Larch Run " , larch_cmd)
-                out = self.larch.run(larch_cmd)
-            except:
-                pass
-            status, msg = 'finished', 'scan complete'
-            err = self.larch.get_error()
-            if len(err) > 0:
-                err = err[0]
-                exc_type, exc_val, exc_tb = err.exc_info
-                if 'ScanDBAbort' in repr( exc_type):
-                    status = 'aborted'
-                    msg = 'scan aborted'
-                else:
-                    emsg = '\n'.join(err.get_error())
-                    self.scandb.set_info('error_message', emsg)
-                    msg = 'scan completed with error'
-
-        else:
-            msg = 'Larch available to run commands'
-        time.sleep(0.1)
-        self.scandb.set_info('scan_progress', msg)
-        self.scandb.set_command_status(req.id, status)
+            if HAS_LARCH:
+                try:
+                    print("Larch Run " , larch_cmd)
+                    out = self.larch.run(larch_cmd)
+                except:
+                    pass
+                status, msg = 'finished', 'scan complete'
+                err = self.larch.get_error()
+                if len(err) > 0:
+                    err = err[0]
+                    exc_type, exc_val, exc_tb = err.exc_info
+                    if 'ScanDBAbort' in repr( exc_type):
+                        status = 'aborted'
+                        msg = 'scan aborted'
+                    else:
+                        emsg = '\n'.join(err.get_error())
+                        self.scandb.set_info('error_message', emsg)
+                        msg = 'scan completed with error'
+            time.sleep(0.1)
+            self.scandb.set_info('scan_progress', msg)
+            self.scandb.set_command_status(req.id, status)
         self.set_status('idle')
         self.command_in_progress = False
         
