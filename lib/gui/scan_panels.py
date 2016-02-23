@@ -769,7 +769,7 @@ class XAFSScanPanel(GenericScanPanel):
         if self.larch is not None:
             e0val = self.larch.run("xray_edge('%s', '%s')" % (elem, edge))
             self.e0.SetValue(e0val[0])
-            self.xafs_message.SetLabel("  Warning: Check ROIs for   '%s %s'!" % (elem, edge))
+            self.xafs_message.SetLabel("  Warning: Check ROIs for '%s %sa' (use Ctrl-R)" % (elem, edge))
             self.warn_timer = wx.Timer(self)
             self.Bind(wx.EVT_TIMER, self.remove_xafs_warning, self.warn_timer)
             self.warn_timer.Start(30000)
