@@ -74,9 +74,6 @@ class LarchScanDBServer(object):
             self.symtab._sys.color_exceptions = False
             self.enable_abort()
 
-        #self.load_plugins(macro_dir)
-        #self.load_modules(macro_dir)
-
     def check_abort_pause(self, msg='at caget'):
         self.scandb.test_abort(msg)
         self.scandb.wait_for_pause(timeout=86400.0)
@@ -105,6 +102,8 @@ class LarchScanDBServer(object):
         self.symtab.set_symbol('_epics.PV', PV)
 
     def load_plugins(self, macro_dir=None):
+        print("load_plugins() no longer needed")
+        return
         if not HAS_LARCH:
             return
         if macro_dir is None:
@@ -124,8 +123,11 @@ class LarchScanDBServer(object):
                         emsg = '\n'.join(self.larch.error[0].get_error())
                         self.scandb.set_info('error_message', emsg)
 
-    def load_modules(self, macro_dir=None, verbose=False):        
-        """read latest larch modules"""
+    def load_modules(self, macro_dir=None, verbose=False):
+        self.load_macros(macro_dir=macro_dir, verbose=verbose)
+        
+    def load_macros(self, macro_dir=None, verbose=False):        
+        """read latest larch macros / modules"""
         if not HAS_LARCH:
             return
 
@@ -137,12 +139,15 @@ class LarchScanDBServer(object):
         if moduledir not in _sys.path:
             _sys.path.insert(0, moduledir)
         if not os.path.exists(moduledir):
+            self.scandb.set_info('scan_message',
+                                 "Cannot locate modules in '%s'" % moduledir)
             return
 
         try:
             origdir = os.getcwd()
             os.chdir(moduledir)
             for name in glob.glob('*.lar'):
+                time.sleep(0.025)
                 modname = name[:-4]
                 this_mtime = os.stat(name).st_mtime
                 if modname in self.loaded_modules:
