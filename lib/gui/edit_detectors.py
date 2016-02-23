@@ -33,7 +33,7 @@ class ROIFrame(wx.Frame):
         title = "Select ROIs"
         wx.Frame.__init__(self, None, -1, 'Epics Scanning: Select ROIs',
                           style=FRAMESTYLE)
-        self.SetFont(Font(8))
+        self.SetFont(Font(10))
         self.build_dialog(parent)
 
     @EpicsFunction
@@ -45,7 +45,7 @@ class ROIFrame(wx.Frame):
             nm = caget("%s%iNM" % (pref, i))
             hi = caget("%s%iHI" % (pref, i))
             if len(nm.strip()) > 0 and hi > 0:
-                self.wids[i][0].SetLabel('  %s ' % nm)
+                self.wids[i][0].SetLabel('  %s' % nm)
                 self.wids[i][1].SetValue(nm.lower() in curr)
                 self.wids[i][1].Enable()
 
@@ -65,17 +65,18 @@ class ROIFrame(wx.Frame):
             return
 
         sizer = wx.GridBagSizer(20, 4)
-        sizer.SetHGap(2)
-        sizer.SetVGap(2)
+        sizer.SetHGap(3)
+        sizer.SetVGap(3)
         # title row
         irow = 0
-        txt =SimpleText(self, ' ROI', minsize=(80, -1), style=LEFT)
+        txt =SimpleText(self, '  ROI', minsize=(80, -1), style=LEFT)
         sizer.Add(txt, (0, 0),   (1, 1), LCEN, 1)
-        txt =SimpleText(self, ' ROI', minsize=(80, -1), style=LEFT)
-        sizer.Add(txt, (0, 2),   (1, 1), LCEN, 1)
-        txt =SimpleText(self, ' Use?', minsize=(40, -1), style=LEFT)
+        txt =SimpleText(self, 'Use?', minsize=(40, -1), style=LEFT)
         sizer.Add(txt, (0, 1),   (1, 1), LCEN, 1)
-        txt =SimpleText(self, ' Use?', minsize=(40, -1), style=LEFT)
+
+        txt =SimpleText(self, '  ROI', minsize=(80, -1), style=LEFT)
+        sizer.Add(txt, (0, 2),   (1, 1), LCEN, 1)
+        txt =SimpleText(self, 'Use?', minsize=(40, -1), style=LEFT)
         sizer.Add(txt, (0, 3),   (1, 1), LCEN, 1)
 
         self.wids = []
@@ -84,8 +85,8 @@ class ROIFrame(wx.Frame):
         nrows = self.nrois/2
         col = 0
         for i in range(self.nrois):
-            lab = SimpleText(self, ' <unused>', minsize=(80, -1))
-            use = check(self, default=False)
+            lab = SimpleText(self, ' <unused>', minsize=(80, -1), style=LEFT)
+            use = check(self, default=False, size=(40, -1))
             use.Disable()
             self.wids.append((lab, use))
             if i ==  nrows:
@@ -101,9 +102,11 @@ class ROIFrame(wx.Frame):
         irow += 1
         sizer.Add(okcancel(self, self.onOK, self.onClose),
                   (irow, 0), (1, 3), LCEN, 0)
+
+
         pack(self, sizer)
         wx.CallAfter(self.connect_epics)
-        self.SetSize((325, 700))
+        self.SetSize((350, 425))
         self.Show()
         self.Raise()
 
