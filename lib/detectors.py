@@ -643,9 +643,9 @@ class Xspress3Detector(DetectorMixin):
 
         caput("%sCTRL_MCA_ROI"  % (self.prefix), 1)
         caput("%sCTRL_DTC"      % (self.prefix), self.use_dtc)
-        time.sleep(0.01)
+        time.sleep(0.25)
         caput("%sUPDATE"        % (self.prefix), 1)
-        time.sleep(0.01)
+        time.sleep(0.25)
 
 
 class Xspress3Counter(DeviceCounter):
