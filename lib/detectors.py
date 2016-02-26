@@ -559,9 +559,9 @@ class Xspress3Trigger(Trigger):
         if value is None:
             value = self._val
         self._erase.put(1, wait=True)
-        time.sleep(0.005)
+        time.sleep(0.02)
         self._start.put(value, callback=self.__onComplete)
-        time.sleep(0.005)
+        time.sleep(0.02)
 
 
 class Xspress3Detector(DetectorMixin):
@@ -640,12 +640,15 @@ class Xspress3Detector(DetectorMixin):
 
         caput("%sTriggerMode" % (self.prefix), 1)   # Internal Mode
         caput("%sNumImages"   % (self.prefix), 1)   # 1 Image
-
         caput("%sCTRL_MCA_ROI"  % (self.prefix), 1)
         caput("%sCTRL_DTC"      % (self.prefix), self.use_dtc)
         time.sleep(0.25)
         caput("%sUPDATE"        % (self.prefix), 1)
         time.sleep(0.25)
+
+        #
+        caput("%sAcquireTime" % (self.prefix), 0.5)
+        caput("%sAcquire" % (self.prefix), 1, wait=True, timeout=5.0)
 
 
 class Xspress3Counter(DeviceCounter):
