@@ -23,6 +23,9 @@ from ..abort_slewscan import abort_slewscan
 DEBUG_TIMER = False
 ALWAYS_LOAD_MODULES = False
 
+def tstamp():
+    return time.strftime("%Y-%b-%d %H:%M:%S")
+
 class ScanServer():
     def __init__(self, dbname=None, fileroot=None, _larch=None,  **kwargs):
         self.epicsdb = None
@@ -165,7 +168,7 @@ class ScanServer():
 
             if HAS_LARCH:
                 try:
-                    print("Larch:%s: %s" % (time.ctime(), larch_cmd))
+                    print("<%s>%s" % (tstamp(), larch_cmd))
                     out = self.larch.run(larch_cmd)
                 except:
                     pass
@@ -221,7 +224,7 @@ class ScanServer():
                 break
             if time.time() > msgtime + 1:
                 msgtime = time.time()
-                self.scandb.set_info('heartbeat', time.ctime())
+                self.scandb.set_info('heartbeat', tstamp())
                 if self.epicsdb is not None:
                     self.epicsdb.setTime()
             if self.req_pause:
