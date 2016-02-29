@@ -165,7 +165,7 @@ class ScanServer():
 
             if HAS_LARCH:
                 try:
-                    print("Larch Run " , larch_cmd)
+                    print("Larch:%s: %s" % (time.ctime(), larch_cmd))
                     out = self.larch.run(larch_cmd)
                 except:
                     pass
@@ -186,7 +186,7 @@ class ScanServer():
             self.scandb.set_command_status(req.id, status)
         self.set_status('idle')
         self.command_in_progress = False
-        
+
     def look_for_interrupts(self):
         """look for aborts"""
         get_info = self.scandb.get_info
