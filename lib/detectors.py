@@ -72,8 +72,7 @@ Example usage:
         if value is None:
             value = self._val
         self.pv.put(value, callback=self.__onComplete)
-        time.sleep(0.001)
-        poll()
+        poll(0.001, 0.5)
 
 class Counter(Saveable):
     """simple scan counter object --
@@ -262,8 +261,7 @@ class MultiMcaCounter(DeviceCounter):
                     pvname = '%s%s.R%i%s' % (prefix, mca, i, suf)
                     pvs[pvname] = get_pv(pvname)
 
-        poll()
-        time.sleep(0.001)
+        poll(0.001, 1.0)
 
         for i in range(nrois):
             should_break = False
@@ -559,9 +557,9 @@ class Xspress3Trigger(Trigger):
         if value is None:
             value = self._val
         self._erase.put(1, wait=True)
-        time.sleep(0.02)
+        poll(0.01, 0.5)
         self._start.put(value, callback=self.__onComplete)
-        time.sleep(0.02)
+        poll(0.01, 0.5)
 
 
 class Xspress3Detector(DetectorMixin):
@@ -627,12 +625,14 @@ class Xspress3Detector(DetectorMixin):
         self.counters = self._counter.counters
         self.extra_pvs = self._counter.extra_pvs
 
-        if (self.dwelltime is not None and
-            isinstance(self.dwelltime_pv, PV)):
-            self.dwelltime_pv.put(self.dwelltime)
+        dtime = 0.5
+        if self.dwelltime is not None:
+            dtime = self.dwelltime
+        self.dwelltime_pv.put(dtime)
 
         caput("%sERASE"   % (self.prefix), 1)
-        caput("%sAcquire"   % (self.prefix), 0)
+        caput("%sAcquire" % (self.prefix), 0)
+        poll(0.05, 0.5)
         for i in range(1, self.nmcas+1):
             card = "%sC%i" % (self.prefix, i)
             caput("%s_PluginControlValExtraROI" % (card), 0)
@@ -642,13 +642,11 @@ class Xspress3Detector(DetectorMixin):
         caput("%sNumImages"   % (self.prefix), 1)   # 1 Image
         caput("%sCTRL_MCA_ROI"  % (self.prefix), 1)
         caput("%sCTRL_DTC"      % (self.prefix), self.use_dtc)
-        time.sleep(0.25)
         caput("%sUPDATE"        % (self.prefix), 1)
-        time.sleep(0.25)
-
-        #
-        caput("%sAcquireTime" % (self.prefix), 0.5)
-        caput("%sAcquire" % (self.prefix), 1, wait=True, timeout=5.0)
+        poll(0.05, 0.5)
+        # make sure one put-wait on Acquire completes
+        caput("%sAcquire" % (self.prefix), 1, wait=True,
+              timeout=3.0+dtime*10.0)
 
 
 class Xspress3Counter(DeviceCounter):
@@ -715,7 +713,7 @@ class Xspress3Counter(DeviceCounter):
                 caput('%s_MCA_ROI%i_LLM' % (pref, jroi), 1)
                 caput('%s_MCA_ROI%i_HLM' % (pref, jroi), 4095)
                 caput('%s_ROI%i:ValueSum_RBV.DESC' % (pref, jroi), 'unused')
-                time.sleep(0.05)
+            poll(0.05, 1.0)
         iroi = 0
         for sname, dat in roidata.items():
             found, label, lo, hi = dat
