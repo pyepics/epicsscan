@@ -273,14 +273,16 @@ class ScanFrame(wx.Frame):
             self.ini_epics_thread.start()
 
         if (self.epics_status == 1 and self.larch_status == 1):
-            time.sleep(0.05)
+            time.sleep(0.2)
             self.ini_larch_thread.join()
             self.ini_epics_thread.join()
             for span in self.scanpanels.values():
                 span.initialize_positions()
             self.inittimer.Stop()
-            wx.CallAfter(self.onShowPlot)
-            wx.CallAfter(self.onEditMacro)
+            
+            self.onEditMacro()
+            self.onShowPlot()
+            # wx.CallAfter(self.onShowPlot)
 
             self.statusbar.SetStatusText('', 0)
             self.statusbar.SetStatusText('Ready', 1)
