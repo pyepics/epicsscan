@@ -97,7 +97,7 @@ class ScanViewerFrame(wx.Frame):
             self.total_npts = 1
             self.scantimer = wx.Timer(self)
             self.Bind(wx.EVT_TIMER, self.onScanTimer, self.scantimer)
-            self.scantimer.Start(250)
+            self.scantimer.Start(300)
 
         self.Show()
         self.SetStatusText('ready')
@@ -116,7 +116,9 @@ class ScanViewerFrame(wx.Frame):
             logging.exception("No Scan at ScanTime")
 
         try:
-            npts = len(sdata[-1].data)
+            # npts = len(sdata[-1].data)
+            nptsall = [len(s.data) for s in sdata]
+            npts = min(nptsall)
         except:
             npts = 0
         if npts <= 0 or msg.lower().startswith('preparing'):
@@ -125,13 +127,14 @@ class ScanViewerFrame(wx.Frame):
         do_newplot = False
 
         if ((curfile != self.live_scanfile) or
-            (npts > 0 and npts < 10 and self.need_column_update)):
+            (npts > 0 and npts < 3 and self.need_column_update)):
             self.need_column_update = False
             self.scan_inprogress = True
             do_newplot = True
             self.live_scanfile = curfile
             self.title.SetLabel(curfile)
-            self.set_column_names(sdata)
+            if len(sdata)>1:
+                self.set_column_names(sdata)
 
         elif msg.lower().startswith('scan complete') and self.scan_inprogress:
             self.scan_inprogress = False
@@ -150,7 +153,7 @@ class ScanViewerFrame(wx.Frame):
             setattr(self.lgroup, fix_varname(row.name), np.array(dat))
 
         if ((npts > 1 and npts != self.live_cpt)  or
-            (time.time() - self.last_column_update) > 10.0):
+            (time.time() - self.last_column_update) > 30.0):
             if do_newplot:
                 self.force_newplot = True
             self.onPlot(npts=npts)
@@ -160,10 +163,14 @@ class ScanViewerFrame(wx.Frame):
 
     def set_column_names(self, sdata):
         """set column names from values read from scandata table"""
+        if len(sdata) < 1:
+            return
         self.lgroup.array_units = [fix_varname(s.units) for s in sdata]
         self.total_npts = self.get_info('scan_total_points', as_int=True)
         self.live_cpt = -1
         xcols, ycols, y2cols = [], [], []
+        # print("SET COLUMN NAMES")
+        # print([s.name for s in sdata])
         for s in sdata:
             nam = fix_varname(s.name)
             ycols.append(nam)
@@ -183,8 +190,11 @@ class ScanViewerFrame(wx.Frame):
                 if i == 0 and j == 0:
                     idef, cols = 1, ycols
                 self.yarr[i][j].SetItems(cols)
+                # print(i, j, yold, yold in cols)
                 iy = cols.index(yold) if yold in cols else idef
                 self.yarr[i][j].SetSelection(iy)
+        time.sleep(0.75)
+
 
     def createMainPanel(self):
         mainpanel = wx.Panel(self)
@@ -278,7 +288,9 @@ class ScanViewerFrame(wx.Frame):
         ix = self.xarr.GetSelection()
         x  = self.xarr.GetStringSelection()
         xlabel = x
-        popts = {'labelfontsize': 8, 'xlabel': x}
+        popts = {'labelfontsize': 8, 'xlabel': x,
+                 'marker':'o', 'markersize':4}
+
         try:
             xunits = lgroup.array_units[ix]
             xlabel = '%s (%s)' % (xlabel, xunits)
@@ -402,6 +414,8 @@ class ScanViewerFrame(wx.Frame):
         add_menu(self, fmenu, "Preview", "Print Preview",       self.onPrintPreview)
         #
 
+        add_menu(self, pmenu, "Force Replot\tCtrl+F", "Replot", self.onForceReplot)
+
         add_menu(self, pmenu, "Configure\tCtrl+K",
                  "Configure Plot", self.onConfigurePlot)
         add_menu(self, pmenu, "Unzoom\tCtrl+Z", "Unzoom Plot", self.unzoom)
@@ -413,6 +427,10 @@ class ScanViewerFrame(wx.Frame):
 
         self.menubar.Append(pmenu, "Plot Options")
         self.SetMenuBar(self.menubar)
+
+    def onForceReplot(self, evt=None):
+        self.force_newplot = True
+        self.onPlot()
 
     def onClipboard(self, evt=None):
         self.plotpanel.canvas.Copy_to_Clipboard(evt)
