@@ -485,7 +485,8 @@ class ScanDB(object):
 
     ### scan data
     def get_scandata(self, **kws):
-        return self.getall('scandata', orderby='id', **kws)
+        return self.select('scandata', orderby='id', **kws)
+        # return self.getall('scandata', orderby='id', **kws)
 
     def add_scandata(self, name, value, notes='', pvname='', **kws):
         cls, table = self.get_table('scandata')
