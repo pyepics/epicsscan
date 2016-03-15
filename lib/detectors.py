@@ -74,6 +74,10 @@ Example usage:
         self.pv.put(value, callback=self.__onComplete)
         poll(0.001, 0.5)
 
+    def abort(self, value=0):
+        self.pv.put(value, wait=False)
+
+
 class Counter(Saveable):
     """simple scan counter object --
     a value that will be counted at each point in the scan"""
@@ -561,6 +565,8 @@ class Xspress3Trigger(Trigger):
         self._start.put(value, callback=self.__onComplete)
         poll(0.01, 0.5)
 
+    def abort(self, value=0):
+        self._start.put(0, wait=False)
 
 class Xspress3Detector(DetectorMixin):
     """
