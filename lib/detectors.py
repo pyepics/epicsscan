@@ -567,6 +567,9 @@ class Xspress3Trigger(Trigger):
 
     def abort(self, value=0):
         self._start.put(0, wait=False)
+        time.sleep(.05)
+        self._erase.put(1, wait=False)
+        time.sleep(.05)
 
 class Xspress3Detector(DetectorMixin):
     """
