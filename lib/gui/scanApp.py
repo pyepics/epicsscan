@@ -121,7 +121,7 @@ def compare_scans(scan1, scan2, verbose=False):
     for comp in REQ_COMPS:
         try:
             if not equal(scan1[comp], scan2[comp]):
-                print scan1[comp], scan2[comp]
+                # print scan1[comp], scan2[comp]
                 return False
         except:
             return False
@@ -130,8 +130,7 @@ def compare_scans(scan1, scan2, verbose=False):
         if comp in scan1:
             try:
                 if not equal(scan1[comp], scan2[comp]):
-                    print scan1[comp], scan2[comp]
-
+                    # print scan1[comp], scan2[comp]
                     return False
             except:
                 return False
@@ -148,7 +147,7 @@ class ScanFrame(wx.Frame):
         wx.Frame.__init__(self, None, -1, style=FRAMESTYLE, **kws)
 
         self.pvlist = {}
-
+        self.SetSize((775, 625))
         self.subframes = {}
         self._larch = None
         self.epics_status = 0
@@ -183,25 +182,25 @@ class ScanFrame(wx.Frame):
 
     def createMainPanel(self):
         self.SetTitle("Epics Scans")
-        self.SetSize((750, 600))
+        self.SetSize((750, 750))
         self.SetFont(Font(10))
 
         sizer = wx.BoxSizer(wx.VERTICAL)
 
         self.nb = flat_nb.FlatNotebook(self, wx.ID_ANY, agwStyle=FNB_STYLE)
-        self.nb.SetSize((750, 450))
+        self.nb.SetSize((750, 600))
         self.nb.SetBackgroundColour('#FCFCFA')
         self.SetBackgroundColour('#F0F0E8')
 
         self.scanpanels = {}
         self.scanpanels_nid = {}
         inb  = 0
-        for name, creator in (('Linear',  LinearScanPanel),
-                              ('Slew',    SlewScanPanel),
-                              # ('Mesh',    MeshScanPanel),
-                              ('XAFS',    XAFSScanPanel)):
+        for name, creator in (('XRF Maps',  SlewScanPanel),
+                              ('XAFS Scans',    XAFSScanPanel),
+                              ('Line Scans',  LinearScanPanel),
+                              ):
             span = creator(self, scandb=self.scandb, pvlist=self.pvlist)
-            self.nb.AddPage(span, "%s Scan" % name, True)
+            self.nb.AddPage(span, name, True)
             nlow = name.lower()
             self.scanpanels[nlow] =  span
             self.scanpanels_nid[nlow] =  inb
@@ -212,55 +211,21 @@ class ScanFrame(wx.Frame):
         sizer.Add(wx.StaticLine(self, size=(675, 3),
                                 style=wx.LI_HORIZONTAL), 0, wx.EXPAND)
 
-        # bottom panel
-        bpanel = wx.Panel(self)
-        bsizer = wx.GridBagSizer(3, 5)
-
-        self.nscans = FloatCtrl(bpanel, precision=0, value=1,
-                                minval=1, maxval=10000, size=(45, -1),
-                                action=self.onSetNScans)
-
-        self.filename = wx.TextCtrl(bpanel, -1,
-                                    self.scandb.get_info('filename', default=''))
-        self.filename.SetMinSize((400, 25))
-
-        self.user_comms = wx.TextCtrl(bpanel, -1, "", style=wx.TE_MULTILINE)
-        self.user_comms.SetMinSize((400, 75))
-
-        self.msg1  = SimpleText(bpanel, "    ", size=(200, -1))
-        self.msg2  = SimpleText(bpanel, "    ", size=(200, -1))
-        self.msg3  = SimpleText(bpanel, "    ", size=(200, -1))
-
-
-        bsizer.Add(SimpleText(bpanel, "Number of Scans:"), (0, 0), (1, 1), LCEN)
-        bsizer.Add(SimpleText(bpanel, "File Name:"),       (1, 0), (1, 1), LCEN)
-        bsizer.Add(SimpleText(bpanel, "Comments:"),        (2, 0), (1, 1), LCEN)
-        bsizer.Add(self.nscans,     (0, 1), (1, 1), LCEN, 2)
-        bsizer.Add(self.filename,   (1, 1), (1, 2), LCEN, 2)
-        bsizer.Add(self.user_comms, (2, 1), (1, 2), LCEN, 2)
-        bsizer.Add(self.msg1,       (0, 4), (1, 1), LCEN, 2)
-        bsizer.Add(self.msg2,       (1, 4), (1, 1), LCEN, 2)
-        bsizer.Add(self.msg3,       (2, 4), (1, 1), LCEN, 2)
-
         btnsizer = wx.BoxSizer(wx.HORIZONTAL)
-        btnpanel = wx.Panel(bpanel)
+        btnpanel = wx.Panel(self)
         for ibtn, label in enumerate(("Start Scan", "Abort Scan",
-                                      "Pause Scan", "Resume Scan")):
+                                      "Pause Scan", "Resume Scan", "Debug Scan")):
             btn = add_button(btnpanel, label, size=(120, -1),
                              action=Closure(self.onCtrlScan, cmd=label))
             btnsizer.Add(btn, 0, CEN, 8)
         pack(btnpanel, btnsizer)
 
-        ir = 3
-        bsizer.Add(btnpanel,  (3, 0), (1, 4), wx.ALIGN_LEFT|wx.ALL, 1)
-
-        bpanel.SetSizer(bsizer)
-        bsizer.Fit(bpanel)
-        sizer.Add(bpanel, 0, wx.ALIGN_LEFT|wx.ALL, 3)
+        sizer.Add(btnpanel, 0, wx.ALIGN_LEFT|wx.ALL, 3)
         self.SetSizer(sizer)
         sizer.Fit(self)
+        self.nb.SetSize((750, 675))
+        self.SetSize((775, 700))
         self._icon = None
-
 
     def onInitTimer(self, evt=None):
         # print( 'on init ', self.larch_status, self.epics_status, time.ctime())
@@ -303,7 +268,7 @@ class ScanFrame(wx.Frame):
             self._icon = wx.Icon(fico, wx.BITMAP_TYPE_ICO)
             self.SetIcon(self._icon)
         except:
-            print "No icon Set"
+            # print "No icon Set"
             pass
 
     @EpicsFunction
@@ -323,8 +288,8 @@ class ScanFrame(wx.Frame):
 
         scan = self.nb.GetCurrentPage().generate_scan_positions()
         sdb = self.scandb
-        fname = self.filename.GetValue()
-        scan['filename'] = fname
+        # fname = self.filename.GetValue()
+        # scan['filename'] = fname
 
         scan['pos_settle_time'] = float(sdb.get_info('pos_settle_time', default=0.))
         scan['det_settle_time'] = float(sdb.get_info('det_settle_time', default=0.))
@@ -366,17 +331,15 @@ class ScanFrame(wx.Frame):
             self.last_scanname = scanname
         return self.last_scanname, scan
 
-    def onSetNScans(self,  value=1, **kws):
-        wid = getattr(self, 'nscans', None)
-        if wid is not None:
-            nscans   = int(self.nscans.GetValue())
-            self.scandb.set_info('nscans', nscans)
-
     def onStartScan(self, evt=None):
-        sname, dat = self.generate_scan(force_save=False)
-        fname    = self.filename.GetValue()
-        nscans   = int(self.nscans.GetValue())
-        comments = self.user_comms.GetValue()
+        sname, scan = self.generate_scan(force_save=False)
+        fname  = scan.get('filename', 'scan.001')
+        nscans = int(scan.get('nscans', 1))
+        comments = scan.get('comments', 'no comments')
+
+        # fname    = self.filename.GetValue()
+        # nscans   = int(self.nscans.GetValue())
+        # comments = self.user_comms.GetValue()
 
         self.scandb.set_info('request_abort', 0)
         self.scandb.set_info('request_pause', 0)
@@ -385,27 +348,47 @@ class ScanFrame(wx.Frame):
         fmt = "do_%s('%s', filename='%s', nscans=%i, comments='''%s''')"
 
         command = 'scan'
-        if dat['type'].lower() == 'slew':
+        if scan['type'].lower() == 'slew':
             command = 'slewscan'
             nscans = 1
 
         command = fmt % (command, sname, fname, nscans, comments)
-        self.scandb.add_command(command)
-        self.statusbar.SetStatusText('Waiting....', 0)
-        self.scan_started = False
-        self.scantimer.Start(100)
+        print("would do command: ", command)
+        # self.scandb.add_command(command)
+        # self.statusbar.SetStatusText('Waiting....', 0)
+
+        # self.scan_started = False
+        # self.scantimer.Start(100)
 
     def onDebugScan(self, evt=None):
-        scanname, dat = self.generate_scan()
-        fname = self.filename.GetValue()
-        #for key, val in dat.items():
-        #    print ' {} = {} '.format(key, val)
+        sname, scan = self.generate_scan(force_save=False)
+        fname  = scan.get('filename', 'scan.001')
+        nscans = int(scan.get('nscans', 1))
+        comments = scan.get('comments', 'no comments')
 
-        sname = fix_filename('%s.ini' % scanname)
-        fout = open(sname, 'w')
-        fout.write("%s\n" % json.dumps(dat))
+        # fname    = self.filename.GetValue()
+        # nscans   = int(self.nscans.GetValue())
+        # comments = self.user_comms.GetValue()
+
+        self.scandb.set_info('request_abort', 0)
+        self.scandb.set_info('request_pause', 0)
+        self.scandb.set_info('nscans', nscans)
+
+        fmt = "do_%s('%s', filename='%s', nscans=%i, comments='''%s''')"
+
+        command = 'scan'
+        if scan['type'].lower() == 'slew':
+            command = 'slewscan'
+            nscans = 1
+
+        command = fmt % (command, sname, fname, nscans, comments)
+        print("would do command: ", command)
+        dfname = fix_filename('%s.ini' % sname)
+        fout = open(dfname, 'w')
+        fout.write("%s\n" % json.dumps(scan))
         fout.close()
-        print 'wrote %s' % sname
+        # print 'wrote %s' % dfname
+
 
     def onScanTimer(self, evt=None):
         try:
@@ -605,9 +588,9 @@ class ScanFrame(wx.Frame):
                                  style=wx.YES_NO|wx.NO_DEFAULT|wx.ICON_QUESTION)
 
                 if (_ok == wx.ID_YES):
-                    print 'Deleting Scan Def ', sname
+                    # print 'Deleting Scan Def ', sname
                     self.scandb.del_scandef(sname)
-                    print 'Deleted Scan Def ', sname
+                    # print 'Deleted Scan Def ', sname
                 else:
                     sname = ''
             if len(sname) > 0:

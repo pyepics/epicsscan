@@ -15,7 +15,7 @@ import numpy as np
 import epics
 from epics.wx import EpicsFunction, PVText, PVStaticText
 
-from .gui_utils import SimpleText, FloatCtrl, Closure
+from .gui_utils import SimpleText, FloatCtrl, Closure, HyperText
 from .gui_utils import pack, add_choice, hms
 
 from .. import etok, ktoe, XAFS_Scan, StepScan, Positioner, Counter
@@ -24,6 +24,10 @@ from ..utils import normalize_pvname, atGSECARS
 CEN = wx.ALIGN_CENTER|wx.ALIGN_CENTER_VERTICAL
 LEFT = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL
 RIGHT = wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL
+LCEN  = wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_LEFT
+RCEN  = wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT
+CCEN  = wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_CENTER
+
 LINWID = 700
 
 ELEM_LIST = ('H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na',
@@ -79,11 +83,64 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         return wx.StaticLine(self, size=size,
                              style=wx.LI_HORIZONTAL|wx.GROW)
 
-    def layout(self):
+    def onSetNScans(self,  value=1, **kws):
+        wid = getattr(self, 'nscans', None)
+        if wid is not None:
+            nscans   = int(self.nscans.GetValue())
+            self.scandb.set_info('nscans', nscans)
+
+    def finish_layout(self, row, with_nscans=True):
         self.bgcol = self.GetBackgroundColour()
+
+        # add bottom panel
+        bpanel = wx.Panel(self)
+        bsizer = wx.GridBagSizer(3, 3)
+        self.nscans = None
+        if with_nscans:
+            self.nscans = FloatCtrl(bpanel, precision=0, value=1,
+                                    minval=1, maxval=10000, size=(45, -1),
+                                    action=self.onSetNScans)
+
+        self.filename = wx.TextCtrl(bpanel, -1,
+                                    self.scandb.get_info('filename', default=''))
+        self.filename.SetMinSize((400, 25))
+        self.user_comms = wx.TextCtrl(bpanel, -1, "", style=wx.TE_MULTILINE)
+        self.user_comms.SetMinSize((400, 75))
+
+        irow = 0
+        if with_nscans:
+            bsizer.Add(SimpleText(bpanel, "Number of Scans:"), (irow, 0), (1, 1), LCEN)
+            bsizer.Add(self.nscans,     (irow, 1), (1, 1), LCEN, 2)
+            irow += 1
+
+        bsizer.Add(SimpleText(bpanel, "File Name:"), (irow, 0),   (1, 1), LCEN)
+        bsizer.Add(self.filename,                    (irow, 1),   (1, 2), LCEN, 2)
+        bsizer.Add(SimpleText(bpanel, "Comments:"),  (irow+1, 0), (1, 1), LCEN)
+        bsizer.Add(self.user_comms,                  (irow+1, 1), (1, 2), LCEN, 2)
+
+        bpanel.SetSizer(bsizer)
+        bsizer.Fit(bpanel)
+
+        self.scan_message = SimpleText(self, " ", style=LEFT,
+                                       font=self.Font12, colour='#991111')
+
+        self.sizer.Add(self.scan_message, (row, 0),   (1, 8), LEFT, 3)
+        self.sizer.Add(self.hline(),      (row+1, 0), (1, 8), wx.ALIGN_CENTER, 2)
+        self.sizer.Add(bpanel,            (row+2, 0), (1, 8), wx.ALIGN_LEFT|wx.ALL, 2)
+
         pack(self, self.sizer)
         self.SetupScrolling()
         self._initialized = True
+
+    def set_scan_message(self, text, timeout=30):
+        self.scan_message.SetLabel(text)
+        self.scanmsg_timer = wx.Timer(self)
+        self.Bind(wx.EVT_TIMER, self.remove_scan_message, self.scanmsg_timer)
+        self.scanmsg_timer.Start(timeout*1000.0)
+
+    def remove_scan_message(self, evt=None):
+        self.scan_message.SetLabel(" ")
+        self.scanmsg_timer.Stop()
 
     def setStepNpts(self, wids, label, fix_npts=False):
         "set step / npts for start/stop/step/npts list of widgets"
@@ -307,7 +364,7 @@ class LinearScanPanel(GenericScanPanel):
             role  = wx.StaticText(self, -1, label=lab)
             units = wx.StaticText(self, -1, label='', size=(40, -1),
                                   style=wx.ALIGN_CENTER)
-            cur   = PVStaticText(self, pv=None, size=(100, -1), 
+            cur   = PVStaticText(self, pv=None, size=(100, -1),
                                  style=wx.ALIGN_CENTER)
             start, stop, step, npts = self.StartStopStepNpts(i, with_npts=(i==0))
             self.pos_settings.append((pos, units, cur, start, stop, step, npts))
@@ -326,9 +383,7 @@ class LinearScanPanel(GenericScanPanel):
             sizer.Add(step,  (ir, 6), (1, 1), wx.ALL, 2)
             sizer.Add(npts,  (ir, 7), (1, 1), wx.ALL, 2)
 
-        ir += 1
-        sizer.Add(self.hline(), (ir, 0), (1, 8), wx.ALIGN_CENTER)
-        self.layout()
+        self.finish_layout(ir+1, with_nscans=True)
         self.update_position_from_pv(0)
 
     def load_scandict(self, scan):
@@ -406,7 +461,14 @@ class LinearScanPanel(GenericScanPanel):
         s = {'type': 'linear',
              'dwelltime':  float(self.dwelltime.GetValue()),
              'scantime': self.scantime,
-             'positioners': []}
+             'positioners': [],
+             'filename': self.filename.GetValue(),
+             'comments': self.user_comms.GetValue(),
+             'nscans': 1
+             }
+
+        if self.nscans is not None:
+            s['nscans'] = int(self.nscans.GetValue())
 
         is_relative =  self.absrel.GetSelection()
         for i, wids in enumerate(self.pos_settings):
@@ -509,12 +571,7 @@ class XAFSScanPanel(GenericScanPanel):
         sizer.Add(SimpleText(self, "Max Time:"),  (ir, 4,), (1, 1), CEN, 3)
         sizer.Add(self.kwtimemax, (ir, 5), (1, 1), LEFT, 2)
 
-        self.xafs_message = SimpleText(self, " ", style=LEFT,
-                                       font=self.Font12, colour='#991111')
-        ir += 1
-        sizer.Add(self.xafs_message,  (ir, 0), (1, 6), LEFT, 3)
-
-        self.layout()
+        self.finish_layout(ir+1, with_nscans=True)
         self.inittimer = wx.Timer(self)
         self.initcounter = 0
         self.Bind(wx.EVT_TIMER, self.display_energy, self.inittimer)
@@ -532,7 +589,7 @@ class XAFSScanPanel(GenericScanPanel):
             self.elemchoice.SetStringSelection(elem)
         self.e0.SetValue(scan['e0'])
         self.absrel_value = {True:1, False:0}[scan['is_relative']]
-        self.absrel.SetSelection(self.absrel_value) 
+        self.absrel.SetSelection(self.absrel_value)
         nregs = len(scan['regions'])
         self.nregs_wid.SetValue(nregs)
         for ireg, reg in enumerate(self.reg_settings):
@@ -653,7 +710,7 @@ class XAFSScanPanel(GenericScanPanel):
         s.Add(self.edgechoice,                 0, LEFT, 3)
         s.Add(SimpleText(p, "   Current Energy:", size=(170, -1),
                          style=wx.ALIGN_LEFT), 0, CEN, 2)
-        self.energy_pv = PVStaticText(p, pv=None, size=(100, -1), 
+        self.energy_pv = PVStaticText(p, pv=None, size=(100, -1),
                                       style=wx.ALIGN_CENTER)
         s.Add(self.energy_pv, 0, CEN, 2)
         pack(p, s)
@@ -769,16 +826,7 @@ class XAFSScanPanel(GenericScanPanel):
         if self.larch is not None:
             e0val = self.larch.run("xray_edge('%s', '%s')" % (elem, edge))
             self.e0.SetValue(e0val[0])
-            self.xafs_message.SetLabel("  Warning: Check ROIs for '%s %sa' (use Ctrl-R)" % (elem, edge))
-            self.warn_timer = wx.Timer(self)
-            self.Bind(wx.EVT_TIMER, self.remove_xafs_warning, self.warn_timer)
-            self.warn_timer.Start(30000)
-
-    def remove_xafs_warning(self, evt=None):
-        self.xafs_message.SetLabel(" ")
-        self.warn_timer.Stop()
-
-
+            self.set_scan_message("Warning: Check ROIs for '%s %sa' (use Ctrl-R)" % (elem, edge))
 
     def generate_scan_positions(self):
         "generate xafs scan"
@@ -795,7 +843,15 @@ class XAFSScanPanel(GenericScanPanel):
              'energy_read': enpos.readpv,
              'extra_pvs': json.loads(enpos.extrapvs),
              'scantime': self.scantime,
-             'regions': []}
+             'regions': [],
+             'filename': self.filename.GetValue(),
+             'comments': self.user_comms.GetValue(),
+             'nscans': 1
+             }
+
+        if self.nscans is not None:
+            s['nscans'] = int(self.nscans.GetValue())
+
         for index, wids in enumerate(self.reg_settings):
             start, stop, step, npts, dtime, units =  wids
             if start.Enabled:
@@ -833,7 +889,7 @@ class MeshScanPanel(GenericScanPanel):
                              action=Closure(self.onPos, index=i))
             pos.SetSelection(i)
             units = wx.StaticText(self, -1, size=(40, -1), label='')
-            cur   = PVStaticText(self, pv=None, size=(100, -1), 
+            cur   = PVStaticText(self, pv=None, size=(100, -1),
                                  style=wx.ALIGN_CENTER)
             start, stop, step, npts = self.StartStopStepNpts(i,
                                                     initvals=(-1, 1, 0.1, 11))
@@ -849,9 +905,7 @@ class MeshScanPanel(GenericScanPanel):
             sizer.Add(step,  (ir, 6), (1, 1), wx.ALL, 2)
             sizer.Add(npts,  (ir, 7), (1, 1), wx.ALL, 2)
 
-        ir += 1
-        sizer.Add(self.hline(), (ir, 0), (1, 8), wx.ALIGN_CENTER)
-        self.layout()
+        self.finish_layout(ir+1, with_nscans=True)
 
     def load_scandict(self, scan):
         """load scan for mesh scan from scan dictionary
@@ -906,7 +960,10 @@ class MeshScanPanel(GenericScanPanel):
              'dwelltime':  float(self.dwelltime.GetValue()),
              'scantime': self.scantime,
              'inner': [],
-             'outer': []}
+             'outer': [],
+             'filename': self.filename.GetValue(),
+             'comments': self.user_comms.GetValue(),
+             'nscans': 1    }
 
         is_relative =  self.absrel.GetSelection()
         for i, wids in enumerate(self.pos_settings):
@@ -962,9 +1019,9 @@ class SlewScanPanel(GenericScanPanel):
             pos = add_choice(self, pchoices, size=(100, -1),
                              action=Closure(self.onPos, index=i))
             pos.SetSelection(i)
-            units = wx.StaticText(self, -1, size=(40, -1), label='', 
+            units = wx.StaticText(self, -1, size=(40, -1), label='',
                                   style=wx.ALIGN_CENTER)
-            cur   = PVStaticText(self, pv=None, size=(100, -1), 
+            cur   = PVStaticText(self, pv=None, size=(100, -1),
                                  style=wx.ALIGN_CENTER)
             start, stop, step, npts = self.StartStopStepNpts(i,
                                             initvals=(-0.25, 0.25, 0.002, 251))
@@ -980,9 +1037,34 @@ class SlewScanPanel(GenericScanPanel):
             sizer.Add(npts,  (ir, 7), (1, 1), wx.ALL, 2)
 
         ir += 1
-        sizer.Add(self.hline(), (ir, 0), (1, 8), wx.ALIGN_CENTER)
+        sizer.Add(SimpleText(self, 'Select from Common Square Maps:'),
+                  (ir, 0), (1, 5), wx.ALL, 2)
 
-        self.layout()
+        ir += 1
+        icol = 1
+        for mapname in ('50 micron', '100 micron', '200 micron',
+                        '400 micron', '300 micron', '500 micron',
+                        '1 mm', '2 mm'):
+            link = HyperText(self, mapname, action=Closure(self.onDefinedMap,
+                                                           label=mapname))
+
+            sizer.Add(link, (ir, icol), (1, 2), wx.ALL, 2)
+            icol += 2
+            if icol > 7:
+                ir +=1
+                icol = 1
+
+        self.finish_layout(ir+1, with_nscans=False)
+
+    def onDefinedMap(self, label=None, event=None):
+        size, units = label.split()
+        size = int(size)
+        if units == 'micron': size *= 0.001
+        halfsize = size/2.0
+        for irow, name in ((0, 'inner'), (1, 'outer')):
+            pos, units, cur, start, stop, step, npts = self.pos_settings[irow]
+            start.SetValue(-halfsize)
+            stop.SetValue(halfsize)
 
     def load_scandict(self, scan):
         """load scan for mesh scan from scan dictionary
@@ -1065,7 +1147,11 @@ class SlewScanPanel(GenericScanPanel):
              'dimension': 1+self.dimchoice.GetSelection(),
              'scantime': self.scantime,
              'inner': [],
-             'outer': []}
+             'outer': [],
+             'filename': self.filename.GetValue(),
+             'comments': self.user_comms.GetValue(),
+             'nscans': 1    }
+
 
         for i, wids in enumerate(self.pos_settings):
             pos, u, cur, start, stop, dx, wnpts = wids
