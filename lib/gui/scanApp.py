@@ -216,7 +216,7 @@ class ScanFrame(wx.Frame):
         bpanel = wx.Panel(self)
         bsizer = wx.GridBagSizer(3, 5)
 
-        self.nscans = FloatCtrl(bpanel, precision=0, value=1, 
+        self.nscans = FloatCtrl(bpanel, precision=0, value=1,
                                 minval=1, maxval=10000, size=(45, -1),
                                 action=self.onSetNScans)
 
@@ -263,7 +263,7 @@ class ScanFrame(wx.Frame):
 
 
     def onInitTimer(self, evt=None):
-        # print 'on init ', self.larch_status, self.epics_status, time.ctime()
+        # print( 'on init ', self.larch_status, self.epics_status, time.ctime())
         if self.larch_status == 0:
             self.ini_larch_thread = Thread(target=self.init_larch)
             self.ini_larch_thread.start()
@@ -273,16 +273,15 @@ class ScanFrame(wx.Frame):
             self.ini_epics_thread.start()
 
         if (self.epics_status == 1 and self.larch_status == 1):
-            time.sleep(0.2)
+            time.sleep(0.1)
             self.ini_larch_thread.join()
             self.ini_epics_thread.join()
             for span in self.scanpanels.values():
                 span.initialize_positions()
             self.inittimer.Stop()
-            
-            self.onEditMacro()
-            self.onShowPlot()
-            # wx.CallAfter(self.onShowPlot)
+
+            self.subframes['macro'] = MacroFrame(self, _larch=self._larch)
+            self.subframes['plot'] = ScanViewerFrame(self, _larch=self._larch)
 
             self.statusbar.SetStatusText('', 0)
             self.statusbar.SetStatusText('Ready', 1)
@@ -292,14 +291,14 @@ class ScanFrame(wx.Frame):
         self._larch = LarchScanDBServer(self.scandb)
         self._larch.set_symbol('_sys.wx.wxapp', wx.GetApp())
         self._larch.set_symbol('_sys.wx.parent', self)
-        
+
         for span in self.scanpanels.values():
             span.larch = self._larch
         self.statusbar.SetStatusText('Larch Ready')
         self.larch_status = 1
 
         try:
-            fico = os.path.join(larch_site_config.larchdir, 
+            fico = os.path.join(larch_site_config.larchdir,
                                 'icons', ICON_FILE)
             self._icon = wx.Icon(fico, wx.BITMAP_TYPE_ICO)
             self.SetIcon(self._icon)
@@ -307,15 +306,12 @@ class ScanFrame(wx.Frame):
             print "No icon Set"
             pass
 
-
     @EpicsFunction
     def connect_epics(self):
-        t0 = time.time()
         for pv in self.scandb.getall('pvs'):
             name = normalize_pvname(pv.name)
-            self.pvlist[name] = epics.PV(name)
+            self.pvlist[name] = epics.get_pv(name)
         self.epics_status = 1
-        time.sleep(0.05)
         self.statusbar.SetStatusText('Epics Ready')
 
     def generate_scan(self, scanname=None, debug=False, force_save=False):
@@ -375,7 +371,7 @@ class ScanFrame(wx.Frame):
         if wid is not None:
             nscans   = int(self.nscans.GetValue())
             self.scandb.set_info('nscans', nscans)
-        
+
     def onStartScan(self, evt=None):
         sname, dat = self.generate_scan(force_save=False)
         fname    = self.filename.GetValue()
@@ -479,7 +475,7 @@ class ScanFrame(wx.Frame):
 
         menu_dat['Positioners'] = (("Configure",
                                     "Setup Motors and Positioners", self.onEditPositioners),
-                                   ("Extra PVs", 
+                                   ("Extra PVs",
                                     "Setup Extra PVs to save with scan", self.onEditExtraPVs))
 
         menu_dat['Detectors'] = (("Configure",
@@ -576,7 +572,7 @@ class ScanFrame(wx.Frame):
         except:
             print("ScanApp: Could not set working directory to %s " % fullpath)
         print("ScanApp working folder: %s " % os.getcwd())
-        
+
     def onFolderSelect(self,evt):
         style = wx.DD_DIR_MUST_EXIST|wx.DD_DEFAULT_STYLE
 
