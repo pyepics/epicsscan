@@ -28,8 +28,12 @@ LCEN  = wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_LEFT
 RCEN  = wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT
 CCEN  = wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_CENTER
 
-LINWID = 700
 
+# Max number of points in scan
+MAX_NPTS = 4000
+
+
+LINWID = 700
 ELEM_LIST = ('H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na',
              'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca', 'Sc', 'Ti',
              'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn', 'Ga', 'Ge',
@@ -154,6 +158,7 @@ class GenericScanPanel(scrolled.ScrolledPanel):
                 npts = max(2, 1 + int(0.1 + abs(stop-start)/abs(step)))
             except ZeroDivisionError:
                 npts = 3
+        npts = min(npts, MAX_NPTS)
         wids[2].SetValue((stop-start)/(npts-1), act=False)
         if not fix_npts:
             try:
