@@ -335,11 +335,7 @@ class ScanFrame(wx.Frame):
         sname, scan = self.generate_scan(force_save=False)
         fname  = scan.get('filename', 'scan.001')
         nscans = int(scan.get('nscans', 1))
-        comments = scan.get('comments', 'no comments')
-
-        # fname    = self.filename.GetValue()
-        # nscans   = int(self.nscans.GetValue())
-        # comments = self.user_comms.GetValue()
+        comments = scan.get('comments', '')
 
         self.scandb.set_info('request_abort', 0)
         self.scandb.set_info('request_pause', 0)
@@ -353,22 +349,17 @@ class ScanFrame(wx.Frame):
             nscans = 1
 
         command = fmt % (command, sname, fname, nscans, comments)
-        print("would do command: ", command)
-        # self.scandb.add_command(command)
-        # self.statusbar.SetStatusText('Waiting....', 0)
+        self.scandb.add_command(command)
+        self.statusbar.SetStatusText('Waiting....', 0)
 
-        # self.scan_started = False
-        # self.scantimer.Start(100)
+        self.scan_started = False
+        self.scantimer.Start(100)
 
     def onDebugScan(self, evt=None):
         sname, scan = self.generate_scan(force_save=False)
         fname  = scan.get('filename', 'scan.001')
         nscans = int(scan.get('nscans', 1))
-        comments = scan.get('comments', 'no comments')
-
-        # fname    = self.filename.GetValue()
-        # nscans   = int(self.nscans.GetValue())
-        # comments = self.user_comms.GetValue()
+        comments = scan.get('comments', '')
 
         self.scandb.set_info('request_abort', 0)
         self.scandb.set_info('request_pause', 0)
