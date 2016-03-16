@@ -195,12 +195,13 @@ class ScanFrame(wx.Frame):
         self.scanpanels = {}
         self.scanpanels_nid = {}
         inb  = 0
-        for name, creator in (('XRF Maps',  SlewScanPanel),
-                              ('XAFS Scans',    XAFSScanPanel),
-                              ('Line Scans',  LinearScanPanel),
+        for name, creator in (
+                              ('Linear',  LinearScanPanel),
+                              ('Slew',  SlewScanPanel),
+                              ('XAFS',    XAFSScanPanel),
                               ):
             span = creator(self, scandb=self.scandb, pvlist=self.pvlist)
-            self.nb.AddPage(span, name, True)
+            self.nb.AddPage(span, '%s scans' % name, True)
             nlow = name.lower()
             self.scanpanels[nlow] =  span
             self.scanpanels_nid[nlow] =  inb
