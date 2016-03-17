@@ -113,7 +113,10 @@ class ScanDefPanel(wx.Panel):
         self.scandb = scandb
         dvstyle = wx.BORDER_THEME|dv.DV_VERT_RULES|dv.DV_ROW_LINES|dv.DV_SINGLE
         self.dvc = dv.DataViewCtrl(self, style=dvstyle)
-        self.ncols = 0
+        self.ncols = 4
+        self.show_dunder = True
+        self.name_filter = None
+
         self.model = ScanDefModel(self.get_data(),
                                   get_value=self.model_get_value,
                                   get_attr=self.model_get_attr,
@@ -139,6 +142,18 @@ class ScanDefPanel(wx.Panel):
         self.SetSizer(sizer)
         self.Fit()
 
+    def refresh(self):
+        self.model = None
+        time.sleep(0.002)
+        self.model = ScanDefModel(self.get_data(),
+                                  get_value=self.model_get_value,
+                                  get_attr=self.model_get_attr,
+                                  compare=self.model_compare)
+
+        self.dvc.AssociateModel(self.model)
+
+
+
     def make_titles(self):
         icol = 0
         for title, width in self.colLabels:
@@ -149,9 +164,30 @@ class ScanDefPanel(wx.Panel):
             icol += 1
 
     def _getscans(self, orderby='last_used_time'):
-        return self.scandb.select('scandefs',
-                                  type=self.scantype,
-                                  orderby=orderby)
+
+        if self.name_filter is  None or len(self.name_filter) < 1:
+            self.name_filter = ''
+
+        self.name_filter.replace('*', '').lower()
+
+        cls, table = self.scandb.get_table('scandefs')
+
+        q = table.select().where(table.c.type==self.scantype)
+
+        if self.name_filter not in (None, 'None', ''):
+            q = q.where(table.c.name.ilike('%%%s%%' % self.name_filter))
+
+        out = q.order_by(orderby).execute().fetchall()
+        if not self.show_dunder:
+            tmp = []
+            for row in out:
+                if row.name.startswith('__') and row.name.endswith('__'):
+                    pass
+                else:
+                    tmp.append(row)
+            out = tmp
+        return out
+
     def get_data(self):
         data = []
         for scan in self._getscans():
@@ -160,7 +196,10 @@ class ScanDefPanel(wx.Panel):
             npts  = sdat['positioners'][0][4]
             data.append([scan.name, axis, npts,
                          scan.modify_time, scan.last_used_time])
-        self.ncols = len(data[0])
+        try:
+            self.ncols = len(data[0])
+        except:
+            self.ncols = 5
         return data
 
     def model_get_value(self, row, col):
@@ -278,7 +317,12 @@ class MeshScanDefs(ScanDefPanel):
             npts  = int(sdat['outer'][4]) * int(sdat['inner'][4])
             data.append([scan.name, inner, outer, npts,
                          scan.modify_time, scan.last_used_time])
-        self.ncols = len(data[0])
+
+        try:
+            self.ncols = len(data[0])
+        except:
+            self.ncols = 6
+
         return data
 
 class SlewScanDefs(ScanDefPanel):
@@ -304,9 +348,12 @@ class SlewScanDefs(ScanDefPanel):
                 npts *= int(sdat['outer'][4])
             data.append([scan.name, inner, outer, npts,
                          scan.modify_time, scan.last_used_time])
-        self.ncols = len(data[0])
-        return data
+        try:
+            self.ncols = len(data[0])
+        except:
+            self.ncols = 6
 
+        return data
 
 class XAFSScanDefs(ScanDefPanel):
     colLabels = (('Scan Name',  200),
@@ -331,7 +378,11 @@ class XAFSScanDefs(ScanDefPanel):
                 npts += sdat['regions'][ireg][2]
             data.append([scan.name, e0, nreg, npts,
                          scan.modify_time, scan.last_used_time])
-        self.ncols = len(data[0])
+        try:
+            self.ncols = len(data[0])
+        except:
+            self.ncols = 6
+
         return data
 
 
@@ -355,6 +406,7 @@ class ScandefsFrame(wx.Frame) :
         panel = scrolled.ScrolledPanel(self)
         panel.SetBackgroundColour(self.colors.bg)
         self.nb = flat_nb.FlatNotebook(panel, wx.ID_ANY, agwStyle=FNB_STYLE)
+
         self.nb.SetBackgroundColour('#FAFCFA')
         self.SetBackgroundColour('#FAFCFA')
 
@@ -363,14 +415,36 @@ class ScandefsFrame(wx.Frame) :
                              colour=self.colors.title, style=LCEN),
                   0, LCEN, 5)
 
-        self.tables = {}
+        rsizer = wx.BoxSizer(wx.HORIZONTAL)
+
+        self.searchstring = wx.TextCtrl(panel, -1, '', size=(225, -1),
+                                        style=wx.TE_PROCESS_ENTER)
+        self.searchstring.Bind(wx.EVT_TEXT_ENTER, self.onSearch)
+
+        self.show_dunder = check(panel, default=True,
+                                 label='Show "__Date__" scans', size=(40, -1))
+        self.show_dunder.Bind(wx.EVT_CHECKBOX,self.onToggleDunder)
+
+        rsizer.Add(SimpleText(panel, "Search: ",
+                             font=Font(12), style=LCEN), 0, LCEN, 5)
+        rsizer.Add(self.searchstring, 1, LCEN, 2)
+
+        rsizer.Add(add_button(panel, label='Search', size=(70, -1),
+                              action=self.onSearch), 0, LCEN, 3)
+        rsizer.Add(add_button(panel, label='Clear',  size=(70, -1),
+                              action=self.onClearSearch), 0, LCEN, 3)
+
+        rsizer.Add(self.show_dunder, 1, LCEN, 6)
+        sizer.Add(rsizer)
+
+        self.tables = []
         self.nblabels = []
         creators = {'xafs': XAFSScanDefs,
                    'slew': SlewScanDefs,
                    'linear': LinearScanDefs}
         for stype, title in self.parent.notebooks:
             table = creators[stype](self, self.scandb)
-            self.tables[stype] = table
+            self.tables.append(table)
             self.nb.AddPage(table, title)
             self.nblabels.append((stype, table))
 
@@ -385,3 +459,19 @@ class ScandefsFrame(wx.Frame) :
         pack(self, mainsizer)
         self.Show()
         self.Raise()
+
+    def onSearch(self, event=None):
+        for tab in self.tables:
+            tab.name_filter = event.GetString().strip().lower()
+            tab.refresh()
+
+    def onClearSearch(self, event=None):
+        self.searchstring.SetValue('')
+        for tab in self.tables:
+            tab.name_filter = ''
+            tab.refresh()
+
+    def onToggleDunder(self,event):
+        for tab in self.tables:
+            tab.show_dunder = event.IsChecked()
+            tab.refresh()
