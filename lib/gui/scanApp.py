@@ -28,6 +28,7 @@ To Do:
    Edit Macros
 
 """
+from __future__ import print_function
 import os
 import sys
 import time
@@ -96,7 +97,7 @@ def compare_scans(scan1, scan2, verbose=False):
                  'max_time')
 
     def equal(this, other):
-        if verbose: print ' comp? ', this, other
+        if verbose: print(' comp? ', this, other)
         if isinstance(this, (str, unicode)):
             try:
                 this = str(this)
@@ -121,7 +122,6 @@ def compare_scans(scan1, scan2, verbose=False):
     for comp in REQ_COMPS:
         try:
             if not equal(scan1[comp], scan2[comp]):
-                # print scan1[comp], scan2[comp]
                 return False
         except:
             return False
@@ -130,7 +130,6 @@ def compare_scans(scan1, scan2, verbose=False):
         if comp in scan1:
             try:
                 if not equal(scan1[comp], scan2[comp]):
-                    # print scan1[comp], scan2[comp]
                     return False
             except:
                 return False
@@ -159,7 +158,7 @@ class ScanFrame(wx.Frame):
                  user=user, password=password, port=port, create=create)
 
 
-        wx.EVT_CLOSE(self, self.onClose)
+        self.Bind(wx.EVT_CLOSE, self.onClose)
 
         self.createMainPanel()
         self.createMenus()
@@ -192,20 +191,24 @@ class ScanFrame(wx.Frame):
         self.nb.SetBackgroundColour('#FCFCFA')
         self.SetBackgroundColour('#F0F0E8')
 
-        self.scanpanels = {}
+        self.scanpanels = []
+        self.scanpanel_types = []
         self.scanpanels_nid = {}
         inb  = 0
-        for name, creator in (
-                              ('Linear',  LinearScanPanel),
-                              ('Slew',  SlewScanPanel),
-                              ('XAFS',    XAFSScanPanel),
-                              ):
-            span = creator(self, scandb=self.scandb, pvlist=self.pvlist)
-            self.nb.AddPage(span, '%s scans' % name, True)
-            nlow = name.lower()
-            self.scanpanels[nlow] =  span
-            self.scanpanels_nid[nlow] =  inb
-            inb += 1
+        # Notebooks   scantype   title   panel
+        creators = {'slew': SlewScanPanel,
+                    'xafs': XAFSScanPanel,
+                    'linear': LinearScanPanel}
+        self.notebooks = (('slew', 'Map Scans'),
+                          ('xafs', 'XAFS Scans'),
+                          ('linear', 'Linear Scans'))
+
+        for stype, title in self.notebooks:
+            span = creators[stype](self, scandb=self.scandb,
+                                   pvlist=self.pvlist)
+            self.nb.AddPage(span, title, True)
+            self.scanpanels.append(span)
+            self.scanpanel_types.append(stype)
 
         self.nb.SetSelection(0)
         sizer.Add(self.nb, 1, wx.ALL|wx.EXPAND)
@@ -233,33 +236,36 @@ class ScanFrame(wx.Frame):
         if self.larch_status == 0:
             self.ini_larch_thread = Thread(target=self.init_larch)
             self.ini_larch_thread.start()
-
         if self.epics_status == 0:
-            self.ini_epics_thread = Thread(target=self.connect_epics)
-            self.ini_epics_thread.start()
+            self.epics_status = 1
+            # self.connect_epics()
+            # self.ini_epics_thread = Thread(target=self.connect_epics)
+            # self.ini_epics_thread.start()
 
         if (self.epics_status == 1 and self.larch_status == 1):
             time.sleep(0.1)
             self.ini_larch_thread.join()
-            self.ini_epics_thread.join()
-            for span in self.scanpanels.values():
+            # self.ini_epics_thread.join()
+
+            for span in self.scanpanels:
                 span.initialize_positions()
+                span.larch = self._larch
+
             self.inittimer.Stop()
 
             self.subframes['macro'] = MacroFrame(self, _larch=self._larch)
             self.subframes['plot'] = ScanViewerFrame(self, _larch=self._larch)
+            self.connect_epics()
 
             self.statusbar.SetStatusText('', 0)
             self.statusbar.SetStatusText('Ready', 1)
+
 
     def init_larch(self):
         self.larch_status = -1
         self._larch = LarchScanDBServer(self.scandb)
         self._larch.set_symbol('_sys.wx.wxapp', wx.GetApp())
         self._larch.set_symbol('_sys.wx.parent', self)
-
-        for span in self.scanpanels.values():
-            span.larch = self._larch
         self.statusbar.SetStatusText('Larch Ready')
         self.larch_status = 1
 
@@ -269,15 +275,20 @@ class ScanFrame(wx.Frame):
             self._icon = wx.Icon(fico, wx.BITMAP_TYPE_ICO)
             self.SetIcon(self._icon)
         except:
-            # print "No icon Set"
             pass
 
     @EpicsFunction
     def connect_epics(self):
+        pvs = self.scandb.getall('pvs')
+
+        # print(" Connect Epics ", len(pvs))
         for pv in self.scandb.getall('pvs'):
             name = normalize_pvname(pv.name)
-            self.pvlist[name] = epics.get_pv(name)
+            if len(name)>0:
+                self.pvlist[name] = epics.PV(name)
+            time.sleep(0.01)
         self.epics_status = 1
+        # print("PVs connected")
         self.statusbar.SetStatusText('Epics Ready')
 
     def generate_scan(self, scanname=None, debug=False, force_save=False):
@@ -379,8 +390,6 @@ class ScanFrame(wx.Frame):
         fout = open(dfname, 'w')
         fout.write("%s\n" % json.dumps(scan))
         fout.close()
-        # print 'wrote %s' % dfname
-
 
     def onScanTimer(self, evt=None):
         try:
@@ -520,6 +529,7 @@ class ScanFrame(wx.Frame):
     def onEditScans(self, evt=None):
         self.show_subframe('scan', ScandefsFrame)
         current_nb = self.nb.GetSelection()
+        print(" onEditScans ", current_nb, self.scanpanel_types[current_nb])
         self.subframes['scan'].nb.SetSelection(current_nb)
 
     def onEditSettings(self, evt=None):
@@ -580,9 +590,8 @@ class ScanFrame(wx.Frame):
                                  style=wx.YES_NO|wx.NO_DEFAULT|wx.ICON_QUESTION)
 
                 if (_ok == wx.ID_YES):
-                    # print 'Deleting Scan Def ', sname
                     self.scandb.del_scandef(sname)
-                    # print 'Deleted Scan Def ', sname
+
                 else:
                     sname = ''
             if len(sname) > 0:
@@ -602,10 +611,7 @@ class ScanFrame(wx.Frame):
                                           as_bool=True, default=0)
         stype = None
         if not _alltypes:
-            inb =  self.nb.GetSelection()
-            for pname in self.scanpanels:
-                if inb == self.scanpanels_nid[pname]:
-                    stype = pname
+            stype = self.scanpanel_types[self.nb.GetSelection()]
 
         snames = []
         for sdef in self.scandb.getall('scandefs', orderby='last_used_time'):
@@ -633,7 +639,7 @@ class ScanFrame(wx.Frame):
         dlg = wx.FileDialog(self,
                             message="Open old scan file",
                             wildcard=wcard,
-                            style=wx.OPEN|wx.CHANGE_DIR)
+                            style=wx.FD_OPEN|wx.FD_CHANGE_DIR)
 
         scanfile = None
         if dlg.ShowModal() == wx.ID_OK:
@@ -648,10 +654,9 @@ class ScanFrame(wx.Frame):
             scandict = {'type': None}
 
         stype = scandict['type'].lower()
-        if stype in self.scanpanels:
-            self.nb.SetSelection(self.scanpanels_nid[stype])
-            self.scanpanels[stype].load_scandict(scandict)
-
+        iscan = self.scanpanel_types.index(stype)
+        self.nb.SetSelection(iscan)
+        self.scanpanels[iscan].load_scandict(scan)
 
     def load_scan(self, scanname):
         """load scan definition from dictionary, as stored
@@ -690,13 +695,6 @@ class ScanFrame(wx.Frame):
                                  kind=dkind,
                                  options=opts,
                                  use=use)
-            else:
-                det.prefix = detdat.pop('prefix')
-                det.dkind  = detdat.pop('kind')
-                det.use = True
-                if 'use' in detdat:
-                    det.use  = detdat.pop('use')
-                det.options = json.dumps(detdat)
 
         if 'positioners' in scan:
             for data in scan['positioners']:
@@ -707,16 +705,13 @@ class ScanFrame(wx.Frame):
                 if pos is None:
                     sdb.add_positioner(name, drivepv,
                                        readpv=readpv)
-                else:
-                    pos.drivepv = drivepv
-                    pos.readpv = readpv
 
         # now fill in page
         self.last_scanname = scanname
         stype = scan['type'].lower()
-        if stype in self.scanpanels:
-            self.nb.SetSelection(self.scanpanels_nid[stype])
-            self.scanpanels[stype].load_scandict(scan)
+        iscan = self.scanpanel_types.index(stype)
+        self.nb.SetSelection(iscan)
+        self.scanpanels[iscan].load_scandict(scan)
 
 
 class ScanApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):

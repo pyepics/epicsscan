@@ -52,7 +52,7 @@ class RenameDialog(wx.Dialog):
 
 
 class ScanDefModel(dv.PyDataViewIndexListModel):
-    """ generic scandef model construct 2D data  list, 
+    """ generic scandef model construct 2D data  list,
     override GetValueByRow and Compare methonds
     """
     def __init__(self, data, get_value=None, get_attr=None, compare=None):
@@ -66,19 +66,19 @@ class ScanDefModel(dv.PyDataViewIndexListModel):
     def SetValueByRow(self, value, row, col):    self.data[row][col] = value
     def GetColumnCount(self):    return len(self.data[0])
     def GetCount(self):          return len(self.data)
-    
+
     def DeleteRows(self, rows):
         rows = list(rows)
         rows.sort(reverse=True)
         for row in rows:
             del self.data[row]
             self.RowDeleted(row)
-           
+
     def AddRow(self, value):
         self.data.append(value)
         self.RowAppended()
 
-    def GetValueByRow(self, row, col):  
+    def GetValueByRow(self, row, col):
         if self._getval is not None:
             return self._getval(row, col)
         return self.data[row][col]
@@ -91,7 +91,7 @@ class ScanDefModel(dv.PyDataViewIndexListModel):
     def Compare(self, item1, item2, col, ascending):
         if self._compare is not None:
             return self._compare(item1, item2, col, ascending)
-        
+
         if not ascending: # swap sort order?
             item2, item1 = item1, item2
         row1 = self.GetRow(item1)
@@ -115,7 +115,7 @@ class ScanDefPanel(wx.Panel):
         self.dvc = dv.DataViewCtrl(self, style=dvstyle)
         self.ncols = 0
         self.model = ScanDefModel(self.get_data(),
-                                  get_value=self.model_get_value, 
+                                  get_value=self.model_get_value,
                                   get_attr=self.model_get_attr,
                                   compare=self.model_compare)
 
@@ -149,7 +149,7 @@ class ScanDefPanel(wx.Panel):
             icol += 1
 
     def _getscans(self, orderby='last_used_time'):
-        return self.scandb.select('scandefs', 
+        return self.scandb.select('scandefs',
                                   type=self.scantype,
                                   orderby=orderby)
     def get_data(self):
@@ -158,12 +158,12 @@ class ScanDefPanel(wx.Panel):
             sdat  = json.loads(scan.text)
             axis  = sdat['positioners'][0][0]
             npts  = sdat['positioners'][0][4]
-            data.append([scan.name, axis, npts, 
+            data.append([scan.name, axis, npts,
                          scan.modify_time, scan.last_used_time])
         self.ncols = len(data[0])
         return data
 
-    def model_get_value(self, row, col):  
+    def model_get_value(self, row, col):
         dat = self.model.data[row][col]
         if isinstance(dat, int):
             dat = "%d" % dat
@@ -185,7 +185,7 @@ class ScanDefPanel(wx.Panel):
             item2, item1 = item1, item2
         row1 = self.model.GetRow(item1)
         row2 = self.model.GetRow(item2)
-        return cmp(self.model.data[row1][col], 
+        return cmp(self.model.data[row1][col],
                    self.model.data[row2][col])
 
     def onLoad(self, event=None):
@@ -241,7 +241,7 @@ class ScanDefPanel(wx.Panel):
                 self.scandb.del_scandef(scanid=scan.id)
             self.scandb.commit()
             self.model.DeleteRows([row])
-           
+
     def onDone(self, event=None):
         self.parent.Destroy()
 
@@ -276,7 +276,7 @@ class MeshScanDefs(ScanDefPanel):
             inner = sdat['inner'][0]
             outer = sdat['outer'][0]
             npts  = int(sdat['outer'][4]) * int(sdat['inner'][4])
-            data.append([scan.name, inner, outer, npts, 
+            data.append([scan.name, inner, outer, npts,
                          scan.modify_time, scan.last_used_time])
         self.ncols = len(data[0])
         return data
@@ -302,7 +302,7 @@ class SlewScanDefs(ScanDefPanel):
             if sdat['dimension'] > 1:
                 outer  = sdat['outer'][0]
                 npts *= int(sdat['outer'][4])
-            data.append([scan.name, inner, outer, npts, 
+            data.append([scan.name, inner, outer, npts,
                          scan.modify_time, scan.last_used_time])
         self.ncols = len(data[0])
         return data
@@ -365,16 +365,14 @@ class ScandefsFrame(wx.Frame) :
 
         self.tables = {}
         self.nblabels = []
-        for pname, creator in (('Linear', LinearScanDefs),
-                               ('Slew',   SlewScanDefs),
-                               # ('Mesh',   MeshScanDefs),
-                               ('XAFS',   XAFSScanDefs)
-                           ):
-
-            table = creator(self, self.scandb)
-            self.tables[pname.lower()] = table
-            self.nb.AddPage(table, "%s Scans" % pname)
-            self.nblabels.append((pname.lower(), table))
+        creators = {'xafs': XAFSScanDefs,
+                   'slew': SlewScanDefs,
+                   'linear': LinearScanDefs}
+        for stype, title in self.parent.notebooks:
+            table = creators[stype](self, self.scandb)
+            self.tables[stype] = table
+            self.nb.AddPage(table, title)
+            self.nblabels.append((stype, table))
 
         self.nb.SetSelection(0)
         sizer.Add(self.nb, 1, wx.ALL|wx.EXPAND, 5)

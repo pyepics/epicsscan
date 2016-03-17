@@ -1,4 +1,3 @@
-
 import sys
 import time
 
@@ -184,7 +183,7 @@ class PositionerFrame(wx.Frame) :
                 self.scandb.add_slewpositioner(name, drivepv, readpv=readpv)
 
         self.scandb.commit()
-        for panel in self.parent.scanpanels.values():
+        for panel in self.parent.scanpanels:
             panel.update_positioners()
 
         self.Destroy()
@@ -192,4 +191,3 @@ class PositionerFrame(wx.Frame) :
 
     def onClose(self, event=None):
         self.Destroy()
-
