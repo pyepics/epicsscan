@@ -45,7 +45,7 @@ class ScanDBMessageQueue(object):
         if len(out) > 0:
             self.last_id = out[-1].id
         return out
-        
+
 
 class MacroFrame(wx.Frame) :
     """Edit/Manage Macros (Larch Code)"""
@@ -117,7 +117,7 @@ class MacroFrame(wx.Frame) :
         self.Bind(wx.EVT_TIMER, self.update_info, self._stimer)
         self._stimer.Start(500)
 
-        wx.EVT_CLOSE(self, self.onClose)
+        self.Bind(wx.EVT_CLOSE, self.onClose)
         self.SetMinSize((600, 520))
         pack(self, sizer)
         self.Show()
@@ -321,9 +321,9 @@ class MacroFrame(wx.Frame) :
         now = time.time()
         if (now - self.last_start_request) < 5.0:
             print "double clicked start?"
-            return 
+            return
         self.last_start_request = now
-        self.start_btn.Disable()        
+        self.start_btn.Disable()
         lines = self.editor.GetValue().split('\n')
         self.scandb.set_info('request_pause',  1)
 
@@ -367,6 +367,7 @@ class MacroFrame(wx.Frame) :
         self.onResume()
 
     def onClose(self, event=None):
+        # print("onCLOSE Macro " , self.histfile, AUTOSAVE_FILE)
         self.SaveMacroFile(AUTOSAVE_FILE)
         self.input.SaveHistory(self.histfile)
         self.Destroy()

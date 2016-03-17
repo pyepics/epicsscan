@@ -193,9 +193,9 @@ def add_button(parent, label, size=(-1, -1), action=None):
 def add_menu(parent, menu, label='', text='', action=None):
     "add submenu"
     wid = wx.NewId()
-    menu.Append(wid, label, text)
+    menuitem = menu.Append(wid, label, text)
     if hasattr(action, '__call__'):
-        wx.EVT_MENU(parent, wid, action)
+        parent.Bind(wx.EVT_MENU, action, menuitem)
 
 def add_choice(panel, choices, default=0, action=None, **kws):
     "add simple button with bound action"
@@ -248,7 +248,7 @@ def FileOpen(parent, message, default_dir=None,
     if wildcard is None:
         wildcard = 'All files (*.*)|*.*'
 
-    style = wx.OPEN|wx.CHANGE_DIR
+    style = wx.FD_OPEN|wx.FD_CHANGE_DIR
     if multiple:
         style = style|wx.MULTIPLE
     dlg = wx.FileDialog(parent, message=message,
@@ -276,7 +276,7 @@ def FileSave(parent, message, default_file=None,
     dlg = wx.FileDialog(parent, message=message,
                         defaultFile=default_file,
                         wildcard=wildcard,
-                        style=wx.SAVE|wx.CHANGE_DIR)
+                        style=wx.FD_SAVE|wx.FD_CHANGE_DIR)
     if dlg.ShowModal() == wx.ID_OK:
         out = os.path.abspath(dlg.GetPath())
     dlg.Destroy()
