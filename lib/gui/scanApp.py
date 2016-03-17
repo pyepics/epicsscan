@@ -528,9 +528,7 @@ class ScanFrame(wx.Frame):
 
     def onEditScans(self, evt=None):
         self.show_subframe('scan', ScandefsFrame)
-        current_nb = self.nb.GetSelection()
-        print(" onEditScans ", current_nb, self.scanpanel_types[current_nb])
-        self.subframes['scan'].nb.SetSelection(current_nb)
+        self.subframes['scan'].nb.SetSelection(self.nb.GetSelection())
 
     def onEditSettings(self, evt=None):
         self.show_subframe('settings', SettingsFrame)
