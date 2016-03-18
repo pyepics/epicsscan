@@ -419,7 +419,7 @@ class ScandefsFrame(wx.Frame) :
         self.searchstring.Bind(wx.EVT_TEXT_ENTER, self.onSearch)
 
         self.show_dunder = check(panel, default=False,
-                                 label='Include auto-named ("__Date__") scans',
+                                 label='Include auto-named scans',
                                  size=(40, -1))
         self.show_dunder.Bind(wx.EVT_CHECKBOX,self.onToggleDunder)
 
