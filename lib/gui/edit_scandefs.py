@@ -114,7 +114,7 @@ class ScanDefPanel(wx.Panel):
         dvstyle = wx.BORDER_THEME|dv.DV_VERT_RULES|dv.DV_ROW_LINES|dv.DV_SINGLE
         self.dvc = dv.DataViewCtrl(self, style=dvstyle)
         self.ncols = 4
-        self.show_dunder = True
+        self.show_dunder = False
         self.name_filter = None
 
         self.model = ScanDefModel(self.get_data(),
@@ -173,7 +173,6 @@ class ScanDefPanel(wx.Panel):
         cls, table = self.scandb.get_table('scandefs')
 
         q = table.select().where(table.c.type==self.scantype)
-
         if self.name_filter not in (None, 'None', ''):
             q = q.where(table.c.name.ilike('%%%s%%' % self.name_filter))
 
@@ -181,9 +180,7 @@ class ScanDefPanel(wx.Panel):
         if not self.show_dunder:
             tmp = []
             for row in out:
-                if row.name.startswith('__') and row.name.endswith('__'):
-                    pass
-                else:
+                if not(row.name.startswith('__') and row.name.endswith('__')):
                     tmp.append(row)
             out = tmp
         return out
@@ -421,15 +418,16 @@ class ScandefsFrame(wx.Frame) :
                                         style=wx.TE_PROCESS_ENTER)
         self.searchstring.Bind(wx.EVT_TEXT_ENTER, self.onSearch)
 
-        self.show_dunder = check(panel, default=True,
-                                 label='Show "__Date__" scans', size=(40, -1))
+        self.show_dunder = check(panel, default=False,
+                                 label='Include auto-named ("__Date__") scans',
+                                 size=(40, -1))
         self.show_dunder.Bind(wx.EVT_CHECKBOX,self.onToggleDunder)
 
-        rsizer.Add(SimpleText(panel, "Search: ",
+        rsizer.Add(SimpleText(panel, "Filter: ",
                              font=Font(12), style=LCEN), 0, LCEN, 5)
         rsizer.Add(self.searchstring, 1, LCEN, 2)
 
-        rsizer.Add(add_button(panel, label='Search', size=(70, -1),
+        rsizer.Add(add_button(panel, label='Apply', size=(70, -1),
                               action=self.onSearch), 0, LCEN, 3)
         rsizer.Add(add_button(panel, label='Clear',  size=(70, -1),
                               action=self.onClearSearch), 0, LCEN, 3)
