@@ -405,7 +405,8 @@ class ScanFrame(wx.Frame):
         if status == 'idle' and self.scan_started:
             self.scan_started = False
             fname = self.scandb.get_info('filename')
-            self.filename.SetValue(new_filename(fname))
+            scanpage = self.nb.GetCurrentPage()
+            scanpage.filename.SetValue(new_filename(fname))
             self.scantimer.Stop()
 
 
