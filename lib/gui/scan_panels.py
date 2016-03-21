@@ -628,6 +628,7 @@ class XAFSScanPanel(GenericScanPanel):
     def setScanTime(self):
         etime = (float(self.scandb.get_info('pos_settle_time', default=0)) +
                  float(self.scandb.get_info('det_settle_time', default=0)))
+
         dtime = 0.0
         kwt_max = float(self.kwtimemax.GetValue())
         kwt_pow = float(self.kwtimechoice.GetStringSelection())
@@ -637,14 +638,23 @@ class XAFSScanPanel(GenericScanPanel):
             dx = float(reg[4].GetValue())
             if reg[4].Enabled:
                 dtimes.append((nx, dx))
+
+        # qxafs: ignore settling time and k-weighting of time
+        if dtimes[0][1] < 0.5:
+            etime  = 0
+            kwt_pow = 0
+
         if kwt_pow != 0:
             nx, dx = dtimes.pop()
             _vtime = (kwt_max-dx)*(1.0/(nx-1))**kwt_pow
             for i in range(int(nx)):
                 dtime += (dx+etime)+ _vtime*(i**kwt_pow)
+
         for nx, dx in dtimes:
             dtime += nx*(dx + etime)
         self.scantime = dtime
+
+
         self.est_time.SetLabel(hms(dtime))
 
     def top_widgets(self, title, dwell_prec=3, dwell_value=1):
