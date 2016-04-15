@@ -17,7 +17,11 @@ import wx
 import wx.lib.agw.flatnotebook as flat_nb
 import wx.lib.scrolledpanel as scrolled
 import wx.lib.mixins.inspection
-from wx._core import PyDeadObjectError
+try:
+    from wx._core import PyDeadObjectError
+except:
+    PyDeadObjectError = Exception
+
 
 import epics
 from epics.wx import DelayedEpicsCallback, EpicsFunction
@@ -67,7 +71,7 @@ class ScanViewerFrame(wx.Frame):
         self.larch = _larch
         if _larch is None:
             self.larch = LarchScanDBServer(self.scandb)
-            
+
         self.lgroup = None
         self.larch.run("%s = group(filename='%s')" % (SCANGROUP, CURSCAN))
         self.larch.run("_sys.localGroup = %s" % (SCANGROUP))
@@ -103,7 +107,7 @@ class ScanViewerFrame(wx.Frame):
         self.SetStatusText('ready')
         self.title.SetLabel('')
         self.Raise()
-        
+
     def onScanTimer(self, evt=None,  **kws):
         if self.lgroup is None:
             return

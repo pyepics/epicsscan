@@ -22,7 +22,11 @@ import wx
 import wx.lib.agw.flatnotebook as flat_nb
 import wx.lib.scrolledpanel as scrolled
 import wx.lib.mixins.inspection
-from wx._core import PyDeadObjectError
+try:
+    from wx._core import PyDeadObjectError
+except:
+    PyDeadObjectError = Exception
+
 
 import epics
 from epics.wx import DelayedEpicsCallback, EpicsFunction
@@ -61,8 +65,8 @@ class PlotterFrame(wx.Frame):
   """
     def __init__(self, dbname=None, server='sqlite', host=None,
                  port=None, user=None, password=None, create=True, **kws):
-    
-            
+
+
         wx.Frame.__init__(self, None, -1, style=FRAMESTYLE)
         self.data = None
         self.filemap = {}
@@ -109,7 +113,7 @@ class PlotterFrame(wx.Frame):
             group.filename = self.live_scanfile
             group.array_units = []
             self.live_cpt = -1
-        
+
         sdata = self.scandb.get_scandata()
         if len(sdata) <= 1:
             return
@@ -127,7 +131,7 @@ class PlotterFrame(wx.Frame):
 
         if npts > 1:
             self.onPlot()
-        
+
     def createMainPanel(self):
         splitter  = wx.SplitterWindow(self, style=wx.SP_LIVE_UPDATE)
         splitter.SetMinimumPaneSize(175)
@@ -166,7 +170,7 @@ class PlotterFrame(wx.Frame):
 
         self.yops = [[],[]]
         self.yarr = [[],[]]
-        
+
         for opts, sel, siz in ((PRE_OPS, 0, 75), (ARR_OPS, 3, 50),
                              (ARR_OPS, 3, 50)):
             w1 = add_choice(panel, choices=opts, action=self.onYchoice,
@@ -177,7 +181,7 @@ class PlotterFrame(wx.Frame):
             w2 = add_choice(panel, choices=opts, action=self.onYchoice,
                             size=(siz, -1))
             w2.SetSelection(sel)
-            self.yops[1].append(w2)            
+            self.yops[1].append(w2)
 
         opts= {'choices':[], 'size':(120, -1), 'action':self.onYchoice}
         for i in range(3):
@@ -185,7 +189,7 @@ class PlotterFrame(wx.Frame):
             self.yarr[1].append(add_choice(panel, **opts))
 
         for i in range(2):
-            ir += 1            
+            ir += 1
             label = 'Y%i = ' % (i+1)
             sizer.Add(SimpleText(panel, label),  (ir, 0), (1, 1), CEN, 0)
             sizer.Add(self.yops[i][0],           (ir, 1), (1, 1), CEN, 0)
@@ -214,21 +218,21 @@ class PlotterFrame(wx.Frame):
         sizer.Add(self.dtcorr,  (ir,   0), (1, 3), LCEN, 0)
         ir += 1
         sizer.Add(SimpleText(panel, ''), (ir,   0), (1, 3), LCEN, 0)
-        
+
         pack(panel, sizer)
 
 
 #         self.nb = flat_nb.FlatNotebook(mainpanel, -1, agwStyle=FNB_STYLE)
-# 
+#
 #         self.nb.SetTabAreaColour(wx.Colour(248,248,240))
 #         self.nb.SetActiveTabColour(wx.Colour(254,254,195))
-# 
+#
 #         self.nb.SetNonActiveTabTextColour(wx.Colour(40,40,180))
 #         self.nb.SetActiveTabTextColour(wx.Colour(80,0,0))
-# 
+#
 #         self.xas_panel = self.CreateXASPanel(self.nb) # mainpanel)
 #         self.fit_panel = self.CreateFitPanel(self.nb) # mainpanel)
-# 
+#
 #         self.nb.AddPage(self.fit_panel, ' General Analysis ', True)
 #         self.nb.AddPage(self.xas_panel, ' XAS Processing ',   True)
 
@@ -241,7 +245,7 @@ class PlotterFrame(wx.Frame):
         self.plotpanel.canvas.figure.set_facecolor(bgcol)
 
         mainsizer.Add(self.plotpanel, 1, wx.GROW|wx.ALL, 1)
-        
+
         # mainsizer.Add(self.nb, 1, LCEN|wx.EXPAND, 2)
         pack(mainpanel, mainsizer)
 
@@ -513,7 +517,7 @@ class PlotterFrame(wx.Frame):
         opr1 = self.yops[1][0].GetStringSelection()
         opr2 = self.yops[1][1].GetStringSelection()
         opr3 = self.yops[1][2].GetStringSelection()
-        
+
         yr1 = self.yarr[1][0].GetStringSelection()
         yr2 = self.yarr[1][1].GetStringSelection()
         yr3 = self.yarr[1][2].GetStringSelection()
@@ -539,7 +543,7 @@ class PlotterFrame(wx.Frame):
 
         # print 'Group X ... ', xfmt % (gname, xop, x)
         # print 'Group Y ... ', yfmt % (gname, op1, y1, op2, y2, op3, y3)
-        
+
         self.larch(xfmt % (gname, xop, x))
         self.larch(yfmt % (gname, opl1, yl1, opl2, yl2, opl3, yl3))
 
@@ -550,10 +554,10 @@ class PlotterFrame(wx.Frame):
             npts = min(len(lgroup._x1_), len(lgroup._y1_))
         except AttributeError:
             return
-                
+
         lgroup._x1_ = np.array( lgroup._x1_[:npts])
         lgroup._y1_ = np.array( lgroup._y1_[:npts])
-       
+
 
         path, fname = os.path.split(lgroup.filename)
         popts['label'] = "%s: %s" % (fname, ylabel)
@@ -572,18 +576,18 @@ class PlotterFrame(wx.Frame):
         if update:
             self.plotpanel.set_xlabel(popts['xlabel'])
             self.plotpanel.set_ylabel(popts['ylabel'])
-            
+
             plotcmd(0, lgroup._x1_, lgroup._y1_, draw=True,
                         update_limits=True) # ((npts < 5) or (npts % 5 == 0)))
-            
+
             self.plotpanel.set_xylims((
                 min(lgroup._x1_), max(lgroup._x1_),
                 min(lgroup._y1_), max(lgroup._y1_)))
-                                      
+
         else:
             plotcmd(lgroup._x1_, lgroup._y1_, **popts)
             self.plotpanel.canvas.draw()
-            
+
     def ShowFile(self, evt=None, filename=None, **kws):
         if filename is None and evt is not None:
             filename = evt.GetString()
@@ -680,7 +684,7 @@ class PlotterFrame(wx.Frame):
     def onReadScan(self, evt=None):
         dlg = wx.FileDialog(self, message="Load Epics Scan Data File",
                             defaultDir=os.getcwd(),
-                            wildcard=FILE_WILDCARDS, style=wx.OPEN)
+                            wildcard=FILE_WILDCARDS, style=wx.FD_OPEN)
         if dlg.ShowModal() == wx.ID_OK:
             path = dlg.GetPath()
             path = path.replace('\\', '/')
