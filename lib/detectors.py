@@ -567,9 +567,8 @@ class Xspress3Trigger(Trigger):
 
     def abort(self, value=0):
         self._start.put(0, wait=False)
-        time.sleep(.05)
-        self._erase.put(1, wait=False)
-        time.sleep(.05)
+        poll(0.050, 0.5)
+
 
 class Xspress3Detector(DetectorMixin):
     """
@@ -628,6 +627,10 @@ class Xspress3Detector(DetectorMixin):
         self.extra_pvs = self._counter.extra_pvs
 
     def pre_scan(self, scan=None, **kws):
+        """ """
+        caput("%sAcquire" % (self.prefix), 0)
+        poll(0.05, 0.5)
+
         if self._counter is None:
             self.connect_counters()
         self._counter._get_counters()
@@ -639,24 +642,26 @@ class Xspress3Detector(DetectorMixin):
             dtime = self.dwelltime
         self.dwelltime_pv.put(dtime)
 
-        caput("%sERASE"   % (self.prefix), 1)
-        caput("%sAcquire" % (self.prefix), 0)
-        poll(0.05, 0.5)
         for i in range(1, self.nmcas+1):
             card = "%sC%i" % (self.prefix, i)
             caput("%s_PluginControlValExtraROI" % (card), 0)
             caput("%s_PluginControlVal"         % (card), 1)
+            poll(0.005, 0.5)
 
-        caput("%sTriggerMode" % (self.prefix), 1)   # Internal Mode
-        caput("%sNumImages"   % (self.prefix), 1)   # 1 Image
+        caput("%sTriggerMode"   % (self.prefix), 1)   # Internal Mode
+        caput("%sNumImages"     % (self.prefix), 1)   # 1 Image
         caput("%sCTRL_MCA_ROI"  % (self.prefix), 1)
         caput("%sCTRL_DTC"      % (self.prefix), self.use_dtc)
         caput("%sUPDATE"        % (self.prefix), 1)
-        poll(0.05, 0.5)
-        # make sure one put-wait on Acquire completes
-        caput("%sAcquire" % (self.prefix), 1, wait=True,
-              timeout=3.0+dtime*10.0)
+        poll(0.1, 0.5)
 
+        caput("%sAcquire" % (self.prefix), 0)
+        poll(0.1, 0.5)
+
+        # make sure one put-wait on Acquire completes
+        # caput("%sAcquire" % (self.prefix), 1, wait=True,
+        #       timeout=3.0+dtime*10.0)
+        # poll(0.1, 0.5)
 
 class Xspress3Counter(DeviceCounter):
     """Counters for Xspress3-1-10 (weird ROIs / areaDetector hybrid)
