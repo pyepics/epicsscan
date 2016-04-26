@@ -978,7 +978,7 @@ class InstrumentDB(object):
         _, ppos_tab = self.scandb.get_table('position_pv')
         _, pvs_tab  = self.scandb.get_table('pvs')
         _, ipv_tab  = self.scandb.get_table('instrument_pv')
-        
+
         if pos is None:
             pos = pos_cls()
             pos.name = posname
@@ -997,7 +997,7 @@ class InstrumentDB(object):
         for pvs in ipv_tab.select().where(ipv_tab.c.instruments_id==inst.id).execute().fetchall():
             name = pvs_tab.select().where(pvs_tab.c.id==pvs.pvs_id).execute().fetchone().name
             pvnames.append(str(name))
-            
+
         ## print("@ Save Position: ", posname, pvnames, values)
         # check for missing pvs in values
         missing_pvs = []
@@ -1015,8 +1015,8 @@ class InstrumentDB(object):
 
         pos_pvs = []
         for name in pvnames:
-            thispv = self.scandb.get_pvrow(name)            
-            ppos_tab.insert().execute(pvs_id=thispv.id, 
+            thispv = self.scandb.get_pvrow(name)
+            ppos_tab.insert().execute(pvs_id=thispv.id,
                                       positions_id = pos.id,
                                       notes= "'%s' / '%s'" % (inst.name, posname),
                                       value = float(values[name]))
@@ -1069,7 +1069,7 @@ class InstrumentDB(object):
         for pvval in ppos_tab.select().where(ppos_tab.c.positions_id == pos.id).execute().fetchall():
             pv_vals[ pvnames[pvval.pvs_id]]= float(pvval.value)
         return pv_vals
-        
+
     def get_positionlist(self, instname):
         """return list of position names for an instrument
         """
@@ -1079,7 +1079,7 @@ class InstrumentDB(object):
         q = q.filter(cls.instruments_id==inst.id)
         q = q.order_by(cls.modify_time)
         return [p.name for p in q.all()]
-        
+
     def restore_position(self, instname, posname, wait=False, timeout=5.0,
                          exclude_pvs=None):
         """
@@ -1109,7 +1109,7 @@ class InstrumentDB(object):
             pvname = pvnames[pvval.pvs_id]
             if pvname not in exclude_pvs:
                 pv_vals.append((epics.get_pv(pvname), float(pvval.value)))
-        
+
         epics.ca.poll()
         # put values without waiting
         for thispv, val in pv_vals:
@@ -1126,4 +1126,3 @@ class InstrumentDB(object):
                     thispv.put(val, wait=True)
                 except:
                     pass
-
