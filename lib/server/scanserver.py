@@ -110,6 +110,10 @@ class ScanServer():
             self.set_scan_message("Warning: skipping command '%s'" % repr(req))
             return
 
+        workdir = self.scandb.get_info('user_folder')
+        if self.epicsdb is not None:
+            self.epicsdb.workdir = plain_ascii(workdir)
+
         command = plain_ascii(req.command)
         if len(command) < 1 or command is 'None':
             return
