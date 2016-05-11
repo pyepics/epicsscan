@@ -1,4 +1,3 @@
-
 import sys
 import time
 import json
@@ -27,6 +26,8 @@ AD_CHOICES = ['None'] + list(AD_FILE_PLUGINS)
 
 class ROIFrame(wx.Frame):
     """Select ROIS"""
+    pvnames_xmap = {'pref': '%smca1.R',   'name': 'NM'}
+    pvnames_xsp3 = {'pref': '%sMCA1ROI:', 'name': ':Name'}
     def __init__(self, parent, det=None, _larch=None):
         self.parent = parent
         self.scandb = parent.scandb
@@ -40,14 +41,17 @@ class ROIFrame(wx.Frame):
     def connect_epics(self):
         curr = self.current_rois
         iroi = 0
-        pref = "%smca1.R" % self.prefix
+        names = self.pvnames_xmap
+        if 'xspress' in self.det.name:
+            names = self.pvnames_xsp3
+        pref = names['pref'] % self.prefix
         for i in range(self.nrois):
-            nm = caget("%s%iNM" % (pref, i))
-            hi = caget("%s%iHI" % (pref, i))
-            if len(nm.strip()) > 0 and hi > 0:
-                self.wids[i][0].SetLabel('  %s' % nm)
-                self.wids[i][1].SetValue(nm.lower() in curr)
-                self.wids[i][1].Enable()
+            nm = caget("%s%i%s" % (pref, i+1, names['name']))
+            if len(nm.strip()) > 0:
+                check = self.wids[i]
+                check.SetLabel('  %s' % nm)
+                check.SetValue(nm.lower() in curr)
+                check.Enable()
 
     def build_dialog(self, parent):
         self.colors = GUIColors()
@@ -69,15 +73,11 @@ class ROIFrame(wx.Frame):
         sizer.SetVGap(3)
         # title row
         irow = 0
-        txt =SimpleText(self, '  ROI', minsize=(80, -1), style=LEFT)
-        sizer.Add(txt, (0, 0),   (1, 1), LCEN, 1)
-        txt =SimpleText(self, 'Use?', minsize=(40, -1), style=LEFT)
-        sizer.Add(txt, (0, 1),   (1, 1), LCEN, 1)
+        txt =SimpleText(self, ' Use ROI', minsize=(150, -1), style=LEFT)
+        sizer.Add(txt, (0, 0),   (1, 1), LCEN, 2)
+        txt =SimpleText(self, ' Use ROI', minsize=(150, -1), style=LEFT)
+        sizer.Add(txt, (0, 1),   (1, 1), LCEN, 2)
 
-        txt =SimpleText(self, '  ROI', minsize=(80, -1), style=LEFT)
-        sizer.Add(txt, (0, 2),   (1, 1), LCEN, 1)
-        txt =SimpleText(self, 'Use?', minsize=(40, -1), style=LEFT)
-        sizer.Add(txt, (0, 3),   (1, 1), LCEN, 1)
 
         self.wids = []
         self.prefix = self.det.pvname
@@ -85,23 +85,21 @@ class ROIFrame(wx.Frame):
         nrows = self.nrois/2
         col = 0
         for i in range(self.nrois):
-            lab = SimpleText(self, ' <unused>', minsize=(80, -1), style=LEFT)
-            use = check(self, default=False, size=(40, -1))
+            use = check(self, default=False, label=' <unused>', size=(150, -1))
             use.Disable()
-            self.wids.append((lab, use))
-            if i ==  nrows:
-                col = 2
+            self.wids.append(use)
+            if i == nrows:
+                col = 1
                 irow = irow - nrows
             irow += 1
-            sizer.Add(lab, (irow, col),   (1, 1), LCEN, 0)
-            sizer.Add(use, (irow, col+1), (1, 1), LEFT, 0)
+            sizer.Add(use, (irow, col), (1, 1), LEFT, 2)
 
         irow += 1
-        sizer.Add(wx.StaticLine(self, size=(350, -1), style=wx.LI_HORIZONTAL),
-                  (irow, 0), (1, 4), CEN, 0)
+        sizer.Add(wx.StaticLine(self, size=(475, -1), style=wx.LI_HORIZONTAL),
+                  (irow, 0), (1, 4), CEN, 2)
         irow += 1
         sizer.Add(okcancel(self, self.onOK, self.onClose),
-                  (irow, 0), (1, 3), LCEN, 0)
+                  (irow, 0), (1, 3), LCEN, 2)
 
 
         pack(self, sizer)
@@ -112,10 +110,11 @@ class ROIFrame(wx.Frame):
 
     def onOK(self, event=None):
         rois = []
-        for (label, use) in self.wids:
+        for use in self.wids:
             if use.Enabled and use.IsChecked():
-                rois.append(label.GetLabel().strip())
+                rois.append(use.GetLabel().strip())
         roistring =  json.dumps(rois)
+        print("Rois OK: %s : " %  roistring)
         self.scandb.set_info('rois', roistring)
         self.Destroy()
 
@@ -130,7 +129,7 @@ class DetectorDetailsFrame(wx.Frame):
         self.scandb = parent.scandb
         self.det = det
         title = "Settings for '%s'" % (det.name)
-        wx.Frame.__init__(self, None, -1, title, style=FRAMESTYLE)                          
+        wx.Frame.__init__(self, None, -1, title, style=FRAMESTYLE)
         self.SetFont(Font(8))
         self.build_dialog(parent)
 
@@ -200,12 +199,12 @@ class DetectorDetailsFrame(wx.Frame):
 
         sizer.Add(okcancel(self, self.onOK, self.onClose),
                   (irow+1, 0), (1, 3), LCEN, 1)
-        wx.EVT_CLOSE(self, self.onClose)        
+        wx.EVT_CLOSE(self, self.onClose)
         self.SetMinSize((225, 350))
         pack(self, sizer)
         self.Show()
         self.Raise()
-        
+
 
     def onOK(self, event=None):
         opts = {}
@@ -226,9 +225,9 @@ class DetectorDetailsFrame(wx.Frame):
 
         self.det.options = json.dumps(opts)
         self.onClose()
-        
+
     def onClose(self, event=None):
-        self.parent.detailframe = None        
+        self.parent.detailframe = None
         self.Destroy()
 
 class DetectorFrame(wx.Frame) :
@@ -248,7 +247,7 @@ class DetectorFrame(wx.Frame) :
 
         sizer = wx.GridBagSizer(12, 5)
         sizer.SetHGap(2)
-        sizer.SetVGap(2)        
+        sizer.SetVGap(2)
         panel = scrolled.ScrolledPanel(self) # , size=(675, 625))
         self.SetMinSize((650, 625))
         self.colors = GUIColors()
@@ -289,7 +288,7 @@ class DetectorFrame(wx.Frame) :
 
         self.widlist = []
         for det in self.detectors:
-            if det.use is None: 
+            if det.use is None:
                 det.use = 0
             ir +=1
             dkind = strip_quotes(det.kind)
@@ -429,4 +428,3 @@ class DetectorFrame(wx.Frame) :
 
     def onClose(self, event=None):
         self.Destroy()
-
