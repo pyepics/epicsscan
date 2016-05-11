@@ -533,13 +533,13 @@ class MultiMcaDetector(DetectorMixin):
 
 
 class Xspress3Trigger(Trigger):
-    """Triggers for Xspress3:  has separate ERASE and Acquire
-    which correspond to EraseStart.
+    """Triggers for Xspress3, AD2 version
+    where Start does an EraseStart for the MCA arrays
     """
     def __init__(self, prefix, value=1, label=None, **kws):
         Trigger.__init__(self, prefix, label=label, value=value, **kws)
-        self._start = get_pv(prefix + 'Acquire')
-        self._erase = get_pv(prefix + 'ERASE')
+        self._start = get_pv(prefix + 'det1:Acquire')
+        self._erase = get_pv(prefix + 'det1:ERASE')
         self.prefix = prefix
         self._val = value
         self.done = False
@@ -554,14 +554,14 @@ class Xspress3Trigger(Trigger):
         self.runtime = time.time() - self._t0
 
     def start(self, value=None):
-        """ERASE and start Xspress3"""
+        """Start Xspress3"""
         self.done = False
         runtime = -1
         self._t0 = time.time()
         if value is None:
             value = self._val
-        self._erase.put(1, wait=True)
-        poll(0.01, 0.5)
+        # self._erase.put(1, wait=True)
+        # poll(0.01, 0.5)
         self._start.put(value, callback=self.__onComplete)
         poll(0.01, 0.5)
 
@@ -572,7 +572,7 @@ class Xspress3Trigger(Trigger):
 
 class Xspress3Detector(DetectorMixin):
     """
-    Xspress 3 MultiMCA detector, 3.1.10
+    Xspress 3 MultiMCA detector, 3.2
     """
     repr_fmt = ', nmcas=%i, nrois=%i, use_dtc=%s, use_full=%s'
 
@@ -589,7 +589,7 @@ class Xspress3Detector(DetectorMixin):
 
         self.prefix     = prefix
         self.dwelltime  = None
-        self.dwelltime_pv = get_pv('%sAcquireTime' % prefix)
+        self.dwelltime_pv = get_pv('%sdet1:AcquireTime' % prefix)
         self.trigger    = Xspress3Trigger(prefix)
         self.extra_pvs  = self.add_extrapvs_GSE()
         self.use_dtc    = use_dtc  # KLUDGE DTC!!
@@ -628,7 +628,7 @@ class Xspress3Detector(DetectorMixin):
 
     def pre_scan(self, scan=None, **kws):
         """ """
-        caput("%sAcquire" % (self.prefix), 0)
+        caput("%sdet1:Acquire" % (self.prefix), 0)
         poll(0.05, 0.5)
 
         if self._counter is None:
@@ -642,33 +642,29 @@ class Xspress3Detector(DetectorMixin):
             dtime = self.dwelltime
         self.dwelltime_pv.put(dtime)
 
-        for i in range(1, self.nmcas+1):
-            card = "%sC%i" % (self.prefix, i)
-            caput("%s_PluginControlValExtraROI" % (card), 0)
-            caput("%s_PluginControlVal"         % (card), 1)
-            poll(0.005, 0.5)
+        # for i in range(1, self.nmcas+1):
+        #     card = "%sC%i" % (self.prefix, i)
+        #     caput("%s_PluginControlValExtraROI" % (card), 0)
+        #     caput("%s_PluginControlVal"         % (card), 1)
+        #    poll(0.005, 0.5)
+        caput("%sdet1:ERASE"         % (self.prefix), 1)
+        caput("%sdet1:TriggerMode"   % (self.prefix), 1)   # Internal Mode
+        caput("%sdet1:NumImages"     % (self.prefix), 1)   # 1 Image
+        caput("%sdet1:CTRL_DTC"      % (self.prefix), self.use_dtc)
+        poll(0.01, 0.5)
 
-        caput("%sTriggerMode"   % (self.prefix), 1)   # Internal Mode
-        caput("%sNumImages"     % (self.prefix), 1)   # 1 Image
-        caput("%sCTRL_MCA_ROI"  % (self.prefix), 1)
-        caput("%sCTRL_DTC"      % (self.prefix), self.use_dtc)
-        caput("%sUPDATE"        % (self.prefix), 1)
-        poll(0.1, 0.5)
+        caput("%sdet1:Acquire" % (self.prefix), 0, wait=True)
+        poll(0.01, 0.5)
+        caput("%sdet1:ERASE"   % (self.prefix), 1, wait=True)
+        poll(0.01, 0.5)
 
-        caput("%sAcquire" % (self.prefix), 0)
-        poll(0.1, 0.5)
-
-        # make sure one put-wait on Acquire completes
-        # caput("%sAcquire" % (self.prefix), 1, wait=True,
-        #       timeout=3.0+dtime*10.0)
-        # poll(0.1, 0.5)
 
 class Xspress3Counter(DeviceCounter):
     """Counters for Xspress3-1-10 (weird ROIs / areaDetector hybrid)
     """
-    sca_labels = ('Clock', 'ResetTicks', 'ResetCounts',
+    sca_labels = ('', 'Clock', 'ResetTicks', 'ResetCounts',
                   'AllEvent', 'AllGood', 'Window1', 'Window2', 'Pileup')
-
+    scas2save = (1, 2, 3, 4, 5, 8)
     def __init__(self, prefix, outpvs=None, nmcas=4,
                  nrois=32, rois=None, nscas=1, use_unlabeled=False,
                  use_full=False):
@@ -688,11 +684,10 @@ class Xspress3Counter(DeviceCounter):
         pvs = self._pvs = {}
 
         time.sleep(0.01)
-        # use roilist to limit ROI to those listed:
-        self.roilist = []
-        if rois is not None and len(rois)>0:
-            self.roilist = [s.lower().strip() for s in rois]
-        # self._get_counters()
+        # use roilist to set ROI to those listed:
+        if rois is None:
+            rois = ['']
+        self.rois = [r.lower().strip() for r in rois]
 
     def _get_counters(self):
         prefix = self.prefix
@@ -701,56 +696,32 @@ class Xspress3Counter(DeviceCounter):
             self.counters.append(Counter(pv, label=lab))
 
         try:
-            nmax = len(caget('%sARR1:ArrayData' % prefix))
+            nmax = len(caget('%sMCA1:ArrayData' % prefix))
         except ValueError:
             nmax = 2048
 
-        roidata = OrderedDict()
-        for roiname in self.roilist:
-            roidata[roiname.lower().strip()] = (False, roiname, -1, -1)
-        if len(roidata) < 4:
-            roidata['ocr'] = (True, 'OutputCounts', 25, nmax-25)
-        for iroi in range(self.nrois):
-            label = caget("%smca1.R%iNM" % (prefix, iroi))
-            slab = label.lower().strip()
-            if slab in roidata and not roidata[slab][0]:
-                lo = caget("%smca1.R%iLO" % (prefix, iroi))
-                hi = caget("%smca1.R%iHI" % (prefix, iroi))
-                roidata[slab] = (True, label, lo, hi)
-                if all([rdat[0] for rdat in roidata.values()]):
-                    break
+        if 'outputcounts' not in self.rois:
+            self.rois.append('outputcounts')
 
-        # clear ROI definitions
-        for imca in range(1, 5):
-            pref = "%sC%i" % (prefix, imca)
-            for jroi in range(1, 5):
-                caput('%s_MCA_ROI%i_LLM' % (pref, jroi), 1)
-                caput('%s_MCA_ROI%i_HLM' % (pref, jroi), 4095)
-                caput('%s_ROI%i:ValueSum_RBV.DESC' % (pref, jroi), 'unused')
-            poll(0.05, 1.0)
-        iroi = 0
-        for sname, dat in roidata.items():
-            found, label, lo, hi = dat
-            if found:
-                iroi += 1
-                for imca in range(1, 1+self.nmcas):
-                    pref = "%sC%i" % (prefix, imca)
-                    caput('%s_MCA_ROI%i_LLM' % (pref, iroi), lo)
-                    caput('%s_MCA_ROI%i_HLM' % (pref, iroi), hi)
-                    caput('%s_ROI%i:ValueSum_RBV.DESC' % (pref, iroi), label)
-                    xlab = "%s mca%i" % (label, imca)
-                    add_counter('%s_ROI%i:Value_RBV' % (pref, iroi), xlab)
-                    # print 'Add Counter ', pref, xlab
+        for iroi in range(1, self.nrois+1):
+            label = caget("%sMCA1ROI:%i:Name" % (prefix, iroi)).strip()
+            if len(label) < 0:
+                break
+            elif label.lower() in self.rois:
+                for imca in range(1, self.nmcas+1):
+                    _pvname = '%sMCA%iROI:%i:Total_RBV' % (prefix, imca, iroi)
+                    _label  = "%s mca%i" % (label, imca)
+                    add_counter(_pvname, _label)
 
-        for isca in range(self.nscas):  # these start counting at 0!!
+        for isca in self.scas2save:
             for imca in range(1, self.nmcas+1):
-                pv    = '%sC%i_SCA%i:Value_RBV' % (prefix, imca, isca)
-                label = '%s mca%i' % (self.sca_labels[isca], imca)
-                add_counter(pv, label)
+                _pvname = '%sC%iSCA%i:Value_RBV' % (prefix, imca, isca)
+                _label  = '%s mca%i' % (self.sca_labels[isca], imca)
+                add_counter(_pvname, _label)
 
         if self.use_full:
             for imca in range(1, self.nmcas+1):
-                pv = '%sARR%i.ArrayData' % (prefix, imca)
+                pv = '%sMCA%i.ArrayData' % (prefix, imca)
                 add_counter(pv, 'spectra%i' % imca)
 
 
