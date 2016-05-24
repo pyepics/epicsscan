@@ -114,7 +114,6 @@ class ROIFrame(wx.Frame):
             if use.Enabled and use.IsChecked():
                 rois.append(use.GetLabel().strip())
         roistring =  json.dumps(rois)
-        print("Rois OK: %s : " %  roistring)
         self.scandb.set_info('rois', roistring)
         self.Destroy()
 
