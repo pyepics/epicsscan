@@ -10,13 +10,23 @@ from .stepscan import StepScan
 from .positioner import Positioner
 from .saveable import Saveable
 
+from .xps_trajector import XPSTrajectory
+
 XAFS_K2E = 3.809980849311092
+HC       = 12398.4193
+RAD2DEG  = 180.0/np.pi
+MAXPTS   = 8192
+
 
 def etok(energy):
     return np.sqrt(energy/XAFS_K2E)
 
 def ktoe(k):
     return k*k*XAFS_K2E
+
+def energy2angle(energy, dspace=3.13555):
+    omega   = HC/(2.0 * dspace)
+    return RAD2DEG * np.arcsin(omega/energy)
 
 class ScanRegion(Saveable):
     def __init__(self, start, stop, npts=None,
@@ -29,7 +39,9 @@ class ScanRegion(Saveable):
                           dtime_final=dtime_final,
                           dtime_wt=dtime_wt)
 
+
 class XAFS_Scan(StepScan):
+    """XAFS Scan"""
     def __init__(self, label=None, energy_pv=None, read_pv=None,
                  extra_pvs=None,  e0=0, **kws):
         self.label = label
@@ -112,3 +124,350 @@ class XAFS_Scan(StepScan):
         self.dwelltime.extend(dt_arr)
         if self.energy_pos is not None:
             self.energy_pos.array = np.array(self.energies)
+
+
+class QXAFS_Scan(XAFS_Scan):
+    """QuickXAFS Scan"""
+
+    def __init__(self, label=None, energy_pv=None, read_pv=None,
+                 extra_pvs=None, e0=0, **kws):
+
+        self.label = label
+        self.e0 = e0
+        self.energies = []
+        self.regions = []
+        XAFS_Scan.__init__(self, label=label, energy_pv=energy_pv,
+                           read_pv=read_pv, e0=e0, extra_pvs=extra_pvs,  **kws)
+
+        self.is_qxafs = True
+        self.scantype = 'xafs'
+        qconf = self.scandb.get_config('QXAFS')
+        qconf = self.qconf = json.loads(qconf.notes)
+
+        self.xps = XPSTrajectory(qconf['host'],
+                                 user=qconf['user'],
+                                 password=qconf['passwd'],
+                                 group=qconf['group'],
+                                 positioners=qconf['positioners'],
+                                 outputs=qconf['outputs'])
+
+
+        self.set_energy_pv(energy_pv, read_pv=read_pv, extra_pvs=extra_pvs)
+
+    def make_XPS_trajectory(self, reverse=False,
+                            theta_accel=0.25, width_accel=0.25, **kws):
+        """this method builds the text of a Trajectory script for
+        a Newport XPS Controller based on the energies and dwelltimes"""
+
+        qconf = self.qconf
+
+        dspace = caget(qconf['dspace_pv'])
+        height = caget(qconf['height_pv'])
+        th_off = caget(qconf['theta_motor'] + '.OFF')
+        wd_off = caget(qconf['width_motor'] + '.OFF')
+
+        energy = np.array(self.energies)
+        times  = np.array(self.dwelltime)
+        if reverse:
+            energy = energy[::-1]
+            times  = times[::-1]
+
+        traw    = energy2angle(energy, dspace=dspace)
+        theta  = 1.0*traw
+        theta[1:-1] = traw[1:-1]/2.0 + traw[:-2]/4.0 + traw[2:]/4.0
+        width  = height / (2.0 * np.cos(theta/RAD2DEG))
+
+        width -= wd_off
+        theta -= th_off
+
+        tvelo = np.gradient(theta)/times
+        wvelo = np.gradient(width)/times
+        tim0  = abs(tvelo[0] / theta_accel)
+        the0  = 0.5 * tvelo[ 0] * tim0
+        wid0  = 0.5 * wvelo[ 0] * tim0
+        the1  = 0.5 * tvelo[-1] * tim0
+        wid1  = 0.5 * wvelo[-1] * tim0
+
+        dtheta = np.diff(theta)
+        dwidth = np.diff(width)
+        dtime  = times[1:]
+        fmt = '%.8f, %.8f, %.8f, %.8f, %.8f'
+        efirst = fmt % (tim0, the0, tvelo[0], wid0, wvelo[0])
+        elast  = fmt % (tim0, the1, 0.00,     wid1, 0.00)
+
+        buff  = ['', efirst]
+        for i in range(len(dtheta)):
+            buff.append(fmt % (dtime[i], dtheta[i], tvelo[i],
+                               dwidth[i], wvelo[i]))
+        buff.append(elast)
+
+        return  Group(buffer='\n'.join(buff),
+                      start_theta=theta[0]-the0,
+                      start_width=width[0]-wid0,
+                      theta=theta, tvelo=tvelo,   times=times,
+                      energy=energy, width=width, wvelo=wvelo)
+
+
+    def init_qscan(self, traj):
+        """initialize a QXAFS scan"""
+
+        qconf = self.qconf
+
+        caput(qconf['id_track_pv'],  1)
+        caput(qconf['y2_track_pv'],  1)
+
+        time.sleep(0.1)
+        caput(qconf['width_motor'] + '.DVAL', traj.start_width)
+        caput(qconf['theta_motor'] + '.DVAL', traj.start_theta)
+        # caput(qconf['id_track_pv'], 0)
+        # caput(qconf['id_wait_pv'], 0)
+        caput(qconf['y2_track_pv'], 0)
+
+
+    def finish_qscan(self):
+        """initialize a QXAFS scan"""
+        qconf = self.qconf
+
+        caput(qconf['id_track_pv'],  1)
+        caput(qconf['y2_track_pv'],  1)
+        time.sleep(0.1)
+
+    def gathering2energy(self, text):
+        """read gathering file, calculate and return
+        energy and height. Gathering data is text with columns of
+         Theta_Current, Theta_Set, Height_Current, Height_Set
+        """
+        angle, height = [], []
+        for line in text.split('\n'):
+            line = line[:-1].strip()
+            if len(line) > 4:
+                words = line[:-1].split()
+                angle.append(float(words[0]))
+                height.append(float(words[2]))
+        angle  = np.array(angle)
+        height = np.array(height)
+        angle  = (angle[1:] + angle[:-1])/2.0
+        height = (height[1:] + height[:-1])/2.0
+
+        angle += caget(self.qconf['theta_motor'] + '.OFF')
+        dspace = caget(self.qconf['dspace_pv'])
+        energy = HC/(2.0 * dspace * np.sin(angle/RAD2DEG))
+        return (energy, height)
+
+
+    def run(self, filename=None, comments=None, debug=False, reverse=False):
+        """
+        run the actual QXAFS scan
+        """
+
+        self.complete = False
+        if filename is not None:
+            self.filename  = filename
+
+        if comments is not None:
+            self.comments = comments
+
+        ts_start = time.time()
+        if not self.verify_scan():
+            self.write('Cannot execute scan: %s' % self._scangroup.error_message)
+            self.set_info('scan_message', 'cannot execute scan')
+            return
+
+        qconf = self.qconf
+        energy_orig = caget(qconf['energy_pv'])
+
+        traj = self.make_XPS_trajectory(reverse=reverse)
+        self.init_qscan(traj)
+
+        idarray = 0.001*traj.energy + caget(qconf['id_offset_pv'])
+
+        try:
+            caput(qconf['id_drive_pv'], idarray[0], wait=False)
+        except:
+            pass
+        caput(qconf['energy_pv'],  traj.energy[0], wait=False)
+
+        self.xps.upload_trajectoryFile(qconf['traj_name'], traj.buffer)
+
+        self.clear_interrupts()
+        orig_positions = [p.current() for p in self.positioners]
+
+        sis_prefix = qconf['mcs_prefix']
+        und_thread = PVSlaveThread(master_pvname=sis_prefix+'CurrentChannel',
+                                   slave_pvname=qconf['id_drive_pv'],
+                                   scan=self)
+
+        und_thread.set_array(idarray)
+        und_thread.running = False
+
+        npulses = len(traj.energy) + 1
+
+        caput(qconf['energy_pv'], traj.energy[0], wait=True)
+        try:
+            caput(qconf['id_drive_pv'], idarray[0], wait=True, timeout=5.0)
+        except:
+            pass
+
+        npts = len(self.positioners[0].array)
+        self.dwelltime_varys = False
+        dtime = self.dwelltime[0]
+
+        self.set_info('scan_progress', 'preparing scan')
+        extra_vals = []
+        for desc, pv in self.extra_pvs:
+            extra_vals.append((desc, pv.get(as_string=True), pv.pvname))
+
+        sis_opts = {}
+        xsp3_prefix = None
+        for d in self.detectors:
+            if 'scaler' in d.label.lower():
+                sis_opts['scaler'] = d.prefix
+            elif 'xspress3' in d.label.lower():
+                xsp3_prefix = d.prefix
+
+        qxsp3 = Xspress3(xsp3_prefix)
+        sis  = Struck(sis_prefix, **sis_opts)
+
+        caput(qconf['energy_pv'], traj.energy[0])
+
+        out = self.pre_scan()
+        self.check_outputs(out, msg='pre scan')
+
+        orig_counters = self.counters[:]
+        # specialized QXAFS Counters
+        qxafs_counters = []
+        for i, mca in enumerate(sis.mcas):
+            scalername = getattr(sis.scaler, 'NM%i' % (i+1), '')
+            if len(scalername) > 1:
+                qxafs_counters.append((scalername, mca._pvs['VAL']))
+
+        for roi in range(1, 5):
+            desc = caget('%sC1_ROI%i:ValueSum_RBV.DESC' % (xsp3_prefix, roi))
+            if len(desc) > 0 and not desc.lower().startswith('unused'):
+                for card in range(1, 5):
+                    pvname = '%sC%i_ROI%i:ArrayData_RBV' % (xsp3_prefix, card, roi)
+                    _desc = "%s_mca%i" % (desc, card)
+                    qxafs_counters.append((_desc, PV(pvname)))
+
+        # SCAs for count time
+        for card in range(1, 5):
+            pvname = '%sC%i_SCA0:ArrayData_RBV' % (xsp3_prefix, card)
+            qxafs_counters.append(("Clock_mca%i" % card, PV(pvname)))
+
+        self.counters = []
+        for label, cpv in qxafs_counters:
+            _c = Counter(cpv.pvname, label=label)
+            self.counters.append(_c)
+
+        self.init_scandata()
+
+        sis.stop()
+        sis.ExternalMode()
+        sis.NuseAll = MAXPTS
+        sis.put('PresetReal', 0.0)
+        sis.put('Prescale',   1.0)
+
+        qxsp3.NumImages = MAXPTS
+        qxsp3.useExternalTrigger()
+        qxsp3.Acquire = 0
+        time.sleep(0.1)
+        qxsp3.ERASE  = 1
+
+        self.datafile = self.open_output_file(filename=self.filename,
+                                              comments=self.comments)
+
+        self.datafile.write_data(breakpoint=0)
+        self.filename =  self.datafile.filename
+
+        self.set_info('filename', self.filename)
+        self.set_info('request_abort', 0)
+        self.set_info('scan_time_estimate', npts*dtime)
+        self.set_info('scan_total_points', npts)
+
+        out = [p.move_to_start(wait=True) for p in self.positioners]
+        self.check_outputs(out, msg='move to start, wait=True')
+
+        caput(qconf['energy_pv'], traj.energy[0], wait=True)
+        caput(qconf['width_motor'] + '.DVAL', traj.start_width, wait=True)
+        caput(qconf['theta_motor'] + '.DVAL', traj.start_theta, wait=True)
+
+        self.set_info('scan_progress', 'starting scan')
+        self.cpt = 0
+        self.npts = npts
+
+        und_thread.enable()
+        und_thread.start()
+        time.sleep(0.1)
+
+        ts_init = time.time()
+        self.inittime = ts_init - ts_start
+        start_time = time.strftime('%Y-%m-%d %H:%M:%S')
+
+        self.xps.SetupTrajectory(npts+1, dtime, traj_file=qconf['traj_name'])
+
+        sis.start()
+        qxsp3.FileCaptureOn()
+        qxsp3.Acquire = 1
+        time.sleep(0.1)
+        self.xps.RunTrajectory()
+        self.xps.EndTrajectory()
+
+        sis.stop()
+        qxsp3.Acquire = 0
+        self.finish_qscan()
+        und_thread.running = False
+        und_thread.join()
+
+        self.set_info('scan_progress', 'reading data')
+
+        npulses, gather_text = self.xps.ReadGathering()
+        energy, height = self.gathering2energy(gather_text)
+        self.pos_actual = []
+        for e in energy:
+           self.pos_actual.append([e])
+        ne = len(energy)
+        caput(qconf['energy_pv'], energy_orig-2.0)
+
+        nout = sis.CurrentChannel
+        narr = 0
+        t0  = time.time()
+        while narr < (nout-1) and (time.time()-t0) < 30.0:
+            time.sleep(0.05)
+            try:
+                dat =  [p.get(timeout=5.0) for (_d, p) in qxafs_counters]
+                narr = min([len(d) for d in dat])
+            except:
+                narr = 0
+
+        # reset the counters, and fill in data read from arrays
+        # note that we may need to trim *1st point* from qxspress3 data
+        self.counters = []
+        for label, cpv in qxafs_counters:
+            _c = Counter(cpv.pvname, label=label)
+            arr = cpv.get()
+            if len(arr) > ne:
+                arr = arr[-ne:]
+            _c.buff = arr.tolist()
+            self.counters.append(_c)
+
+        self.publish_scandata()
+
+        for val, pos in zip(orig_positions, self.positioners):
+            pos.move_to(val, wait=False)
+
+        self.datafile.write_data(breakpoint=-1, close_file=True, clear=False)
+        if self.look_for_interrupts():
+            self.write("scan aborted at point %i of %i." % (self.cpt, self.npts))
+            raise ScanDBAbort("scan aborted")
+
+        # run post_scan methods
+        self.set_info('scan_progress', 'finishing')
+        caput(qconf['energy_pv'], energy_orig, wait=True)
+        out = self.post_scan()
+        self.check_outputs(out, msg='post scan')
+        self.complete = True
+        self.set_info('scan_progress',
+                      'scan complete. Wrote %s' % self.datafile.filename)
+        self.runtime  = time.time() - ts_start
+        return self.datafile.filename
+        ##
