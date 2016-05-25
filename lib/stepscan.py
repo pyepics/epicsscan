@@ -1,6 +1,9 @@
 #!/usr/bin/env python
-"""
-Classes and Functions for simple step scanning for epics.
+from __future__ import print_function
+
+MODDOC = """
+=== Epics Step Scanning ===
+
 
 This does not used the Epics SScan Record, and the scan is intended to run
 as a python application, but many concepts from the Epics SScan Record are
@@ -80,11 +83,17 @@ Non-mesh scans are also possible.
 A step scan can have an Epics SScan Record or StepScan database associated
 with it.  It will use these for PVs to post data at each point of the scan.
 """
-import os, sys, shutil, time, threading
+import os
+import sys
+import shutil
+import time
+import threading
 import json
 import numpy as np
 
-from datetime import datetime, timedelta
+from datetime import timedelta
+
+from file_utils import fix_varname
 
 from epics import PV, poll, get_pv, caget, caput
 
@@ -93,11 +102,11 @@ from .detectors import (Counter, DeviceCounter, Trigger,
 from .datafile import ASCIIScanFile
 from .positioner import Positioner
 from .scandb import ScanDBException, ScanDBAbort
-from .file_utils import fix_varname
 
 from .debugtime import debugtime
 
 MIN_POLL_TIME = 1.e-3
+
 
 def hms(secs):
     "format time in seconds to H:M:S"
@@ -298,7 +307,12 @@ class StepScan(object):
         if self.debug: print('Stepscan PRE SCAN ')
         for (desc, pv) in self.extra_pvs:
             pv.connect()
-        out = [m(scan=self) for m in self.pre_scan_methods]
+
+        out = []
+        for meth in self.pre_scan_methods:
+            out.append( meth(scan=self))
+            time.sleep(0.05)
+
         for det in self.detectors:
             for counter in det.counters:
                 self.add_counter(counter)
@@ -343,6 +357,8 @@ class StepScan(object):
         That is, return values must be None or evaluate to False
         to indicate success.
         """
+        if not isinstance(out, (tuple, list)):
+            out = [out]
         if any(out):
             raise Warning('error on output: %s' % msg)
 
@@ -398,6 +414,8 @@ class StepScan(object):
         if self.scandb is None:
             return
         self.scandb.clear_scandata()
+        self.scandb.commit()
+        time.sleep(0.05)
         names = []
         npts = len(self.positioners[0].array)
         for p in self.positioners:
@@ -447,7 +465,6 @@ class StepScan(object):
         self.pause  = self.get_infobool('request_pause')
         self.resume = self.get_infobool('request_resume')
         return self.abort
-
 
     def write(self, msg):
         self.messenger(msg)
@@ -523,23 +540,17 @@ class StepScan(object):
         if self.scandb is not None:
             self.set_info('scan_progress', 'preparing scan')
 
-        dtimer.add('PRE: before pre_scan')
         out = self.pre_scan()
         self.check_outputs(out, msg='pre scan')
-        dtimer.add('PRE: pre_scan done')
-
 
         self.datafile = self.open_output_file(filename=self.filename,
                                               comments=self.comments)
 
-        dtimer.add('PRE: openend file')
-
-        self.filename =  self.datafile.filename
-        self.clear_data()
-        dtimer.add('PRE: cleared data')
-
         self.datafile.write_data(breakpoint=0)
+        self.filename =  self.datafile.filename
+        self.set_info('filename', self.filename)
 
+        self.clear_data()
         if self.scandb is not None:
             self.init_scandata()
             self.set_info('request_abort', 0)
@@ -608,9 +619,9 @@ class StepScan(object):
                 t0 = time.time()
                 time.sleep(max(0.05, self.min_dwelltime/2.0))
                 while not all([trig.done for trig in self.triggers]):
-                    if (time.time() - t0 > (5.0 + 10*self.max_dwelltime)):
+                    if (time.time() - t0) > 5.0*(1 + 2*self.max_dwelltime):
                         break
-                    poll(MIN_POLL_TIME, 0.1)
+                    poll(MIN_POLL_TIME, 0.5)
                 dtimer.add('Pt %i : triggers done' % i)
                 if self.look_for_interrupts():
                     break
@@ -618,18 +629,20 @@ class StepScan(object):
                             time.time()-t0 > (0.75*self.min_dwelltime))
                 if not point_ok:
                     point_ok = True
-                    poll(5*MIN_POLL_TIME, 0.25)
+                    time.sleep(0.25)
+                    poll(0.1, 2.0)
                     for trig in self.triggers:
                         point_ok = point_ok and (trig.runtime > (0.75*self.min_dwelltime))
                         if not point_ok:
-                            print('Trigger problem: ', trig, trig.runtime, self.min_dwelltime)
+                            print('Trigger problem?: ', trig, trig.runtime, self.min_dwelltime)
+                            trig.abort()
 
                 # wait, then read read counters and actual positions
                 poll(self.det_settle_time, 0.1)
                 dtimer.add('Pt %i : det settled done.' % i)
                 [c.read() for c in self.counters]
                 dtimer.add('Pt %i : read counters' % i)
-                # self.cdat = [c.buff[-1] for c in self.counters]
+
                 self.pos_actual.append([p.current() for p in self.positioners])
                 dtimer.add('Pt %i : added positions' % i)
                 # if a messenger exists, let it know this point has finished
@@ -646,7 +659,12 @@ class StepScan(object):
                 self.set_info('request_abort', 1)
                 self.abort = True
             if not point_ok:
-                self.write('point messed up... try again?')
+                self.write('point messed up.  Will try again\n')
+                time.sleep(0.25)
+                for trig in self.triggers:
+                    trig.abort()
+                for det in self.detectors:
+                    det.pre_scan(scan=self)
                 i -= 1
 
         # scan complete
@@ -686,3 +704,156 @@ class StepScan(object):
 
         return self.datafile.filename
         ##
+
+    def write_fastmap_config(self, datafile, comments, mapper=None):
+        "write ini file for fastmap"
+        if datafile is None: datafile = 'scan.001'
+        if comments is None: comments = ''
+        currscan = 'CurrentScan.ini'
+        server  = self.scandb.get_info('server_fileroot')
+        workdir = self.scandb.get_info('user_folder')
+        basedir = os.path.join(server, workdir, 'Maps')
+        sname = os.path.join(server, workdir, 'Maps', currscan)
+        oname = os.path.join(server, workdir, 'Maps', 'PreviousScan.ini')
+
+        if mapper is not None:
+            caput('%sbasedir'  % mapper, basedir)
+            caput('%sfilename' % mapper, datafile)
+            caput('%sscanfile' % mapper, currscan)
+
+        if os.path.exists(sname):
+            shutil.copy(sname, oname)
+        txt = ['# FastMap configuration file (saved: %s)'%(time.ctime()),
+               '#-------------------------#',  '[scan]',
+               'filename = %s' % datafile,
+               'comments = %s' % comments]
+
+        dim  = len(self.positioners)
+        pos  = self.positioners[0]
+        pospv = str(pos.pv.pvname)
+        if pospv.endswith('.VAL'): pospv = pospv[:-4]
+        arr  = pos.array
+        ltim = self.dwelltime*(len(arr) - 1)
+        txt.append('dimension = %i' % dim)
+        txt.append('pos1 = %s'     % pospv)
+        txt.append('start1 = %.4f' % arr[0])
+        txt.append('stop1 = %.4f'  % arr[-1])
+        txt.append('step1 = %.4f'  % (arr[1]-arr[0]))
+        txt.append('time1 = %.4f'  % ltim)
+
+        if dim > 1:
+            pos = self.positioners[1]
+            pospv = str(pos.pv.pvname)
+            if pospv.endswith('.VAL'): pospv = pospv[:-4]
+            arr = pos.array
+            txt.append('pos2 = %s'   % pospv)
+            txt.append('start2 = %.4f' % arr[0])
+            txt.append('stop2 = %.4f' % arr[-1])
+            txt.append('step2 = %.4f' % (arr[1]-arr[0]))
+
+        txt.append('#------------------#')
+        txt.append('[xrd_ad]')
+        xrd_det = None
+        for det in self.detectors:
+            if isinstance(det, AreaDetector):
+                xrd_det = det
+
+        if xrd_det is None:
+            txt.append('use = False')
+        else:
+            txt.append('use = True')
+            txt.append('type = PEDET1')
+            txt.append('prefix = %s' % det.prefix)
+            txt.append('fileplugin = netCDF1:')
+            # txt.append('fileplugin = %s' % det.file_plugin)
+
+
+        f = open(sname, 'w')
+        f.write('\n'.join(txt))
+        f.close()
+        return sname
+
+    def epics_slewscan(self, filename='map.001', comments=None,
+                       mapper='13XRM:map:'):
+        """ request and run a slew-scan, executed with epics interface
+        and separate fastmap collector....
+        should be replaced!
+        """
+        self.write_fastmap_config(filename, comments, mapper=mapper)
+        caput('%smessage' % mapper, 'starting...')
+        caput('%sStart' % mapper, 1)
+
+        self.clear_interrupts()
+        self.set_info('scan_progress', 'starting')
+        # watch scan
+        # first, wait for scan to start (status == 2)
+        collecting = False
+        t0 = time.time()
+        while not collecting and time.time()-t0 < 120:
+
+            collecting = (2 == caget('%sstatus' % mapper))
+            time.sleep(0.25)
+            if self.look_for_interrupts():
+                break
+        if self.abort:
+            caput("%sAbort" % mapper, 1)
+
+        nrow = 0
+        t0 = time.time()
+        maxrow = caget('%smaxrow' % mapper)
+        info = caget("%sinfo" % mapper, as_string=True)
+        self.set_info('scan_progress', info)
+        #  wait for scan to get past row 1
+        while nrow < 1 and time.time()-t0 < 120:
+            nrow = caget('%snrow' % mapper)
+            time.sleep(0.25)
+            if self.look_for_interrupts():
+                break
+        if self.abort:
+            caput("%sAbort" % mapper, 1)
+
+        maxrow  = caget("%smaxrow" % mapper)
+        time.sleep(1.0)
+        fname  = caget("%sfilename" % mapper, as_string=True)
+        self.set_info('filename', fname)
+
+        # wait for map to finish:
+        # must see "status=Idle" for 10 consequetive seconds
+        collecting_map = True
+        nrowx, nrow = 0, 0
+        t0 = time.time()
+        while collecting_map:
+            time.sleep(0.25)
+            status_val = caget("%sstatus" % mapper)
+            status_str = caget("%sstatus" % mapper, as_string=True)
+            nrow       = caget("%snrow" % mapper)
+            self.set_info('scan_status', status_str)
+            time.sleep(0.25)
+            if self.look_for_interrupts():
+                break
+            if nrowx != nrow:
+                info = caget("%sinfo" % mapper, as_string=True)
+                self.set_info('scan_progress', info)
+                nrowx = nrow
+            if status_val == 0:
+                collecting_map = ((time.time() - t0) < 10.0)
+            else:
+                t0 = time.time()
+
+        # if aborted from ScanDB / ScanGUI wait for status
+        # to go to 0 (or 5 minutes)
+        self.look_for_interrupts()
+        if self.abort:
+            caput('%sAbort' % mapper, 1)
+            time.sleep(0.5)
+            t0 = time.time()
+            status_val = caget('%sstatus' % mapper)
+            while status_val != 0 and (time.time()-t0 < 10.0):
+                time.sleep(0.25)
+                status_val = caget('%sstatus' % mapper)
+
+        status_strg = caget('%sstatus' % mapper, as_string=True)
+        self.set_info('scan_status', status_str)
+        if self.abort:
+            raise ScanDBAbort("slewscan aborted")
+        return
