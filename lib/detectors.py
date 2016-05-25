@@ -385,6 +385,33 @@ class ScalerDetector(DetectorMixin):
     def post_scan(self, **kws):
         self.scaler.AutoCountMode()
 
+class TetrAMMScalerDetector(DetectorMixin):
+    trigger_suffix = 'Acquire'
+    def __init__(self, prefix, nchan=8, use_calc=True, **kws):
+        DetectorMixin.__init__(self, prefix, **kws)
+        nchan = int(nchan)
+        self.scaler = Scaler(prefix, nchan=nchan)
+        self._counter = ScalerCounter(prefix, nchan=nchan,
+                                      use_calc=use_calc)
+        self.dwelltime_pv = get_pv('%s.TP' % prefix)
+        self.dwelltime    = None
+        self.counters = self._counter.counters
+        self.extra_pvs = [('Scaler.frequency', '%s.FREQ' % prefix),
+                          ('Scaler.read_delay', '%s.DLY' % prefix)]
+        self._repr_extra = ', nchans=%i, use_calc=%s' % (nchan,
+                                                         repr(use_calc))
+
+        self.extra_pvs.extend(self._counter.extra_pvs)
+
+    def pre_scan(self, scan=None, **kws):
+        self.scaler.OneShotMode()
+        if (self.dwelltime is not None and
+            isinstance(self.dwelltime_pv, PV)):
+            self.dwelltime_pv.put(self.dwelltime)
+
+    def post_scan(self, **kws):
+        self.scaler.AutoCountMode()
+
 class AreaDetector(DetectorMixin):
     """very simple area detector interface...
     trigger / dwelltime, uses array counter as only counter
