@@ -1,13 +1,12 @@
-#!/usr/bin/env python
-"""
-Support for QuadEM, especially TetrAMM model
+from __future__ import print_function
 
-"""
 import time
-import numpy
-from epics import Device, poll
+from epics import caput, caget, PV, Device, poll
+from epics.devices import Struck
 
-HEADER = '''# TetraAMM MCA data: %s
+ARRAY_MODE, SCALER_MODE = range(2)
+
+HEADER = '''# TetrAMM MCS Data: %s,  %s
 # Nchannels, Nmca = %i, %i
 # Time in microseconds
 #----------------------
@@ -15,232 +14,335 @@ HEADER = '''# TetraAMM MCA data: %s
 # %s
 '''
 
+
 class TetrAMM(Device):
     """
     TetrAMM quad channel electrometer, version 2.9
+
+    Can also use SIS3820 (Struck) to manage triggering and timing
     """
 
-    attrs = ('Acquire',
-             'AcquireMode',
-             'Range',
-             'ValuesPerReading',
-             'SampleTime_RBV',
-             'AveragingTime',
-             'NumAcquire',
-             'NumAcquired',
-             'TriggerMode',
-             'TriggerPolarity',
-             'ReadFormat',
-             'TS:TSAcquire',
-             'TS:TSNumPoints',
-             'TS:TSAveragingTime',
-             'TS:TSAcquireMode',
-             'TS:TSTimeAxis',
-             )
-
-    curr_attrs  = ('CurrentName%i',
-                   'CurrentOffset%i',
-                   'CurrentScale%i',
-                   'Current%i:MeanValue_RBV',
-                   'Current%i:Sigma_RBV',
-                   'TS:Current%i:TimeSeries',
-                   )
+    attrs = ('Acquire', 'AcquireMode', 'AveragingTime', 'NumAcquire',
+             'ValuesPerReading', 'Range', 'SampleTime_RBV', 'NumAcquired',
+             'TriggerMode', 'TriggerPolarity', 'ReadFormat')
 
 
-    _nonpvs  = ('_prefix', '_pvs', '_delim', '_chans',
-               'clockrate')
+    curr_attrs = ('Name%i', 'Offset%i', 'Scale%i', '%i:MeanValue_RBV',
+                  '%i:Sigma_RBV', '%i:TSAcquiring', '%i:TSControl',
+                  '%i:TSTotal', '%i:TSSigma', '%i:TSNumPoints', )
 
-    def __init__(self, prefix, nchan=4, clockrate=1.0):
+    _nonpvs  = ('_prefix', '_pvs', '_delim', '_chans', '_mode', '_sis')
+
+    def __init__(self, prefix, nchan=4, sis_prefix=None):
         if not prefix.endswith(':'):
             prefix = "%s:" % prefix
+        self._mode = SCALER_MODE
         self._chans = range(1, nchan+1)
-        self.clockrate = clockrate # clock rate in seconds!
 
         attrs = list(self.attrs)
         for i in self._chans:
             for a in self.curr_attrs:
-                attrs.append(a  % i)
+                 attrs.append( ("Current" + a) % i)
 
         Device.__init__(self, prefix, delim='', attrs=attrs, mutable=False)
         self._aliases = {}
         for i in self._chans:
-            self._aliases['Current%i'% i] = 'Current%i:MeanValue_RBV' % i
-            self._aliases['Sigma%i'% i]   = 'Current%i:Sigma_RBV' % i
-            self._aliases['Offset%i'% i]  = 'CurrentOffset%i' % i
-            self._aliases['Scale%i'% i]   = 'CurrentScale%i' % i
-            self._aliases['Name%i'% i]    = 'CurrentName%i' % i
-            self._aliases['TimeSeries%i'% i] = 'TS:Current%i:TimeSeries' % i
+            self._aliases['Current%i'% i]     = 'Current%i:MeanValue_RBV' % i
+            self._aliases['Sigma%i'% i]       = 'Current%i:Sigma_RBV' % i
+            self._aliases['Offset%i'% i]      = 'CurrentOffset%i' % i
+            self._aliases['Scale%i'% i]       = 'CurrentScale%i' % i
+            self._aliases['Name%i'% i]        = 'CurrentName%i' % i
+            self._aliases['TSControl%i'% i]   = 'Current%i:TSControl' % i
+            self._aliases['TSAcquiring%i'% i] = 'Current%i:TSAcquiring' % i
+            self._aliases['TSNumPoints%i'% i] = 'Current%i:TSNumPoints' % i
+            self._aliases['TSTotal%i'% i]     = 'Current%i:TSTotal' % i
+            self._aliases['TSSigma%i'% i]     = 'Current%i:TSSigma' % i
 
-        for attr in ('TS:TSAcquire', 'TS:TSNumPoints',
-                     'TS:TSAveragingTime', 'TS:TSAcquireMode',
-                     'TS:TSTimeAxis'):
-            self._aliases[attr[3:]] = attr
+        self._sis = None
+        if sis_prefix is not None:
+            self._sis = Struck(prefix)
 
+    def ContinuousMode(self, dwelltime=None, numframes=None):
+        """set to continuous mode: use for live reading
 
-    def AutoCountMode(self):
-        "set to autocount mode"
+    Arguments:
+        dwelltime (None or float): dwelltime per frame in seconds [None]
+        numframes (None or int):   number of frames to collect [None]
+
+    Notes:
+        1. This sets AquireMode to Continuous.  If dwelltime or numframes
+           is not None, they will be set
+
+        2. This puts the TetrAMM in SCALER mode, which will effect the
+           behavior of 'Start'.
+        """
         self.put('AcquireMode', 0)
+        self.SetTriggerMode(0)
+        if numframes is not None:
+            self.put('NumAcquire', numframes)
+        if dwelltime is not None:
+            self.SetDwelltime(dwelltime)
+        self._mode = SCALER_MODE
 
-    def OneShotMode(self):
-        "set to one shot mode"
+    def ScalerMode(self, dwelltime=1.0, numframes=1):
+        """ set to scaler mode: ready for step scanning
+
+    Arguments:
+        dwelltime (None or float): dwelltime per frame in seconds [1.0]
+        numframes (None or int):   number of frames to collect [1]
+
+    Notes:
+        1. numframes should be 1, unless you know what you're doing.
+
+        2. This puts the TetrAMM in SCALER mode, which will effect the
+           behavior of 'Start'.
+        """
         self.put('AcquireMode', 2)
-        self.put('NumAcquire', 1)
+        self.SetTriggerMode(0)
+        if numframes is not None:
+            self.put('NumAcquire', numframes)
+        if dwelltime is not None:
+            self.SetDwelltime(dwelltime)
+        self._mode = SCALER_MODE
 
-    def MultiplShotMode(self, n=1):
-        "set to one shot mode"
+    def ArrayMode(self, dwelltime=0.25, numframes=16384, sis_trigger_width=None):
+        """ set to array mode: ready for slew scanning
+
+    Arguments:
+        dwelltime (None or float): dwelltime per frame in seconds [0.25]
+        numframes (None int):   number of frames to collect [16384]
+        sis_trigger_width (None or float):   output trigger width (in seconds)
+             for optional SIS 3820 [None]
+
+    Notes:
+        1. this arms detector and optional SIS8320 so that it is also
+           ready for slew scanning.
+        2. setting dwelltime or numframes to None is discouraged,
+           as it can lead to inconsistent data arrays.
+        3. This puts the TetrAMM in ARRAY mode, which will effect the
+           behavior of 'Start'.
+        """
         self.put('AcquireMode', 1)
-        self.put('TSAcquireMode', 0) # fixed length
-        self.put('NumAcquire', n)
-        self.put('TSNumPoints', n)
+        self.SetTriggerMode(2)
+        if numframes is not None:
+            self.put('NumAcquire', numframes)
+        if dwelltime is not None:
+            self.SetDwelltime(dwelltime)
+        self._mode = ARRAY_MODE
+        for i in self._chans:
+            self.put('Current%i:TSControl' % i, 0)
+            if numframes is not None:
+                self.put('Current%i:TSNumPoints' % i, numframes)
 
-    def CountTime(self, ctime, nreadings=None):
-        "set count time, with nreadings (Values per internal read)"
-        self.put('AveragingTime', ctime)
-        self.put('TSAveragingTime', ctime)
-        if nreadings is None:
-            nreadings = max(10, min(10000, 100*ctime))
-        self.put('ValuesPerRead', nreadings)
+        if self._sis is not None:
+            self._sis.put('StopAll', 1)
+            self._sis.put('EraseAll', 1)
+            self._sis.put('ChannelAdvance', 'External')
+            if numframes is not None:
+                self._sis.put('NuseAll',  numframes)
+            if dwelltime is not None:
+                self._sis.put('Dwell', dwelltime)
+            if sis_trigger_widht is not None:
+                self._sis.put('LNEOutputWidth', sis_trigger_width)
 
-    def Count(self, ctime=None, wait=False):
-        "set count, with optional counttime"
-        if ctime is not None:
-            self.CountTime(ctime)
-        self.put('Acquire', 1, wait=wait)
-        poll()
 
-    def EnableCalcs(self):
-        "enable calculations"
-        pass
+    def SetDwelltime(self, dwelltime, valuesperread=None):
+        """set dwell time in seconds
 
-    def setCalc(self, i, calc):
-        "set the calculation for channel i"
-        raise NotImplementedException
+    Arguments:
+        dwelltime (float): dwelltime per frame in seconds.   No default
+        valuesperread (int or None):   values per reading for averaging
+                  Defaults to 4000*dwelltime.
 
-    def setScale(self, i, scale=1.e9):
-        "set current scale for channel i"
-        attr = 'CurrentScale%i' % i
-        return self.put(attr, scale)
+    Notes:
+        ValuesPerRead cannot be below 5
+        """
+        if valuesperread is None:
+            valuesperread = 10*max(1, int(dwelltime * 400))
+        self.put('ValuesPerRead', max(5, valuesperread))
+        return self.put('AveragingTime', dwelltime)
 
-    def setScale(self, i, offset=0.0):
-        "set current offset for channel i"
-        attr = 'CurrentOffset%i' % i
-        return self.put(attr, offset)
+    def SetScale(self, i, scale=1.e9):
+        """set current scale for channel i
+
+    Arguments:
+        i (int): channel to set Scale for (1, 2, 3, 4)
+        scale (float):  current scale factor [1.e9]
+
+    Notes:
+        the TetrAMM reads current in Amperes by default.
+        Setting to 1e9 will make the Current values be in nanpAmps.
+        """
+        return self.put('CurrentScale%i' % i, scale)
+
+    def SetOffset(self, i, offset=0.0):
+        """set current offset for channel i
+
+    Arguments:
+        i (int): channel to set Scale for (1, 2, 3, 4)
+        offset (float):  current offset value [0]
+        """
+        return self.put('CurrentOffset%i' % i, offset)
+
 
     def _readattr(self, attr):
         return [self.get(attr % i) for i in self._chans]
 
-    def getNames(self):
-        "get all names"
+    def ReadNames(self):
+        "return list of all Channel Names"
         return self._readattr('CurrentName%i')
 
-    def Read(self, i, use_calc=True):
-        "read all values"
-        return self._readattr('Current%i:MeanValue_RBV' % i)
+    def ReadCurrents(self):
+        "return list of all Channel Current values"
+        return self._readattr('Current%i:MeanValue_RBV')
 
-    def ReadSigma(self, i):
-        "read all sigma values"
-        return self._readattr('Current%i:Sigma_RBV' % i)
+    def ReadSigma(self):
+        "return list of all Channel Current Sigma values"
+        return self._readattr('Current%i:Sigma_RBV')
+
+    def ReadMCAs(self):
+        "return list of all MCA value arrays"
+        return self._readattr('TSTotal%i')
+
+    def ReadMCASigmas(self):
+        "return list of all MCA sigma arrays"
+        return self._readattr('TSSigma%i')
 
 
-    def ExternalMode(self, mode=2, **kws):
-        """put TetrAMM in External Mode, with the following options:
-        option            meaning                   default value
-        ----------------------------------------------------------
-        mode            triggermode                    0
+    def SetTriggerMode(self, mode, polarity=None, **kws):
+        """Set trigger mode
 
-        Modes are:
-          0 internal
-          1 external trigger
-          2 external bulb
-          3 external gate
+    Arguments:
+        mode (int or string): mode index (see Notes), no default
+        polarity (None or int): Trigger Polarity [None]
+
+    Notes:
+        1. mode can be an integer (0, 1, 2, 3) or a string
+           ('internal', 'trigger', 'bulb', 'gate):
+                0 internal
+                1 external trigger
+                2 external bulb
+                3 external gate
+         2. if polarity is not None, it will be set
         """
+        if polarity is not None:
+            self.put('TriggerPolarity', polarity)
+        if isinstance(mode, basestring):
+            lmode = mode.lower()
+            if lmode.startswith('int'):
+                mode = 0
+            elif 'trig' in lmode:
+                mode = 1
+            elif 'bulb' in lmode:
+                mode = 2
+            elif 'gate' in lmode:
+                mode = 3
         return self.put('TriggerMode', mode)
 
-    def InternalMode(self, **kws):
-        "put TetrAMM in Internal Mode"
-        return self.put('TriggerMode', 0)  # internal, Free Run
+    def Count(self, dwelltime=None, wait=False):
+        """start counting, with optional dwelltime and wait
 
-    def setPresetReal(self, val):
-        "Set Preset Real Tiem"
-        pass
+    Arguments:
+        dwelltime (float or None): dwelltime per frame in seconds.   If `None`,
+             the dwelltime is not set.
+        wait (bool):   whether to wait for counting to complete [False]
 
-    def setDwell(self, val):
-        "Set Dwell Time"
-        return self.put('AveragingTime', val)
-        return self.put('TSAveragingTime', val)
+    Notes:
+        this is a simplified version of Start(), starting only the basic counting.
+        it is appropriate for SCALER mode, but not ARRAY mode.
+        """
+        if dwellime is not None:
+            self.setDwellTime(dwelltime)
+        out = self.put('Acquire', 1, wait=wait)
+        poll()
+        return out
 
-    def setDwell(self, val):
-        "Set Dwell Time"
-        return self.put('AveragingTime', val)
-        return self.put('TSAveragingTime', val)
+    def Start(self, wait=False):
+        """start collection, with slightly different behavior for
+    SCALER and ARRAY mode.
 
-    def start(self, wait=False, time_series=False):
-        """start,  """
-        return self.put('Acquire', 1, wait=wait)
+    Arguments:
+        wait (bool):   whether to wait for counting to complete [False]
 
-    def stop(self, wait=False):
-        "Stop Collection"
+    Notes:
+        In SCALER mode, for simple counting: this simply collects one set of
+        Current readings, by setting Acquire to 1 and optionally waiting for
+        it to complete.
+
+        In ARRAY mode: this will first start the Time Series, then set Acquire
+        to 1.  If an SIS is used, this will then set the SIS EraseStart to 1
+        and optionally waiting for it to complete.
+
+        """
+        if self._mode == ARRAY_MODE:
+            for i in self._chans:
+                self.put('Current%i:TSControl' % i, 'Erase/Start')
+            if self._sis is  not None:
+                self.put('Acquire', 1, wait=False)
+                poll(0.025, 1.0)
+                out = self._sis.put('EraseStart', 1, wait=wait)
+            else:
+                out = self.put('Acquire', 1, wait=wait)
+        else:
+            out = self.put('Acquire', 1, wait=wait)
+
+        poll()
+        return out
+
+    def Stop(self, wait=False):
+        """Stop Collection
+
+    Arguments:
+        wait (bool):   whether to wait for stopping to complete [False]
+
+    Notes:
+        In ARRAY mode, this will stop all the Time Series and the SIS.
+        """
+        if self._mode == ARRAY_MODE:
+            for i in self._chans:
+                self.put('Current%i:TSControl' % i, 'Stop')
+        if self._sis is not None:
+            self._sis.put('StopAll', 1)
         return self.put('Acquire', 0, wait=wait)
 
-    def mcaNread(self, nmca=1):
-        "Read a TetrAMM TimeSeries"
-        return self.get('TimeSeries%i' % nmca)
 
-    def readmca(self, nmca=1, count=None):
-        "Read a TetrAMM TimeSeries"
-        return self.get('TimeSeries%i' % nmca, count=count)
+    def saveMCAdata(self, filename='Struck.dat'):
+        """
+        save MCA array data to ASCII file
 
-    def read_all_mcas(self):
-        return [self.readmca(nmca=i) for i in self._chans]
+    Arguments:
+        filename (string):  filename
 
-    def saveMCAdata(self, fname='Struck.dat', mcas=None,
-                    ignore_prefix=None, npts=None):
-        "save MCA spectra to ASCII file"
-        sdata, names, addrs = [], [], []
-        npts =  1.e99
-        time.sleep(0.005)
-        for nmca in self._chans:
-            _name = 'MCA%i' % nmca
-            _addr = '%s.MCA%i' % (self._prefix, nmca)
-            time.sleep(0.002)
-            if self.scaler is not None:
-                scaler_name = self.scaler.get('NM%i' % nmca)
-                if scaler_name is not None:
-                    _name = scaler_name.replace(' ', '_')
-                    _addr = self.scaler._prefix + 'S%i' % nmca
-            mcadat = self.readmca(nmca=nmca)
-            npts = min(npts, len(mcadat))
-            if len(_name) > 0 or sum(mcadat) > 0:
-                names.append(_name)
-                addrs.append(_addr)
-                sdata.append(mcadat)
+        """
 
+        sdata = self.ReadMCAs()
+        names = self.ReadNames()
+        fmt = '%sCurrent%i:MeanValue_RBV'
+        addrs = [fmt % (self._prefix, i) for i in self._chans]
+
+        sis_header = 'No SIS included'
+        if self._sis is not None:
+            sis_header = 'SIS %s' % self._sis.prefix
+            names.insert(0, 'TSCALER')
+            addrs.insert(0, self._sis._prefix + 'VAL')
+            sdata.insert(0, self._sis.mcas[0].get('VAL')/self._sis.clockrate)
+
+        npts = len(sdata[0])
         sdata = numpy.array([s[:npts] for s in sdata]).transpose()
-        sdata[:, 0] = sdata[:, 0]/(self.clockrate)
 
         nelem, nmca = sdata.shape
         npts = min(nelem, npts)
 
         addrs = ' | '.join(addrs)
         names = ' | '.join(names)
-        formt = '%9i ' * nmca + '\n'
+        formt = '%9i '  + '%9g ' * (nmca-1) + '\n'
 
-        fout = open(fname, 'w')
-        fout.write(HEADER % (self._prefix, npts, nmca, addrs, names))
+        buff = [HEADER % (self._prefix, sis_header,
+                          npts, nmca, addrs, names)]
         for i in range(npts):
-            fout.write(formt % tuple(sdata[i]))
+            buff.append(formt % tuple(sdata[i]))
+        buff.append()
+        fout = open(fname, 'w')
+        fout.write('\n'.join(buff))
         fout.close()
         return (nmca, npts)
-
-if __name__ == '__main__':
-    q = TetrAMM('13IDE:TetrAMM:')
-
-    t0 = time.time()
-    fmt = "%s  : [%.4f, %.4f, %.4f, %.4f]  [%.4f, %.4f, %.4f, %.4f] "
-    while time.time() -t0 < 10000:
-
-        print fmt % (time.ctime(),
-                     q.Current1, q.Current2, q.Current3, q.Current4,
-                     q.Sigma1, q.Sigma2, q.Sigma3, q.Sigma4)
-
-        time.sleep(0.5)
