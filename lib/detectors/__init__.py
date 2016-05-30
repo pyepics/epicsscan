@@ -21,7 +21,7 @@ from .base  import DetectorMixin, SimpleDetector, MotorDetector
 from .areadetector import AreaDetector
 from .mca import McaDetector, MultiMcaDetector
 from .scaler import ScalerCounter, ScalerDetector
-from .xspress3 import Xspress3Detector
+from .xspress3 import Xspress3, Xspress3Detector
 from .struck import Struck
 from .quadem import TetrAMM
 
