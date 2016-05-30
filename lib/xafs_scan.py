@@ -5,18 +5,20 @@ based on EpicsApps.StepScan.
 
 """
 import numpy as np
+from epics import caget, caput, PV
 
 from .stepscan import StepScan
 from .positioner import Positioner
 from .saveable import Saveable
 
-from .xps_trajector import XPSTrajectory
+from .xps import XPSTrajectory
+
+from .detectors import Struck, TetrAMM, Xspress3
 
 XAFS_K2E = 3.809980849311092
 HC       = 12398.4193
 RAD2DEG  = 180.0/np.pi
 MAXPTS   = 8192
-
 
 def etok(energy):
     return np.sqrt(energy/XAFS_K2E)
@@ -361,17 +363,8 @@ class QXAFS_Scan(XAFS_Scan):
 
         self.init_scandata()
 
-        sis.stop()
-        sis.ExternalMode()
-        sis.NuseAll = MAXPTS
-        sis.put('PresetReal', 0.0)
-        sis.put('Prescale',   1.0)
-
-        qxsp3.NumImages = MAXPTS
-        qxsp3.useExternalTrigger()
-        qxsp3.Acquire = 0
-        time.sleep(0.1)
-        qxsp3.ERASE  = 1
+        sis.ArrayMode(numframes=npts+5)
+        qxsp3.ArrayMode(numframs=npts+5)
 
         self.datafile = self.open_output_file(filename=self.filename,
                                               comments=self.comments)
@@ -405,15 +398,15 @@ class QXAFS_Scan(XAFS_Scan):
 
         self.xps.SetupTrajectory(npts+1, dtime, traj_file=qconf['traj_name'])
 
-        sis.start()
-        qxsp3.FileCaptureOn()
-        qxsp3.Acquire = 1
+        sis.Start()
+        qxsp3.Start()
+
         time.sleep(0.1)
         self.xps.RunTrajectory()
         self.xps.EndTrajectory()
 
-        sis.stop()
-        qxsp3.Acquire = 0
+        sis.Stop()
+        qxsp3.Stop()
         self.finish_qscan()
         und_thread.running = False
         und_thread.join()
