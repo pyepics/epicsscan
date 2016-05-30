@@ -26,6 +26,19 @@ from .struck import Struck
 from .quadem import TetrAMM
 
 
+DET_DEFAULT_OPTS = {'scaler': {'use_calc': True, 'nchans': 8},
+                    'areadetector': {'file_plugin': 'TIFF1',
+                                     'fileroot': '',
+                                     'auto_increment': True},
+                    'mca': {'nrois': 32, 'use_full': False,
+                            'use_net': False},
+                    'xspress3': {'nrois': 32, 'nmcas': 4,
+                                 'use_full': False},
+                    'multimca': {'nrois': 32, 'nmcas': 4,
+                                 'use_full': False, 'use_net': False}}
+
+AD_FILE_PLUGINS = ('TIFF1', 'JPEG1', 'NetCDF1', 'HDF1', 'Nexus1')
+
 class TetrAMMScalerDetector(DetectorMixin):
     trigger_suffix = 'Acquire'
     def __init__(self, prefix, nchan=8, use_calc=True, **kws):
