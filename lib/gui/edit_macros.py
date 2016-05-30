@@ -8,7 +8,7 @@ import wx
 import wx.lib.scrolledpanel as scrolled
 from wx.lib.editor import Editor
 
-from ..ordereddict import OrderedDict
+from collections import OrderedDict
 from .gui_utils import (GUIColors, set_font_with_children, YesNo,
                         add_menu, add_button, pack, SimpleText,
                         FileOpen, FileSave, popup,

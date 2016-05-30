@@ -4,7 +4,7 @@ import json
 import wx
 import wx.lib.scrolledpanel as scrolled
 
-from ..ordereddict import OrderedDict
+from collections import OrderedDict
 from ..detectors import DET_DEFAULT_OPTS, AD_FILE_PLUGINS
 
 from .gui_utils import (GUIColors, set_font_with_children, YesNo, Closure,
