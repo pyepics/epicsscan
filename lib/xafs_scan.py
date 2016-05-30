@@ -10,7 +10,7 @@ from .stepscan import StepScan
 from .positioner import Positioner
 from .saveable import Saveable
 
-from .xps_trajector import XPSTrajectory
+from .xps import XPSTrajectory
 
 XAFS_K2E = 3.809980849311092
 HC       = 12398.4193
