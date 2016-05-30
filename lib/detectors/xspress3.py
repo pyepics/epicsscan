@@ -1,103 +1,22 @@
-#!/usr/bin/python
-import sys
-import os
+"""
+Quantum Xspress3 detector
+"""
 import time
 from ConfigParser import ConfigParser
 
-from epics import Device, caget, caput, poll
-from epics.devices.mca import MCA, ROI, OrderedDict
-from epics.devices.ad_mca import ADMCA, ADMCAROI
+from epics import get_pv, caput, caget, Device, poll
+from epics.devices.ad_mca import ADMCA
+
+from .trigger import Trigger
+from .counter import Counter, DeviceCounter
+from .base import DetectorMixin
+from .areadetector import ADFileMixin
 
 MAX_ROIS = 32
 
 SCALER_MODE, ARRAY_MODE, ROI_MODE = 'SCALER', 'ARRAY', 'ROI'
 
-class ADFileMixin(object):
-    """mixin class for Xspress3"""
-    def filePut(self, attr, value, **kws):
-        return self.put("%s%s" % (self.filesaver, attr), value, **kws)
-
-    def fileGet(self, attr, **kws):
-        return self.get("%s%s" % (self.filesaver, attr), **kws)
-
-    def setFilePath(self, pathname):
-        fullpath = os.path.join(self.fileroot, pathname)
-        return self.filePut('FilePath', fullpath)
-
-    def setFileTemplate(self,fmt):
-        return self.filePut('FileTemplate', fmt)
-
-    def setFileWriteMode(self,mode):
-        return self.filePut('FileWriteMode', mode)
-
-    def setFileName(self,fname):
-        return self.filePut('FileName', fname)
-
-    def nextFileNumber(self):
-        self.setFileNumber(1+self.fileGet('FileNumber'))
-
-    def setFileNumber(self, fnum=None):
-        if fnum is None:
-            self.filePut('AutoIncrement', 1)
-        else:
-            self.filePut('AutoIncrement', 0)
-            return self.filePut('FileNumber',fnum)
-
-    def getLastFileName(self):
-        return self.fileGet('FullFileName_RBV',as_string=True)
-
-    def FileCaptureOn(self):
-        return self.filePut('Capture', 1)
-
-    def FileCaptureOff(self):
-        return self.filePut('Capture', 0)
-
-    def setFileNumCapture(self,n):
-        return self.filePut('NumCapture', n)
-
-    def FileWriteComplete(self):
-        return (0==self.fileGet('WriteFile_RBV') )
-
-    def getFileTemplate(self):
-        return self.fileGet('FileTemplate_RBV',as_string=True)
-
-    def getFileName(self):
-        return self.fileGet('FileName_RBV',as_string=True)
-
-    def getFileNumber(self):
-        return self.fileGet('FileNumber_RBV')
-
-    def getFilePath(self):
-        return self.fileGet('FilePath_RBV',as_string=True)
-
-    def getFileNameByIndex(self,index):
-        return self.getFileTemplate() % (self.getFilePath(), self.getFileName(), index)
-
-class Xspress3BaseMixin(object):
-    """xspress3 mixin -- triggers, acquire, etc"""
-    def useExternalTrigger(self):
-        self.TriggerMode = 3
-
-    def useInternalTrigger(self):
-        self.TriggerMode = 1
-
-    def SetTriggerMode(self, mode):
-        self.TriggerMode = mode
-
-    def Start(self, capture=True):
-        time.sleep(.05)
-        if capture:
-            self.FileCaptureOn()
-        self.Acquire = 1
-
-    def Stop(self):
-        self.Acquire = 0
-        self.FileCaptureOff()
-
-    def get_rois(self):
-        return [m.get_rois() for m in self.mcas]
-
-class Xspress3(Device, ADFileMixin, Xspress3BaseMixin):
+class Xspress3(Device, ADFileMixin):
     """Epics Xspress3.20 interface (with areaDetector2)"""
 
     det_attrs = ('NumImages', 'NumImages_RBV', 'Acquire', 'Acquire_RBV',
@@ -105,7 +24,7 @@ class Xspress3(Device, ADFileMixin, Xspress3BaseMixin):
                  'TriggerMode', 'StatusMessage_RBV', 'DetectorState_RBV')
 
     _nonpvs = ('_prefix', '_pvs', '_delim', 'filesaver', 'fileroot',
-                'pathattrs', '_nonpvs',  'nmca', 'mcas', '_chans')
+               'pathattrs', '_nonpvs', 'nmca', 'mcas', '_chans')
 
     pathattrs = ('FilePath', 'FileTemplate', 'FileName', 'FileNumber',
                  'Capture', 'NumCapture')
@@ -116,7 +35,7 @@ class Xspress3(Device, ADFileMixin, Xspress3BaseMixin):
             prefix = "%s:" % prefix
         self.nmca = nmca
         attrs = []
-        attrs.extend(['%s%s' % (filesaver,p) for p in self.pathattrs])
+        attrs.extend(['%s%s' % (filesaver, p) for p in self.pathattrs])
 
         self.filesaver = filesaver
         self.fileroot = fileroot
@@ -132,7 +51,6 @@ class Xspress3(Device, ADFileMixin, Xspress3BaseMixin):
             self.mcas.append(mca)
             attrs.append("%s:MCA%iROI:TSControl" % (prefix, imca))
             attrs.append("%s:MCA%iROI:TSNumPoints" % (prefix, imca))
-            # "MCA1ROI:BlockingCallbacks"
 
         Device.__init__(self, prefix, attrs=attrs, delim='')
         for attr in self.det_attrs:
@@ -141,7 +59,7 @@ class Xspress3(Device, ADFileMixin, Xspress3BaseMixin):
             imca = i+1
             for j in range(8):
                 isca = j+1
-                attr="C%iSCA%i"% (imca, isca)
+                attr = "C%iSCA%i"% (imca, isca)
                 self.add_pv("%s%s:Value_RBV" % (prefix, attr), attr)
         time.sleep(0.05)
 
@@ -151,7 +69,7 @@ class Xspress3(Device, ADFileMixin, Xspress3BaseMixin):
         rois = self.mcas[0].get_rois()
         for iroi, roi in enumerate(rois):
             name = roi.Name
-            hi   = roi.MinX + roi.SizeX
+            hi = roi.MinX + roi.SizeX
             if len(name.strip()) > 0 and hi > 0:
                 dbuff = []
                 for m in range(self.nmca):
@@ -168,10 +86,9 @@ class Xspress3(Device, ADFileMixin, Xspress3BaseMixin):
 
     def restore_rois(self, roifile):
         """restore ROI setting from ROI.dat file"""
-        cp =  ConfigParser()
+        cp = ConfigParser()
         cp.read(roifile)
         roidat = []
-        iroi = 0
         for a in cp.options('rois'):
             if a.lower().startswith('roi'):
                 name, dat = cp.get('rois', a).split('|')
@@ -217,7 +134,7 @@ class Xspress3(Device, ADFileMixin, Xspress3BaseMixin):
             self.SetDwelltime(dwelltime)
         for i in self._chans:
             self.put('MCA%iROI:TSControl' % i, 2) # 'Stop'
-
+            self.put('MCA%iROI:BlockingCallbacks' % i, 1)
         self._mode = SCALER_MODE
 
 
@@ -242,12 +159,14 @@ class Xspress3(Device, ADFileMixin, Xspress3BaseMixin):
             self.put('NumImages', numframes)
             for i in self._chans:
                 self.put('MCA%iROI:TSNumPoints' % i, numframes)
+                self.put('MCA%iROI:BlockingCallbacks' % i, 1)
+
         if dwelltime is not None:
             self.SetDwelltime(dwelltime)
         self._mode = ROI_MODE
 
 
-    def ArrayMode(self, dwelltime=0.25, numframes=16384, **kws):
+    def ArrayMode(self, dwelltime=0.25, numframes=16384):
         """ set to array mode: ready for slew scanning
 
     Arguments:
@@ -260,10 +179,10 @@ class Xspress3(Device, ADFileMixin, Xspress3BaseMixin):
         2. setting dwelltime or numframes to None is discouraged,
            as it can lead to inconsistent data arrays.
         """
-        self.TriggerMode = 3
+        self.put('TriggerMode', 3)
         self.put('ERASE', 1)
         for i in self._chans:
-            self.put('MCA%iROI:TSControl' % i, 2) # 'Stop'
+            self.put('MCA%iROI:TSControl' % i, 2) # 'Stop
 
         if numframes is not None:
             self.put('NumAcquire', numframes)
@@ -271,7 +190,7 @@ class Xspress3(Device, ADFileMixin, Xspress3BaseMixin):
             self.SetDwelltime(dwelltime)
         self._mode = ARRAY_MODE
 
-    def SetDwelltime(self, dwelltime, **kws):
+    def SetDwelltime(self, dwelltime):
         """set dwell time in seconds
 
     Arguments:
@@ -300,115 +219,194 @@ class Xspress3(Device, ADFileMixin, Xspress3BaseMixin):
 
 
 
+class Xspress3Trigger(Trigger):
+    """Triggers for Xspress3, AD2 version
+    where Start does an EraseStart for the MCA arrays
+    """
+    def __init__(self, prefix, value=1, label=None, **kws):
+        Trigger.__init__(self, prefix, label=label, value=value, **kws)
+        self._start = get_pv(prefix + 'det1:Acquire')
+        self._erase = get_pv(prefix + 'det1:ERASE')
+        self.prefix = prefix
+        self._val = value
+        self.done = False
+        self._t0 = 0
+        self.runtime = -1
+
+    def __repr__(self):
+        return "<Xspress3Trigger(%s)>" % (self.prefix)
+
+    def __onComplete(self, pvname=None, **kws):
+        self.done = True
+        self.runtime = time.time() - self._t0
+
+    def start(self, value=None):
+        """Start Xspress3"""
+        self.done = False
+        runtime = -1
+        self._t0 = time.time()
+        if value is None:
+            value = self._val
+        # self._erase.put(1, wait=True)
+        # poll(0.01, 0.5)
+        self._start.put(value, callback=self.__onComplete)
+        poll(0.01, 0.5)
+
+    def abort(self, value=0):
+        self._start.put(0, wait=False)
+        poll(0.050, 0.5)
 
 
-class Xspress310(Device, ADFileMixin, Xspress3BaseMixin):
-    """Epics Xspress3.10 interface (older version)"""
-    attrs = ('NumImages', 'NumImages_RBV',
-             'Acquire', 'Acquire_RBV',
-             'ArrayCounter_RBV',
-             'ERASE', 'UPDATE', 'AcquireTime',
-             'TriggerMode', 'StatusMessage_RBV',
-             'DetectorState_RBV')
+class Xspress3Detector(DetectorMixin):
+    """
+    Xspress 3 MultiMCA detector, 3.2
+    """
+    repr_fmt = ', nmcas=%i, nrois=%i, use_dtc=%s, use_full=%s'
 
-    _nonpvs  = ('_prefix', '_pvs', '_delim', 'filesaver',
-                'fileroot', 'pathattrs', '_nonpvs', '_save_rois',
-                'nmca', 'dxps', 'mcas')
+    def __init__(self, prefix, label=None, nmcas=4,
+                 nrois=32, rois=None, pixeltime=0.1, use_dtc=False,
+                 use=True, use_unlabeled=False, use_full=False, **kws):
 
-    pathattrs = ('FilePath', 'FileTemplate',
-                 'FileName', 'FileNumber',
-                 'Capture',  'NumCapture')
+        if not prefix.endswith(':'):
+            prefix = "%s:" % prefix
 
-    def __init__(self, prefix, nmca=4, filesaver='HDF5:',
-                 fileroot='/home/xspress3/cars5/Data'):
-        self.nmca = nmca
-        attrs = list(self.attrs)
-        attrs.extend(['%s%s' % (filesaver,p) for p in self.pathattrs])
+        self.nmcas = nmcas = int(nmcas)
+        self.nrois = nrois = int(nrois)
+        DetectorMixin.__init__(self, prefix, label=label)
 
-        self.filesaver = filesaver
-        self.fileroot = fileroot
-        self._prefix = prefix
-        self._save_rois = []
-        self.mcas = [MCA(prefix, mca=i+1) for i in range(nmca)]
+        self.prefix = prefix
+        self.dwelltime = None
+        self.dwelltime_pv = get_pv('%sdet1:AcquireTime' % prefix)
+        self.trigger = Xspress3Trigger(prefix)
+        self.extra_pvs = self.add_extrapvs_GSE()
+        self.use_dtc = use_dtc  # KLUDGE DTC!!
+        self.label = label
+        if self.label is None:
+            self.label = self.prefix
 
-        Device.__init__(self, prefix, attrs=attrs, delim='')
-        time.sleep(0.1)
+        self._counter = None
+        self.counters = []
+        self._repr_extra = self.repr_fmt % (nmcas, nrois,
+                                            repr(use_dtc),
+                                            repr(use_full))
+
+        self._connect_args = dict(nmcas=nmcas, nrois=nrois, rois=rois,
+                                  use_unlabeled=use_unlabeled,
+                                  use_full=use_full)
+        self.connect_counters()
+
+    def __repr__(self):
+        return "<%s: '%s', prefix='%s'%s>" % (self.__class__.__name__,
+                                              self.label, self.prefix,
+                                              self._repr_extra)
+
+    def add_extrapvs_GSE(self):
+        e = [('mca1 tau(nsec)', '13IDE:userTran3.A'),
+             ('mca2 tau(nsec)', '13IDE:userTran3.B'),
+             ('mca3 tau(nsec)', '13IDE:userTran3.C'),
+             ('mca4 tau(nsec)', '13IDE:userTran3.D')]
+        return e
+
+    def connect_counters(self):
+        # print("Xspres3 connect_counters ", self._connect_args)
+        self._counter = Xspress3Counter(self.prefix, **self._connect_args)
+        self.counters = self._counter.counters
+        self.extra_pvs = self._counter.extra_pvs
+
+    def pre_scan(self, scan=None, **kws):
+        """ """
+        caput("%sdet1:Acquire" % (self.prefix), 0)
+        poll(0.05, 0.5)
+
+        if self._counter is None:
+            self.connect_counters()
+        self._counter._get_counters()
+        self.counters = self._counter.counters
+        self.extra_pvs = self._counter.extra_pvs
+
+        dtime = 0.5
+        if self.dwelltime is not None:
+            dtime = self.dwelltime
+        self.dwelltime_pv.put(dtime)
+
+        # for i in range(1, self.nmcas+1):
+        #     card = "%sC%i" % (self.prefix, i)
+        #     caput("%s_PluginControlValExtraROI" % (card), 0)
+        #     caput("%s_PluginControlVal"         % (card), 1)
+        #    poll(0.005, 0.5)
+        caput("%sdet1:ERASE"         % (self.prefix), 1)
+        caput("%sdet1:TriggerMode"   % (self.prefix), 1)   # Internal Mode
+        caput("%sdet1:NumImages"     % (self.prefix), 1)   # 1 Image
+        caput("%sdet1:CTRL_DTC"      % (self.prefix), self.use_dtc)
+        poll(0.01, 0.5)
+
+        caput("%sdet1:Acquire" % (self.prefix), 0, wait=True)
+        poll(0.01, 0.5)
+        caput("%sdet1:ERASE"   % (self.prefix), 1, wait=True)
+        poll(0.01, 0.5)
 
 
-    def select_rois_to_save(self, roilist):
-        """copy rois from MCA record to arrays to be saved
-        by XSPress3"""
-        roilist = list(roilist)
-        if len(roilist) < 4: roilist.append((50, 4050))
-        pref = self._prefix
-        self._save_rois = []
-        for iroi, roiname in enumerate(roilist):
-            label = roiname
-            if isinstance(roiname, tuple):
-                lo, hi = roiname
-                label = '[%i:%i]'  % (lo, hi)
-            else:
-                rname = roiname.lower().strip()
-                lo, hi = 50, 4050
-                for ix in range(MAX_ROIS):
-                    nm = caget('%smca1.R%iNM' % (pref, ix))
-                    if nm.lower().strip() == rname:
-                        lo = caget('%smca1.R%iLO' % (pref, ix))
-                        hi = caget('%smca1.R%iHI' % (pref, ix))
-                        break
-            self._save_rois.append(label)
-            for imca in range(1, self.nmca+1):
-                pv_lo = "%sC%i_MCA_ROI%i_LLM" % (pref, imca, iroi+1)
-                pv_hi = "%sC%i_MCA_ROI%i_HLM" % (pref, imca, iroi+1)
-                caput(pv_hi, hi)
-                caput(pv_lo, lo)
+class Xspress3Counter(DeviceCounter):
+    """Counters for Xspress3-1-10 (weird ROIs / areaDetector hybrid)
+    """
+    sca_labels = ('', 'Clock', 'ResetTicks', 'ResetCounts',
+                  'AllEvent', 'AllGood', 'Window1', 'Window2', 'Pileup')
+    scas2save = (1, 2, 3, 4, 5, 8)
+    def __init__(self, prefix, outpvs=None, nmcas=4,
+                 nrois=32, rois=None, nscas=1, use_unlabeled=False,
+                 use_full=False):
 
-    def roi_calib_info(self):
-        buff = ['[rois]']
-        add = buff.append
-        rois = self.get_rois()
-        for iroi in range(len(rois[0])):
-            name = rois[0][iroi].NM
-            hi   = rois[0][iroi].HI
-            if len(name.strip()) > 0 and hi > 0:
-                dbuff = []
-                for m in range(self.nmca):
-                    dbuff.extend([rois[m][iroi].LO, rois[m][iroi].HI])
-                dbuff = ' '.join([str(i) for i in dbuff])
-                add("ROI%2.2i = %s | %s" % (iroi, name, dbuff))
+        if not prefix.endswith(':'):
+            prefix = "%s:" % prefix
 
-        add('[calibration]')
-        add("OFFSET = %s " % (' '.join(["0.000 "] * self.nmca)))
-        add("SLOPE  = %s " % (' '.join(["0.010 "] * self.nmca)))
-        add("QUAD   = %s " % (' '.join(["0.000 "] * self.nmca)))
-        add('[dxp]')
-        return buff
+        self.nmcas, self.nrois = int(nmcas), int(nrois)
+        self.nscas = int(nscas)
+        self.use_full = use_full
+        self.use_unlabeled = False
+        DeviceCounter.__init__(self, prefix, rtype=None, outpvs=outpvs)
 
-    def restore_rois(self, roifile):
-        """restore ROI setting from ROI.dat file"""
-        cp =  ConfigParser()
-        cp.read(roifile)
-        rois = []
-        self.mcas[0].clear_rois()
-        prefix = self.mcas[0]._prefix
-        if prefix.endswith('.'):
-            prefix = prefix[:-1]
-        iroi = 0
-        for a in cp.options('rois'):
-            if a.lower().startswith('roi'):
-                name, dat = cp.get('rois', a).split('|')
-                lims = [int(i) for i in dat.split()]
-                lo, hi = lims[0], lims[1]
-                # print('ROI ', name, lo, hi)
-                roi = ROI(prefix=prefix, roi=iroi)
-                roi.LO = lo
-                roi.HI = hi
-                roi.NM = name.strip()
-                rois.append(roi)
-                iroi += 1
+        prefix = self.prefix
+        self._fields = []
+        self.extra_pvs = []
+        pvs = self._pvs = {}
 
-        poll(0.050, 1.0)
-        self.mcas[0].set_rois(rois)
-        cal0 = self.mcas[0].get_calib()
-        for mca in self.mcas[1:]:
-            mca.set_rois(rois, calib=cal0)
+        time.sleep(0.01)
+        # use roilist to set ROI to those listed:
+        if rois is None:
+            rois = ['']
+        self.rois = [r.lower().strip() for r in rois]
+
+    def _get_counters(self):
+        prefix = self.prefix
+        self.counters = []
+        def add_counter(pv, lab):
+            self.counters.append(Counter(pv, label=lab))
+
+        try:
+            nmax = len(caget('%sMCA1:ArrayData' % prefix))
+        except ValueError:
+            nmax = 2048
+
+        if 'outputcounts' not in self.rois:
+            self.rois.append('outputcounts')
+
+        for iroi in range(1, self.nrois+1):
+            label = caget("%sMCA1ROI:%i:Name" % (prefix, iroi)).strip()
+            if len(label) < 0:
+                break
+            elif label.lower() in self.rois:
+                for imca in range(1, self.nmcas+1):
+                    _pvname = '%sMCA%iROI:%i:Total_RBV' % (prefix, imca, iroi)
+                    _label = "%s mca%i" % (label, imca)
+                    add_counter(_pvname, _label)
+
+        for isca in self.scas2save:
+            for imca in range(1, self.nmcas+1):
+                _pvname = '%sC%iSCA%i:Value_RBV' % (prefix, imca, isca)
+                _label = '%s mca%i' % (self.sca_labels[isca], imca)
+                add_counter(_pvname, _label)
+
+        if self.use_full:
+            for imca in range(1, self.nmcas+1):
+                pv = '%sMCA%i.ArrayData' % (prefix, imca)
+                add_counter(pv, 'spectra%i' % imca)
