@@ -5,7 +5,7 @@ import logging
 from cStringIO import StringIO
 from string import printable
 from copy import deepcopy
-from .debugtime import debugtime
+from ..debugtime import debugtime
 from .config import config
 from XPS_C8_drivers import  XPS
 
