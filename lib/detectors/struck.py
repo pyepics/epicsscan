@@ -1,4 +1,6 @@
-#!/usr/bin/env python
+"""
+Struck SIS3820
+"""
 import sys
 import time
 import copy
@@ -30,7 +32,7 @@ class Struck(Device):
              'SoftwareChannelAdvance', 'Channel1Source',
              'ReadAll', 'DoReadAll', 'Model', 'Firmware')
 
-    _nonpvs  = ('_prefix', '_pvs', '_delim', '_nchan',
+    _nonpvs = ('_prefix', '_pvs', '_delim', '_nchan',
                'clockrate', 'scaler', 'mcas')
 
     def __init__(self, prefix, scaler=None, nchan=8, clockrate=50.0):
@@ -50,7 +52,7 @@ class Struck(Device):
             self.mcas.append(MCA(prefix, mca=i+1, nrois=2))
 
         Device.__init__(self, prefix, delim='',
-                              attrs=self.attrs, mutable=False)
+                        attrs=self.attrs, mutable=False)
 
     def ExternalMode(self, countonstart=0, initialadvance=None,
                      realtime=0, prescale=1, trigger_width=None):
@@ -179,14 +181,14 @@ class Struck(Device):
     def read_all_mcas(self):
         return [self.readmca(nmca=i+1) for i in range(self._nchan)]
 
-    def SaveArrayData(self, fname='Struck.dat', mcas=None,
-                    ignore_prefix=None, npts=None):
+    def SaveArrayData(self, fname='Struck.dat', ignore_prefix=None,
+                      npts=None):
         "save MCA spectra to ASCII file"
         sdata, names, addrs = [], [], []
-        npts =  1.e99
+        npts = 1.e99
         time.sleep(0.005)
         for nchan in range(self._nchan):
-            nmca  = nchan + 1
+            nmca = nchan + 1
             _name = 'MCA%i' % nmca
             _addr = '%s.MCA%i' % (self._prefix, nmca)
             time.sleep(0.002)
