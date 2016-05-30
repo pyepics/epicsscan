@@ -5,10 +5,10 @@ import os
 
 from epics import PV, get_pv, caget, caput
 
+from epicsscan.file_utils import fix_filename
+
 from .base import DetectorMixin
 from .counter import Counter
-
-from epicsscan.file_utils import fix_filename
 
 AD_FILE_PLUGINS = ('TIFF1', 'JPEG1', 'NetCDF1',
                    'HDF1', 'Nexus1', 'Magick1')
