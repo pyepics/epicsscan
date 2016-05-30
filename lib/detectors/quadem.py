@@ -1,6 +1,9 @@
+"""
+QuadEM using TetrAMM
+"""
 from __future__ import print_function
 
-import time
+import numpy as np
 from epics import Device, poll
 from .struck import Struck
 
@@ -31,7 +34,7 @@ class TetrAMM(Device):
                   '%i:Sigma_RBV', '%i:TSAcquiring', '%i:TSControl',
                   '%i:TSTotal', '%i:TSSigma', '%i:TSNumPoints', )
 
-    _nonpvs  = ('_prefix', '_pvs', '_delim', '_chans', '_mode', '_sis')
+    _nonpvs = ('_prefix', '_pvs', '_delim', '_chans', '_mode', '_sis')
 
     def __init__(self, prefix, nchan=4, sis_prefix=None):
         if not prefix.endswith(':'):
@@ -43,24 +46,25 @@ class TetrAMM(Device):
         attrs = list(self.attrs)
         for i in self._chans:
             for a in self.curr_attrs:
-                 attrs.append( ("Current" + a) % i)
+                attrs.append(("Current" + a) % i)
 
         Device.__init__(self, prefix, delim='', attrs=attrs, mutable=False)
         self._aliases = {}
         for i in self._chans:
-            self._aliases['Current%i'% i]     = 'Current%i:MeanValue_RBV' % i
-            self._aliases['Sigma%i'% i]       = 'Current%i:Sigma_RBV' % i
-            self._aliases['Offset%i'% i]      = 'CurrentOffset%i' % i
-            self._aliases['Scale%i'% i]       = 'CurrentScale%i' % i
-            self._aliases['Name%i'% i]        = 'CurrentName%i' % i
-            self._aliases['TSControl%i'% i]   = 'Current%i:TSControl' % i
+            self._aliases['Current%i'% i] = 'Current%i:MeanValue_RBV' % i
+            self._aliases['Sigma%i'% i] = 'Current%i:Sigma_RBV' % i
+            self._aliases['Offset%i'% i] = 'CurrentOffset%i' % i
+            self._aliases['Scale%i'% i] = 'CurrentScale%i' % i
+            self._aliases['Name%i'% i] = 'CurrentName%i' % i
+            self._aliases['TSControl%i'% i] = 'Current%i:TSControl' % i
             self._aliases['TSAcquiring%i'% i] = 'Current%i:TSAcquiring' % i
             self._aliases['TSNumPoints%i'% i] = 'Current%i:TSNumPoints' % i
-            self._aliases['TSTotal%i'% i]     = 'Current%i:TSTotal' % i
-            self._aliases['TSSigma%i'% i]     = 'Current%i:TSSigma' % i
+            self._aliases['TSTotal%i'% i] = 'Current%i:TSTotal' % i
+            self._aliases['TSSigma%i'% i] = 'Current%i:TSSigma' % i
 
         self._sis = None
         if sis_prefix is not None:
+            self.sis_prefix = sis_prefix
             self._sis = Struck(prefix)
 
     def ContinuousMode(self, dwelltime=None, numframes=None):
@@ -207,7 +211,7 @@ class TetrAMM(Device):
         "return list of all Current Sigma arrays"
         return self._readattr('TSSigma%i')
 
-    def SetTriggerMode(self, mode, polarity=None, **kws):
+    def SetTriggerMode(self, mode, polarity=None):
         """Set trigger mode
 
     Arguments:
@@ -249,7 +253,7 @@ class TetrAMM(Device):
         this is a simplified version of Start(), starting only the basic counting.
         it is appropriate for SCALER mode, but not ARRAY mode.
         """
-        if dwellime is not None:
+        if dwelltime is not None:
             self.setDwellTime(dwelltime)
         out = self.put('Acquire', 1, wait=wait)
         poll()
@@ -323,11 +327,11 @@ class TetrAMM(Device):
         if self._sis is not None:
             sis_header = 'SIS %s' % self._sis.prefix
             names.insert(0, 'TSCALER')
-            addrs.insert(0, self._sis._prefix + 'VAL')
+            addrs.insert(0, self.sis_prefix + 'VAL')
             sdata.insert(0, self._sis.readmc(mca=1)/self._sis.clockrate)
 
         npts = len(sdata[0])
-        sdata = numpy.array([s[:npts] for s in sdata]).transpose()
+        sdata = np.array([s[:npts] for s in sdata]).transpose()
 
         nelem, nmca = sdata.shape
         npts = min(nelem, npts)
@@ -341,7 +345,7 @@ class TetrAMM(Device):
         for i in range(npts):
             buff.append(formt % tuple(sdata[i]))
         buff.append()
-        fout = open(fname, 'w')
+        fout = open(filename, 'w')
         fout.write('\n'.join(buff))
         fout.close()
         return (nmca, npts)
