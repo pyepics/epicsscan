@@ -29,7 +29,7 @@ from .ordereddict import OrderedDict
 COM1 = '#'
 COM2 = '/'*3 + '  Users Comments  ' + '/'*3
 COM3 = '-'*len(COM2)
-SEP  = ' || '   # separater between value, pvname in header
+SEP = ' || '   # separater between value, pvname in header
 FILETOP = '#XDI/1.1    Epics StepScan File'
 
 class StepScanData(object):
