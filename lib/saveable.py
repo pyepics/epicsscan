@@ -26,9 +26,9 @@ class Saveable(object):
         return self.__class
 
     def _saved_repr(self):
-        return "<%s: args=%s, kws=%s>" % (self.__class,
-                                          self._saved_args(),
-                                          self._saved_kws())
+        return "%s(args=%s, kws=%s)" % (self.__class,
+                                        self._saved_args(),
+                                        self._saved_kws())
     def _saved_state(self):
         return (self.__class, self._saved_args(), self._saved_kws())
 
@@ -74,4 +74,3 @@ if __name__ == '__main__':
         b = TestCase(*args, **kws) #@ *args, **kws)
         print b
         print a == b, a is b
-
