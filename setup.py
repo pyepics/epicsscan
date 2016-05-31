@@ -5,13 +5,13 @@ from distutils.core import setup, setup_keywords
 deps = ('wx', 'epics', 'numpy', 'matplotlib')
 
 setup(name = 'stepscan',
-      version = '0.2',
+      version = '0.3',
       author = 'Matthew Newville',
       author_email = 'newville@cars.uchicago.edu',
       license = 'BSD',
       description = 'Epics Step Scanning library and applications',
       package_dir = {'epicsscan': 'lib'},
-      packages = ['epicsscan', 'epicsscan.server', 'epicsscan.gui'],
+      packages = ['epicsscan', 'epicsscan.server', 'epicsscan.gui', 'epicsscan.xps'],
       data_files  = [('bin', ['bin/stepscan.py'])])
 
 errmsg = 'WARNING: epics.stepscan requires Python module "%s"'
