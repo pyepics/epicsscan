@@ -15,8 +15,11 @@ from .datafile import ASCIIScanFile
 from .stepscan import StepScan
 from .xafs_scan import XAFS_Scan, etok, ktoe
 
+
 from .spec_emulator import SpecScan
 from .scandb_schema import create_scandb
 from .scandb import ScanDB, InstrumentDB
+
+from .scan_from_db import scan_from_db
 
 from .server import run_scanfile, run_scan, debug_scan, read_scanconf, ScanServer

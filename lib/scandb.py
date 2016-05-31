@@ -460,9 +460,9 @@ class ScanDB(object):
         self.session.add(row)
         return row
 
-    def get_scandict(self, scan):
+    def get_scandict(self, scanname):
         """return dictionary of scan configuration for a named scan"""
-        sobj = self.get_scandef(scan)
+        sobj = self.get_scandef(scanname)
         if sobj is None:
             raise ScanDBException('get_scandict needs valid scan name')
         return json.loads(sobj.text, object_hook=asciikeys)
