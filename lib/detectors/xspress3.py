@@ -352,6 +352,7 @@ class Xspress3Counter(DeviceCounter):
     sca_labels = ('', 'Clock', 'ResetTicks', 'ResetCounts',
                   'AllEvent', 'AllGood', 'Window1', 'Window2', 'Pileup')
     scas2save = (1, 2, 3, 4, 5, 8)
+    scas2save = (1, 4, 5)
     def __init__(self, prefix, outpvs=None, nmcas=4,
                  nrois=32, rois=None, nscas=1, use_unlabeled=False,
                  use_full=False):
@@ -374,7 +375,7 @@ class Xspress3Counter(DeviceCounter):
         # use roilist to set ROI to those listed:
         if rois is None:
             rois = ['']
-        self.rois = [r.lower().strip() for r in rois]
+        self.rois = [r..strip() for r in rois]
 
     def _get_counters(self):
         prefix = self.prefix
@@ -387,17 +388,25 @@ class Xspress3Counter(DeviceCounter):
         except ValueError:
             nmax = 2048
 
-        if 'outputcounts' not in self.rois:
-            self.rois.append('outputcounts')
+    if 'outputcounts' not in [r.lower() for r in self.rois]:
+            self.rois.append('OutputCounts')
 
+        # build list of current ROI names
+        current_rois = {}
         for iroi in range(1, self.nrois+1):
             label = caget("%sMCA1ROI:%i:Name" % (prefix, iroi)).strip()
-            if len(label) < 0:
+            if len(label) > 0:
+                current_rois[label.lower()] = iroi
+            else:
                 break
-            elif label.lower() in self.rois:
+
+        for roiname in self.rois:
+            lname = roiname.lower()
+            if lname in current_rois:
+                iroi = current_rois[lname]
                 for imca in range(1, self.nmcas+1):
                     _pvname = '%sMCA%iROI:%i:Total_RBV' % (prefix, imca, iroi)
-                    _label = "%s mca%i" % (label, imca)
+                    _label  = "%s mca%i" % (roiname, imca)
                     add_counter(_pvname, _label)
 
         for isca in self.scas2save:
