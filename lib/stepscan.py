@@ -97,8 +97,7 @@ from file_utils import fix_varname
 
 from epics import PV, poll, get_pv, caget, caput
 
-from .detectors import (Counter, DeviceCounter, Trigger,
-                        AreaDetector, get_detector)
+from .detectors import (Counter, Trigger, AreaDetector)
 from .datafile import ASCIIScanFile
 from .positioner import Positioner
 from .scandb import ScanDBException, ScanDBAbort

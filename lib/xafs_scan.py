@@ -343,6 +343,8 @@ class QXAFS_Scan(XAFS_Scan):
             if len(scalername) > 1:
                 qxafs_counters.append((scalername, mca._pvs['VAL']))
 
+        ## need to use self.rois to re-load ROI arrays
+        ## names like  MCA1ROI:N:TSTotal
         for roi in range(1, 5):
             desc = caget('%sC1_ROI%i:ValueSum_RBV.DESC' % (xsp3_prefix, roi))
             if len(desc) > 0 and not desc.lower().startswith('unused'):
@@ -353,7 +355,7 @@ class QXAFS_Scan(XAFS_Scan):
 
         # SCAs for count time
         for card in range(1, 5):
-            pvname = '%sC%i_SCA0:ArrayData_RBV' % (xsp3_prefix, card)
+            pvname = '%sC%iSCA0:TSArrayValue' % (xsp3_prefix, card)
             qxafs_counters.append(("Clock_mca%i" % card, PV(pvname)))
 
         self.counters = []
