@@ -32,22 +32,23 @@ def scan_from_db(scandb, scanname, filename='scan.00'):
 
     default_rois = json.loads(scandb.get_info('rois'))
 
-    # create positioners
+    # create different scan types
     if sdict['type'] == 'xafs':
         min_dtime = sdict['dwelltime']
         if isinstance(min_dtime, np.ndarray):
             min_dtime = min(dtime)
-        is_qxafs = sdict.get('is_qxafs', False) or min_dtime < 0.45
         kwargs = dict(energy_pv=sdict['energy_drive'],
                       read_pv=sdict['energy_read'],
                       e0=sdict['e0'])
 
-        if is_qxafs:
+        if sdict.get('is_qxafs', False) or min_dtime < 0.45:
             scan = QXAFS_Scan(**kwargs)
             sdict['time_kw'] = 0
             sdict['max_time'] = 0
+            scan.mode = 'sca'
         else:
             scan = XAFS_Scan(**kwargs)
+            scan.mode = 'step'
 
         t_kw  = sdict['time_kw']
         t_max = sdict['max_time']
@@ -64,6 +65,8 @@ def scan_from_db(scandb, scanname, filename='scan.00'):
             scan.add_region(start, stop, npts=npts, **kws)
     else:
         scan = StepScan(filename=filename)
+        if sdict.get('mode', None) is None:
+            scan.mode = 'step'
         if sdict['type'] == 'linear':
             for pos in sdict['positioners']:
                 label, pvs, start, stop, npts = pos
@@ -73,7 +76,7 @@ def scan_from_db(scandb, scanname, filename='scan.00'):
                 if len(pvs) > 0:
                     scan.add_counter(pvs[1], label="%s_read" % label)
 
-        elif sdict['type'] == 'mesh':
+        elif sdict['type'] in ('mesh', 'slowmap'):
             label1, pvs1, start1, stop1, npts1 = sdict['inner']
             label2, pvs2, start2, stop2, npts2 = sdict['outer']
             p1 = Positioner(pvs1[0], label=label1)
@@ -91,7 +94,9 @@ def scan_from_db(scandb, scanname, filename='scan.00'):
             if len(pvs2) > 0:
                 scan.add_counter(pvs2[1], label="%s_read" % label2)
 
-        elif sdict['type'] == 'slew':
+        elif sdict['type'] in ('slew', 'fastmap'):
+            if sdict.get('mode', None) is None:
+                scan.mode = 'array'
             label1, pvs1, start1, stop1, npts1 = sdict['inner']
             p1 = Positioner(pvs1[0], label=label1)
             p1.array = np.linspace(start1, stop1, npts1)
@@ -105,12 +110,12 @@ def scan_from_db(scandb, scanname, filename='scan.00'):
                 scan.add_positioner(p2)
                 if len(pvs2) > 0:
                     scan.add_counter(pvs2[1], label="%s_read" % label2)
-    # detectors
-    rois = sdict.get('rois', default_rois)
-    scan.rois = rois
 
+    # detectors, with ROIs and mode
+    scan.rois = sdict.get('rois', default_rois)
     for dpars in sdict['detectors']:
-        dpars['rois'] = rois
+        dpars['rois'] = scan.rois
+        dpars['mode'] = scan.mode
         scan.add_detector(get_detector(**dpars))
 
     # extra counters (not-triggered things to count
@@ -120,7 +125,6 @@ def scan_from_db(scandb, scanname, filename='scan.00'):
 
     # other bits
     scan.add_extra_pvs(sdict['extra_pvs'])
-    scan.scantype = sdict.get('type', 'linear')
     scan.scantime = sdict.get('scantime', -1)
     scan.filename = sdict.get('filename', 'scan.dat')
     if filename is not None:
