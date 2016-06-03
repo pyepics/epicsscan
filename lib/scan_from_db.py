@@ -2,6 +2,7 @@
 convert scan definitions from scan database dictioary to Stepscans
 """
 import json
+import numpy as np
 
 from .detectors import get_detector
 from .positioner import Positioner
