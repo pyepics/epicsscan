@@ -90,5 +90,5 @@ def get_detector(prefix, kind=None, label=None, **kws):
     else:
         kind = kind.lower()
     builder = dtypes.get(kind, SimpleDetector)
-    # print("Get Detector: ", prefix, label, kws)
+    # print("Get Detector: ", prefix, kind, label, builder, kws)
     return builder(prefix, label=label, **kws)
