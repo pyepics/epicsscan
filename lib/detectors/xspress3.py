@@ -320,6 +320,7 @@ class Xspress3Detector(DetectorMixin):
 
         if self._counter is None:
             self.connect_counters()
+
         self._counter._get_counters()
         self.counters = self._counter.counters
         self.extra_pvs = self._counter.extra_pvs
@@ -375,7 +376,7 @@ class Xspress3Counter(DeviceCounter):
         # use roilist to set ROI to those listed:
         if rois is None:
             rois = ['']
-        self.rois = [r..strip() for r in rois]
+        self.rois = [r.strip() for r in rois]
 
     def _get_counters(self):
         prefix = self.prefix
@@ -388,7 +389,7 @@ class Xspress3Counter(DeviceCounter):
         except ValueError:
             nmax = 2048
 
-    if 'outputcounts' not in [r.lower() for r in self.rois]:
+        if 'outputcounts' not in [r.lower() for r in self.rois]:
             self.rois.append('OutputCounts')
 
         # build list of current ROI names
