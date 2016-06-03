@@ -374,7 +374,7 @@ class StepScan(object):
             c.clear()
         self.pos_actual = []
 
-    def _messenger(self, cpt, npts=0, **kws):
+    def show_scan_progress(self, cpt, npts=0, **kws):
         time_left = (npts-cpt)* (self.pos_settle_time + self.det_settle_time)
         if self.dwelltime_varys:
             time_left += self.dwelltime[cpt:].sum()
@@ -561,7 +561,7 @@ class StepScan(object):
 
         self.message_thread = None
         if callable(self.messenger):
-            self.message_thread = ScanMessenger(func=self.messenger,
+            self.message_thread = ScanMessenger(func=self.show_scan_progress,
                                                 scan = self, npts=npts, cpt=0)
             self.message_thread.start()
         self.cpt = 0
