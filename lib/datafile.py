@@ -284,7 +284,7 @@ class ASCIIScanFile(ScanFile):
         if self.comments is None:
             return
         lines = self.comments.split('\n')
-        self.write_lines("%s %s" % (COM1, COM2))
+        self.write_lines(["%s %s" % (COM1, COM2)])
         self.write_lines(['%s %s' % (COM1, l) for l in lines])
 
     def write_legend(self):
@@ -333,11 +333,8 @@ class ASCIIScanFile(ScanFile):
         self.write_timestamp(label='end_time')
         self.write_extrapvs()
         self.write_scanparams()
-
-        if breakpoint == 0:
-            self.write_comments()
+        self.write_comments()
         out = ["%s %s" % (COM1, COM3), self.column_label]
-
         for i in range(len(self.scan.counters[0].buff)):
             words =  self.scan.pos_actual[i][:]
             words.extend([c.buff[i] for c in self.scan.counters])
