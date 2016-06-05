@@ -177,7 +177,8 @@ class StepScan(object):
         self.filename = filename
         self.auto_increment = auto_increment
         self.filetype = 'ASCII'
-        self.mode = 'step'
+        self.scantype = 'linear'
+        self.detmode  = 'scaler'
         self.scandb = scandb
         self.prescan_func = prescan_func
         self.verified = False

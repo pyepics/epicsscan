@@ -53,6 +53,7 @@ class XAFS_Scan(StepScan):
         StepScan.__init__(self, **kws)
         self.is_qxafs = False
         self.scantype = 'xafs'
+        self.detmode  = 'scaler'
         self.dwelltime = []
         self.energy_pos = None
         self.set_energy_pv(energy_pv, read_pv=read_pv, extra_pvs=extra_pvs)
@@ -127,7 +128,6 @@ class XAFS_Scan(StepScan):
         if self.energy_pos is not None:
             self.energy_pos.array = np.array(self.energies)
 
-
 class QXAFS_Scan(XAFS_Scan):
     """QuickXAFS Scan"""
 
@@ -143,6 +143,7 @@ class QXAFS_Scan(XAFS_Scan):
 
         self.is_qxafs = True
         self.scantype = 'xafs'
+        self.detmode  = 'roi'
         qconf = self.scandb.get_config('QXAFS')
         qconf = self.qconf = json.loads(qconf.notes)
 
