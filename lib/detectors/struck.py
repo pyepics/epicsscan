@@ -220,8 +220,3 @@ class Struck(Device):
             fout.write(formt % tuple(sdata[i]))
         fout.close()
         return (nmca, npts)
-
-if __name__ == '__main__':
-    strk = Struck('13IDE:SIS1:')
-    adv = 'ChannelAdvance'
-    sys.stdout.write("%s = %s\n" % (adv, strk.PV(adv).char_value))

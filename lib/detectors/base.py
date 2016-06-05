@@ -5,13 +5,16 @@ from epicsscan.saveable import Saveable
 from .trigger import Trigger
 from .counter import Counter, MotorCounter
 
+SCALER_MODE, NDARRAY_MODE, ROI_MODE = 'scaler', 'ndarray', 'roi'
+
 class DetectorMixin(Saveable):
     """
     Base detector mixin class
     """
     trigger_suffix = None
     def __init__(self, prefix, label=None, **kws):
-        Saveable.__init__(self, prefix, label=label, **kws)
+        Saveable.__init__(self, prefix, label=label,
+                          mode='scaler', rois=None, **kws)
         self.prefix = prefix
         self.label = label
         if self.label is None:
@@ -20,6 +23,7 @@ class DetectorMixin(Saveable):
         self.counters = []
         self.dwelltime_pv = None
         self.dwelltime = None
+        self._mode     = SCALER_MODE
         self.extra_pvs = []
         self._repr_extra = ''
         self._savevals = {}
@@ -30,6 +34,43 @@ class DetectorMixin(Saveable):
         return "%s(%s', label='%s'%s)" % (self.__class__.__name__,
                                           self.prefix, self.label,
                                           self._repr_extra)
+
+    def ScalerMode(self, dwelltime=1.0, numframes=1, **kws):
+        "set to scaler mode, for step scanning"
+        pass
+
+    def ContinuousMode(self, dwelltime=None, numframes=None, **kws):
+        "set to continuous mode"
+        return self.ScalerMode(dwelltime=dwelltime, numframes=numframes, **kws)
+
+    def ROIMode(self, dwelltime=1.0, numframes=1, **kw):
+        "set to ROI mode, for slew-scanning of scalers to 1D arrays"
+        return self.ScalerMode(dwelltime=dwelltime, numframes=numframes, **kws)
+
+    def NDArrayMode(self, dwelltime=0.25, numframes=16384, **kws):
+        """set to NDArray mode, for slew-scanning saving full arrays
+        typically through areaDetector file saving mechanism"""
+        return self.ScalerMode(dwelltime=dwelltime, numframes=numframes, **kws)
+
+    def Arm(self, mode=None, wait=False):
+        "arm detector, ready to collect with optional mode"
+        pass
+
+    def DisArm(self, mode=None, wait=False):
+        "disarm detector, ready to not collect, from mode"
+        pass
+
+    def Start(self, mode=None, arm=False, wait=False):
+        "start detector, optionally setting mode, arming, and waiting"
+        pass
+
+    def Stop(self, mode=None, disarm=False, wait=False):
+        "stop detector, optionally setting mode, disarming, and waiting"
+        pass
+
+    def SaveArrayData(self, filename=None):
+        "save array data to external file"
+        pass
 
     def connect_counters(self):
         "connect to counters"

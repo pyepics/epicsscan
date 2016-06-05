@@ -33,7 +33,8 @@ class ScalerCounter(DeviceCounter):
 class ScalerDetector(DetectorMixin):
     """Scaler Detector"""
     trigger_suffix = '.CNT'
-    def __init__(self, prefix, nchan=8, use_calc=True, **kws):
+    def __init__(self, prefix, nchan=8, use_calc=True,
+                 mode='scaler', rois=None,**kws):
         DetectorMixin.__init__(self, prefix, **kws)
         nchan = int(nchan)
         self.scaler = Scaler(prefix, nchan=nchan)
@@ -51,10 +52,36 @@ class ScalerDetector(DetectorMixin):
 
     def pre_scan(self, **kws):
         "run just prior to scan"
-        self.scaler.OneShotMode()
-        if self.dwelltime is not None and isinstance(self.dwelltime_pv, PV):
-            self.dwelltime_pv.put(self.dwelltime)
+        self.ScalerMode(dwelltime=self.dwelltime)
 
     def post_scan(self, **kws):
         "run just after scan"
-        self.scaler.AutoCountMode()
+        self.ContinuousMode()
+
+    def ScalerMode(self, dwelltime=1.0, numframes=1, **kws):
+        "set to scaler mode, for step scanning"
+        if dwelltime is not None:
+            self.scaler.CountTime(dwelltime)
+        return self.scaler.OneShotMode()
+
+    def ContinuousMode(self, dwelltime=None, numframes=None, **kws):
+        "set to continuous mode"
+        if dwelltime is not None:
+            self.scaler.CountTime(dwelltime)
+        return self.scaler.AutoCountMode()
+
+    def Arm(self, mode=None, wait=False):
+        "arm detector, ready to collect with optional mode"
+        self.scaler.OneShotMode()
+
+    def Start(self, mode=None, arm=False, wait=False):
+        "start detector, optionally arming and waiting"
+        if arm:
+            self.Arm(mode=mode)
+        self.scaler.Count(wait=wait)
+
+    def Stop(self, mode=None, disarm=False, wait=False):
+        "stop detector, optionally disarming and waiting"
+        self.scaler.put('CNT', 0, wait=wait)
+        if disarm:
+            self.DisArm(mode=mode)
