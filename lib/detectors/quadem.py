@@ -10,7 +10,7 @@ from .struck import Struck
 SCALER_MODE, ARRAY_MODE = 'SCALER', 'ARRAY'
 
 HEADER = '''# TetrAMM MCS Data: %s,  %s
-# Nchannels, Nmca = %i, %i
+# Nchannels, Nmcas = %i, %i
 # Time in microseconds
 #----------------------
 # %s
@@ -333,19 +333,19 @@ class TetrAMM(Device):
         npts = len(sdata[0])
         sdata = np.array([s[:npts] for s in sdata]).transpose()
 
-        nelem, nmca = sdata.shape
+        nelem, nmcas = sdata.shape
         npts = min(nelem, npts)
 
         addrs = ' | '.join(addrs)
         names = ' | '.join(names)
-        formt = '%9i '  + '%9g ' * (nmca-1) + '\n'
+        formt = '%9i '  + '%9g ' * (nmcas-1) + '\n'
 
         buff = [HEADER % (self._prefix, sis_header,
-                          npts, nmca, addrs, names)]
+                          npts, nmcas, addrs, names)]
         for i in range(npts):
             buff.append(formt % tuple(sdata[i]))
         buff.append()
         fout = open(filename, 'w')
         fout.write('\n'.join(buff))
         fout.close()
-        return (nmca, npts)
+        return (nmcas, npts)

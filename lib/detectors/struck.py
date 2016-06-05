@@ -13,7 +13,7 @@ from epics.devices.mca import MCA
 SCALER_MODE, ARRAY_MODE = 'SCALER', 'ARRAY'
 
 HEADER = '''# Struck MCA data: %s
-# Nchannels, Nmca = %i, %i
+# Nchannels, Nmcas = %i, %i
 # Time in microseconds
 #----------------------
 # %s
@@ -170,16 +170,16 @@ class Struck(Device):
         "Start Struck"
         return self.put('EraseAll', 1)
 
-    def mcaNread(self, nmca=1):
+    def mcaNread(self, nmcas=1):
         "Read a Struck MCA"
-        return self.get('mca%i.NORD' % nmca)
+        return self.get('mca%i.NORD' % nmcas)
 
-    def readmca(self, nmca=1, count=None):
+    def readmca(self, nmcas=1, count=None):
         "Read a Struck MCA"
-        return self.get('mca%i' % nmca, count=count)
+        return self.get('mca%i' % nmcas, count=count)
 
     def read_all_mcas(self):
-        return [self.readmca(nmca=i+1) for i in range(self._nchan)]
+        return [self.readmca(nmcas=i+1) for i in range(self._nchan)]
 
     def SaveArrayData(self, fname='Struck.dat', ignore_prefix=None,
                       npts=None):
@@ -188,16 +188,16 @@ class Struck(Device):
         npts = 1.e99
         time.sleep(0.005)
         for nchan in range(self._nchan):
-            nmca = nchan + 1
-            _name = 'MCA%i' % nmca
-            _addr = '%s.MCA%i' % (self._prefix, nmca)
+            nmcas = nchan + 1
+            _name = 'MCA%i' % nmcas
+            _addr = '%s.MCA%i' % (self._prefix, nmcas)
             time.sleep(0.002)
             if self.scaler is not None:
-                scaler_name = self.scaler.get('NM%i' % nmca)
+                scaler_name = self.scaler.get('NM%i' % nmcas)
                 if scaler_name is not None:
                     _name = scaler_name.replace(' ', '_')
-                    _addr = self.scaler._prefix + 'S%i' % nmca
-            mcadat = self.readmca(nmca=nmca)
+                    _addr = self.scaler._prefix + 'S%i' % nmcas
+            mcadat = self.readmca(nmcas=nmcas)
             npts = min(npts, len(mcadat))
             if len(_name) > 0 or sum(mcadat) > 0:
                 names.append(_name)
@@ -207,16 +207,16 @@ class Struck(Device):
         sdata = numpy.array([s[:npts] for s in sdata]).transpose()
         sdata[:, 0] = sdata[:, 0]/self.clockrate
 
-        nelem, nmca = sdata.shape
+        nelem, nmcas = sdata.shape
         npts = min(nelem, npts)
 
         addrs = ' | '.join(addrs)
         names = ' | '.join(names)
-        formt = '%9i ' * nmca + '\n'
+        formt = '%9i ' * nmcas + '\n'
 
         fout = open(fname, 'w')
-        fout.write(HEADER % (self._prefix, npts, nmca, addrs, names))
+        fout.write(HEADER % (self._prefix, npts, nmcas, addrs, names))
         for i in range(npts):
             fout.write(formt % tuple(sdata[i]))
         fout.close()
-        return (nmca, npts)
+        return (nmcas, npts)

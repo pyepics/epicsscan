@@ -23,25 +23,25 @@ class Xspress3(Device, ADFileMixin):
                  'TriggerMode', 'StatusMessage_RBV', 'DetectorState_RBV')
 
     _nonpvs = ('_prefix', '_pvs', '_delim', 'filesaver', 'fileroot',
-               'pathattrs', '_nonpvs', 'nmca', 'mcas', '_chans')
+               'pathattrs', '_nonpvs', 'nmcas', 'mcas', '_chans')
 
     pathattrs = ('FilePath', 'FileTemplate', 'FileName', 'FileNumber',
                  'Capture', 'NumCapture')
 
-    def __init__(self, prefix, nmca=4, filesaver='HDF1:',
+    def __init__(self, prefix, nmcas=4, filesaver='HDF1:',
                  fileroot='/home/xspress3/cars5/Data'):
         if not prefix.endswith(':'):
             prefix = "%s:" % prefix
-        self.nmca = nmca
+        self.nmcas = nmcas
         attrs = []
         attrs.extend(['%s%s' % (filesaver, p) for p in self.pathattrs])
 
         self.filesaver = filesaver
         self.fileroot = fileroot
         self._prefix = prefix
-        self._chans = range(1, nmca+1)
+        self._chans = range(1, nmcas+1)
         self.mcas = []
-        for i in range(nmca):
+        for i in range(nmcas):
             imca = i+1
             dprefix = "%sdet1:" % prefix
             rprefix = "%sMCA%iROI" % (prefix, imca)
@@ -54,7 +54,7 @@ class Xspress3(Device, ADFileMixin):
         Device.__init__(self, prefix, attrs=attrs, delim='')
         for attr in self.det_attrs:
             self.add_pv("%sdet1:%s" % (prefix, attr), attr)
-        for i in range(nmca):
+        for i in range(nmcas):
             imca = i+1
             for j in range(8):
                 isca = j+1
@@ -71,15 +71,15 @@ class Xspress3(Device, ADFileMixin):
             hi = roi.MinX + roi.SizeX
             if len(name.strip()) > 0 and hi > 0:
                 dbuff = []
-                for m in range(self.nmca):
+                for m in range(self.nmcas):
                     dbuff.extend([roi.MinX, roi.MinX+roi.SizeX])
                 dbuff = ' '.join([str(i) for i in dbuff])
                 add("ROI%2.2i = %s | %s" % (iroi, name, dbuff))
 
         add('[calibration]')
-        add("OFFSET = %s " % (' '.join(["0.000 "] * self.nmca)))
-        add("SLOPE  = %s " % (' '.join(["0.010 "] * self.nmca)))
-        add("QUAD   = %s " % (' '.join(["0.000 "] * self.nmca)))
+        add("OFFSET = %s " % (' '.join(["0.000 "] * self.nmcas)))
+        add("SLOPE  = %s " % (' '.join(["0.010 "] * self.nmcas)))
+        add("QUAD   = %s " % (' '.join(["0.000 "] * self.nmcas)))
         add('[dxp]')
         return buff
 
@@ -211,11 +211,12 @@ class Xspress3Detector(DetectorMixin):
     """
     Xspress 3 MultiMCA detector, 3.2
     """
-    repr_fmt = ', nmcas=%i, nrois=%i, use_dtc=%s, use_full=%s'
+    repr_fmt = 'nmcas=%i, nrois=%i, use_dtc=%s, use_full=%s'
 
     def __init__(self, prefix, label=None, nmcas=4, mode='scaler',
                  rois=None, nrois=32, pixeltime=0.1, use_dtc=False,
-                 use=True, use_unlabeled=False, use_full=False, **kws):
+                 use=True, use_unlabeled=False, use_full=False,
+                 filesaver='HDF1:', fileroot=None, **kws):
 
         if not prefix.endswith(':'):
             prefix = "%s:" % prefix
@@ -223,9 +224,10 @@ class Xspress3Detector(DetectorMixin):
         self.nmcas = nmcas = int(nmcas)
         self.nrois = nrois = int(nrois)
         DetectorMixin.__init__(self, prefix, label=label)
-
-        self._xsp3 = Xspress3(prefix, nmcas=nmcas, **kws)
-
+        print("[[-- Xspress3 ", kws)
+        self._xsp3 = Xspress3(prefix, nmcas=nmcas,
+                              fileroot=fileroot,
+                              filesaver=filesaver)
         self.prefix = prefix
         self.dwelltime = None
         self.mode = mode
@@ -243,15 +245,17 @@ class Xspress3Detector(DetectorMixin):
                                             repr(use_dtc),
                                             repr(use_full))
 
+        print("[[-- Xspress3 ", self._xsp3)
+
         self._connect_args = dict(nmcas=nmcas, nrois=nrois, rois=rois,
                                   use_unlabeled=use_unlabeled,
                                   use_full=use_full)
         self.connect_counters()
 
     def __repr__(self):
-        return "%s(%s, label='%s', mode='%s', %s)" % (self.__class__.__name__,
-                                                      self.prefix, self.label,
-                                                      self.mode, self._repr_extra)
+        return "%s('%s', label='%s', mode='%s', %s)" % (self.__class__.__name__,
+                                                        self.prefix, self.label,
+                                                        self.mode, self._repr_extra)
 
     def add_extrapvs_GSE(self):
         e = [('mca1 tau(nsec)', '13IDE:userTran3.A'),
@@ -261,7 +265,7 @@ class Xspress3Detector(DetectorMixin):
         return e
 
     def connect_counters(self):
-        # print("Xspres3 connect_counters ", self._connect_args)
+        print("Xspres3 connect_counters ", self._connect_args)
         self._counter = Xspress3Counter(self.prefix, **self._connect_args)
         self.counters = self._counter.counters
         self.extra_pvs = self._counter.extra_pvs
