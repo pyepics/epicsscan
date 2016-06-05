@@ -1,5 +1,6 @@
 """
 convert scan definitions from scan database dictioary to Stepscans
+
 """
 import json
 import numpy as np
@@ -31,16 +32,20 @@ def scan_from_db(scandb, scanname, filename='scan.001'):
     scandict = json.loads(thisscan.text, object_hook=asciikeys)
     if 'rois' not in scandict:
         scandict['rois'] = json.loads(scandb.get_info('rois'))
+    scandict['filename'] = filename
+    for key, val in scandict.items():
+        print(" %s::  %s"% (key, repr(val)))
+    return create_scan(**scandict)
 
-    return create_scan(filename=filename, **scandict)
+def create_scan(filename='scan.dat', comments=None, type='linear',
+                detmode=None, rois=None, nscans=1, positioners=None,
+                detectors=None, counters=None, extra_pvs=None, inner=None,
+                outer=None, dwelltime=1.0, pos_settle_time=0.01,
+                det_settle_time=0.01, scantime=None, e0=None, regions=None,
+                energy_drive=None, energy_read=None, is_qxafs=False,
+                time_kw=0, max_time=0, is_relative=False):
 
-def create_scan(filename='scan.dat', type='linear', detmode=None,
-                positioners=None, detectors=None, counters=None,
-                extra_pvs=None, inner=None, outer=None, regions=None,
-                dwelltime=1.0, pos_settle_time=0.01, det_settle_time=0.01,
-                e0=None, regions=None, energy_drive=None,
-                energy_read=None, is_qxafs=False, time_kw=0, max_time=0,
-                is_relative=False):
+
     """
     return a StepScan object, built from function arguments
 
@@ -81,7 +86,8 @@ def create_scan(filename='scan.dat', type='linear', detmode=None,
         min_dtime = dwelltime
         if isinstance(min_dtime, np.ndarray):
             min_dtime = min(dtime)
-        kwargs = dict(energy_pv=energy_drive, read_pv=energy_read, e0=e0)
+        kwargs = dict(filename=filename, comments=comments,
+                      energy_pv=energy_drive, read_pv=energy_read, e0=e0)
         if is_qxafs or min_dtime < 0.45:
             scan = QXAFS_Scan(**kwargs)
         else:
@@ -97,7 +103,7 @@ def create_scan(filename='scan.dat', type='linear', detmode=None,
                     kws['dtime_wt'] = time_kw
             scan.add_region(start, stop, npts=npts, e0=e0, **kws)
     else:
-        scan = StepScan(filename=filename)
+        scan = StepScan(filename=filename, comments=comments)
         if scantype is 'linear' and positioners is not None:
             for pos in positioners:
                 label, pvs, start, stop, npts = pos
@@ -138,6 +144,7 @@ def create_scan(filename='scan.dat', type='linear', detmode=None,
     for dpars in detectors:
         dpars['rois'] = scan.rois
         dpars['mode'] = scan.detmode
+        print("Get DET:   ", dpars)
         scan.add_detector(get_detector(**dpars))
 
     # extra counters (not-triggered things to count)
@@ -151,6 +158,8 @@ def create_scan(filename='scan.dat', type='linear', detmode=None,
     if scan.scantype is None and type is not None:
         scan.scantype = type
     scan.filename = filename
+    scan.scantime = scantime
+    scan.nscans = nscans
     scan.pos_settle_time = pos_settle_time
     scan.det_settle_time = det_settle_time
     if scan.dwelltime is None:
