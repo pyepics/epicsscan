@@ -66,7 +66,7 @@ class TetrAMMScalerDetector(DetectorMixin):
         self.scaler.AutoCountMode()
 
 
-def get_detector(prefix, kind=None, mode='step', rois=None, label=None, **kws):
+def get_detector(prefix, kind=None, mode='scaler', rois=None, label=None, **kws):
     """returns best guess of which Detector class to use
            Mca, MultiMca, Motor, Scaler, Simple
     based on kind and/or record type.
