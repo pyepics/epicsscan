@@ -2,6 +2,7 @@
 convert scan definitions from scan database dictioary to Stepscans
 
 """
+import time
 import json
 import numpy as np
 
@@ -11,6 +12,7 @@ from .stepscan import StepScan
 from .xafs_scan import XAFS_Scan, QXAFS_Scan
 from .scandb import ScanDBException, ScanDB
 from .utils import asciikeys
+from .debugtime import debugtime
 
 def scan_from_db(scandb, scanname, filename='scan.001'):
     """
@@ -33,8 +35,6 @@ def scan_from_db(scandb, scanname, filename='scan.001'):
     if 'rois' not in scandict:
         scandict['rois'] = json.loads(scandb.get_info('rois'))
     scandict['filename'] = filename
-    for key, val in scandict.items():
-        print(" %s::  %s"% (key, repr(val)))
     return create_scan(**scandict)
 
 def create_scan(filename='scan.dat', comments=None, type='linear',
@@ -104,7 +104,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
             scan.add_region(start, stop, npts=npts, e0=e0, **kws)
     else:
         scan = StepScan(filename=filename, comments=comments)
-        if scantype is 'linear' and positioners is not None:
+        if scantype == 'linear' and positioners is not None:
             for pos in positioners:
                 label, pvs, start, stop, npts = pos
                 p = Positioner(pvs[0], label=label)
@@ -112,7 +112,6 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
                 scan.add_positioner(p)
                 if len(pvs) > 0:
                     scan.add_counter(pvs[1], label="%s_read" % label)
-
         elif scantype in ('mesh', 'slew', 'slowmap', 'fastmap'):
             if inner is None and positioners is not None:
                 inner = positioners
@@ -138,20 +137,17 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
 
             if scantype in ('slew', 'fastmap'):
                 scan.detmode = 'ndarray'
-
     # detectors, with ROIs and det mode
     scan.rois = rois
     for dpars in detectors:
         dpars['rois'] = scan.rois
         dpars['mode'] = scan.detmode
-        print("Get DET:   ", dpars)
         scan.add_detector(get_detector(**dpars))
 
     # extra counters (not-triggered things to count)
     if counters is not None:
         for label, pvname in counters:
             scan.add_counter(pvname, label=label)
-
     # other bits
     if extra_pvs is not None:
         scan.add_extra_pvs(extra_pvs)
