@@ -5,8 +5,7 @@ import time
 from ConfigParser import ConfigParser
 
 from epics import get_pv, caput, caget, Device, poll
-# from epics.devices.ad_mca import ADMCA
-from .ad_mca import ADMCA
+from epics.devices.ad_mca import ADMCA
 
 from .trigger import Trigger
 from .counter import Counter, DeviceCounter
