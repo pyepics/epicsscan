@@ -42,6 +42,7 @@ class ScalerDetector(DetectorMixin):
                                       use_calc=use_calc)
         self.dwelltime_pv = get_pv('%s.TP' % prefix)
         self.dwelltime = None
+        self.mode = mode
         self.counters = self._counter.counters
         self.extra_pvs = [('Scaler.frequency', '%s.FREQ' % prefix),
                           ('Scaler.read_delay', '%s.DLY' % prefix)]
