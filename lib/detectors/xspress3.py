@@ -5,12 +5,14 @@ import time
 from ConfigParser import ConfigParser
 
 from epics import get_pv, caput, caget, Device, poll
-from epics.devices.ad_mca import ADMCA
+# from epics.devices.ad_mca import ADMCA
+from .ad_mca import ADMCA
 
 from .trigger import Trigger
 from .counter import Counter, DeviceCounter
 from .base import DetectorMixin, SCALER_MODE, NDARRAY_MODE, ROI_MODE
 from .areadetector import ADFileMixin
+from ..debugtime import debugtime
 
 MAX_ROIS = 32
 
@@ -20,7 +22,8 @@ class Xspress3(Device, ADFileMixin):
 
     det_attrs = ('NumImages', 'NumImages_RBV', 'Acquire', 'Acquire_RBV',
                  'ArrayCounter_RBV', 'ERASE', 'UPDATE', 'AcquireTime',
-                 'TriggerMode', 'StatusMessage_RBV', 'DetectorState_RBV')
+                 'TriggerMode', 'StatusMessage_RBV', 'DetectorState_RBV',
+                 'CTRL_DTC')
 
     _nonpvs = ('_prefix', '_pvs', '_delim', 'filesaver', 'fileroot',
                'pathattrs', '_nonpvs', 'nmcas', 'mcas', '_chans')
@@ -30,6 +33,7 @@ class Xspress3(Device, ADFileMixin):
 
     def __init__(self, prefix, nmcas=4, filesaver='HDF1:',
                  fileroot='/home/xspress3/cars5/Data'):
+        dt = debugtime()
         if not prefix.endswith(':'):
             prefix = "%s:" % prefix
         self.nmcas = nmcas
@@ -39,7 +43,6 @@ class Xspress3(Device, ADFileMixin):
         self.filesaver = filesaver
         self.fileroot = fileroot
         self._prefix = prefix
-        self._chans = range(1, nmcas+1)
         self.mcas = []
         for i in range(nmcas):
             imca = i+1
@@ -50,7 +53,6 @@ class Xspress3(Device, ADFileMixin):
             self.mcas.append(mca)
             attrs.append("%s:MCA%iROI:TSControl" % (prefix, imca))
             attrs.append("%s:MCA%iROI:TSNumPoints" % (prefix, imca))
-
         Device.__init__(self, prefix, attrs=attrs, delim='')
         for attr in self.det_attrs:
             self.add_pv("%sdet1:%s" % (prefix, attr), attr)
@@ -60,7 +62,7 @@ class Xspress3(Device, ADFileMixin):
                 isca = j+1
                 attr = "C%iSCA%i"% (imca, isca)
                 self.add_pv("%s%s:Value_RBV" % (prefix, attr), attr)
-        time.sleep(0.05)
+        poll(0.003, 0.25)
 
     def roi_calib_info(self):
         buff = ['[rois]']
@@ -167,6 +169,7 @@ class Xspress3Counter(DeviceCounter):
     def _get_counters(self):
         prefix = self.prefix
         self.counters = []
+        t0 = time.time()
         def add_counter(pv, lab):
             self.counters.append(Counter(pv, label=lab))
 
@@ -218,13 +221,14 @@ class Xspress3Detector(DetectorMixin):
                  use=True, use_unlabeled=False, use_full=False,
                  filesaver='HDF1:', fileroot=None, **kws):
 
+        dt = debugtime()
         if not prefix.endswith(':'):
             prefix = "%s:" % prefix
 
         self.nmcas = nmcas = int(nmcas)
+        self._chans = range(1, nmcas+1)
         self.nrois = nrois = int(nrois)
         DetectorMixin.__init__(self, prefix, label=label)
-        print("[[-- Xspress3 ", kws)
         self._xsp3 = Xspress3(prefix, nmcas=nmcas,
                               fileroot=fileroot,
                               filesaver=filesaver)
@@ -245,7 +249,6 @@ class Xspress3Detector(DetectorMixin):
                                             repr(use_dtc),
                                             repr(use_full))
 
-        print("[[-- Xspress3 ", self._xsp3)
 
         self._connect_args = dict(nmcas=nmcas, nrois=nrois, rois=rois,
                                   use_unlabeled=use_unlabeled,
@@ -265,13 +268,21 @@ class Xspress3Detector(DetectorMixin):
         return e
 
     def connect_counters(self):
-        print("Xspres3 connect_counters ", self._connect_args)
         self._counter = Xspress3Counter(self.prefix, **self._connect_args)
         self.counters = self._counter.counters
         self.extra_pvs = self._counter.extra_pvs
 
     def pre_scan(self, scan=None, **kws):
         """ """
+        print "Xspress3 pre_scan  ", self.mode
+        if self.mode == SCALER_MODE:
+            self.ScalerMode()
+        elif self.mode == ROI_MODE:
+            self.ROIMode()
+        elif self.mode == NDARRAY_MODE:
+            self.NDArrayMode()
+
+        t0 = time.time()
         self._xsp3.put('Acquire', 0)
         poll(0.05, 0.5)
 
@@ -293,15 +304,16 @@ class Xspress3Detector(DetectorMixin):
         #     caput("%s_PluginControlVal"         % (card), 1)
         #    poll(0.005, 0.5)
         self._xsp3.put('ERASE', 1)
+
         self._xsp3.put('TriggerMode', 1)
         self._xsp3.put('NumImages', 1)
         self._xsp3.put('CTRL_DTC', self.use_dtc)
         poll(0.01, 0.5)
-
         self._xsp3.put('Acquire', 0, wait=True)
         poll(0.01, 0.5)
         self._xsp3.put('ERASE', 1, wait=True)
         poll(0.01, 0.5)
+
 
     def ContinuousMode(self, dwelltime=0.25, numframes=16384):
         """set to continuous mode: use for live reading
@@ -321,7 +333,7 @@ class Xspress3Detector(DetectorMixin):
         self.mode = SCALER_MODE
 
 
-    def ScalerMode(self, dwelltime=1.0, numframes=1):
+    def ScalerMode(self, dwelltime=None, numframes=1):
         """ set to scaler mode: ready for step scanning
 
     Arguments:
@@ -331,6 +343,7 @@ class Xspress3Detector(DetectorMixin):
     Notes:
         1. numframes should be 1, unless you know what you're doing.
         """
+        print "Xspress3 ScalerMode"
         self._xsp3.put('TriggerMode', 1) # Internal
         if numframes is not None:
             self._xsp3.put('NumImages', numframes)
@@ -341,7 +354,7 @@ class Xspress3Detector(DetectorMixin):
             self._xsp3.put('MCA%iROI:BlockingCallbacks' % i, 1)
         self.mode = SCALER_MODE
 
-    def ROIMode(self, dwelltime=0.25, numframes=16384):
+    def ROIMode(self, dwelltime=None, numframes=None):
         """ set to ROI mode: ready for slew scanning with ROI saving
 
     Arguments:
@@ -369,7 +382,7 @@ class Xspress3Detector(DetectorMixin):
         self.mode = ROI_MODE
 
 
-    def NDArrayMode(self, dwelltime=0.25, numframes=16384):
+    def NDArrayMode(self, dwelltime=None, numframes=None):
         """ set to array mode: ready for slew scanning
 
     Arguments:
