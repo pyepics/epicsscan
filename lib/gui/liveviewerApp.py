@@ -282,8 +282,9 @@ class ScanViewerFrame(wx.Frame):
 
     def onPlot(self, evt=None, npts=None):
         """draw plot of newest data"""
-
         new_plot = self.force_newplot or npts < 3
+        self.force_newplot = False
+
         lgroup, gname = self.lgroup, SCANGROUP
 
         ix = self.xarr.GetSelection()
@@ -377,7 +378,10 @@ class ScanViewerFrame(wx.Frame):
             if y2expr != '':
                 ppnl.oplot(lgroup.arr_x, lgroup.arr_y2, side='right',
                            label= "%s: %s" % (fname, y2label), **popts)
-            ppnl.unzoom()
+            if npts < 3:
+                ppnl.unzoom()
+            else:
+                ppnl.canvas.draw()
         else:
             ppnl.set_xlabel(xlabel)
             ppnl.set_ylabel(ylabel)
@@ -394,8 +398,6 @@ class ScanViewerFrame(wx.Frame):
                 ax = ppnl.get_right_axes()
                 ppnl.user_limits[ax] = (min(lgroup.arr_x), max(lgroup.arr_x),
                                         min(lgroup.arr_y2), max(lgroup.arr_y2))
-
-        self.force_newplot = False
 
 
     def createMenus(self):
