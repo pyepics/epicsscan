@@ -146,23 +146,20 @@ class ScanViewerFrame(wx.Frame):
 
         self.SetStatusText(msg)
 
-        if not (self.scan_inprogress or do_newplot):
-            # print 'Scan Timer no reason to plot', do_newplot, self.scan_inprogress
-            return
+        if self.scan_inprogress or do_newplot:
+            for row in sdata:
+                dat = row.data
+                if self.scandb_server == 'sqlite':
+                    dat = json.loads(dat.replace('{', '[').replace('}', ']'))
+                setattr(self.lgroup, fix_varname(row.name), np.array(dat))
 
-        for row in sdata:
-            dat = row.data
-            if self.scandb_server == 'sqlite':
-                dat = json.loads(dat.replace('{', '[').replace('}', ']'))
-            setattr(self.lgroup, fix_varname(row.name), np.array(dat))
-
-        if ((npts > 1 and npts != self.live_cpt)  or
-            (time.time() - self.last_column_update) > 30.0):
-            if do_newplot:
-                self.force_newplot = True
-            self.onPlot(npts=npts)
-            self.last_column_update = time.time()
-        self.live_cpt = npts
+            if ((npts > 1 and npts != self.live_cpt)  or
+                (time.time() - self.last_column_update) > 30.0):
+                if do_newplot:
+                    self.force_newplot = True
+                self.onPlot(npts=npts)
+                self.last_column_update = time.time()
+            self.live_cpt = npts
 
 
     def set_column_names(self, sdata):
@@ -376,10 +373,11 @@ class ScanViewerFrame(wx.Frame):
         if new_plot:
             ppnl.plot(lgroup.arr_x, lgroup.arr_y1,
                       label= "%s: %s" % (fname, ylabel), **popts)
+
             if y2expr != '':
                 ppnl.oplot(lgroup.arr_x, lgroup.arr_y2, side='right',
                            label= "%s: %s" % (fname, y2label), **popts)
-            ppnl.canvas.draw()
+            ppnl.unzoom()
         else:
             ppnl.set_xlabel(xlabel)
             ppnl.set_ylabel(ylabel)
