@@ -146,20 +146,23 @@ class ScanViewerFrame(wx.Frame):
 
         self.SetStatusText(msg)
 
-        if self.scan_inprogress or do_newplot:
-            for row in sdata:
-                dat = row.data
-                if self.scandb_server == 'sqlite':
-                    dat = json.loads(dat.replace('{', '[').replace('}', ']'))
-                setattr(self.lgroup, fix_varname(row.name), np.array(dat))
+        if not (self.scan_inprogress or do_newplot):
+            # print 'Scan Timer no reason to plot', do_newplot, self.scan_inprogress
+            return
 
-            if ((npts > 1 and npts != self.live_cpt)  or
-                (time.time() - self.last_column_update) > 30.0):
-                if do_newplot:
-                    self.force_newplot = True
-                self.onPlot(npts=npts)
-                self.last_column_update = time.time()
-            self.live_cpt = npts
+        for row in sdata:
+            dat = row.data
+            if self.scandb_server == 'sqlite':
+                dat = json.loads(dat.replace('{', '[').replace('}', ']'))
+            setattr(self.lgroup, fix_varname(row.name), np.array(dat))
+
+        if ((npts > 1 and npts != self.live_cpt)  or
+            (time.time() - self.last_column_update) > 30.0):
+            if do_newplot:
+                self.force_newplot = True
+            self.onPlot(npts=npts)
+            self.last_column_update = time.time()
+        self.live_cpt = npts
 
 
     def set_column_names(self, sdata):
@@ -282,9 +285,8 @@ class ScanViewerFrame(wx.Frame):
 
     def onPlot(self, evt=None, npts=None):
         """draw plot of newest data"""
-        new_plot = self.force_newplot or npts < 3
-        self.force_newplot = False
 
+        new_plot = self.force_newplot or npts < 3
         lgroup, gname = self.lgroup, SCANGROUP
 
         ix = self.xarr.GetSelection()
@@ -374,14 +376,10 @@ class ScanViewerFrame(wx.Frame):
         if new_plot:
             ppnl.plot(lgroup.arr_x, lgroup.arr_y1,
                       label= "%s: %s" % (fname, ylabel), **popts)
-
             if y2expr != '':
                 ppnl.oplot(lgroup.arr_x, lgroup.arr_y2, side='right',
                            label= "%s: %s" % (fname, y2label), **popts)
-            if npts < 3:
-                ppnl.unzoom()
-            else:
-                ppnl.canvas.draw()
+            ppnl.canvas.draw()
         else:
             ppnl.set_xlabel(xlabel)
             ppnl.set_ylabel(ylabel)
@@ -398,6 +396,8 @@ class ScanViewerFrame(wx.Frame):
                 ax = ppnl.get_right_axes()
                 ppnl.user_limits[ax] = (min(lgroup.arr_x), max(lgroup.arr_x),
                                         min(lgroup.arr_y2), max(lgroup.arr_y2))
+
+        self.force_newplot = False
 
 
     def createMenus(self):
