@@ -165,14 +165,11 @@ class ScanFrame(wx.Frame):
         self.statusbar = self.CreateStatusBar(2, 0)
         self.statusbar.SetStatusWidths([-3, -1])
 
-
         statusbar_fields = ["Initializing...", "Status"]
         for i in range(len(statusbar_fields)):
             self.statusbar.SetStatusText(statusbar_fields[i], i)
 
-
         self.set_workdir()
-
         self.scantimer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.onScanTimer, self.scantimer)
 
@@ -562,7 +559,10 @@ class ScanFrame(wx.Frame):
             os.chdir(fullpath)
         except:
             print("ScanApp: Could not set working directory to %s " % fullpath)
-        print("ScanApp working folder: %s " % os.getcwd())
+        try:
+            self.subframes['macro'].reload_macros()
+        except KeyError:
+            pass
 
     def onFolderSelect(self, evt=None):
         style = wx.DD_DIR_MUST_EXIST|wx.DD_DEFAULT_STYLE

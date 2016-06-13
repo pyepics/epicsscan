@@ -78,11 +78,6 @@ class MacroFrame(wx.Frame) :
 
         self.createMenus()
 
-        # print 'Edit Macros ', _larch
-        # _larch.load_plugins()
-        # _larch.load_modules()
-        # self.scandb.add_command('load_plugins()')
-        self.scandb.add_command('load_macros()')
         self.db_messages = ScanDBMessageQueue(self.scandb)
 
         self.colors = GUIColors()
@@ -122,6 +117,9 @@ class MacroFrame(wx.Frame) :
         pack(self, sizer)
         self.Show()
         self.Raise()
+
+    def reload_macros(self):
+        self.scandb.add_command('load_macros()')
 
     def update_info(self, evt=None):
         paused = self.scandb.get_info('request_pause', as_bool=True)
