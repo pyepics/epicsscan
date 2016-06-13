@@ -140,7 +140,10 @@ class NewportXPS:
         if with_encoder:
             GroupInit = self._xps.GroupInitializeWithEncoderCalibration
         for group in self.groups:
-            GroupInit(self._sid, group)
+            err, ret = GroupInit(self._sid, group)
+            if err is not 0:
+                print("error initializing group '%s', %i" % (group, ret))
+            time.sleep(0.25)
 
         if home:
             for group in self.groups:
@@ -160,9 +163,14 @@ class NewportXPS:
             self.connect()
         if group is None:
             for group in self.groups:
-                self._xps.GroupHomeSearch(self._sid, group)
+                err, ret = self._xps.GroupHomeSearch(self._sid, group)
+                if err is not 0:
+                    print("error homing group '%s', %s" % (group, ret))
+                time.sleep(0.25)
         elif group in self.groups:
-            self._xps.GroupHomeSearch(self._sid, group)
+            err, ret = self._xps.GroupHomeSearch(self._sid, group)
+            if err is not 0:
+                print("error homing group '%s', %s" % (group, ret))
         else:
             print("Group '%s' not found" % group)
 
