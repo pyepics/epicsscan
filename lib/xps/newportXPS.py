@@ -137,7 +137,7 @@ class NewportXPS:
             self.connect()
 
         GroupInit = self._xps.GroupInitialize
-        if with_encode:
+        if with_encoder:
             GroupInit = self._xps.GroupInitializeWithEncoderCalibration
         for group in self.groups:
             GroupInit(self._sid, group)
