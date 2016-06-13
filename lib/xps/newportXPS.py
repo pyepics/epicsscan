@@ -125,18 +125,22 @@ class NewportXPS:
         fout.close()
 
 
-    def initialize_groups(self, home=False):
+    def initialize_groups(self, with_encoder=True, home=False):
         """
         initialize groups, optionally homing each.
 
         Parameters:
+            with_encoder (bool): whethter to initialize with encoder [True]
             home (bool): whether to home all groups [False]
         """
         if self._sid is None:
             self.connect()
 
+        GroupInit = self._xps.GroupInitialize
+        if with_encode:
+            GroupInit = self._xps.GroupInitializeWithEncoderCalibration
         for group in self.groups:
-            self._xps.GroupInitializeWithEncoderCalibration(self._sid, group)
+            GroupInit(self._sid, group)
 
         if home:
             for group in self.groups:
