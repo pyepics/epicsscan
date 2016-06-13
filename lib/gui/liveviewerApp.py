@@ -369,11 +369,13 @@ class ScanViewerFrame(wx.Frame):
                       'ylabel': ylabel, 'y2label': y2label})
         if len(lgroup.arr_x) < 2 or len(lgroup.arr_y1) < 2:
             return
+
         if len(lgroup.arr_x) != len(lgroup.arr_y1):
             print 'data length mismatch ', len(lgroup.arr_x), len(lgroup.arr_y1)
             return
         ppnl = self.plotpanel
         if new_plot:
+            ppnl.conf.zoom_lims = []
             ppnl.plot(lgroup.arr_x, lgroup.arr_y1,
                       label= "%s: %s" % (fname, ylabel), **popts)
             if y2expr != '':
