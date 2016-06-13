@@ -166,6 +166,17 @@ class NewportXPS:
         else:
             print("Group '%s' not found" % group)
 
+    def get_group_status(self):
+        """
+        get dictionary of status for each group
+        """
+        out = OrderedDict()
+        for group in self.groups:
+            err, stat = self._xps.GroupStatusGet(self._sid, group)
+            err, val = self._xps.GroupStatusStringGet(self._sid, stat)
+            out[group] = val
+        return out
+
     def get_hardware_status(self):
         """
         get dictionary of hardware status for each stage
@@ -208,6 +219,42 @@ class NewportXPS:
             max_jerktime = jt1_cur
         self._xps.PositionerSGammaParametersGet(self._sid, stage, vel, accl,
                                                 min_jerktime, max_jerktime)
+
+
+    def move(self, stage, value, relative=False):
+        """
+        move stage to position, optionally relative
+
+        Parameters:
+           stage (string): name of stage -- must be in self.stages
+           value (float): target position
+           relative (bool): whether move is relative [False]
+        """
+        if stage not in self.stages:
+            print("Stage '%s' not found")
+            return
+
+        move = self._xps.GroupMoveAbsolute
+        if relative:
+            move = self._xps.GroupMoveRelative
+
+        err, ret = move(self._sid, stage, [value])
+        return ret
+
+    def read_position(self, stage):
+        """
+        return current stage position
+
+        Parameters:
+           stage (string): name of stage -- must be in self.stages
+        """
+        if stage not in self.stages:
+            print("Stage '%s' not found")
+            return
+
+        err, val = self._xps.GroupPositionCurrentGet(self._sid, stage, 1)
+        return val
+
 
     def reboot(self, reconnect=True, timeout=120.0):
         """
