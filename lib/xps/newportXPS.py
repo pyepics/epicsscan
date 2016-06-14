@@ -42,6 +42,28 @@ class NewportXPS:
         self.ftphome = '/Admin'
         self.connect()
 
+    def status_report(self):
+        """return printable status report"""
+        out = ["# Newport XPS  %s  (%s)" % (self.host, socket.getfqdn(self.host)),
+               "# %s " % time.ctime()]
+        out.append("############################")
+        hstat = self.get_hardware_status()
+        perrs = self.get_positioner_errors()
+
+        for groupname, status in self.get_group_status().items():
+            out.append("Group: %s, Status: %s " % (groupname, status))
+            for stagename in self.groups[groupname]:
+                istage = self.stages.index(stagename)
+                driver = self.stagetypes[istage]
+                out.append("   Stage: %s, Driver: %s"  % (stagename, driver))
+                out.append("      Hardware Status: %s"  % (hstat[stagename]))
+                out.append("      Positioner Errors: %s"  % (perrs[stagename]))
+
+        out.append("############################")
+        return "\n".join(out)
+
+
+
     def connect(self):
         self._sid = self._xps.TCP_ConnectToServer(self.host,
                                                   self.port, self.timeout)
@@ -190,10 +212,11 @@ class NewportXPS:
         get dictionary of hardware status for each stage
         """
         out = OrderedDict()
-        for pos in self.stages:
-            err, stat = self._xps.PositionerHardwareStatusGet(self._sid, pos)
+        for stage in self.stages:
+            if stage in ('', None): continue
+            err, stat = self._xps.PositionerHardwareStatusGet(self._sid, stage)
             err, val = self._xps.PositionerHardwareStatusStringGet(self._sid, stat)
-            out[pos] = val
+            out[stage] = val
         return out
 
     def get_positioner_errors(self):
@@ -201,10 +224,11 @@ class NewportXPS:
         get dictionary of positioner errors for each stage
         """
         out = OrderedDict()
-        for pos in self.stages:
-            err, stat = self._xps.PositionerErrorGet(self._sid, pos)
+        for stage in self.stages:
+            if stage in ('', None): continue
+            err, stat = self._xps.PositionerErrorGet(self._sid, stage)
             err, val = self._xps.PositionerErrorStringGet(self._sid, stat)
-            out[pos] = val
+            out[stage] = val
         return out
 
     def set_velocity(self, stage, velo, accl=None,
