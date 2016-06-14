@@ -44,9 +44,16 @@ class NewportXPS:
 
     def status_report(self):
         """return printable status report"""
-        out = ["# Newport XPS  %s  (%s)" % (self.host, socket.getfqdn(self.host)),
-               "# %s " % time.ctime()]
-        out.append("############################")
+        err, uptime = self._xps.ElapsedTimeGet(self._sid)
+        boottime = time.time() - uptime
+        out = ["# XPS host:     %s (%s)" % (self.host, socket.getfqdn(self.host)),
+               "# Firmware:     %s" % self.firmware_version,
+               "# Current Time: %s " % time.ctime(),
+               "# Last Reboot:  %s" % time.ctime(boottime),
+               ]
+
+        out.append("#########################################")
+        out.append("###         Groups and Stages         ###")
         hstat = self.get_hardware_status()
         perrs = self.get_positioner_errors()
 
@@ -55,11 +62,11 @@ class NewportXPS:
             for stagename in self.groups[groupname]:
                 istage = self.stages.index(stagename)
                 driver = self.stagetypes[istage]
-                out.append("   Stage: %s, Driver: %s"  % (stagename, driver))
-                out.append("      Hardware Status: %s"  % (hstat[stagename]))
-                out.append("      Positioner Errors: %s"  % (perrs[stagename]))
+                out.append("    Stage: %s, %s"  % (stagename, driver))
+                out.append("        Hardware Status: %s"  % (hstat[stagename]))
+                out.append("        Positioner Errors: %s"  % (perrs[stagename]))
 
-        out.append("############################")
+        out.append("#########################################")
         return "\n".join(out)
 
 
@@ -228,6 +235,8 @@ class NewportXPS:
             if stage in ('', None): continue
             err, stat = self._xps.PositionerErrorGet(self._sid, stage)
             err, val = self._xps.PositionerErrorStringGet(self._sid, stat)
+            if len(val) < 1:
+                val = 'OK'
             out[stage] = val
         return out
 
