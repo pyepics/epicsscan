@@ -149,6 +149,9 @@ class ScanViewerFrame(wx.Frame):
             self.scan_inprogress = False
             self.moveto_btn.Enable()
             do_newplot = True
+        elif msg.lower().startswith('scan abort'):
+            self.moveto_btn.Enable()
+            do_newplot = True
 
         if msg != self.last_status_msg:
             self.last_status_msg = msg
@@ -285,14 +288,15 @@ class ScanViewerFrame(wx.Frame):
 
     def onMoveTo(self, evt=None):
         pvname = self.positioner_pvs.get(self.x_label, None)
+
         if pvname is not None and self.x_cursor is not None:
             msg = " Move To Position:\n  %s (%s) to %.4f " % (self.x_label,
                                                               pvname,
                                                               self.x_cursor)
             ret = popup(self, msg, "Move to Position?",
                         style=wx.YES_NO|wx.NO_DEFAULT|wx.ICON_QUESTION)
-        if ret == wx.ID_YES:
-            epics.caput(pvname, self.x_cursor)
+            if ret == wx.ID_YES:
+                epics.caput(pvname, self.x_cursor)
 
     def onPause(self, evt=None):
         self.scandb.set_info('request_pause', 1)
@@ -409,6 +413,8 @@ class ScanViewerFrame(wx.Frame):
             if y2expr != '':
                 ppnl.oplot(lgroup.arr_x, lgroup.arr_y2, side='right',
                            label= "%s: %s" % (fname, y2label), **popts)
+            xmin, xmax = min(lgroup.arr_x), max(lgroup.arr_x)
+            ppnl.axes.set_xlim((xmin, xmax), emit=True)
             ppnl.canvas.draw()
         else:
             ppnl.set_xlabel(xlabel)
@@ -497,7 +503,9 @@ class ScanViewerFrame(wx.Frame):
     def unzoom(self, event=None, **kwargs):
         ppnl = self.plotpanel
         ppnl.conf.zoom_lims = []
-        ppnl.set_viewlimits()
+        ppnl.user_limits = {}
+        ppnl.user_limits[ppnl.axes] = (None, None, None, None)
+        ppnl.user_limits[ppnl.get_right_axes()] = (None, None, None, None)
         self.force_newplot = True
         self.onPlot()
 
