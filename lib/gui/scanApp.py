@@ -219,9 +219,9 @@ class ScanFrame(wx.Frame):
 
         btnsizer = wx.BoxSizer(wx.HORIZONTAL)
         btnpanel = wx.Panel(self)
-        for ibtn, label in enumerate(("Start Scan", "Abort Scan",
-                                      "Pause Scan", "Resume Scan", "Debug Scan")):
-            btn = add_button(btnpanel, label, size=(120, -1),
+        for ibtn, label in enumerate(("Start", "Abort", "Pause", "Resume")):
+            # "Debug Scan")):
+            btn = add_button(btnpanel, "%s Scan" % label, size=(120, -1),
                              action=Closure(self.onCtrlScan, cmd=label))
             btnsizer.Add(btn, 0, CEN, 8)
         pack(btnpanel, btnsizer)
