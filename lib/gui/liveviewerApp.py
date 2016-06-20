@@ -35,7 +35,7 @@ from ..file_utils import fix_filename, fix_varname
 
 from .gui_utils import (SimpleText, FloatCtrl, Closure, pack, add_button,
                         add_menu, add_choice, add_menu, check, hline,
-                        CEN, RCEN, LCEN, FRAMESTYLE, Font, hms)
+                        CEN, RCEN, LCEN, FRAMESTYLE, Font, hms, popup)
 
 CEN |=  wx.ALL
 FILE_WILDCARDS = "Scan Data Files(*.0*,*.dat,*.xdi)|*.0*;*.dat;*.xdi|All files (*.*)|*.*"
@@ -82,11 +82,15 @@ class ScanViewerFrame(wx.Frame):
         self.scan_inprogress = False
         self.last_column_update = 0.0
         self.need_column_update = True
+        self.positioner_pvs = {}
+        self.x_cursor = None
+        self.x_label = None
         self.SetTitle(title)
         self.SetSize((750, 750))
         self.SetFont(Font(9))
         self.createMainPanel()
         self.createMenus()
+        self.last_status_msg = None
         self.statusbar = self.CreateStatusBar(2, 0)
         self.statusbar.SetStatusWidths([-3, -1])
         statusbar_fields = ["Initializing....", " "]
@@ -134,6 +138,7 @@ class ScanViewerFrame(wx.Frame):
             (npts > 0 and npts < 3 and self.need_column_update)):
             self.need_column_update = False
             self.scan_inprogress = True
+            self.moveto_btn.Disable()
             do_newplot = True
             self.live_scanfile = curfile
             self.title.SetLabel(curfile)
@@ -142,9 +147,12 @@ class ScanViewerFrame(wx.Frame):
 
         elif msg.lower().startswith('scan complete') and self.scan_inprogress:
             self.scan_inprogress = False
+            self.moveto_btn.Enable()
             do_newplot = True
 
-        self.SetStatusText(msg)
+        if msg != self.last_status_msg:
+            self.last_status_msg = msg
+            self.SetStatusText(msg)
 
         if not (self.scan_inprogress or do_newplot):
             # print 'Scan Timer no reason to plot', do_newplot, self.scan_inprogress
@@ -173,13 +181,14 @@ class ScanViewerFrame(wx.Frame):
         self.total_npts = self.get_info('scan_total_points', as_int=True)
         self.live_cpt = -1
         xcols, ycols, y2cols = [], [], []
-        # print("SET COLUMN NAMES")
-        # print([s.name for s in sdata])
+        self.positioner_pvs = {}
         for s in sdata:
             nam = fix_varname(s.name)
             ycols.append(nam)
             if s.notes.lower().startswith('pos'):
                 xcols.append(nam)
+                self.positioner_pvs[nam] = s.pvname
+        # print("SET COLUMN NAMES", xcols, self.positioner_pvs)
 
         y2cols = ycols[:] + ['1.0', '0.0', '']
         xarr_old = self.xarr.GetStringSelection()
@@ -249,26 +258,41 @@ class ScanViewerFrame(wx.Frame):
 
 
         self.plotpanel = PlotPanel(mainpanel, size=(520, 550), fontsize=8)
-
+        self.plotpanel.cursor_callback = self.onLeftDown
         self.plotpanel.messenger = self.write_message
         self.plotpanel.canvas.figure.set_facecolor((0.98,0.98,0.97))
         self.plotpanel.unzoom     = self.unzoom
         # self.plotpanel.popup_menu = None
 
-        # btnsizer = wx.StdDialogButtonSizer()
-        # btnpanel = wx.Panel(mainpanel)
-        #btnsizer.Add(add_button(btnpanel, 'Pause', action=self.onPause))
-        #btnsizer.Add(add_button(btnpanel, 'Resume', action=self.onResume))
-        # btnsizer.Add(add_button(btnpanel, 'Abort Scan', action=self.onAbort))
-        # btnsizer.Add(add_button(btnpanel, 'Unzoom', action=self.unzoom))
-        # pack(btnpanel, btnsizer)
+        btnsizer = wx.StdDialogButtonSizer()
+        btnpanel = wx.Panel(mainpanel)
+        self.moveto_btn = add_button(btnpanel, 'Move To Position', action=self.onMoveTo)
+
+        btnsizer.Add(add_button(btnpanel, 'Pause Scan', action=self.onPause))
+        btnsizer.Add(add_button(btnpanel, 'Resume Scan', action=self.onResume))
+        btnsizer.Add(add_button(btnpanel, 'Abort Scan', action=self.onAbort))
+        btnsizer.Add(add_button(btnpanel, 'Unzoom Plot', action=self.unzoom))
+        btnsizer.Add(self.moveto_btn)
+        pack(btnpanel, btnsizer)
 
         mainsizer.Add(panel,   0, LCEN|wx.EXPAND, 2)
         mainsizer.Add(self.plotpanel, 1, wx.GROW|wx.ALL, 1)
-        # mainsizer.Add(btnpanel, 0, wx.GROW|wx.ALL, 1)
+        mainsizer.Add(btnpanel, 0, wx.GROW|wx.ALL, 1)
 
         pack(mainpanel, mainsizer)
         return mainpanel
+
+
+    def onMoveTo(self, evt=None):
+        pvname = self.positioner_pvs.get(self.x_label, None)
+        if pvname is not None and self.x_cursor is not None:
+            msg = " Move To Position:\n  %s (%s) to %.4f " % (self.x_label,
+                                                              pvname,
+                                                              self.x_cursor)
+            ret = popup(self, msg, "Move to Position?",
+                        style=wx.YES_NO|wx.NO_DEFAULT|wx.ICON_QUESTION)
+        if ret == wx.ID_YES:
+            epics.caput(pvname, self.x_cursor)
 
     def onPause(self, evt=None):
         self.scandb.set_info('request_pause', 1)
@@ -283,6 +307,9 @@ class ScanViewerFrame(wx.Frame):
         """write a message to the Status Bar"""
         self.SetStatusText(s, panel)
 
+    def onLeftDown(self, x=None, y=None):
+        self.x_cursor = x
+
     def onPlot(self, evt=None, npts=None):
         """draw plot of newest data"""
 
@@ -291,6 +318,7 @@ class ScanViewerFrame(wx.Frame):
 
         ix = self.xarr.GetSelection()
         x  = self.xarr.GetStringSelection()
+        self.x_label = x
         xlabel = x
         popts = {'labelfontsize': 8, 'xlabel': x,
                  'marker':'o', 'markersize':4}
@@ -407,6 +435,8 @@ class ScanViewerFrame(wx.Frame):
         #
         fmenu = wx.Menu()
         pmenu = wx.Menu()
+        omenu = wx.Menu()
+
         fmenu.AppendSeparator()
         add_menu(self, fmenu, "&Quit\tCtrl+Q", "Quit program", self.onClose)
 
@@ -420,6 +450,9 @@ class ScanViewerFrame(wx.Frame):
         add_menu(self, fmenu, "Preview", "Print Preview",       self.onPrintPreview)
         #
 
+        add_menu(self, omenu, "Enable Move To Position", "Force Enable of Move To Position",
+                 self.onForceEnableMoveTo)
+
         add_menu(self, pmenu, "Force Replot\tCtrl+F", "Replot", self.onForceReplot)
 
         add_menu(self, pmenu, "Configure\tCtrl+K",
@@ -431,8 +464,12 @@ class ScanViewerFrame(wx.Frame):
         add_menu(self, pmenu, "Toggle Grid\tCtrl+G",
                  "Toggle Grid on Plot", self.onToggleGrid)
 
-        self.menubar.Append(pmenu, "Plot Options")
+        self.menubar.Append(omenu, "Options")
+        self.menubar.Append(pmenu, "Plot")
         self.SetMenuBar(self.menubar)
+
+    def onForceEnableMoveTo(self, evt=None):
+        self.moveto_btn.Enable()
 
     def onForceReplot(self, evt=None):
         self.force_newplot = True
@@ -459,7 +496,7 @@ class ScanViewerFrame(wx.Frame):
 
     def unzoom(self, event=None, **kwargs):
         ppnl = self.plotpanel
-        ppnl.zoom_lims = []
+        ppnl.conf.zoom_lims = []
         ppnl.set_viewlimits()
         self.force_newplot = True
         self.onPlot()
