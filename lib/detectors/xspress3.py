@@ -273,7 +273,7 @@ class Xspress3Detector(DetectorMixin):
 
     def pre_scan(self, scan=None, **kws):
         """ """
-        print "Xspress3 pre_scan  ", self.mode
+        # print "Xspress3 pre_scan  ", self.mode
         if self.mode == SCALER_MODE:
             self.ScalerMode()
         elif self.mode == ROI_MODE:
@@ -342,7 +342,7 @@ class Xspress3Detector(DetectorMixin):
     Notes:
         1. numframes should be 1, unless you know what you're doing.
         """
-        print "Xspress3 ScalerMode"
+        # print "Xspress3 ScalerMode"
         self._xsp3.put('TriggerMode', 1) # Internal
         if numframes is not None:
             self._xsp3.put('NumImages', numframes)
@@ -431,7 +431,7 @@ class Xspress3Detector(DetectorMixin):
         if mode is not None:
             self.mode = mode
         time.sleep(.001)
-        self._xsp3.FileCaptureOn()
+        self._xsp3.FileCaptureOff()
 
     def Start(self, mode=None, arm=False, wait=False):
         if mode is not None:

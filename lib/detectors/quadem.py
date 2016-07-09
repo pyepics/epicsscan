@@ -4,10 +4,11 @@ QuadEM using TetrAMM
 from __future__ import print_function
 
 import numpy as np
-from epics import Device, poll
+from epics import Device, poll, caget, get_pv
 from .struck import Struck
 
-SCALER_MODE, ARRAY_MODE = 'SCALER', 'ARRAY'
+from .counter import DeviceCounter
+from .base import DetectorMixin, SCALER_MODE, NDARRAY_MODE, ROI_MODE
 
 HEADER = '''# TetrAMM MCS Data: %s,  %s
 # Nchannels, Nmcas = %i, %i
@@ -16,7 +17,6 @@ HEADER = '''# TetrAMM MCS Data: %s,  %s
 # %s
 # %s
 '''
-
 
 class TetrAMM(Device):
     """
@@ -40,7 +40,7 @@ class TetrAMM(Device):
         if not prefix.endswith(':'):
             prefix = "%s:" % prefix
         self._mode = SCALER_MODE
-        self.ROIMode = self.ScalerMode
+        self.ROIMode = self.NDArrayMode
         self._chans = range(1, nchan+1)
 
         attrs = list(self.attrs)
@@ -113,7 +113,7 @@ class TetrAMM(Device):
         self._mode = SCALER_MODE
 
 
-    def ArrayMode(self, dwelltime=0.25, numframes=16384, sis_trigger_width=None):
+    def NDArrayMode(self, dwelltime=0.25, numframes=16384, sis_trigger_width=None):
         """ set to array mode: ready for slew scanning
 
     Arguments:
@@ -127,7 +127,7 @@ class TetrAMM(Device):
            ready for slew scanning.
         2. setting dwelltime or numframes to None is discouraged,
            as it can lead to inconsistent data arrays.
-        3. This puts the TetrAMM in ARRAY mode, which will effect the
+        3. This puts the TetrAMM in NDARRAY mode, which will effect the
            behavior of 'Start'.
         """
         self.put('AcquireMode', 1)
@@ -144,7 +144,7 @@ class TetrAMM(Device):
         if self._sis is not None:
             self._sis.ArrayMode(dwelltime=dwelltime, numframes=numframes,
                                 trigger_width=sis_trigger_width)
-        self._mode = ARRAY_MODE
+        self._mode = NDARRAY_MODE
 
     def SetDwelltime(self, dwelltime, valuesperread=None):
         """set dwell time in seconds
@@ -251,7 +251,7 @@ class TetrAMM(Device):
 
     Notes:
         this is a simplified version of Start(), starting only the basic counting.
-        it is appropriate for SCALER mode, but not ARRAY mode.
+        it is appropriate for SCALER mode, but not NDARRAY mode.
         """
         if dwelltime is not None:
             self.setDwellTime(dwelltime)
@@ -261,7 +261,7 @@ class TetrAMM(Device):
 
     def Start(self, wait=False):
         """start collection, with slightly different behavior for
-    SCALER and ARRAY mode.
+    SCALER and NDARRAY mode.
 
     Arguments:
         wait (bool):   whether to wait for counting to complete [False]
@@ -271,12 +271,12 @@ class TetrAMM(Device):
         Current readings, by setting Acquire to 1 and optionally waiting for
         it to complete.
 
-        In ARRAY mode: this will first start the Time Series, then set Acquire
+        In NDARRAY mode: this will first start the Time Series, then set Acquire
         to 1.  If an SIS is used, this will then set the SIS EraseStart to 1
         and optionally waiting for it to complete.
 
         """
-        if self._mode == ARRAY_MODE:
+        if self._mode in (NDARRAY_MODE, ROI_MODE):
             for i in self._chans:
                 self.put('Current%i:TSControl' % i, 0)  # 'Erase/Start'
             if self._sis is  not None:
@@ -298,9 +298,9 @@ class TetrAMM(Device):
         wait (bool):   whether to wait for stopping to complete [False]
 
     Notes:
-        In ARRAY mode, this will stop all the Time Series and the SIS.
+        In NDARRAY mode, this will stop all the Time Series and the SIS.
         """
-        if self._mode == ARRAY_MODE:
+        if self._mode in (NDARRAY_MODE, ROI_MODE):
             for i in self._chans:
                 self.put('Current%i:TSControl' % i, 2) # 'Stop'
         if self._sis is not None:
@@ -349,3 +349,98 @@ class TetrAMM(Device):
         fout.write('\n'.join(buff))
         fout.close()
         return (nmcas, npts)
+
+class TetrAMMCounter(DeviceCounter):
+    """Counter for TetrAMM"""
+    invalid_device_msg = 'TetrAMM epics device invalid'
+    def __init__(self, prefix, outpvs=None, nchan=4,
+                 use_calc=False, use_unlabeled=False):
+        if not prefix.endswith(':'):
+            prefix  += ':'
+        DeviceCounter.__init__(self, prefix, outpvs=outpvs)
+        fields = [('AveragingTime_RBV', 'CountTime')]
+        extra_pvs = []
+        nchan = int(nchan)
+        for i in range(1, nchan+1):
+            labelx = '%sCurrentName%i' % (prefix, i)
+            label = caget('%sCurrentName%i' % (prefix, i))
+            if len(label) > 0 or use_unlabeled:
+                suff = 'Current%i:MeanValue_RBV' % i
+                extra_pvs.append(('TetrAMM.Offset%i' % i,
+                                  '%sCurrentOffset%i' % (prefix, i)))
+                extra_pvs.append(('TetrAMM.Scale%i' % i,
+                                  '%sCurrentScale%i' % (prefix, i)))
+                fields.append((suff, label))
+        self.extra_pvs = extra_pvs
+        self.set_counters(fields)
+
+
+class TetrAMMDetector(DetectorMixin):
+    """TetrAMM Detector"""
+    trigger_suffix = 'Acquire'
+    def __init__(self, prefix, nchan=4,
+                 mode='scaler', rois=None, sis_prefix=None, **kws):
+        if not prefix.endswith(':'):
+            prefix = "%s:" % prefix
+        DetectorMixin.__init__(self, prefix, **kws)
+        nchan = int(nchan)
+        self.tetramm  = TetrAMM(prefix, sis_prefix=sis_prefix)
+        self._counter = TetrAMMCounter(prefix, nchan=nchan)
+        self.dwelltime_pv = get_pv('%sAveragingTime' % prefix)
+        self.dwelltime = None
+        self.mode = mode
+        self.counters = self._counter.counters
+
+        extra_pvs = [('TetrAMM.Range', '%sRange_RBV' % (prefix)),
+                     ('TetrAMM.SampleTime', '%sSampleTime_RBV' % (prefix)),
+                     ('TetrAMM.ValuesPerRead', '%sValuesPerRead_RBV' % (prefix)),
+                     ('TetrAMM.NumAverage', '%sNumAverage_RBV' % (prefix))]
+
+        self.extra_pvs.extend(self._counter.extra_pvs)
+
+    def pre_scan(self, **kws):
+        "run just prior to scan"
+        self.ScalerMode(dwelltime=self.dwelltime)
+
+    def post_scan(self, **kws):
+        "run just after scan"
+        self.tetramm.ContinuousMode(dwelltime=0.1)
+        return self.tetramm.put('Acquire', 1, wait=False)
+
+    def ScalerMode(self, dwelltime=1.0, numframes=1, **kws):
+        return self.tetramm.ScalerMode(dwelltime=dwelltime,
+                                       numframes=numframes)
+
+    def ContinuousMode(self, dwelltime=None, numframes=None, **kws):
+        "set to continuous mode"
+        return self.tetramm.ContinuousMode(dwelltime=dwelltime,
+                                           numframes=numframes)
+
+    def ROIMode(self, dwelltime=1.0, numframes=1, **kw):
+        "set to ROI mode, for slew-scanning of scalers to 1D arrays"
+        return self.tetramm.NDArrayMode(dwelltime=dwelltime,
+                                        numframes=numframes, **kws)
+
+    def Arm(self, mode=None, wait=False):
+        "arm detector, ready to collect with optional mode"
+        if mode is not None:
+            self.tetramm._mode = mode
+
+
+    def DisArm(self, mode=None, wait=False):
+        "disarm detector, back to open loop"
+        print(" DISARM TetrAMM")
+        return self.tetramm.ContinuousMode(dwelltime=0.1)
+
+
+    def Start(self, mode=None, arm=False, wait=False):
+        "start detector, optionally arming and waiting"
+        if arm or mode is not None:
+            self.Arm(mode=mode)
+        self.tetramm.Start(wait=wait)
+
+    def Stop(self, mode=None, disarm=False, wait=False):
+        "stop detector, optionally disarming and waiting"
+        self.scaler.put('CNT', 0, wait=wait)
+        if disarm:
+            self.DisArm(mode=mode)

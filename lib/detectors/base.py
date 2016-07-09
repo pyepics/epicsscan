@@ -13,8 +13,7 @@ class DetectorMixin(Saveable):
     """
     trigger_suffix = None
     def __init__(self, prefix, label=None, **kws):
-        Saveable.__init__(self, prefix, label=label,
-                          mode='scaler', rois=None, **kws)
+        Saveable.__init__(self, prefix, label=label, **kws)
         self.prefix = prefix
         self.label = label
         if self.label is None:

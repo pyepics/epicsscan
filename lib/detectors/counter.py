@@ -21,7 +21,7 @@ class Counter(Saveable):
         self.clear()
 
     def __repr__(self):
-        return "counter(%s, label=%s)" % (self.pv.pvname, self.label)
+        return "counter(%s, label='%s')" % (self.pv.pvname, self.label)
 
     def read(self, **kws):
         "read counter to internal buffer"

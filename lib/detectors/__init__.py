@@ -14,7 +14,6 @@ from epics.devices import Scaler, MCA
 from ..saveable import Saveable
 from ..file_utils import fix_filename
 
-
 from .trigger import Trigger
 from .counter import Counter, DeviceCounter, MotorCounter
 from .base  import DetectorMixin, SimpleDetector, MotorDetector
@@ -23,10 +22,10 @@ from .mca import McaDetector, MultiMcaDetector
 from .scaler import ScalerCounter, ScalerDetector
 from .xspress3 import Xspress3, Xspress3Detector
 from .struck import Struck
-from .quadem import TetrAMM
-
+from .quadem import TetrAMM, TetrAMMDetector
 
 DET_DEFAULT_OPTS = {'scaler': {'use_calc': True, 'nchans': 8},
+                    'tetramm': {'nchans': 4},
                     'areadetector': {'file_plugin': 'TIFF1',
                                      'fileroot': '',
                                      'auto_increment': True},
@@ -39,7 +38,7 @@ DET_DEFAULT_OPTS = {'scaler': {'use_calc': True, 'nchans': 8},
 
 AD_FILE_PLUGINS = ('TIFF1', 'JPEG1', 'NetCDF1', 'HDF1', 'Nexus1')
 
-class TetrAMMScalerDetector(DetectorMixin):
+class XTetrAMMSDetector(DetectorMixin):
     trigger_suffix = 'Acquire'
     def __init__(self, prefix, nchan=8, use_calc=True, **kws):
         DetectorMixin.__init__(self, prefix, **kws)
@@ -79,6 +78,7 @@ def get_detector(prefix, kind=None, mode='scaler', rois=None, label=None, **kws)
               'med': MultiMcaDetector,
               'multimca': MultiMcaDetector,
               'xspress3': Xspress3Detector,
+              'tetramm': TetrAMMDetector,
               None: SimpleDetector}
 
     if kind is None:
@@ -90,5 +90,5 @@ def get_detector(prefix, kind=None, mode='scaler', rois=None, label=None, **kws)
     else:
         kind = kind.lower()
     builder = dtypes.get(kind, SimpleDetector)
-    # print("Get Detector: ", prefix, kind, label, builder, mode, rois, kws)
+    # print(">> Get Detector: ", prefix, kind, label, builder, mode, rois, kws)
     return builder(prefix, label=label, mode=mode, rois=rois, **kws)
