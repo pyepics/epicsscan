@@ -221,7 +221,8 @@ class ScanServer():
         self.set_scan_message('Server Ready')
         is_paused = False
         while True:
-            epics.poll(0.001, 1.0)
+            time.sleep(0.050)
+            epics.poll(0.025, 1.0)
             self.look_for_interrupts()
             if (self.req_shutdown or (self.epicsdb is not None
                                      and  self.epicsdb.Shutdown == 1)):
