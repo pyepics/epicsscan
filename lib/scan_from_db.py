@@ -41,7 +41,8 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
                 detmode=None, rois=None, nscans=1, positioners=None,
                 detectors=None, counters=None, extra_pvs=None, inner=None,
                 outer=None, dwelltime=1.0, pos_settle_time=0.01,
-                det_settle_time=0.01, scantime=None, e0=None, regions=None,
+                det_settle_time=0.01, scantime=None, elem=None,
+                e0=None, regions=None,
                 energy_drive=None, energy_read=None, is_qxafs=False,
                 time_kw=0, max_time=0, is_relative=False):
 
@@ -92,12 +93,13 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
             scan = QXAFS_Scan(**kwargs)
         else:
             scan = XAFS_Scan(**kwargs)
+        nregions  = len(regions)
         for ireg, det in enumerate(regions):
             start, stop, npts, dt, units = det
             kws  = {'relative': is_relative}
             kws['dtime'] =  dt
             kws['use_k'] =  units.lower() !='ev'
-            if ireg == len(nregions)-1: # final reg
+            if ireg == nregions-1: # final reg
                 if max_time > dt and time_kw>0 and kws['use_k']:
                     kws['dtime_final'] = max_time
                     kws['dtime_wt'] = time_kw
@@ -144,6 +146,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
         dpars['mode'] = scan.detmode
         scan.add_detector(get_detector(**dpars))
 
+
     # extra counters (not-triggered things to count)
     if counters is not None:
         for label, pvname in counters:
@@ -160,4 +163,5 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
     scan.det_settle_time = det_settle_time
     if scan.dwelltime is None:
         scan.set_dwelltime(dwelltime)
+
     return scan
