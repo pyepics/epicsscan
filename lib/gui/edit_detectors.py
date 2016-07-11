@@ -21,8 +21,8 @@ LCEN  |= wx.ALL
 RCEN  |= wx.ALL
 CEN  |= wx.ALL
 
-DET_CHOICES = ('scaler', 'xspress3', 'mca', 'multimca', 'areadetector')
-AD_CHOICES = ['None'] + list(AD_FILE_PLUGINS)
+DET_CHOICES = ('scaler', 'tetramm', 'xspress3', 'mca', 'multimca', 'areadetector')
+AD_CHOICES = ['None'] # + list(AD_FILE_PLUGINS)
 
 class ROIFrame(wx.Frame):
     """Select ROIS"""
