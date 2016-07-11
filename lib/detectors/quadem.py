@@ -416,7 +416,8 @@ class TetrAMMDetector(DetectorMixin):
         return self.tetramm.ContinuousMode(dwelltime=dwelltime,
                                            numframes=numframes)
 
-    def ROIMode(self, dwelltime=1.0, numframes=1, **kw):
+
+    def ROIMode(self, dwelltime=1.0, numframes=1, **kws):
         "set to ROI mode, for slew-scanning of scalers to 1D arrays"
         return self.tetramm.NDArrayMode(dwelltime=dwelltime,
                                         numframes=numframes, **kws)
