@@ -723,14 +723,6 @@ class Xspress3Counter(DeviceCounter):
         def add_counter(pv, lab):
             self.counters.append(Counter(pv, label=lab))
 
-        try:
-            nmax = len(caget('%sMCA1:ArrayData' % prefix))
-        except ValueError:
-            nmax = 2048
-
-        if 'outputcounts' not in [r.lower() for r in self.rois]:
-            self.rois.append('OutputCounts')
-
         # build list of current ROI names
         current_rois = {}
         for iroi in range(1, self.nrois+1):
@@ -739,7 +731,6 @@ class Xspress3Counter(DeviceCounter):
                 current_rois[label.lower()] = iroi
             else:
                 break
-
         #
         for roiname in self.rois:
             lname = roiname.lower()
