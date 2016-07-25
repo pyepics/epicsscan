@@ -17,6 +17,7 @@ from .saveable import Saveable
 from .file_utils import fix_filename
 
 DET_DEFAULT_OPTS = {'scaler': {'use_calc': True, 'nchans': 8},
+                    'tetramm': {'nchans': 4},
                     'areadetector': {'file_plugin': 'TIFF1',
                                      'fileroot': '',
                                      'auto_increment': True},
