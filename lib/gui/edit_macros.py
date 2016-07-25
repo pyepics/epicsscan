@@ -10,16 +10,20 @@ from wx.lib.editor import Editor
 
 from ..ordereddict import OrderedDict
 from .gui_utils import (GUIColors, set_font_with_children, YesNo,
-                        add_menu, add_button, pack, SimpleText,
+                        add_menu, add_button, add_choice, pack, SimpleText,
                         FileOpen, FileSave, popup,
                         FRAMESTYLE, Font)
 
 from ..abort_slewscan import abort_slewscan
+from ..scandb import InstrumentDB
 
 import larch
 from larch.wxlib.readlinetextctrl import ReadlineTextCtrl
 LEFT = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
 CEN  = wx.ALIGN_CENTER|wx.ALIGN_CENTER_VERTICAL|wx.ALL
+
+ALL_EXP  = wx.ALL|wx.EXPAND
+LEFT_CEN = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL
 
 AUTOSAVE_FILE = 'macros_autosave.lar'
 MACRO_HISTORY = 'scan_macro_history.lar'
@@ -47,6 +51,130 @@ class ScanDBMessageQueue(object):
         return out
 
 
+class PosScanMacroBuilder(wx.Frame):
+    """ transfer positions from offline microscope"""
+    def __init__(self, parent, scandb=None):
+        wx.Frame.__init__(self, None, -1,
+                          title="Build Macro for Scans at Saved Positions")
+        self.parent = parent
+        self.scandb = scandb
+        self.instdb = InstrumentDB(scandb)
+        self.build_dialog()
+
+    def build_dialog(self):
+        positions  = self.instdb.get_positionlist('IDE_SampleStage')
+        panel = scrolled.ScrolledPanel(self)
+        self.checkboxes = OrderedDict()
+        sizer = wx.GridBagSizer(len(positions)+5, 4)
+        sizer.SetVGap(2)
+        sizer.SetHGap(3)
+
+        _nscans = ['%i'  %(i+1) for i in range(10)]
+
+        self.scantype = add_choice(panel,  ('Maps', 'XAFS', 'Linear'),
+                                 size=(100, -1),  action = self.onScanType)
+        self.scantype.SetSelection(1)
+        self.scanname = add_choice(panel,  [], size=(200, -1))
+        self.pos_names = []
+        self.wid_include = {}
+        self.wid_nscans = {}
+
+        bkws = dict(size=(95, -1))
+        btn_ok     = add_button(panel, "Insert Macro",  action=self.onOK, **bkws)
+        btn_all    = add_button(panel, "Select All",    action=self.onAll, **bkws)
+        btn_none   = add_button(panel, "Select None",   action=self.onNone,  **bkws)
+
+        brow = wx.BoxSizer(wx.HORIZONTAL)
+        brow.Add(btn_all ,  0, ALL_EXP|wx.ALIGN_LEFT, 1)
+        brow.Add(btn_none,  0, ALL_EXP|wx.ALIGN_LEFT, 1)
+        brow.Add(btn_ok ,   0, ALL_EXP|wx.ALIGN_LEFT, 1)
+
+        sizer.Add(brow,   (0, 0), (1, 4),  LEFT_CEN, 2)
+
+        ir = 1
+        sizer.Add(SimpleText(panel, 'Scan Type:'), (ir, 0), (1, 1),  LEFT_CEN, 2)
+        sizer.Add(self.scantype,                   (ir, 1), (1, 1),  LEFT_CEN, 2)
+        sizer.Add(SimpleText(panel, 'Scan Name:'), (ir, 2), (1, 1),  LEFT_CEN, 2)
+        sizer.Add(self.scanname,                   (ir, 3), (1, 2),  LEFT_CEN, 2)
+
+        ir += 1
+        sizer.Add(SimpleText(panel, 'Position Name'), (ir, 0), (1, 2),  LEFT_CEN, 2)
+        sizer.Add(SimpleText(panel, 'Include?'),      (ir, 2), (1, 1),  LEFT_CEN, 2)
+        sizer.Add(SimpleText(panel, 'Nscans'),        (ir, 3), (1, 1),  LEFT_CEN, 2)
+
+        ir += 1
+        sizer.Add(wx.StaticLine(panel, size=(500, 2)),(ir, 0), (1, 4),  LEFT_CEN, 2)
+
+        ir += 1
+        for pname in positions:
+            self.pos_names.append(pname)
+            label = SimpleText(panel, "  %s  " % pname)
+            cbox = self.wid_include[pname] = wx.CheckBox(panel, -1, "")
+            cbox.SetValue(True)
+            nscans = self.wid_nscans[pname] = add_choice(panel, _nscans, size=(50, -1))
+            nscans.SetStringSelection('1')
+            sizer.Add(label,  (ir, 0), (1, 2),  LEFT_CEN, 2)
+            sizer.Add(cbox,   (ir, 2), (1, 1),  LEFT_CEN, 2)
+            sizer.Add(nscans, (ir, 3), (1, 1), LEFT_CEN, 2)
+            ir += 1
+
+        sizer.Add(wx.StaticLine(panel, size=(500, 2)), (ir, 0), (1, 4),  LEFT_CEN, 2)
+
+        pack(panel, sizer)
+
+        panel.SetupScrolling()
+        mainsizer = wx.BoxSizer(wx.VERTICAL)
+        mainsizer.Add(panel, 1,  ALL_EXP|wx.GROW|wx.ALIGN_LEFT, 1)
+        pack(self, mainsizer)
+        self.SetMinSize((450, 550))
+        self.SetSize((525, 600))
+        self.Raise()
+        self.Show()
+        self.onScanType()
+
+    def onAll(self, event=None):
+        for cbox in self.wid_include.values():
+            cbox.SetValue(True)
+
+    def onNone(self, event=None):
+        for cbox in self.wid_include.values():
+            cbox.SetValue(False)
+
+    def onScanType(self, event=None):
+        sname = self.scantype.GetStringSelection().lower()
+        scantype = 'linear'
+        if 'xafs' in sname:
+            scantype = 'xafs'
+        elif 'map' in sname or 'slew' in sname:
+            scantype = 'slew'
+        cls, table = self.scandb.get_table('scandefs')
+        q = table.select().where(table.c.type==scantype).order_by('last_used_time')
+        scannames = []
+        for s in q.execute().fetchall():
+            if not (s.name.startswith('__') and s.name.endswith('__')):
+                scannames.append(s.name)
+        scannames.reverse()
+        self.scanname.Set(scannames)
+        self.scanname.SetSelection(0)
+
+    def onOK(self, event=None):
+        if self.instdb is None:
+            return
+        scanname = self.scanname.GetStringSelection()
+        command = "pos_scan('%s', '%s', number=%s)"
+        buff = ["#start auto-generated macro"]
+        for pname in self.pos_names:
+            if self.wid_include[pname].IsChecked():
+                nscans = self.wid_nscans[pname].GetStringSelection()
+                buff.append( command % (pname, scanname, nscans))
+        buff.append("#end auto-generated macro")
+        buff.append("")
+        self.parent.editor.AppendText("\n".join(buff))
+        self.Destroy()
+
+    def onCancel(self, event=None):
+        self.Destroy()
+
 class MacroFrame(wx.Frame) :
     """Edit/Manage Macros (Larch Code)"""
     output_colors = {'error_message': COLOR_ERR,
@@ -63,6 +191,7 @@ class MacroFrame(wx.Frame) :
 
         self.parent = parent
         self.scandb = parent.scandb
+        self.subframes = {}
         self.winfo = OrderedDict()
         self.output_stats = {}
         self.last_heartbeat = LONG_AGO
@@ -221,11 +350,11 @@ class MacroFrame(wx.Frame) :
 
         # options
         pmenu = wx.Menu()
-        add_menu(self, pmenu, "Insert Position Scan\tCtrl+P",
-                 "Insert Position Scan", self.onInsertText)
+        add_menu(self, pmenu, "Position Scans\tCtrl+P",
+                 "Position Scans", self.onBuildPosScan)
 
         self.menubar.Append(fmenu, "&File")
-        self.menubar.Append(pmenu, "Insert")
+        self.menubar.Append(pmenu, "Insert Commands")
         self.SetMenuBar(self.menubar)
 
     def InputPanel(self):
@@ -271,9 +400,19 @@ class MacroFrame(wx.Frame) :
         self.output.SetInsertionPoint(self.output.GetLastPosition())
         self.output.Refresh()
 
+    def show_subframe(self, name, frameclass):
+        shown = False
+        if name in self.subframes:
+            try:
+                self.subframes[name].Raise()
+                shown = True
+            except:
+                del self.subframes[name]
+        if not shown:
+            self.subframes[name] = frameclass(self, scandb=self.scandb)
 
-    def onInsertText(self, event=None):
-        self.editor.WriteText('<Added text>')
+    def onBuildPosScan(self, event=None):
+        self.show_subframe('buildposmacro', PosScanMacroBuilder)
 
     def onReadMacro(self, event=None):
         wcard = 'Scan files (*.lar)|*.lar|All files (*.*)|*.*'
