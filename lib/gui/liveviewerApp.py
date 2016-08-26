@@ -106,7 +106,7 @@ class ScanViewerFrame(wx.Frame):
             self.scantimer = wx.Timer(self)
             self.Bind(wx.EVT_TIMER, self.onScanTimer, self.scantimer)
             self.scantimer.Start(300)
-
+        self.Bind(wx.EVT_CLOSE, self.onClose)
         self.Show()
         self.SetStatusText('ready')
         self.title.SetLabel('')
@@ -180,7 +180,10 @@ class ScanViewerFrame(wx.Frame):
         """set column names from values read from scandata table"""
         if len(sdata) < 1:
             return
-        self.lgroup.array_units = [fix_varname(s.units) for s in sdata]
+        try:
+            self.lgroup.array_units = [fix_varname(s.units) for s in sdata]
+        except:
+            return
         self.total_npts = self.get_info('scan_total_points', as_int=True)
         self.live_cpt = -1
         xcols, ycols, y2cols = [], [], []
@@ -332,7 +335,6 @@ class ScanViewerFrame(wx.Frame):
             xlabel = '%s (%s)' % (xlabel, xunits)
         except:
             logging.exception("No units at onPlot")
-
 
         def make_array(wids, iy):
             gn  = SCANGROUP
@@ -521,12 +523,10 @@ class ScanViewerFrame(wx.Frame):
         dlg.ShowModal()
         dlg.Destroy()
 
-    def onClose(self,evt):
-        for obj in self.plotters:
-            try:
-                obj.Destroy()
-            except:
-                pass
+    def onClose(self, evt=None):
+        self.scantimer.Stop()
+        self.Destroy()
+
 
 class ScanViewerApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
     def __init__(self, dbname=None, server='sqlite', host=None,
