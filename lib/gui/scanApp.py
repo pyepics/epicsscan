@@ -86,6 +86,8 @@ ICON_FILE = 'epics_scan.ico'
 ALL_CEN =  wx.ALL|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL
 FNB_STYLE = flat_nb.FNB_NO_X_BUTTON|flat_nb.FNB_SMART_TABS|flat_nb.FNB_NO_NAV_BUTTONS|flat_nb.FNB_NODRAG
 
+is_wxPhoenix = 'phoenix' in wx.PlatformInfo
+
 def compare_scans(scan1, scan2, verbose=False):
     "compare dictionary for 2 scans"
 
@@ -149,8 +151,7 @@ class ScanFrame(wx.Frame):
         self.SetSize((775, 625))
         self.subframes = {}
         self._larch = None
-        self.epics_status = 0
-        self.larch_status = 0
+
         self.last_scanname = ''
         self.scan_started = False
 
@@ -173,13 +174,30 @@ class ScanFrame(wx.Frame):
         self.scantimer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.onScanTimer, self.scantimer)
 
-        self.inittimer = wx.Timer(self)
-        self.Bind(wx.EVT_TIMER, self.onInitTimer, self.inittimer)
-        self.inittimer.Start(100)
+        self._larch = LarchScanDBServer(self.scandb)
+        self._larch.set_symbol('_sys.wx.wxapp', wx.GetApp())
+        self._larch.set_symbol('_sys.wx.parent', self)
+        self.statusbar.SetStatusText('Larch Ready')
 
+        try:
+            fico = os.path.join(larch_site_config.larchdir,
+                                'icons', ICON_FILE)
+            self._icon = wx.Icon(fico, wx.BITMAP_TYPE_ICO)
+            self.SetIcon(self._icon)
+        except:
+            pass
 
+        for span in self.scanpanels:
+            span.initialize_positions()
+            span.larch = self._larch
 
+        self.statusbar.SetStatusText('', 0)
+        self.statusbar.SetStatusText('Ready', 1)
+        self.onFolderSelect()
 
+        self.onShowPlot()
+        self.onEditMacro()
+        self.connect_epics()
 
     def createMainPanel(self):
         self.SetTitle("Epics Scans")
@@ -233,67 +251,21 @@ class ScanFrame(wx.Frame):
         self.SetSize((775, 700))
         self._icon = None
 
-    def onInitTimer(self, evt=None):
-        # print( 'on init ', self.larch_status, self.epics_status, time.ctime())
-        if self.larch_status == 0:
-            self.ini_larch_thread = Thread(target=self.init_larch)
-            self.ini_larch_thread.start()
-        if self.epics_status == 0:
-            self.epics_status = 1
-            # self.connect_epics()
-            # self.ini_epics_thread = Thread(target=self.connect_epics)
-            # self.ini_epics_thread.start()
-
-        if (self.epics_status == 1 and self.larch_status == 1):
-            time.sleep(0.1)
-            self.ini_larch_thread.join()
-            # self.ini_epics_thread.join()
-
-            for span in self.scanpanels:
-                span.initialize_positions()
-                span.larch = self._larch
-
-            self.inittimer.Stop()
-
-            self.subframes['macro'] = MacroFrame(self, _larch=self._larch)
-            self.subframes['plot'] = ScanViewerFrame(self, _larch=self._larch)
-            self.connect_epics()
-
-            self.statusbar.SetStatusText('', 0)
-            self.statusbar.SetStatusText('Ready', 1)
-
-            self.onFolderSelect()
-
-
-    def init_larch(self):
-        self.larch_status = -1
-        self._larch = LarchScanDBServer(self.scandb)
-        self._larch.set_symbol('_sys.wx.wxapp', wx.GetApp())
-        self._larch.set_symbol('_sys.wx.parent', self)
-        self.statusbar.SetStatusText('Larch Ready')
-        self.larch_status = 1
-
-        try:
-            fico = os.path.join(larch_site_config.larchdir,
-                                'icons', ICON_FILE)
-            self._icon = wx.Icon(fico, wx.BITMAP_TYPE_ICO)
-            self.SetIcon(self._icon)
-        except:
-            pass
 
     @EpicsFunction
     def connect_epics(self):
         pvs = self.scandb.getall('pvs')
 
-        # print(" Connect Epics ", len(pvs))
         for pv in self.scandb.getall('pvs'):
             name = normalize_pvname(pv.name)
             if len(name)>0:
                 self.pvlist[name] = epics.PV(name)
             time.sleep(0.01)
-        self.epics_status = 1
         # print("PVs connected")
         self.statusbar.SetStatusText('Epics Ready')
+
+        # self.subframes['macro'] = MacroFrame(self, _larch=self._larch)
+        # self.subframes['plot'] = ScanViewerFrame(self, _larch=self._larch)
 
     def generate_scan(self, scanname=None, debug=False, force_save=False):
         """generate scan definition from current values on GUI
@@ -400,6 +372,7 @@ class ScanFrame(wx.Frame):
             prog =self.scandb.get_info('scan_progress')
             self.statusbar.SetStatusText(prog, 0)
         except:
+            print("no scan info scan_progress")
             pass
 
         status = self.scandb.get_info('scan_status')
