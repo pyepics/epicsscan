@@ -44,7 +44,10 @@ class ScanDBMessageQueue(object):
         self.last_id = out[0]
 
     def get_new_messages(self):
-        q = self.tab.select(whereclause="id>'%i'" % self.last_id)
+        try:
+            q = self.tab.select(whereclause="id>'%i'" % self.last_id)
+        except TypeError:
+            return [None]
         out = q.order_by(self.cls.id).execute().fetchall()
         if len(out) > 0:
             self.last_id = out[-1].id
@@ -66,8 +69,8 @@ class PosScanMacroBuilder(wx.Frame):
         panel = scrolled.ScrolledPanel(self)
         self.checkboxes = OrderedDict()
         sizer = wx.GridBagSizer(len(positions)+5, 4)
-        sizer.SetVGap(2)
-        sizer.SetHGap(3)
+        sizer.SetVGap(4)
+        sizer.SetHGap(4)
 
         _nscans = ['%i'  %(i+1) for i in range(10)]
 
@@ -80,14 +83,16 @@ class PosScanMacroBuilder(wx.Frame):
         self.wid_nscans = {}
 
         bkws = dict(size=(95, -1))
-        btn_ok     = add_button(panel, "Insert Macro",  action=self.onOK, **bkws)
-        btn_all    = add_button(panel, "Select All",    action=self.onAll, **bkws)
-        btn_none   = add_button(panel, "Select None",   action=self.onNone,  **bkws)
+        btn_insert = add_button(panel, "Insert Macro",  action=self.onInsert, **bkws)
+        btn_all    = add_button(panel, "Select All",    action=self.onSelAll, **bkws)
+        btn_none   = add_button(panel, "Select None",   action=self.onSelNone, **bkws)
+        btn_done   = add_button(panel, "Close",         action=self.onClose, **bkws)
 
         brow = wx.BoxSizer(wx.HORIZONTAL)
         brow.Add(btn_all ,  0, ALL_EXP|wx.ALIGN_LEFT, 1)
         brow.Add(btn_none,  0, ALL_EXP|wx.ALIGN_LEFT, 1)
-        brow.Add(btn_ok ,   0, ALL_EXP|wx.ALIGN_LEFT, 1)
+        brow.Add(btn_insert, 0, ALL_EXP|wx.ALIGN_LEFT, 1)
+        brow.Add(btn_done, 0, ALL_EXP|wx.ALIGN_LEFT, 1)
 
         sizer.Add(brow,   (0, 0), (1, 4),  LEFT_CEN, 2)
 
@@ -132,11 +137,11 @@ class PosScanMacroBuilder(wx.Frame):
         self.Show()
         self.onScanType()
 
-    def onAll(self, event=None):
+    def onSelAll(self, event=None):
         for cbox in self.wid_include.values():
             cbox.SetValue(True)
 
-    def onNone(self, event=None):
+    def onSelNone(self, event=None):
         for cbox in self.wid_include.values():
             cbox.SetValue(False)
 
@@ -157,7 +162,7 @@ class PosScanMacroBuilder(wx.Frame):
         self.scanname.Set(scannames)
         self.scanname.SetSelection(0)
 
-    def onOK(self, event=None):
+    def onInsert(self, event=None):
         if self.instdb is None:
             return
         scanname = self.scanname.GetStringSelection()
@@ -170,9 +175,8 @@ class PosScanMacroBuilder(wx.Frame):
         buff.append("#end auto-generated macro")
         buff.append("")
         self.parent.editor.AppendText("\n".join(buff))
-        self.Destroy()
 
-    def onCancel(self, event=None):
+    def onClose(self, event=None):
         self.Destroy()
 
 class MacroFrame(wx.Frame) :
@@ -264,7 +268,8 @@ class MacroFrame(wx.Frame) :
                     self.start_btn.Disable()
 
         for msg in self.db_messages.get_new_messages():
-            self.writeOutput(msg.text, color=COLOR_MSG, with_nl=False)
+            if msg is not None:
+                self.writeOutput(msg.text, color=COLOR_MSG, with_nl=False)
 
         for key in self.output_fields:
             row = self.scandb.get_info(key, full_row=True)
@@ -452,7 +457,8 @@ class MacroFrame(wx.Frame) :
             fh.write('%s\n' % self.editor.GetValue())
             fh.close()
         except:
-            logging.exception('could not save MacroFile %s' % fname)
+            print('could not save MacroFile %s' % fname)
+            # logging.exception('could not save MacroFile %s' % fname)
 
     def onStart(self, event=None):
         now = time.time()
@@ -506,5 +512,11 @@ class MacroFrame(wx.Frame) :
     def onClose(self, event=None):
         # print("onCLOSE Macro " , self.histfile, AUTOSAVE_FILE)
         self.SaveMacroFile(AUTOSAVE_FILE)
+        self._stimer.Stop()
+
+        time.sleep(0.25)
         self.input.SaveHistory(self.histfile)
+
+        time.sleep(0.25)
+
         self.Destroy()
