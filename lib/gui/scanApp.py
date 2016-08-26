@@ -465,13 +465,13 @@ class ScanFrame(wx.Frame):
         dlg.Destroy()
 
     def onClose(self, evt=None):
-
         ret = popup(self, "Really Quit?", "Exit Epics Scan?",
                     style=wx.YES_NO|wx.NO_DEFAULT|wx.ICON_QUESTION)
         if ret == wx.ID_YES:
+            self.scantimer.Stop()
             for child in self.subframes.values():
                 try:
-                    child.Destroy()
+                    child.onClose()
                 except:
                     pass
             self.Destroy()
