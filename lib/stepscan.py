@@ -2,7 +2,7 @@
 from __future__ import print_function
 
 MODDOC = """
-=== Epics Step Scanning ===
+=== Epics Scanning ===
 
 
 This does not used the Epics SScan Record, and the scan is intended to run
@@ -90,6 +90,8 @@ import time
 import threading
 import json
 import numpy as np
+import random
+import six
 
 from datetime import timedelta
 
@@ -97,10 +99,10 @@ from file_utils import fix_varname
 
 from epics import PV, poll, get_pv, caget, caput
 
+from .utils import ScanDBException, ScanDBAbort
 from .detectors import (Counter, Trigger, AreaDetector)
 from .datafile import ASCIIScanFile
 from .positioner import Positioner
-from .scandb import ScanDBException, ScanDBAbort
 
 from .debugtime import debugtime
 
@@ -234,7 +236,7 @@ class StepScan(object):
 
     def add_counter(self, counter, label=None):
         "add simple counter"
-        if isinstance(counter, (str, unicode)):
+        if isinstance(counter, six.string_types):
             counter = Counter(counter, label)
         if counter not in self.counters:
             self.counters.append(counter)
@@ -244,7 +246,7 @@ class StepScan(object):
         "add simple detector trigger"
         if trigger is None:
             return
-        if isinstance(trigger, (str, unicode)):
+        if isinstance(trigger, six.string_types):
             trigger = Trigger(trigger, label=label, value=value)
         if trigger not in self.triggers:
             self.triggers.append(trigger)
@@ -390,16 +392,25 @@ class StepScan(object):
             self.messenger("%s\n" % msg)
         self.set_info('scan_progress', msg)
 
-    def publish_scandata(self):
-        "post scan data to db"
-        if self.scandb is None:
-            return
+    def set_all_scandata(self):
+        self.publishing_scandata = True
         for c in self.counters:
             name = getattr(c, 'db_label', None)
             if name is None:
                 name = c.label
             c.db_label = fix_varname(name)
             self.scandb.set_scandata(c.db_label, c.buff)
+        self.publishing_scandata = False
+
+    def publish_scandata(self, wait=False):
+        "post scan data to db"
+        if self.scandb is None:
+            return
+        if wait:
+            self.set_all_scandata()
+        else:
+            self.publish_thread = Thread(target=self.set_all_scandata)
+            self.publish_thread.start()
 
     def set_error(self, msg):
         """set scan error message"""
@@ -491,6 +502,8 @@ class StepScan(object):
            run post_scan methods
         """
         self.dtimer = dtimer = debugtime(verbose=debug)
+        self.publishing_scandata = False
+        self.publish_thread = None
 
         self.complete = False
         if filename is not None:
@@ -586,20 +599,22 @@ class StepScan(object):
                 point_ok = True
                 self.cpt = i+1
                 self.look_for_interrupts()
+                dtimer.add('Pt %i : looked for interrupts' % i)
                 while self.pause:
                     time.sleep(0.25)
                     if self.look_for_interrupts():
                         break
-                # move to next position, wait for moves to finish
-                [p.move_to_pos(i) for p in self.positioners]
-
-                # publish scan data while waiting for move to finish
-                if i > 1:
-                    self.publish_scandata()
-                dtimer.add('Pt %i : publish data' % i)
+                # set dwelltime
                 if self.dwelltime_varys:
                     for d in self.detectors:
                         d.set_dwelltime(self.dwelltime[i])
+                # request move to next position
+                [p.move_to_pos(i) for p in self.positioners]
+                dtimer.add('Pt %i : move_to_pos (%i)' % (i, len(self.positioners)))
+                # publish scan data while waiting for move to finish
+                if i > 1 and not self.publishing_scandata:
+                    self.publish_scandata()
+                dtimer.add('Pt %i : publish data' % i)
                 t0 = time.time()
                 mcount = 0
                 while (not all([p.done for p in self.positioners]) and
@@ -632,7 +647,8 @@ class StepScan(object):
                     time.sleep(0.25)
                     poll(0.1, 2.0)
                     for trig in self.triggers:
-                        point_ok = point_ok and (trig.runtime > (0.75*self.min_dwelltime))
+                        poll(10*MIN_POLL_TIME, 1.0)
+                        point_ok = point_ok and (trig.runtime > (0.8*self.min_dwelltime))
                         if not point_ok:
                             print('Trigger problem?: ', trig, trig.runtime, self.min_dwelltime)
                             trig.abort()
@@ -666,11 +682,15 @@ class StepScan(object):
                 for det in self.detectors:
                     det.pre_scan(scan=self)
                 i -= 1
+            dtimer.add('Pt %i: joining publish thread.' % i)
+            if self.publish_thread is not None:
+                self.publish_thread.join()
+            dtimer.add('Pt %i: completely done.' % i)
 
         # scan complete
         # return to original positions, write data
         dtimer.add('Post scan start')
-        self.publish_scandata()
+        self.publish_scandata(wait=True)
         ts_loop = time.time()
         self.looptime = ts_loop - ts_init
 
@@ -702,6 +722,8 @@ class StepScan(object):
         self.runtime  = ts_exit - ts_start
         dtimer.add('Post: fully done')
 
+        # dtimer.show()
+
         return self.datafile.filename
         ##
 
@@ -713,6 +735,8 @@ class StepScan(object):
         server  = self.scandb.get_info('server_fileroot')
         workdir = self.scandb.get_info('user_folder')
         basedir = os.path.join(server, workdir, 'Maps')
+        if not os.path.exists(basedir):
+            os.mkdir(basedir)
         sname = os.path.join(server, workdir, 'Maps', currscan)
         oname = os.path.join(server, workdir, 'Maps', 'PreviousScan.ini')
 
