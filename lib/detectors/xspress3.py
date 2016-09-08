@@ -140,7 +140,7 @@ class Xspress3Counter(DeviceCounter):
     sca_labels = ('', 'Clock', 'ResetTicks', 'ResetCounts',
                   'AllEvent', 'AllGood', 'Window1', 'Window2', 'Pileup')
     scas2save = (1, 2, 3, 4, 5, 8)
-    scas2save = (1, 4, 5)
+    scas2save = (1, 2, 4)
     def __init__(self, prefix, outpvs=None, nmcas=4,
                  nrois=32, rois=None, nscas=1, use_unlabeled=False,
                  use_full=False):
@@ -198,11 +198,17 @@ class Xspress3Counter(DeviceCounter):
                     _label  = "%s mca%i" % (roiname, imca)
                     add_counter(_pvname, _label)
 
+        for imca in range(1, self.nmcas+1):
+            _pvname = '%sC%i:DTFactor_RBV' % (prefix, imca)
+            _label = 'DTFactor mca%i' % (imca)
+            add_counter(_pvname, _label)
+
         for isca in self.scas2save:
             for imca in range(1, self.nmcas+1):
                 _pvname = '%sC%iSCA%i:Value_RBV' % (prefix, imca, isca)
                 _label = '%s mca%i' % (self.sca_labels[isca], imca)
                 add_counter(_pvname, _label)
+
 
         if self.use_full:
             for imca in range(1, self.nmcas+1):
