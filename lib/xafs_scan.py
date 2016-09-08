@@ -20,6 +20,107 @@ HC       = 12398.4193
 RAD2DEG  = 180.0/np.pi
 MAXPTS   = 8192
 
+class PVSlaveThread(Thread):
+    """
+    Sets up a Thread to allow a Master Index PV (say, an advancing channel)
+    to send a Slave PV to a value from a pre-defined array.
+
+    undulator = PVSlaveThread(master_pvname='13IDE:SIS1:CurrentChannel',
+                              slave_pvname='ID13us:ScanEnergy')
+    undulator.set_array(array_of_values)
+    undulator.enable()
+    # start thread
+    undulator.start()
+
+    # other code that may trigger the master PV
+
+    # to finish, set 'running' to False, and join() thread
+    undulator.running = False
+    undulator.join()
+
+    """
+    def __init__(self, master_pvname=None,  slave_pvname=None, scan=None,
+                 values=None, maxpts=8192, wait_time=0.05, dead_time=0.5,
+                 offset=3):
+        Thread.__init__(self)
+        self.maxpts = maxpts
+        self.offset = offset
+        self.wait_time = wait_time
+        self.dead_time = dead_time
+        self.last_move_time = time.time() - 100.0
+        self.pulse = -1
+        self.last  = None
+        self.scan = scan
+        self.running = False
+        self.vals = values
+        if self.vals is None:
+            self.vals  = np.zeros(self.maxpts)
+        self.master = None
+        self.slave = None
+        if master_pvname is not None: self.set_master(master_pvname)
+        if slave_pvname is not None: self.set_slave(slave_pvname)
+
+    def set_master(self, pvname):
+        self.master = PV(pvname, callback=self.onPulse)
+
+    def set_slave(self, pvname):
+        self.slave = PV(pvname)
+
+    def onPulse(self, pvname, value=1, **kws):
+        self.pulse  = max(0, min(self.maxpts, value + self.offset))
+
+    def set_array(self, vals):
+        "set array values for slave PV"
+        n = len(vals)
+        if n > self.maxpts:
+            vals = vals[:self.maxpts]
+        self.vals  = np.ones(self.maxpts) * vals[-1]
+        self.vals[:n] = vals
+
+    def enable(self):
+        self.last = self.pulse = -1
+        self.running = True
+
+    def run(self):
+        while self.running:
+            time.sleep(self.wait_time)
+            now = time.time()
+            if (self.pulse > self.last and self.last is not None and
+                (now - self.last_move_time) > self.dead_time):
+                val = self.vals[self.pulse]
+                if self.slave.write_access:
+                    try:
+                        self.slave.put(val)
+                        self.last_move_time = time.time()
+                    except:
+                        print("PVFollow Put failed: ", self.slave.pvname , val)
+                self.last = self.pulse
+                if (self.scan is not None and self.pulse > 3 and self.pulse % 5 == 0):
+                    npts = self.scan.npts
+                    cpt = self.pulse
+                    dtime = self.scan.dwelltime
+                    if isinstance(dtime, list):
+                        dtime = dtime[0]
+                    time_left = (npts-cpt)*dtime
+                    self.scan.set_info('scan_time_estimate', time_left)
+                    time_est  = hms(time_left)
+                    msg = 'Point %i/%i,  time left: %s' % (cpt, npts, time_est)
+                    if cpt % self.scan.message_points == 0:
+                        self.scan.write("%s\n" % msg)
+                    self.scan.set_info('scan_progress', msg)
+                    for c in self.scan.counters:
+                        try:
+                            c.buff = c.pv.get().tolist()
+                        except:
+                            pass
+                        name = getattr(c, 'db_label', None)
+                        if name is None:
+                            name = c.label
+                        c.db_label = fix_varname(name)
+                        self.scan.scandb.set_scandata(c.db_label, c.buff)
+                    self.scan.scandb.commit()
+
+
 def etok(energy):
     return np.sqrt(energy/XAFS_K2E)
 
@@ -329,13 +430,14 @@ class QXAFS_Scan(XAFS_Scan):
                 xsp3_prefix = d.prefix
 
         qxsp3 = Xspress3(xsp3_prefix)
+        qxsp3.Acquire = 0
         sis  = Struck(sis_prefix, **sis_opts)
 
         caput(qconf['energy_pv'], traj.energy[0])
 
         out = self.pre_scan()
         self.check_outputs(out, msg='pre scan')
-
+        sis.stop()
         orig_counters = self.counters[:]
         # specialized QXAFS Counters
         qxafs_counters = []
