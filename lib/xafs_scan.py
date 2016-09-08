@@ -12,7 +12,7 @@ from .positioner import Positioner
 from .saveable import Saveable
 
 from .xps import XPSTrajectory
-
+from .utils import ScanDBAbort
 from .detectors import Struck, TetrAMM, Xspress3
 
 XAFS_K2E = 3.809980849311092

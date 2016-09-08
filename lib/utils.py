@@ -1,8 +1,19 @@
-
 import socket
 
-def atGSECARS():
+class ScanDBException(Exception):
+    """Scan Exception: General Errors"""
+    def __init__(self, *args):
+        Exception.__init__(self, *args)
+        sys.excepthook(*sys.exc_info())
 
+class ScanDBAbort(Exception):
+    """Scan Abort Exception"""
+    def __init__(self, *args):
+        Exception.__init__(self, *args)
+        sys.excepthook(*sys.exc_info())
+
+
+def atGSECARS():
     hostname, aliaslist, ipaddrs = socket.gethostbyname_ex(socket.gethostname())
     hostname = socket.getfqdn()
     return 'cars.aps.anl.gov' in hostname.lower()
