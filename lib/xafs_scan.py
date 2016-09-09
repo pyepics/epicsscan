@@ -5,6 +5,7 @@ based on EpicsApps.StepScan.
 
 """
 import numpy as np
+from threading import Thread
 from epics import caget, caput, PV
 
 from .stepscan import StepScan
@@ -19,6 +20,7 @@ XAFS_K2E = 3.809980849311092
 HC       = 12398.4193
 RAD2DEG  = 180.0/np.pi
 MAXPTS   = 8192
+
 
 class PVSlaveThread(Thread):
     """
