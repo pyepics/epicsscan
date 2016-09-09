@@ -470,10 +470,11 @@ class ScanDB(object):
         -------
         scan object
         """
-        thisscan = self.get_scandef(scanname)
-        if thisscan is None:
+        try:
+            sdict = self.get_scandict(scanname)
+        except ScanDBException:
             raise ScanDBException('make_scan() needs a valid scan name')
-        sdict = json.loads(thisscan.text, object_hook=asciikeys)
+
         if 'rois' not in sdict:
             sdict['rois'] = json.loads(self.get_info('rois'))
         sdict['filename'] = filename
