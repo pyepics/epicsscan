@@ -18,9 +18,9 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
                 detectors=None, counters=None, extra_pvs=None, inner=None,
                 outer=None, dwelltime=1.0, pos_settle_time=0.01,
                 det_settle_time=0.01, scantime=None, elem=None,
-                e0=None, regions=None,
+                e0=None, dimension=1, regions=None,
                 energy_drive=None, energy_read=None, is_qxafs=False,
-                time_kw=0, max_time=0, is_relative=False):
+                time_kw=0, max_time=0, is_relative=False, **kws):
     """
     return a StepScan object, built from function arguments
 
@@ -89,6 +89,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
                 if len(pvs) > 0:
                     scan.add_counter(pvs[1], label="%s_read" % label)
         elif scantype in ('mesh', 'slew', 'slowmap', 'fastmap'):
+            scan.scantype = scantype
             if inner is None and positioners is not None:
                 inner = positioners
             label1, pvs1, start1, stop1, npts1 = inner
