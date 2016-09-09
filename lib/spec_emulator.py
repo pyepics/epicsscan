@@ -27,7 +27,7 @@ yet to be implemented:
 from time import sleep
 from numpy import array, linspace
 
-from epics_interface import PV, caget, poll
+from epics import PV, caget, poll
 
 from .stepscan   import StepScan
 from .positioner import Positioner
