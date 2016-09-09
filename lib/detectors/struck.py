@@ -9,7 +9,6 @@ from epics import Device
 from epics.devices.scaler import Scaler
 from epics.devices.mca import MCA
 
-
 SCALER_MODE, ARRAY_MODE = 'SCALER', 'ARRAY'
 
 HEADER = '''# Struck MCA data: %s
@@ -27,7 +26,7 @@ class Struck(Device):
     attrs = ('ChannelAdvance', 'Prescale', 'EraseStart',
              'EraseAll', 'StartAll', 'StopAll',
              'PresetReal', 'ElapsedReal',
-             'Dwell', 'Acquiring', 'NuseAll',
+             'Dwell', 'Acquiring', 'NuseAll', 'MaxChannels',
              'CurrentChannel', 'CountOnStart',   # InitialChannelAdvance',
              'SoftwareChannelAdvance', 'Channel1Source',
              'ReadAll', 'DoReadAll', 'Model', 'Firmware')
@@ -131,7 +130,7 @@ class Struck(Device):
             self.scaler.OneShotMode()
         self._mode = SCALER_MODE
 
-    def ArrayMode(self, dwelltime=0.25, numframes=16384, trigger_width=None):
+    def NDArrayMode(self, dwelltime=0.25, numframes=16384, trigger_width=None):
         """ set to array mode: ready for slew scanning
 
     Arguments:

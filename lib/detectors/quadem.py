@@ -142,7 +142,7 @@ class TetrAMM(Device):
                 self.put('Current%i:TSNumPoints' % i, numframes)
 
         if self._sis is not None:
-            self._sis.ArrayMode(dwelltime=dwelltime, numframes=numframes,
+            self._sis.NDArrayMode(dwelltime=dwelltime, numframes=numframes,
                                 trigger_width=sis_trigger_width)
         self._mode = NDARRAY_MODE
 
