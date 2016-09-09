@@ -87,7 +87,7 @@ import os
 import sys
 import shutil
 import time
-import threading
+from threading import Thread
 import json
 import numpy as np
 import random
@@ -113,7 +113,7 @@ def hms(secs):
     "format time in seconds to H:M:S"
     return str(timedelta(seconds=int(secs)))
 
-class ScanMessenger(threading.Thread):
+class ScanMessenger(Thread):
     """ Provides a way to run user-supplied functions per scan point,
     in a separate thread, so as to not delay scan operation.
 
@@ -133,7 +133,7 @@ class ScanMessenger(threading.Thread):
     timeout = 3600.
     def __init__(self, func=None, scan=None,
                  cpt=-1, npts=None, func_kws=None):
-        threading.Thread.__init__(self)
+        Thread.__init__(self)
         self.func = func
         self.scan = scan
         self.cpt = cpt
