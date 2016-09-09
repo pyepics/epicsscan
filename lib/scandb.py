@@ -473,12 +473,14 @@ class ScanDB(object):
         try:
             sdict = self.get_scandict(scanname)
         except ScanDBException:
-            raise ScanDBException('make_scan() needs a valid scan name')
+            raise ScanDBException("make.scan(): '%s' not a valid scan name" % scanname)
 
         if 'rois' not in sdict:
-            sdict['rois'] = json.loads(self.get_info('rois'))
+            sdict['rois'] = json.loads(self.get_info('rois'), object_hook=asciikeys)
         sdict['filename'] = filename
-        return create_scan(**sdict)
+        scan = create_scan(**sdict)
+        scan.scandb = self
+        return scan
 
     # macros
     def get_macro(self, name):
