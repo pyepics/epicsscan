@@ -1,78 +1,48 @@
 import time
-import sys
 import ftplib
-import logging
 from cStringIO import StringIO
-from string import printable
-from copy import deepcopy
-from ..debugtime import debugtime
-from .config import config
 from XPS_C8_drivers import  XPS
 
-##
-## used methods for collector.py
-##    abortScan, clearabort
-##    done ftp_connect
-##    done ftp_disconnect
-##
-## mapscan:   Build (twice!)
-## linescan:  Build , clearabort
-## ExecTraj;  Execute(),   building<attribute>, executing<attribute>
-## WriteTrajData:  Read_FTP(), SaveGatheringData()
-##
-## need to have env and ROI written during traj scan:
-##   use a separate thread for ROI and ENV, allow
-##   XY trajectory to block.
 
-MONO_ACCEL = {'X': 10.0, 'Y': 10.0, 'THETA': 100.0}
-
+MONO_ACCEL    = {'X': 10.0, 'Y': 10.0, 'THETA': 100.0}
 DEFAULT_ACCEL = {'X': 20.0, 'Y': 20.0, 'THETA': 300.0}
 MAX_VELO      = {'X': 10.0, 'Y': 10.0, 'THETA':  80.0}
-
 
 class XPSTrajectory(object):
     """
     XPS trajectory
     """
-    def __init__(self, host=None, user=None, passwd=None,
-                 group=None, positioners=None, mode=None, type=None):
-        self.host = host or config.host
-        self.user = user or config.user
-        self.passwd = passwd or config.passwd
-        self.group_name = group or config.group_name
-        self.positioners = positioners or config.positioners
-        self.positioners = tuple(self.positioners.replace(',', ' ').split())
-
-        self.make_template()
-
-        gout = []
-        gtit = []
-        for pname in self.positioners:
-            for out in config.gather_outputs:
-                gout.append('%s.%s.%s' % (self.group_name, pname, out))
-                gtit.append('%s.%s' % (pname, out))
-        self.gather_outputs = gout
-        self.gather_titles  = "%s\n#%s\n" % (config.gather_titles,
-                                          "  ".join(gtit))
-
-        # self.gather_titles  = "%s %s\n" % " ".join(gtit)
-
+    traj_folder = 'Public/Trajectories'
+    gather_header = '# XPS Gathering Data\n#--------------'
+    def __init__(self, host, group='FINE', port=5001, timeout=10,
+                 user='Administrator', passwd='Administrator',
+                 gather_outputs=('CurrentPosition', 'SetpointPosition')):
+        self.host   = host
+        self.port   = port
+        self.user   = user
+        self.passwd = passwd
+        self.timeout = timeout
+        self.group_name = group
+        self.gather_outputs = gather_outputs
         self.xps = XPS()
-        self.ssid = self.xps.TCP_ConnectToServer(self.host, config.port, config.timeout)
-        ret = self.xps.Login(self.ssid, self.user, self.passwd)
+        self.ssid = self.xps.TCP_ConnectToServer(host, port, timeout)
+        ret = self.xps.Login(self.ssid, user,passwd)
         self.trajectories = {}
 
         self.ftpconn = ftplib.FTP()
 
-        self.nlines_out = 0
+        self.all_groups = self.read_groups()
+        self.positioners = self.all_groups[group]['positioners']
 
+        self.make_linear_template()
+
+        self.nlines_out = 0
         self.xps.GroupMotionDisable(self.ssid, self.group_name)
         time.sleep(0.1)
         self.xps.GroupMotionEnable(self.ssid, self.group_name)
 
         for i in range(64):
             self.xps.EventExtendedRemove(self.ssid,i)
-
 
     def ftp_connect(self):
         self.ftpconn.connect(self.host)
@@ -84,14 +54,44 @@ class XPSTrajectory(object):
         self.ftpconn.close()
         self.FTP_connected=False
 
+    def read_groups(self):
+        txt = StringIO()
+        self.ftp_connect()
+        self.ftpconn.cwd("CONFIG")
+        self.ftpconn.retrbinary("RETR system.ini", txt.write)
+        self.ftp_disconnect()
+        txt.seek(0)
+        groups = {}
+        mode, this = None, None
+        for line in txt.readlines():
+            line = line[:-1].strip()
+            if line.startswith('[GROUPS]'):
+                mode = 'GROUPS'
+            elif line.startswith('['):
+                mode = None
+                words = line[1:].split(']')
+                this = words[0]
+                if '.' in this:
+                    g, p = this.split('.')
+                    groups[g]['positioners'].append(p)
+            elif mode == 'GROUPS' and len(line) > 3:
+                cat, words = line.split('=', 1)
+                pos = words.strip().split(',')
+                for p in pos:
+                    if len(p)> 0:
+                        groups[p] = {}
+                        groups[p]['category'] = cat
+                        groups[p]['positioners'] = []
+
+        return groups
+
     def upload_trajectoryFile(self, fname,  data):
         self.ftp_connect()
-        self.ftpconn.cwd(config.traj_folder)
+        self.ftpconn.cwd(self.traj_folder)
         self.ftpconn.storbinary('STOR %s' %fname, StringIO(data))
         self.ftp_disconnect()
-        # print 'Uploaded trajectory: ', fname
 
-    def make_template(self):
+    def make_linear_template(self):
         # line1
         b1 = ['%(ramptime)f']
         b2 = ['%(scantime)f']
@@ -128,8 +128,7 @@ class XPSTrajectory(object):
         fore_traj = {'scantime':scantime, 'axis':axis, 'accel': accel,
                      'ramptime': ramptime, 'pixeltime': pixeltime,
                      'zero': 0.}
-        # print 'Scan Times: ', scantime, pixeltime, (dist)/(step), accel
-        # print 'ACCEl ' , accel, velo, ramptime, ramp
+
         this = {'start': start, 'stop': stop, 'step': step,
                 'velo': velo, 'ramp': ramp, 'dist': dist}
         for attr in this.keys():
@@ -155,7 +154,7 @@ class XPSTrajectory(object):
             self.upload_trajectoryFile('backward.trj', self.template % back_traj)
             ret = True
         except:
-            logging.exception("error uploading trajectory")
+            raise ValueError("error uploading trajectory")
         return ret
 
     def RunLineTrajectory(self, name='foreward', verbose=False, save=True,
@@ -163,7 +162,7 @@ class XPSTrajectory(object):
         """run trajectory in PVT mode"""
         traj = self.trajectories.get(name, None)
         if traj is None:
-            print 'Cannot find trajectory named %s' %  name
+            print( 'Cannot find trajectory named %s' %  name)
             return
 
         traj_file = '%s.trj'  % name
@@ -174,22 +173,15 @@ class XPSTrajectory(object):
 
         self.xps.GroupMoveRelative(self.ssid, 'FINE', ramps)
 
-        # print '=====Run Trajectory =  ', traj, axis, ramps, traj_file
+        g_output = []
+        g_titles = []
+        for out in self.gather_outputs:
+            g_output.append('%s.%s.%s' % (self.group_name, axis, out))
+            g_titles.append('%s.%s' % (axis, out))
 
-        self.gather_outputs = []
-        gather_titles = []
-        for out in config.gather_outputs:
-            self.gather_outputs.append('%s.%s.%s' % (self.group_name, axis, out))
-            gather_titles.append('%s.%s' % (axis, out))
-
-        self.gather_titles  = "%s\n#%s\n" % (config.gather_titles,
-                                             "  ".join(gather_titles))
-
-        # print '==Gather Titles== ',  self.gather_titles
-        # print '==Gather Outputs==',  self.gather_outputs
-
+        self.gather_titles = "%s\n#%s\n" % (self.gather_header, " ".join(g_titles))
         ret = self.xps.GatheringReset(self.ssid)
-        self.xps.GatheringConfigurationSet(self.ssid, self.gather_outputs)
+        self.xps.GatheringConfigurationSet(self.ssid, g_output)
 
         ret = self.xps.MultipleAxesPVTPulseOutputSet(self.ssid, self.group_name,
                                                      2, 3, dtime)
@@ -236,21 +228,18 @@ class XPSTrajectory(object):
         """read gathering data from XPS
         """
         # self.xps.GatheringStop(self.ssid)
-        # db = debugtime()
         ret, npulses, nx = self.xps.GatheringCurrentNumberGet(self.ssid)
         counter = 0
         while npulses < 1 and counter < 5:
             counter += 1
             time.sleep(1.50)
             ret, npulses, nx = self.xps.GatheringCurrentNumberGet(self.ssid)
-            print 'Had to do repeat XPS Gathering: ', ret, npulses, nx
+            print( 'Had to do repeat XPS Gathering: ', ret, npulses, nx)
 
-        # db.add(' Will Save %i pulses , ret=%i ' % (npulses, ret))
         ret, buff = self.xps.GatheringDataMultipleLinesGet(self.ssid, 0, npulses)
-        # db.add('MLGet ret=%i, buff_len = %i ' % (ret, len(buff)))
 
         if ret < 0:  # gathering too long: need to read in chunks
-            print 'Need to read Data in Chunks!!!'  # how many chunks are needed??
+            print( 'Need to read Data in Chunks!!!')
             Nchunks = 3
             nx    = int( (npulses-2) / Nchunks)
             ret = 1
@@ -262,34 +251,29 @@ class XPSTrajectory(object):
                 Nchunks = Nchunks + 2
                 nx      = int( (npulses-2) / Nchunks)
                 if Nchunks > 10:
-                    print 'looks like something is wrong with the XPS!'
+                    print('looks like something is wrong with the XPS!')
                     break
-            print  ' -- will use %i Chunks for %i Pulses ' % (Nchunks, npulses)
-            # db.add(' Will use %i chunks ' % (Nchunks))
+            print(' -- will use %i Chunks for %i Pulses ' % (Nchunks, npulses))
             buff = [xbuff]
             for i in range(1, Nchunks):
                 ret, xbuff = self.xps.GatheringDataMultipleLinesGet(self.ssid, i*nx, nx)
                 buff.append(xbuff)
-                # db.add('   chunk %i' % (i))
             ret, xbuff = self.xps.GatheringDataMultipleLinesGet(self.ssid, Nchunks*nx,
                                                                 npulses-Nchunks*nx)
             buff.append(xbuff)
             buff = ''.join(buff)
-            # db.add('   chunk last')
 
         obuff = buff[:]
         for x in ';\r\t':
             obuff = obuff.replace(x,' ')
-        # db.add('  data fixed')
         f = open(fname, 'w')
         f.write(self.gather_titles)
         f.write(obuff)
         f.close()
         nlines = len(obuff.split('\n')) - 1
         if verbose:
-            print 'Wrote %i lines, %i bytes to %s' % (nlines, len(buff), fname)
+            print('Wrote %i lines, %i bytes to %s' % (nlines, len(buff), fname))
         self.nlines_out = nlines
-        # db.show()
         return npulses
 
 
