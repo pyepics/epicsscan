@@ -17,8 +17,8 @@ from ..utils import  strip_quotes, plain_ascii, ScanDBException, ScanDBAbort
 from ..larch_interface import LarchScanDBServer, HAS_LARCH
 
 from ..site_config import get_fileroot
-from ..epics_scandb import EpicsScanDB
-from ..abort_slewscan import abort_slewscan
+from .epics_scandb import EpicsScanDB
+from .abort_slewscan import abort_slewscan
 
 DEBUG_TIMER = False
 ALWAYS_LOAD_MODULES = False
