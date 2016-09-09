@@ -9,7 +9,7 @@ import numpy as np
 from .utils import asciikeys
 from .detectors import get_detector
 from .positioner import Positioner
-from .stepscan import StepScan
+from .scan import StepScan
 from .xafs_scan import XAFS_Scan, QXAFS_Scan
 from .debugtime import debugtime
 

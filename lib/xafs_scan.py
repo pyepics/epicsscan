@@ -8,7 +8,7 @@ import numpy as np
 from threading import Thread
 from epics import caget, caput, PV
 
-from .stepscan import StepScan
+from .scan import StepScan
 from .positioner import Positioner
 from .saveable import Saveable
 

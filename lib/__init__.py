@@ -15,7 +15,7 @@ from .detectors import (SimpleDetector, ScalerDetector, McaDetector,
 from .positioner import Positioner
 from .datafile import ASCIIScanFile
 
-from .stepscan import StepScan
+from .scan import StepScan
 from .xafs_scan import XAFS_Scan, etok, ktoe
 
 from .scandb_schema import create_scandb

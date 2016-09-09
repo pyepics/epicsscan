@@ -29,7 +29,7 @@ from numpy import array, linspace
 
 from epics import PV, caget, poll
 
-from .stepscan   import StepScan
+from .scan   import StepScan
 from .positioner import Positioner
 from .detectors  import get_detector, Counter
 from .spec_config import SpecConfig
