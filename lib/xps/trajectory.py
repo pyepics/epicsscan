@@ -14,7 +14,7 @@ class XPSTrajectory(object):
     """
     traj_folder = 'Public/Trajectories'
     gather_header = '# XPS Gathering Data\n#--------------'
-    def __init__(self, host, group='FINE', port=5001, timeout=10,
+    def __init__(self, host, group=None, port=5001, timeout=10,
                  user='Administrator', passwd='Administrator',
                  gather_outputs=('CurrentPosition', 'SetpointPosition')):
         self.host   = host
@@ -22,8 +22,10 @@ class XPSTrajectory(object):
         self.user   = user
         self.passwd = passwd
         self.timeout = timeout
-        self.group_name = group
+        self.group_name = None
+        self.nlines_out = 0
         self.gather_outputs = gather_outputs
+        self.linear_template = None
         self.xps = XPS()
         self.ssid = self.xps.TCP_ConnectToServer(host, port, timeout)
         ret = self.xps.Login(self.ssid, user,passwd)
@@ -31,12 +33,20 @@ class XPSTrajectory(object):
 
         self.ftpconn = ftplib.FTP()
 
-        self.all_groups = self.read_groups()
-        self.positioners = self.all_groups[group]['positioners']
+        self.groups = self.read_groups()
+        if group is not None:
+            self.set_group(group)
 
-        self.make_linear_template()
+    def set_group(self, group):
+        if group not in self.groups:
+            print("Invalid Group name: %s" % group)
+            print("Must be one of ", repr(self.groups.keys()))
+            return
 
-        self.nlines_out = 0
+        self.group_name = group
+        self.positioners = self.groups[group]['positioners']
+
+
         self.xps.GroupMotionDisable(self.ssid, self.group_name)
         time.sleep(0.1)
         self.xps.GroupMotionEnable(self.ssid, self.group_name)
@@ -57,7 +67,8 @@ class XPSTrajectory(object):
     def read_groups(self):
         txt = StringIO()
         self.ftp_connect()
-        self.ftpconn.cwd("CONFIG")
+        self.ftpconn.cwd("Config")
+
         self.ftpconn.retrbinary("RETR system.ini", txt.write)
         self.ftp_disconnect()
         txt.seek(0)
@@ -76,7 +87,7 @@ class XPSTrajectory(object):
                     groups[g]['positioners'].append(p)
             elif mode == 'GROUPS' and len(line) > 3:
                 cat, words = line.split('=', 1)
-                pos = words.strip().split(',')
+                pos = [a.strip() for a in words.split(',')]
                 for p in pos:
                     if len(p)> 0:
                         groups[p] = {}
@@ -85,7 +96,7 @@ class XPSTrajectory(object):
 
         return groups
 
-    def upload_trajectoryFile(self, fname,  data):
+    def upload_trajectory_file(self, fname,  data):
         self.ftp_connect()
         self.ftpconn.cwd(self.traj_folder)
         self.ftpconn.storbinary('STOR %s' %fname, StringIO(data))
@@ -106,12 +117,18 @@ class XPSTrajectory(object):
         b1 = ', '.join(b1)
         b2 = ', '.join(b2)
         b3 = ', '.join(b3)
-        self.template = '\n'.join(['', b1, b2, b3])
+        self.linear_template = '\n'.join(['', b1, b2, b3])
 
-    def DefineLineTrajectories(self, axis='X', start=0, stop=1, accel=None,
-                               step=0.001, scantime=10.0, **kws):
+    def define_line_trajectories(self, axis='X', start=0, stop=1, accel=None,
+                                 step=0.001, scantime=10.0, upload=True):
         """defines 'forward' and 'backward' trajectories for a simple 1 element
-        line scan in PVT Mode"""
+        line scan in PVT Mode
+        """
+        if self.group_name is None:
+            print("Must set group name first!")
+            return
+        self.make_linear_template()
+
         axis =  axis.upper()
         if accel is None:
             accel = DEFAULT_ACCEL[axis]
@@ -148,21 +165,27 @@ class XPSTrajectory(object):
         self.trajectories['backward'] = back_traj
         self.trajectories['foreward'] = fore_traj
 
-        ret = False
-        try:
-            self.upload_trajectoryFile('foreward.trj', self.template % fore_traj)
-            self.upload_trajectoryFile('backward.trj', self.template % back_traj)
-            ret = True
-        except:
-            raise ValueError("error uploading trajectory")
+        ret = True
+        if upload:
+            ret = False
+            try:
+                self.upload_trajectory_file('foreward.trj',
+                                            self.linear_template % fore_traj)
+                self.upload_trajectory_file('backward.trj',
+                                            self.linear_template % back_traj)
+                ret = True
+            except:
+                raise ValueError("error uploading trajectory")
         return ret
 
-    def RunLineTrajectory(self, name='foreward', verbose=False, save=True,
-                          outfile='Gather.dat',  debug=False):
+    def run_trajectory(self, name='foreward', verbose=False, save=True,
+                       output_file='Gather.dat'):
         """run trajectory in PVT mode"""
+        if self.group_name is None:
+            print("Must set group name!")
         traj = self.trajectories.get(name, None)
         if traj is None:
-            print( 'Cannot find trajectory named %s' %  name)
+            print("Cannot find trajectory named '%s'" %  name)
             return
 
         traj_file = '%s.trj'  % name
@@ -171,7 +194,7 @@ class XPSTrajectory(object):
 
         ramps = [-traj['%sramp' % p] for p in self.positioners]
 
-        self.xps.GroupMoveRelative(self.ssid, 'FINE', ramps)
+        self.xps.GroupMoveRelative(self.ssid, self.group_name, ramps)
 
         g_output = []
         g_titles = []
@@ -203,28 +226,41 @@ class XPSTrajectory(object):
 
         npulses = 0
         if save:
-            npulses = self.SaveResults(outfile, verbose=verbose)
+            npulses = self.save_results(output_file, verbose=verbose)
         return npulses
 
-    def abortScan(self):
+    def abort_scan(self):
         pass
 
-    def Move(self, xpos=None, ypos=None, tpos=None):
-        "move XY positioner to supplied position"
-        ret = self.xps.GroupPositionCurrentGet(self.ssid, 'FINE', 3)
-        if xpos is None:  xpos = ret[1]
-        if ypos is None:  ypos = ret[2]
-        if tpos is None:  tpos = ret[3]
-        self.xps.GroupMoveAbsolute(self.ssid, 'FINE', (xpos, ypos, tpos))
+    def move(self, group=None, **kws):
+        """move group to supplied position
 
-    def ReadGatheringPulses(self):
-        ret, npulses, nx = self.xps.GatheringCurrentNumberGet(self.ssid)
-        if npulses < 1:
-            time.sleep(1)
-            ret, npulses, nx = self.xps.GatheringCurrentNumberGet(self.ssid)
-        return npulses
+        """
+        if group is None or group not in self.groups:
+            group = self.group_name
+        if group is None:
+            print("Do have a group to move")
+            return
+        posnames = [p.lower() for p in self.groups[group]['positioners']]
+        ret = self.xps.GroupPositionCurrentGet(self.ssid, group, len(posnames))
+        print("Move: Current Ret=", ret, group, posnames)
+        kwargs = {}
+        for k, v in kws.items():
+            kwargs[k.lower()] = v
 
-    def SaveResults(self,  fname, verbose=False):
+        vals = []
+        for i, p in enumerate(posnames):
+            if p in kwargs:
+                vals.append(kwargs[p])
+            else:
+                vals.append(ret[i+1])
+
+        self.xps.GroupMoveAbsolute(self.ssid, group, vals)
+
+    def read_gathering(self):
+        pass
+
+    def save_results(self,  fname, verbose=False):
         """read gathering data from XPS
         """
         # self.xps.GatheringStop(self.ssid)
@@ -278,9 +314,9 @@ class XPSTrajectory(object):
 
 
 if __name__ == '__main__':
-    xps = XPSTrajectory()
-    xps.DefineLineTrajectories(axis='x', start=-2., stop=2., scantime=20, step=0.004)
+    xps = XPSTrajectory('164.54.160.180', group='FINE')
+    xps.define_line_trajectories(axis='x', start=-2., stop=2., scantime=20, step=0.004)
     print xps.trajectories
-    xps.Move(-2.0, 0.1, 0)
+    xps.move(-2.0, 0.1, 0)
     time.sleep(0.02)
-    xps.RunLineTrajectory(name='foreward', outfile='Out.dat')
+    xps.run_trajectory(name='foreward', output_file='Out.dat')
