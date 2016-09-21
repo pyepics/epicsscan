@@ -589,7 +589,7 @@ class NewportXPS:
 
         kws = {}
         for ax in axes:
-            kw[ax] = float(traj['%sstart' % ax] - traj['%sramp' % ax])}
+            kw[ax] = float(traj['%sstart' % ax] - traj['%sramp' % ax])
         self.move_group(self.traj_group, **kws)
 
         g_output = []
