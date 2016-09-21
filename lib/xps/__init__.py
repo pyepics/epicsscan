@@ -1,2 +1,1 @@
-
-from .trajectory import XPSTrajectory
+from .newportxps import newportXPS
