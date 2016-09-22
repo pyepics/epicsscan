@@ -24,7 +24,7 @@ class NewportXPS:
     def __init__(self, host, group=None,
                  user='Administrator', passwd='Administrator',
                  port=5001, timeout=10,
-                 gather_outputs=('CurrentPosition', 'SetpointPosition')):
+                 gather_outputs=('CurrentPosition', 'SetpointPosition', 'FollowingError')):
 
         socket.setdefaulttimeout(5.0)
         try:
@@ -258,6 +258,22 @@ class NewportXPS:
         for i in range(64):
             self._xps.EventExtendedRemove(self._sid, i)
 
+        # build template for linear trajectory file:
+        trajline1 = ['%(ramptime)f']
+        trajline2 = ['%(scantime)f']
+        trajline3 = ['%(ramptime)f']
+        for p in self.traj_positioners:
+            trajline1.append('%%(%s_ramp)f' % p)
+            trajline1.append('%%(%s_velo)f' % p)
+            trajline2.append('%%(%s_dist)f' % p)
+            trajline2.append('%%(%s_velo)f' % p)
+            trajline3.append('%%(%s_ramp)f' % p)
+            trajline3.append('%8.6f' % 0.0)
+        trajline1 = (', '.join(trajline1)).strip()
+        trajline2 = (', '.join(trajline2)).strip()
+        trajline3 = (', '.join(trajline3)).strip()
+        self.linear_template = '\n'.join(['', trajline1, trajline2, trajline3])
+
 
     def _group_act(self, method, group=None, action='doing something with'):
         """wrapper for many group actions"""
@@ -400,7 +416,7 @@ class NewportXPS:
             return
         posnames = [p.lower() for p in self.groups[group]['positioners']]
         ret = self._xps.GroupPositionCurrentGet(self._sid, group, len(posnames))
-        print("Move: Current Ret=", ret, group, posnames)
+
         kwargs = {}
         for k, v in kws.items():
             kwargs[k.lower()] = v
@@ -498,114 +514,91 @@ class NewportXPS:
         axis =  axis.upper()
         stage = "%s.%s" % (self.traj_group, axis)
 
-        max_velo = self.stages[stage]['max_velo']
+        max_velo  = self.stages[stage]['max_velo']
         max_accel = self.stages[stage]['max_accel']
         if accel is None:
-            accel = max_accel
+            accel = max_accel/2.0
         accel = min(accel, max_accel)
 
-        dist = (stop - start)*1.0
-        sign = dist/abs(dist)
+        distance = (stop - start)*1.0
         scantime = abs(scantime)
-        pixeltime = scantime * step / abs(dist)
-        velo      = min(dist / scantime, max_velo)
+        velocity = min(distance/scantime, max_velo)
+        ramptime = abs(velocity / accel)
+        rampdist = 0.5 * velocity * ramptime
+        pixeltime= scantime * step / abs(distance)
 
-        ramptime = abs(velo / accel)
-        ramp     = 0.5 * velo * ramptime
+        self.trajectories['foreward'] = {'axes': [axis],
+                                         'start': [start-rampdist],
+                                         'pixeltime': pixeltime,
+                                         'nsegments': 3}
 
-        fore_traj = {'scantime':scantime,
-                     'axes': [axis],
-                     'accel': accel,
-                     'nsegments': 3,
-                     'ramptime': ramptime,
-                     'pixeltime': pixeltime}
+        self.trajectories['backward'] = {'axes': [axis],
+                                         'start': [stop+rampdist],
+                                         'pixeltime': pixeltime,
+                                         'nsegments': 3}
 
-        this = {'start': start, 'stop': stop, 'step': step,
-                'velo': velo, 'ramp': ramp, 'dist': dist}
-        for attr in this.keys():
+        base = {'start': start, 'stop': stop, 'step': step,
+                'velo': velocity, 'ramp': rampdist, 'dist': distance}
+        fore = {'ramptime': ramptime, 'scantime': scantime}
+        for attr in base:
             for ax in self.traj_positioners:
+                val = 0.0
                 if ax == axis:
-                    fore_traj["%s%s" % (ax, attr)] = this[attr]
-                else:
-                    fore_traj["%s%s" % (ax, attr)] = 0.0
+                    val = base[attr]
+                fore["%s_%s" % (ax, attr)] = val
 
-        back_traj = fore_traj.copy()
-        back_traj["%sstart" % axis] = fore_traj["%sstop" % axis]
-        back_traj["%sstp" % axis]   = fore_traj["%sstart" % axis]
+
+        back = fore.copy()
+        back["%s_start" % axis] = fore["%s_stop" % axis]
+        back["%s_stop" % axis]  = fore["%s_start" % axis]
         for attr in ('velo', 'ramp', 'dist'):
-            back_traj["%s%s" % (axis, attr)] *= -1.0
-
-        self.trajectories['backward'] = back_traj
-        self.trajectories['foreward'] = fore_traj
-
-        # template for linear trajectory file:
-        trajline1 = ['%(ramptime)f']
-        trajline2 = ['%(scantime)f']
-        trajline3 = ['%(ramptime)f']
-        for p in self.traj_positioners:
-            trajline1.append('%%(%sramp)f' % p)
-            trajline1.append('%%(%svelo)f' % p)
-            trajline2.append('%%(%sdist)f' % p)
-            trajline2.append('%%(%svelo)f' % p)
-            trajline3.append('%%(%sramp)f' % p)
-            trajline3.append('%8.6f' % 0.0)
-        trajline1 = (', '.join(trajline1)).strip()
-        trajline2 = (', '.join(trajline2)).strip()
-        trajline3 = (', '.join(trajline3)).strip()
-        template = '\n'.join(['', trajline1, trajline2, trajline3])
-
+            back["%s_%s" % (axis, attr)] *= -1.0
 
         ret = True
+        # print("Fore:")
+        # print (self.linear_template % fore)
         if upload:
             ret = False
             try:
-                self.upload_trajectory('foreward.trj', template % fore_traj)
-                self.upload_trajectory('backward.trj', template % back_traj)
+                self.upload_trajectory('foreward.trj',
+                                       self.linear_template % fore)
+                self.upload_trajectory('backward.trj',
+                                       self.linear_template % back)
                 ret = True
             except:
                 raise ValueError("error uploading trajectory")
         return ret
 
-
     def arm_trajectory(self, name):
         """
         set up the trajectory from previously defined, uploaded trajectory
-
         """
         if self.traj_group is None:
             print("Must set group name!")
+
         traj = self.trajectories.get(name, None)
+
         if traj is None:
-            print("Cannot find trajectory named '%s'" %  name)
-            return
+            raise XPSError("Cannot find trajectory named '%s'" %  name)
 
-        self.traj_file = '%s.trj'  % name
-        axes  = traj['axes']
-        ptime = traj['pixeltime']
-        nsegs = traj['nsegments']
-
-        ramps = [-traj['%sramp' % p] for p in self.traj_positioners]
         self.traj_state = ARMING
+        self.traj_file = '%s.trj'  % name
 
-        kws = {}
-        for ax in axes:
-            kw[ax] = float(traj['%sstart' % ax] - traj['%sramp' % ax])
-        self.move_group(self.traj_group, **kws)
-
-        g_output = []
-        g_titles = []
+        move_kws = {}
+        outputs = []
         for out in self.gather_outputs:
-            for ax in axes:
-                g_output.append('%s.%s.%s' % (self.traj_group, ax, out))
-                g_titles.append('%s.%s' % (ax, out))
+            for i, ax in enumerate(traj['axes']):
+                outputs.append('%s.%s.%s' % (self.traj_group, ax, out))
+                move_kws[ax] = float(traj['start'][i])
 
-        self.gather_titles = "%s\n#%s\n" % (self.gather_header, " ".join(g_titles))
+        self.move_group(self.traj_group, **move_kws)
 
+        self.gather_titles = "%s\n#%s\n" % (self.gather_header, " ".join(outputs))
         self._xps.GatheringReset(self._sid)
-        self._xps.GatheringConfigurationSet(self._sid, self.gather_outputs)
-
+        self._xps.GatheringConfigurationSet(self._sid, outputs)
         self._xps.MultipleAxesPVTPulseOutputSet(self._sid, self.traj_group,
-                                                2, nsegs, ptime)
+                                                2, traj['nsegments'],
+                                                traj['pixeltime'])
 
         self._xps.MultipleAxesPVTVerification(self._sid,
                                               self.traj_group,
@@ -613,12 +606,16 @@ class NewportXPS:
 
         self.traj_state = ARMED
 
-    def run_trajectory(self, save=True, output_file='Gather.dat', verbose=False):
+    def run_trajectory(self, name=None, save=True,
+                       output_file='Gather.dat', verbose=False):
 
         """run a trajectory in PVT mode
 
         The trajectory *must be in the ARMED state
         """
+
+        if name in self.trajectories:
+            self.arm_trajectory(name)
 
         if self.traj_state != ARMED:
             raise XPSError("Must arm trajectory before running!")
@@ -645,14 +642,14 @@ class NewportXPS:
         self.traj_state = COMPLETE
         npulses = 0
         if save:
-            npulses, buff = self.read_gathering()
-            self.traj_state = WRITING
-            self.save_gathering_file(output_file, buff, verbose=verbose)
+            npulses, buff = self.read_gathering(set_idle_when_done=False)
+            self.save_gathering_file(output_file, buff, verbose=verbose,
+                                     set_idle_when_done=False)
         self.traj_state = IDLE
         return npulses
 
 
-    def read_gathering(self):
+    def read_gathering(self, set_idle_when_done=True):
         """
         read gathering data from XPS
         """
@@ -693,10 +690,13 @@ class NewportXPS:
         obuff = buff[:]
         for x in ';\r\t':
             obuff = obuff.replace(x,' ')
+        if set_idle_when_done:
+            self.traj_state = IDLE
         return npulses, obuff
 
-    def save_gathering_file(self, fname, buffer, verbose=False):
+    def save_gathering_file(self, fname, buffer, verbose=False, set_idle_when_done=True):
         """save gathering buffer read from read_gathering() to text file"""
+        self.traj_state = WRITING
         f = open(fname, 'w')
         f.write(self.gather_titles)
         f.write(buffer)
@@ -704,7 +704,8 @@ class NewportXPS:
         nlines = len(buffer.split('\n')) - 1
         if verbose:
             print('Wrote %i lines, %i bytes to %s' % (nlines, len(buff), fname))
-
+        if set_idle_when_done:
+            self.traj_state = IDLE
 
 if __name__ == '__main__':
     x = NewportXPS('164.54.160.180')
