@@ -9,6 +9,8 @@ from epics import Device
 from epics.devices.scaler import Scaler
 from epics.devices.mca import MCA
 
+from .base import DetectorMixin
+
 SCALER_MODE, ARRAY_MODE = 'SCALER', 'ARRAY'
 
 HEADER = '''# Struck MCA data: %s
@@ -219,3 +221,13 @@ class Struck(Device):
             fout.write(formt % tuple(sdata[i]))
         fout.close()
         return (nmcas, npts)
+
+class StruckDetector(DetectorMixin):
+    """Scaler Detector"""
+    trigger_suffix = 'WHO?'
+    def __init__(self, prefix, nchan=8, use_calc=True,
+                 mode='scaler',  scaler=None, rois=None,**kws):
+        DetectorMixin.__init__(self, prefix, **kws)
+        nchan = int(nchan)
+        if scaler is not None:
+            self.scaler = Scaler(scaler, nchan=nchan)

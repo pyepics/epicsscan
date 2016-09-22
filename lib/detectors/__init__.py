@@ -21,7 +21,7 @@ from .areadetector import AreaDetector
 from .mca import McaDetector, MultiMcaDetector
 from .scaler import ScalerCounter, ScalerDetector
 from .xspress3 import Xspress3, Xspress3Detector
-from .struck import Struck
+from .struck import Struck, StruckDetector
 from .quadem import TetrAMM, TetrAMMDetector
 
 DET_DEFAULT_OPTS = {'scaler': {'use_calc': True, 'nchans': 8},
@@ -78,6 +78,7 @@ def get_detector(prefix, kind=None, mode='scaler', rois=None, label=None, **kws)
               'med': MultiMcaDetector,
               'multimca': MultiMcaDetector,
               'xspress3': Xspress3Detector,
+              'struck': StruckDetector,
               'tetramm': TetrAMMDetector,
               None: SimpleDetector}
 
