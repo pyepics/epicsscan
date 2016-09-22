@@ -1,3 +1,4 @@
+from __future__ import print_function
 import time
 import ftplib
 import socket
@@ -24,13 +25,13 @@ class NewportXPS:
     def __init__(self, host, group=None,
                  user='Administrator', passwd='Administrator',
                  port=5001, timeout=10,
-                 gather_outputs=('CurrentPosition', 'SetpointPosition', 'FollowingError')):
+                 gather_outputs=('CurrentPosition', 'SetpointPosition')):
 
         socket.setdefaulttimeout(5.0)
         try:
             host = socket.gethostbyname(host)
         except:
-            raise ValueError, 'Could not resolve XPS name %s' % host
+            raise ValueError('Could not resolve XPS name %s' % host)
         self.host = host
         self.port = port
         self.user = user
@@ -69,16 +70,14 @@ class NewportXPS:
 
         for groupname, status in self.get_group_status().items():
             this = self.groups[groupname]
-            out.append("%s: (%s):  Status: %s" %
+            out.append("%s (%s), Status: %s" %
                        (groupname, this['category'], status))
             for pos in this['positioners']:
                 stagename = '%s.%s' % (groupname, pos)
                 stage = self.stages[stagename]
                 out.append("   %s (%s)"  % (stagename, stage['type']))
-                out.append("     Hardware Status: %s"  % (hstat[stagename]))
-                out.append("     Positioner Errors: %s"  % (perrs[stagename]))
-
-        out.append("#########################################")
+                out.append("      Hardware Status: %s"  % (hstat[stagename]))
+                out.append("      Positioner Errors: %s"  % (perrs[stagename]))
         return "\n".join(out)
 
     def ftp_connect(self):
@@ -201,7 +200,7 @@ class NewportXPS:
                 for p in pos:
                     if len(p)> 0:
                         groups[p] = {}
-                        groups[p]['category'] = cat
+                        groups[p]['category'] = cat.strip()
                         groups[p]['positioners'] = []
                         if cat.startswith('Multiple'):
                             pvtgroups.append(p)
@@ -354,7 +353,8 @@ class NewportXPS:
         out = OrderedDict()
         for group in self.groups:
             err, stat = self._xps.GroupStatusGet(self._sid, group)
-            err, val = self._xps.GroupStatusStringGet(self._sid, stat)
+            e1, val = self._xps.GroupStatusStringGet(self._sid, stat)
+            print("GROUP ", group, err, stat, e1, val)
             out[group] = val
         return out
 
@@ -710,12 +710,4 @@ class NewportXPS:
 if __name__ == '__main__':
     x = NewportXPS('164.54.160.180')
     x.read_systemini()
-    print 'Groups: '
-    for key, val in x.groups.items():
-        print '  %s: %s' % (key, val)
-    print 'Stages: '
-    for key, val in x.stages.items():
-        print key, val
-
-    # x.save_systemini()
-    #  x.save_stagesini()
+    print(x.status_report())
