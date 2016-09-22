@@ -858,7 +858,7 @@ class XPS:
 
     # GroupStatusStringGet :  Return the group status string corresponding to the group status code
     def GroupStatusStringGet (self, socketId, GroupStatusCode):
-        return self.Send(socketId, 'GroupStatusStringGet(%s)'  % str(GroupStatusCode))
+        return self.Send(socketId, 'GroupStatusStringGet(%s, char*)'  % str(GroupStatusCode))
 
     # GroupVelocityCurrentGet :  Return current velocities
     def GroupVelocityCurrentGet (self, socketId, GroupName, nbElement):
