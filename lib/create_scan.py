@@ -28,7 +28,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
     ---------
     filename (string): name for datafile ['scan.dat']
     type (string):  type of scan, for building positions ('linear',
-                   'xafs', 'mesh', 'fastmap', ...)  ['linear']
+                   'xafs', 'mesh', 'slew', 'qxafs', ...)  ['linear']
     detmode (string):  detector mode, for configuring detector and counters,
                    one of 'scaler', 'roi', 'ndarray' [None: guess from scan type]
     dwelltime (float or array):  dwelltime per point
@@ -44,7 +44,6 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
     regions (list or None): regions for segmented XAFS scan
     energy_drive (string or None): energy drive pv for XAFS scan
     energy_read (string or None): energy read pv for XAFS scan
-    is_qxafs (bool):  to use QXAFS mode for XAFS scn
     time_kw (int): time kweight for XAFS scan
     max_time (float): max dwelltime for XAFS scan
     is_relative (bool): use relative for XAFS scan (ONLY!)
@@ -57,16 +56,20 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
     """
     scantype = type
     # create different scan types
-    if scantype == 'xafs':
+    if scantype in ('xafs', 'qxafs'):
         min_dtime = dwelltime
         if isinstance(min_dtime, np.ndarray):
             min_dtime = min(dtime)
         kwargs = dict(filename=filename, comments=comments,
                       energy_pv=energy_drive, read_pv=energy_read, e0=e0)
-        if is_qxafs or min_dtime < 0.45:
+        if scantype == 'qxafs' or min_dtime < 0.4900:
             scan = QXAFS_Scan(**kwargs)
+            scan.detmode = 'roi'
+            scan.scantype = 'qxafs'
         else:
             scan = XAFS_Scan(**kwargs)
+            scan.detmode = 'scaler'
+            scan.scantype = 'xafs'
         nregions  = len(regions)
         for ireg, det in enumerate(regions):
             start, stop, npts, dt, units = det
@@ -88,15 +91,14 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
                 scan.add_positioner(p)
                 if len(pvs) > 0:
                     scan.add_counter(pvs[1], label="%s_read" % label)
-        elif scantype in ('mesh', 'slew', 'slowmap', 'fastmap'):
-            scan.scantype = scantype
+        elif scantype == 'mesh':
             if inner is None and positioners is not None:
                 inner = positioners
             label1, pvs1, start1, stop1, npts1 = inner
             p1 = Positioner(pvs1[0], label=label1)
             p2 = None
             npts2 = 1
-            if dimension > 2 or outer is not None:
+            if outer is not None:
                 label2, pvs2, start2, stop2, npts2 = outer
                 p2 = Positioner(pvs2[0], label=label2)
                 x2  = [[i]*npts1 for i in np.linspace(start2, stop2, npts2)]
@@ -112,15 +114,27 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
                 if len(pvs2) > 0:
                     scan.add_counter(pvs2[1], label="%s_read" % label2)
 
-            if scantype in ('slew', 'fastmap'):
-                scan.detmode = 'ndarray'
+        elif scantype == 'slew':
+            scan.detmode = 'ndarray'
+            scan.inner = inner
+            scan.outer = None
+            if dimension > 1:
+                scan.outer = outer
+                label, pvs, start, stop, npts = outer
+                pos = Positioner(pvs[0], label=label)
+                pos.array = np.linspace(start, stop, npts)
+                scan.add_positioner(pos)
+
     # detectors, with ROIs and det mode
     scan.rois = rois
     for dpars in detectors:
         dpars['rois'] = scan.rois
         dpars['mode'] = scan.detmode
-        scan.add_detector(get_detector(**dpars))
+        print("SCAN DET ", dpars)
+        if dpars['kind'] == 'scaler' and scantype in ('slew', 'qxafs'):
+            print 'Scaler Hack!'
 
+        scan.add_detector(get_detector(**dpars))
 
     # extra counters (not-triggered things to count)
     if counters is not None:
@@ -129,8 +143,8 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
     # other bits
     if extra_pvs is not None:
         scan.add_extra_pvs(extra_pvs)
-    if scan.scantype is None and type is not None:
-        scan.scantype = type
+
+    scan.scantype = scantype
     scan.filename = filename
     scan.scantime = scantime
     scan.nscans = nscans
