@@ -23,9 +23,9 @@ IDLE, ARMING, ARMED, RUNNING, COMPLETE, WRITING, READING = \
 class NewportXPS:
     gather_header = '# XPS Gathering Data\n#--------------'
     def __init__(self, host, group=None,
-                 user='Administrator', passwd='Administrator',
+                 username='Administrator', password='Administrator',
                  port=5001, timeout=10,
-                 gather_outputs=('CurrentPosition', 'SetpointPosition')):
+                 outputs=('CurrentPosition', 'SetpointPosition')):
 
         socket.setdefaulttimeout(5.0)
         try:
@@ -34,11 +34,11 @@ class NewportXPS:
             raise ValueError('Could not resolve XPS name %s' % host)
         self.host = host
         self.port = port
-        self.user = user
-        self.passwd = passwd
+        self.username = username
+        self.password = password
         self.timeout = timeout
 
-        self.gather_outputs = gather_outputs
+        self.gather_outputs = tuple(outputs)
 
         self.trajectories = {}
         self.traj_state = IDLE
@@ -83,7 +83,7 @@ class NewportXPS:
     def ftp_connect(self):
         """open ftp connection"""
         self.ftpconn.connect(self.host)
-        self.ftpconn.login(self.user, self.passwd)
+        self.ftpconn.login(self.username, self.password)
 
     def ftp_disconnect(self):
         "close ftp connnection"
@@ -93,7 +93,7 @@ class NewportXPS:
         self._sid = self._xps.TCP_ConnectToServer(self.host,
                                                   self.port, self.timeout)
         try:
-            self._xps.Login(self._sid, self.user, self.passwd)
+            self._xps.Login(self._sid, self.username, self.password)
         except:
             raise XPSError('Login failed for %s' % self.host)
 
