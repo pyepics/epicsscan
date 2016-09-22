@@ -1,1 +1,1 @@
-from .newportxps import newportXPS
+from .newportxps import NewportXPS
