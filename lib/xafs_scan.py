@@ -12,7 +12,6 @@ from .scan import StepScan
 from .positioner import Positioner
 from .saveable import Saveable
 
-from .xps import XPSTrajectory
 from .utils import ScanDBAbort
 from .detectors import Struck, TetrAMM, Xspress3
 
@@ -154,7 +153,6 @@ class XAFS_Scan(StepScan):
         self.energies = []
         self.regions = []
         StepScan.__init__(self, **kws)
-        self.is_qxafs = False
         self.scantype = 'xafs'
         self.detmode  = 'scaler'
         self.dwelltime = []
@@ -241,31 +239,22 @@ class QXAFS_Scan(XAFS_Scan):
         self.e0 = e0
         self.energies = []
         self.regions = []
+        self.xps = None
         XAFS_Scan.__init__(self, label=label, energy_pv=energy_pv,
                            read_pv=read_pv, e0=e0, extra_pvs=extra_pvs,  **kws)
 
-        self.is_qxafs = True
-        self.scantype = 'xafs'
-        self.detmode  = 'roi'
-        qconf = self.scandb.get_config('QXAFS')
-        qconf = self.qconf = json.loads(qconf.notes)
-
-        self.xps = XPSTrajectory(qconf['host'],
-                                 user=qconf['user'],
-                                 password=qconf['passwd'],
-                                 group=qconf['group'],
-                                 positioners=qconf['positioners'],
-                                 outputs=qconf['outputs'])
-
-
         self.set_energy_pv(energy_pv, read_pv=read_pv, extra_pvs=extra_pvs)
+        self.scantype = 'qxafs'
+        self.detmode  = 'roi'
 
-    def make_XPS_trajectory(self, reverse=False,
-                            theta_accel=0.25, width_accel=0.25, **kws):
+    def make_trajectory(self, reverse=False,
+                        theta_accel=0.25, width_accel=0.25, **kws):
         """this method builds the text of a Trajectory script for
         a Newport XPS Controller based on the energies and dwelltimes"""
 
-        qconf = self.qconf
+        qconf = self.slewscan_config
+        qconf['theta_motor'] = qconf['motors']['THETA']
+        qconf['width_motor'] = qconf['motors']['HEIGHT']
 
         dspace = caget(qconf['dspace_pv'])
         height = caget(qconf['height_pv'])
@@ -317,7 +306,7 @@ class QXAFS_Scan(XAFS_Scan):
     def init_qscan(self, traj):
         """initialize a QXAFS scan"""
 
-        qconf = self.qconf
+        qconf = self.slewscan_config
 
         caput(qconf['id_track_pv'],  1)
         caput(qconf['y2_track_pv'],  1)
@@ -325,14 +314,12 @@ class QXAFS_Scan(XAFS_Scan):
         time.sleep(0.1)
         caput(qconf['width_motor'] + '.DVAL', traj.start_width)
         caput(qconf['theta_motor'] + '.DVAL', traj.start_theta)
-        # caput(qconf['id_track_pv'], 0)
-        # caput(qconf['id_wait_pv'], 0)
         caput(qconf['y2_track_pv'], 0)
 
 
     def finish_qscan(self):
         """initialize a QXAFS scan"""
-        qconf = self.qconf
+        qconf = self.slewscan_config
 
         caput(qconf['id_track_pv'],  1)
         caput(qconf['y2_track_pv'],  1)
@@ -355,6 +342,7 @@ class QXAFS_Scan(XAFS_Scan):
         angle  = (angle[1:] + angle[:-1])/2.0
         height = (height[1:] + height[:-1])/2.0
 
+        qconf = self.slewscan_config
         angle += caget(self.qconf['theta_motor'] + '.OFF')
         dspace = caget(self.qconf['dspace_pv'])
         energy = HC/(2.0 * dspace * np.sin(angle/RAD2DEG))
@@ -379,10 +367,10 @@ class QXAFS_Scan(XAFS_Scan):
             self.set_info('scan_message', 'cannot execute scan')
             return
 
-        qconf = self.qconf
+        qconf = self.slewscan_config
         energy_orig = caget(qconf['energy_pv'])
 
-        traj = self.make_XPS_trajectory(reverse=reverse)
+        traj = self.make_trajectory(reverse=reverse)
         self.init_qscan(traj)
 
         idarray = 0.001*traj.energy + caget(qconf['id_offset_pv'])
