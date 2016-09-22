@@ -103,6 +103,7 @@ from .utils import ScanDBException, ScanDBAbort
 from .detectors import (Counter, Trigger, AreaDetector)
 from .datafile import ASCIIScanFile
 from .positioner import Positioner
+from .xps import NewportXPS
 
 from .debugtime import debugtime
 
@@ -220,6 +221,18 @@ class StepScan(object):
         if self.scandb is not None:
             self.scandb.set_info(attr, value)
             self.scandb.set_info('heartbeat', time.ctime())
+
+    def enable_slewscan(self):
+        print("Enabling Slew SCAN")
+        if self.scantype in ('slew', 'qxafs'):
+            conf = self.scandb.get_config(self.scantype)
+            conf = self.slewscan_config = json.loads(conf.notes)
+            self.xps = NewportXPS(conf['host'],
+                                  username=conf['username'],
+                                  password=conf['password'],
+                                  group=conf['group'],
+                                  outputs=conf['outputs'])
+
 
     def open_output_file(self, filename=None, comments=None):
         """opens the output file"""
@@ -505,7 +518,8 @@ class StepScan(object):
         runner(filename=filename, comments=comments, debug=debug)
 
     def prepare_stepscan(self):
-        """prepare stepscan"""
+        """prepare stepscan
+        """
         self.pos_settle_time = max(MIN_POLL_TIME, self.pos_settle_time)
         self.det_settle_time = max(MIN_POLL_TIME, self.det_settle_time)
 
@@ -590,15 +604,15 @@ class StepScan(object):
            Loop over points
            run post_scan methods
         """
-        self.dtimer = debugtime(verbose=debug)
-        self.publishing_scandata = False
-        self.publish_thread = None
-
-        self.complete = False
         if filename is not None:
             self.filename  = filename
         if comments is not None:
             self.comments = comments
+
+        self.complete = False
+        self.dtimer = debugtime(verbose=debug)
+        self.publishing_scandata = False
+        self.publish_thread = None
 
         ts_start = time.time()
         self.prepare_stepscan()
@@ -738,10 +752,9 @@ class StepScan(object):
             self.dtimer.show()
         return self.datafile.filename
 
-    def write_fastmap_config(self, datafile, comments, mapper=None):
-        "write ini file for fastmap"
-        if datafile is None: datafile = 'scan.001'
-        if comments is None: comments = ''
+    def prepare_slewscan(self):
+        """prepare slew scan"""
+
         currscan = 'CurrentScan.ini'
         server  = self.scandb.get_info('server_fileroot')
         workdir = self.scandb.get_info('user_folder')
@@ -750,41 +763,51 @@ class StepScan(object):
             os.mkdir(basedir)
         sname = os.path.join(server, workdir, 'Maps', currscan)
         oname = os.path.join(server, workdir, 'Maps', 'PreviousScan.ini')
-
-        if mapper is not None:
-            caput('%sbasedir'  % mapper, basedir)
-            caput('%sfilename' % mapper, datafile)
-            caput('%sscanfile' % mapper, currscan)
-
         if os.path.exists(sname):
             shutil.copy(sname, oname)
         txt = ['# FastMap configuration file (saved: %s)'%(time.ctime()),
                '#-------------------------#',  '[scan]',
-               'filename = %s' % datafile,
-               'comments = %s' % comments]
+               'filename = %s' % self.filename,
+               'comments = %s' % self.comments]
 
-        dim  = len(self.positioners)
-        pos  = self.positioners[0]
-        pospv = str(pos.pv.pvname)
-        if pospv.endswith('.VAL'): pospv = pospv[:-4]
-        arr  = pos.array
-        ltim = self.dwelltime*(len(arr) - 1)
+        dim  = 1
+        if self.outer is not None:
+            dim = 2
+        l_, pvs, start, stop, npts = self.inner
+        pospv = pvs[0]
+        if pospv.endswith('.VAL'):
+            pospv = pospv[:-4]
+        step = abs(start-stop)/(npts-1)
+        dtime = self.dwelltime*(npts-1)
         txt.append('dimension = %i' % dim)
         txt.append('pos1 = %s'     % pospv)
-        txt.append('start1 = %.4f' % arr[0])
-        txt.append('stop1 = %.4f'  % arr[-1])
-        txt.append('step1 = %.4f'  % (arr[1]-arr[0]))
-        txt.append('time1 = %.4f'  % ltim)
+        txt.append('start1 = %.4f' % start)
+        txt.append('stop1 = %.4f'  % stop)
+        txt.append('step1 = %.4f'  % step)
+        txt.append('time1 = %.4f'  % dtime)
 
-        if dim > 1:
-            pos = self.positioners[1]
-            pospv = str(pos.pv.pvname)
-            if pospv.endswith('.VAL'): pospv = pospv[:-4]
-            arr = pos.array
+        axis = None
+        for ax, pvname in self.slewscan_config['motors'].items():
+            if pvname == pospv:
+                axis = ax
+
+        if axis is None:
+            raise ValueError("Could not find XPS Axis for %s" % pospv)
+
+        self.xps.define_line_trajectories(axis,
+                                          start=start, stop=stop,
+                                          step=step, scantime=dtime)
+
+        if dim == 2:
+            l_, pvs, start, stop, npts = self.outer
+            pospv = pvs[0]
+            if pospv.endswith('.VAL'):
+                pospv = pospv[:-4]
+            step = abs(start-stop)/(npts-1)
             txt.append('pos2 = %s'   % pospv)
-            txt.append('start2 = %.4f' % arr[0])
-            txt.append('stop2 = %.4f' % arr[-1])
-            txt.append('step2 = %.4f' % (arr[1]-arr[0]))
+            txt.append('start2 = %.4f' % start)
+            txt.append('stop2 = %.4f' % stop)
+            txt.append('step2 = %.4f' % step)
 
         txt.append('#------------------#')
         txt.append('[xrd_ad]')
@@ -800,30 +823,28 @@ class StepScan(object):
             txt.append('type = PEDET1')
             txt.append('prefix = %s' % det.prefix)
             txt.append('fileplugin = netCDF1:')
-            # txt.append('fileplugin = %s' % det.file_plugin)
-
 
         f = open(sname, 'w')
         f.write('\n'.join(txt))
         f.close()
-        print("Wrote FastMap Config ", sname)
+        print("Wrote Simple Scan Config: ", sname)
         return sname
 
-    def run_slewscan(self, filename='map.001', comments=None,
-                       mapper='13XRM:map:', debug=False):
-        """ run a slew-scan, executed with epics interface
-        and separate fastmap collector....
-        should be replaced!
+    def run_slewscan(self, filename='map.001', comments=None):
         """
-        print(" DO SLEWSCAN !! ")
-        self.write_fastmap_config(filename, comments, mapper=mapper)
-        return
+        run a slew scan
+        """
+        self.prepare_slewscan()
+        self.xps.arm_trajectory('backward')
+        for det in self.detectors:
+            det.Arm(mode=self.detmode)
 
-        caput('%smessage' % mapper, 'starting...')
-        caput('%sStart' % mapper, 1)
+        print("Ready for SLEWSCAN !! ")
 
         self.clear_interrupts()
         self.set_info('scan_progress', 'starting')
+        return
+
         # watch scan
         # first, wait for scan to start (status == 2)
         collecting = False
