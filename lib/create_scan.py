@@ -19,8 +19,9 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
                 outer=None, dwelltime=1.0, pos_settle_time=0.01,
                 det_settle_time=0.01, scantime=None, elem=None,
                 e0=None, dimension=1, regions=None,
-                energy_drive=None, energy_read=None, is_qxafs=False,
-                time_kw=0, max_time=0, is_relative=False, **kws):
+                energy_drive=None, energy_read=None,
+                time_kw=0, max_time=0, is_relative=False,
+                scandb=None, **kws):
     """
     return a StepScan object, built from function arguments
 
@@ -47,6 +48,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
     time_kw (int): time kweight for XAFS scan
     max_time (float): max dwelltime for XAFS scan
     is_relative (bool): use relative for XAFS scan (ONLY!)
+    scandb (ScanDB instance or None): scandb instance
 
     Notes
     ------
@@ -126,14 +128,30 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
                 scan.add_positioner(pos)
 
     # detectors, with ROIs and det mode
+    # also, note this hack:
+    # a scan may have specified a 'scaler' detector, but
+    # if it is a slew scan or qxafs scan, this should really
+    # be the corresponding Struck detector
+    scaler_shim = None
+    if scantype in ('slew', 'qxafs') and scandb is not None:
+        scaler_pvname = '_no_scaler_available_'
+        alldets = scandb.get_detectors()
+        for a in alldets:
+            if a.kind == 'scaler':
+                scaler_pvname = a.pvname
+        for a in alldets:
+            if scaler_pvname == json.loads(a.options).get('scaler', None):
+                scaler_shim = {'kind': a.kind,
+                               'prefix': a.pvname,
+                               'label': a.name,
+                               'scaler': scaler_pvname}
+
     scan.rois = rois
     for dpars in detectors:
         dpars['rois'] = scan.rois
         dpars['mode'] = scan.detmode
-        print("SCAN DET ", dpars)
-        if dpars['kind'] == 'scaler' and scantype in ('slew', 'qxafs'):
-            print 'Scaler Hack!'
-
+        if dpars['kind'] == 'scaler' and scaler_shim is not None:
+            dpars.update(scaler_shim)
         scan.add_detector(get_detector(**dpars))
 
     # extra counters (not-triggered things to count)
@@ -144,6 +162,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
     if extra_pvs is not None:
         scan.add_extra_pvs(extra_pvs)
 
+    scan.scandb = scandb
     scan.scantype = scantype
     scan.filename = filename
     scan.scantime = scantime
@@ -152,5 +171,4 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
     scan.det_settle_time = det_settle_time
     if scan.dwelltime is None:
         scan.set_dwelltime(dwelltime)
-
     return scan
