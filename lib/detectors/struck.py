@@ -5,13 +5,12 @@ import sys
 import time
 import copy
 import numpy
-from epics import Device
+from epics import Device, caget
 from epics.devices.scaler import Scaler
 from epics.devices.mca import MCA
 
-from .base import DetectorMixin
-
-SCALER_MODE, ARRAY_MODE = 'SCALER', 'ARRAY'
+from .counter import DeviceCounter
+from .base import DetectorMixin, SCALER_MODE, NDARRAY_MODE, ROI_MODE
 
 HEADER = '''# Struck MCA data: %s
 # Nchannels, Nmcas = %i, %i
@@ -43,7 +42,7 @@ class Struck(Device):
         self.scaler = None
         self.clockrate = clockrate # clock rate in MHz
         self._mode = SCALER_MODE
-        self.ROIMode = self.ScalerMode
+        self.ROIMode = self.NDArrayMode
 
         if scaler is not None:
             self.scaler = Scaler(scaler, nchan=nchan)
@@ -91,7 +90,7 @@ class Struck(Device):
             self.put('Prescale', prescale)
         return out
 
-    def SetDwellTime(self, val):
+    def set_dwelltime(self, val):
         "Set Dwell Time"
         return self.put('Dwell', val)
 
@@ -109,7 +108,7 @@ class Struck(Device):
         if numframes is not None:
             self.put('NuseAll', numframes)
         if dwelltime is not None:
-            self.SetDwelltime(dwelltime)
+            self.set_dwelltime(dwelltime)
         if self.scaler is not None:
             self.scaler.AutoCountMode()
         self._mode = SCALER_MODE
@@ -127,7 +126,7 @@ class Struck(Device):
         if numframes is not None:
             self.put('NuseAll', numframes)
         if dwelltime is not None:
-            self.SetDwelltime(dwelltime)
+            self.set_dwelltime(dwelltime)
         if self.scaler is not None:
             self.scaler.OneShotMode()
         self._mode = SCALER_MODE
@@ -150,24 +149,24 @@ class Struck(Device):
         if numframes is not None:
             self.put('NuseAll', numframes)
         if dwelltime is not None:
-            self.SetDwelltime(dwelltime)
-        self._mode = ARRAY_MODE
+            self.set_dwelltime(dwelltime)
+        self._mode = NDARRAY_MODE
 
         self.put('StopAll', 1)
         self.put('EraseAll', 1)
         self.ExternalMode(trigger_width=trigger_width)
 
-    def Start(self, wait=False):
+    def start(self, wait=False):
         "Start Struck"
         if self.scaler is not None:
             self.scaler.OneShotMode()
         return self.put('EraseStart', 1, wait=wait)
 
-    def Stop(self):
+    def stop(self):
         "Stop Struck Collection"
         return self.put('StopAll', 1)
 
-    def Erase(self):
+    def erase(self):
         "Start Struck"
         return self.put('EraseAll', 1)
 
@@ -182,7 +181,7 @@ class Struck(Device):
     def read_all_mcas(self):
         return [self.readmca(nmcas=i+1) for i in range(self._nchan)]
 
-    def SaveArrayData(self, fname='Struck.dat', ignore_prefix=None,
+    def save_arraydata(self, fname='Struck.dat', ignore_prefix=None,
                       npts=None):
         "save MCA spectra to ASCII file"
         sdata, names, addrs = [], [], []
@@ -222,12 +221,67 @@ class Struck(Device):
         fout.close()
         return (nmcas, npts)
 
+class StruckCounter(DeviceCounter):
+    """Counter for Struck"""
+    invalid_device_msg = 'StruckCounter must use an Epics Scaler'
+    def __init__(self, prefix, scaler=None, outpvs=None, nchan=8,
+                 use_calc=False, use_unlabeled=False):
+        DeviceCounter.__init__(self, prefix)
+        fields = [] # ('.T', 'CountTime')]
+        extra_pvs = []
+        nchan = int(nchan)
+        if scaler is not None:
+            for i in range(1, nchan+1):
+                label = caget('%s.NM%i' % (scaler, i))
+                if len(label) > 0 or use_unlabeled:
+                    suff = 'MCA%i' % (i)
+                    fields.append((suff, label))
+        self.extra_pvs = extra_pvs
+        self.set_counters(fields)
+
 class StruckDetector(DetectorMixin):
     """Scaler Detector"""
     trigger_suffix = 'WHO?'
-    def __init__(self, prefix, nchan=8, use_calc=True,
-                 mode='scaler',  scaler=None, rois=None,**kws):
-        DetectorMixin.__init__(self, prefix, **kws)
+    def __init__(self, prefix, nchan=8, use_calc=True, label='struck',
+                 mode='scaler',  scaler=None, rois=None, **kws):
         nchan = int(nchan)
-        if scaler is not None:
-            self.scaler = Scaler(scaler, nchan=nchan)
+        self.mode = mode
+
+        self.struck = Struck(prefix, scaler=scaler, nchan=nchan)
+        DetectorMixin.__init__(self, prefix, **kws)
+        self.label = label
+
+        self.dwelltime_pv = self.struck._pvs['Dwell']
+
+        self._counter = StruckCounter(prefix, scaler=scaler,
+                                      nchan=nchan)
+        self.counters = self._counter.counters
+
+    def pre_scan(self, **kws):
+        "run just prior to scan"
+        self.arm(mode=self.mode)
+        self.counters = self._counter.counters
+        self.struck.set_dwelltime(self.dwelltime)
+
+    def post_scan(self, **kws):
+        "run just after scan"
+        self.struck.ContinuousMode(numframes=1)
+
+    def arm(self, mode=None, wait=False):
+        "arm detector, ready to collect with optional mode"
+        if self.mode == SCALER_MODE:
+            self.struck.ScalerMode()
+        elif self.mode == ROI_MODE:
+            self.struck.ROIMode()
+        elif self.mode == NDARRAY_MODE:
+            self.struck.NDArrayMode()
+
+    def start(self, mode=None, arm=False, wait=False):
+        "start detector, optionally arming and waiting"
+        if arm:
+            self.arm(mode=mode)
+        self.struck.start(wait=wait)
+
+    def stop(self):
+        "stop detector"
+        self.struck.stop()
