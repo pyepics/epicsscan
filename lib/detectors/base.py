@@ -30,7 +30,7 @@ class DetectorMixin(Saveable):
             self.trigger = Trigger("%s%s" % (prefix, self.trigger_suffix))
 
     def __repr__(self):
-        return "%s(%s', label='%s'%s)" % (self.__class__.__name__,
+        return "%s('%s', label='%s'%s)" % (self.__class__.__name__,
                                           self.prefix, self.label,
                                           self._repr_extra)
 
@@ -51,25 +51,44 @@ class DetectorMixin(Saveable):
         typically through areaDetector file saving mechanism"""
         return self.ScalerMode(dwelltime=dwelltime, numframes=numframes, **kws)
 
-    def Arm(self, mode=None, wait=False):
+    def config_filesaver(self, **kws):
+        "configure filesaver"
+        pass
+
+    def save_calibration(self, filename, **kws):
+        "save calibration information to file"
+        pass
+
+    def arm(self, mode=None, wait=False):
         "arm detector, ready to collect with optional mode"
         pass
 
-    def DisArm(self, mode=None, wait=False):
+    def disarm(self, mode=None, wait=False):
         "disarm detector, ready to not collect, from mode"
         pass
 
-    def Start(self, mode=None, arm=False, wait=False):
+    def start(self, mode=None, arm=False, wait=False):
         "start detector, optionally setting mode, arming, and waiting"
         pass
 
-    def Stop(self, mode=None, disarm=False, wait=False):
+    def stop(self, mode=None, disarm=False, wait=False):
         "stop detector, optionally setting mode, disarming, and waiting"
         pass
 
-    def SaveArrayData(self, filename=None):
+    def save_arraydata(self, filename=None):
         "save array data to external file"
         pass
+
+    def sett(self):
+        pass
+
+
+    def set_dwelltime(self, val):
+        "set detector dwelltime"
+        self.dwelltime = val
+        if self.dwelltime_pv is not None:
+            self.dwelltime_pv.put(val)
+
 
     def connect_counters(self):
         "connect to counters"
@@ -86,12 +105,6 @@ class DetectorMixin(Saveable):
     def at_break(self, breakpoint=None, **kws):
         "run at breakpoint"
         pass
-
-    def set_dwelltime(self, val):
-        "set detector dwelltime"
-        self.dwelltime = val
-        if self.dwelltime_pv is not None:
-            self.dwelltime_pv.put(val)
 
 class SimpleDetector(DetectorMixin):
     "Simple Detector: a single Counter without a trigger"

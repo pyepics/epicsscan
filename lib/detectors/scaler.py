@@ -71,18 +71,18 @@ class ScalerDetector(DetectorMixin):
             self.scaler.CountTime(dwelltime)
         return self.scaler.AutoCountMode()
 
-    def Arm(self, mode=None, wait=False):
+    def arm(self, mode=None, wait=False):
         "arm detector, ready to collect with optional mode"
         self.scaler.OneShotMode()
 
-    def Start(self, mode=None, arm=False, wait=False):
+    def start(self, mode=None, arm=False, wait=False):
         "start detector, optionally arming and waiting"
         if arm:
-            self.Arm(mode=mode)
+            self.arm(mode=mode)
         self.scaler.Count(wait=wait)
 
-    def Stop(self, mode=None, disarm=False, wait=False):
+    def stop(self, mode=None, disarm=False, wait=False):
         "stop detector, optionally disarming and waiting"
         self.scaler.put('CNT', 0, wait=wait)
         if disarm:
-            self.DisArm(mode=mode)
+            self.disarm(mode=mode)

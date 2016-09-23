@@ -31,7 +31,7 @@ class Xspress3(Device, ADFileMixin):
                  'Capture', 'NumCapture')
 
     def __init__(self, prefix, nmcas=4, filesaver='HDF1:',
-                 fileroot='/home/xspress3/cars5/Data'):
+                 fileroot='/T/xas_user'):
         dt = debugtime()
         if not prefix.endswith(':'):
             prefix = "%s:" % prefix
@@ -224,7 +224,7 @@ class Xspress3Detector(DetectorMixin):
     def __init__(self, prefix, label=None, nmcas=4, mode='scaler',
                  rois=None, nrois=32, pixeltime=0.1, use_dtc=False,
                  use=True, use_unlabeled=False, use_full=False,
-                 filesaver='HDF1:', fileroot=None, **kws):
+                 filesaver='HDF1:', fileroot='/T/xas_user', **kws):
 
         dt = debugtime()
         if not prefix.endswith(':'):
@@ -276,6 +276,16 @@ class Xspress3Detector(DetectorMixin):
         self._counter = Xspress3Counter(self.prefix, **self._connect_args)
         self.counters = self._counter.counters
         self.extra_pvs = self._counter.extra_pvs
+
+    def config_filesaver(self, **kws):
+        self._xsp3.config_filesaver(**kws)
+
+
+    def save_calibration(self, filename, **kws):
+        buff = self._xsp3.roi_calib_info()
+        with open(filename, 'w') as fh:
+            fh.write('\n'.join(buff))
+            fh.write('\n')
 
     def pre_scan(self, scan=None, **kws):
         """ """
@@ -334,7 +344,7 @@ class Xspress3Detector(DetectorMixin):
         if numframes is not None:
             self._xsp3.put('NumImages', numframes)
         if dwelltime is not None:
-            self._xsp3.SetDwelltime(dwelltime)
+            self._xsp3.set_dwelltime(dwelltime)
         self.mode = SCALER_MODE
 
 
@@ -353,7 +363,7 @@ class Xspress3Detector(DetectorMixin):
         if numframes is not None:
             self._xsp3.put('NumImages', numframes)
         if dwelltime is not None:
-            self.SetDwelltime(dwelltime)
+            self.set_dwelltime(dwelltime)
         for i in self._chans:
             self._xsp3.put('MCA%iROI:TSControl' % i, 2) # 'Stop'
             self._xsp3.put('MCA%iROI:BlockingCallbacks' % i, 1)
@@ -383,7 +393,7 @@ class Xspress3Detector(DetectorMixin):
                 self._xsp3.put('MCA%iROI:BlockingCallbacks' % i, 1)
 
         if dwelltime is not None:
-            self.SetDwelltime(dwelltime)
+            self.set_dwelltime(dwelltime)
         self.mode = ROI_MODE
 
 
@@ -408,10 +418,10 @@ class Xspress3Detector(DetectorMixin):
         if numframes is not None:
             self._xsp3.put('NumAcquire', numframes)
         if dwelltime is not None:
-            self.SetDwelltime(dwelltime)
+            self.set_dwelltime(dwelltime)
         self.mode = NDARRAY_MODE
 
-    def SetDwelltime(self, dwelltime):
+    def set_dwelltime(self, dwelltime):
         """set dwell time in seconds
 
     Arguments:
@@ -419,7 +429,7 @@ class Xspress3Detector(DetectorMixin):
         """
         self._xsp3.put('AcquireTime', dwelltime)
 
-    def Arm(self, mode=None, wait=False):
+    def arm(self, mode=None, wait=False):
         if mode is not None:
             self.mode = mode
         time.sleep(.001)
@@ -433,24 +443,24 @@ class Xspress3Detector(DetectorMixin):
                 self._xsp3.put('MCA%iROI:TSControl' % i, 0) # 'Erase/Start'
 
 
-    def DisArm(self, mode=None, wait=False):
+    def disarm(self, mode=None, wait=False):
         if mode is not None:
             self.mode = mode
         time.sleep(.001)
         self._xsp3.FileCaptureOff()
 
-    def Start(self, mode=None, arm=False, wait=False):
+    def start(self, mode=None, arm=False, wait=False):
         if mode is not None:
             self.mode = mode
         if arm:
-            self.Arm()
+            self.am()
         self._xsp3.put('Acquire', 1, wait=wait)
 
-    def Stop(self, mode=None, disarm=False, wait=False):
+    def stop(self, mode=None, disarm=False, wait=False):
         self._xsp3.put('Acquire', 0, wait=wait)
         if disarm:
-            self.DisArm()
+            self.arm()
         self._xsp3.FileCaptureOff()
 
-    def SaveArrayData(self, filename=None):
+    def save_arraydata(self, filename=None):
         pass

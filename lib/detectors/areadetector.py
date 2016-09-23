@@ -15,6 +15,36 @@ AD_FILE_PLUGINS = ('TIFF1', 'JPEG1', 'NetCDF1',
 
 class ADFileMixin(object):
     """mixin class for Xspress3"""
+    def config_filesaver(self, path=None, name=None, number=None,
+                         format=None, auto_save=None, write_mode=None,
+                         auto_increment=None):
+        """configure filesaver, setting multiple attributes at once
+        Arguments
+        ---------
+           path
+           name
+           number
+           format
+           auto_save
+           write_mode
+           auto_increment
+        Each of these is forwarded to the right PV, if not None.
+        """
+        if path is not None:
+            self.setFilePath(path)
+        if name is not None:
+            self.setFileName(name)
+        if number is not None:
+            self.setFileNumber(number)
+        if format is not None:
+            self.setFileFormat(format)
+        if auto_increment is not None:
+            self.filePut('AutoIncrement', auto_increment)
+        if auto_save is not None:
+            self.filePut('AutoSave', auto_save)
+        if write_mode is not None:
+            self.filePut('FileWriteMode', write_mode)
+
     def filePut(self, attr, value, **kws):
         "put file attribute"
         return self.put("%s%s" % (self.filesaver, attr), value, **kws)
@@ -93,7 +123,7 @@ class ADFileMixin(object):
         return self.getFileTemplate() % (self.getFilePath(),
                                          self.getFileName(), index)
 
-class AreaDetector(DetectorMixin):
+class AreaDetector(DetectorMixin, ADFileMixin):
     """very simple area detector interface...
     trigger / dwelltime, uses array counter as only counter
     """
@@ -117,6 +147,9 @@ class AreaDetector(DetectorMixin):
                                 label='File Counter')
             self.counters.append(f_counter)
         self._repr_extra = ', file_plugin=%s' % repr(file_plugin)
+
+    def config_filesaver(self, **kws):
+        self._xsp3.config_filesaver(**kws)
 
     def pre_scan(self, scan=None, **kws):
         if self.dwelltime is not None and isinstance(self.dwelltime_pv, PV):

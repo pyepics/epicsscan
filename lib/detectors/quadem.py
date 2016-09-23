@@ -86,7 +86,7 @@ class TetrAMM(Device):
         if numframes is not None:
             self.put('NumAcquire', numframes)
         if dwelltime is not None:
-            self.SetDwelltime(dwelltime)
+            self.set_dwelltime(dwelltime)
         self._mode = SCALER_MODE
 
     def ScalerMode(self, dwelltime=1.0, numframes=1):
@@ -107,7 +107,7 @@ class TetrAMM(Device):
         if numframes is not None:
             self.put('NumAcquire', numframes)
         if dwelltime is not None:
-            self.SetDwelltime(dwelltime)
+            self.set_dwelltime(dwelltime)
         if self._sis is not None:
             self._sis.ScalerMode()
         self._mode = SCALER_MODE
@@ -135,7 +135,7 @@ class TetrAMM(Device):
         if numframes is not None:
             self.put('NumAcquire', numframes)
         if dwelltime is not None:
-            self.SetDwelltime(dwelltime)
+            self.set_dwelltime(dwelltime)
         for i in self._chans:
             self.put('Current%i:TSControl' % i, 2) # Stop
             if numframes is not None:
@@ -146,7 +146,7 @@ class TetrAMM(Device):
                                 trigger_width=sis_trigger_width)
         self._mode = NDARRAY_MODE
 
-    def SetDwelltime(self, dwelltime, valuesperread=None):
+    def set_dwelltime(self, dwelltime, valuesperread=None):
         """set dwell time in seconds
 
     Arguments:
@@ -259,7 +259,7 @@ class TetrAMM(Device):
         poll()
         return out
 
-    def Start(self, wait=False):
+    def start(self, wait=False):
         """start collection, with slightly different behavior for
     SCALER and NDARRAY mode.
 
@@ -291,7 +291,7 @@ class TetrAMM(Device):
         poll()
         return out
 
-    def Stop(self, wait=False):
+    def stop(self, wait=False):
         """Stop Collection
 
     Arguments:
@@ -304,10 +304,10 @@ class TetrAMM(Device):
             for i in self._chans:
                 self.put('Current%i:TSControl' % i, 2) # 'Stop'
         if self._sis is not None:
-            self._sis.Stop()
+            self._sis.stop()
         return self.put('Acquire', 0, wait=wait)
 
-    def SaveArrayData(self, filename='tetramm_arrays.dat'):
+    def save_arraydata(self, filename='tetramm_arrays.dat'):
         """
         save Current Array data to ASCII file
 
@@ -422,26 +422,26 @@ class TetrAMMDetector(DetectorMixin):
         return self.tetramm.NDArrayMode(dwelltime=dwelltime,
                                         numframes=numframes, **kws)
 
-    def Arm(self, mode=None, wait=False):
+    def arm(self, mode=None, wait=False):
         "arm detector, ready to collect with optional mode"
         if mode is not None:
             self.tetramm._mode = mode
 
 
-    def DisArm(self, mode=None, wait=False):
+    def disarm(self, mode=None, wait=False):
         "disarm detector, back to open loop"
         print(" DISARM TetrAMM")
         return self.tetramm.ContinuousMode(dwelltime=0.1)
 
 
-    def Start(self, mode=None, arm=False, wait=False):
+    def start(self, mode=None, arm=False, wait=False):
         "start detector, optionally arming and waiting"
         if arm or mode is not None:
-            self.Arm(mode=mode)
-        self.tetramm.Start(wait=wait)
+            self.arm(mode=mode)
+        self.tetramm.start(wait=wait)
 
-    def Stop(self, mode=None, disarm=False, wait=False):
+    def stop(self, mode=None, disarm=False, wait=False):
         "stop detector, optionally disarming and waiting"
         self.scaler.put('CNT', 0, wait=wait)
         if disarm:
-            self.DisArm(mode=mode)
+            self.disarm(mode=mode)
