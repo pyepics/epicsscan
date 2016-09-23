@@ -478,8 +478,9 @@ class ScanDB(object):
         if 'rois' not in sdict:
             sdict['rois'] = json.loads(self.get_info('rois'), object_hook=asciikeys)
         sdict['filename'] = filename
+        sdict['scandb'] = self
         scan = create_scan(**sdict)
-        scan.scandb = self
+
         if scan.scantype in ('slew', 'qxafs'):
             scan.enable_slewscan()
         return scan
