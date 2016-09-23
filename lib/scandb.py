@@ -479,11 +479,7 @@ class ScanDB(object):
             sdict['rois'] = json.loads(self.get_info('rois'), object_hook=asciikeys)
         sdict['filename'] = filename
         sdict['scandb'] = self
-        scan = create_scan(**sdict)
-
-        if scan.scantype in ('slew', 'qxafs'):
-            scan.enable_slewscan()
-        return scan
+        return create_scan(**sdict)
 
     # macros
     def get_macro(self, name):

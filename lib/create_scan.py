@@ -11,6 +11,7 @@ from .detectors import get_detector
 from .positioner import Positioner
 from .scan import StepScan
 from .xafs_scan import XAFS_Scan, QXAFS_Scan
+from .slew_scan import Slew_Scan
 from .debugtime import debugtime
 
 def create_scan(filename='scan.dat', comments=None, type='linear',
@@ -117,6 +118,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
                     scan.add_counter(pvs2[1], label="%s_read" % label2)
 
         elif scantype == 'slew':
+            scan = Slew_Scan(filename=filename, comments=comments)
             scan.detmode = 'ndarray'
             scan.inner = inner
             scan.outer = None
