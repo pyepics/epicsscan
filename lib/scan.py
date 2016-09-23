@@ -95,7 +95,7 @@ import six
 
 from datetime import timedelta
 
-from file_utils import fix_varname
+from file_utils import fix_varname, fix_filename, increment_filename
 
 from epics import PV, poll, get_pv, caget, caput
 
@@ -756,19 +756,44 @@ class StepScan(object):
         """prepare slew scan"""
 
         currscan = 'CurrentScan.ini'
-        server  = self.scandb.get_info('server_fileroot')
-        workdir = self.scandb.get_info('user_folder')
-        basedir = os.path.join(server, workdir, 'Maps')
+        fileroot  = self.scandb.get_info('server_fileroot')
+        userdir = self.scandb.get_info('user_folder')
+        basedir = os.path.join(fileroot, userdir, 'Maps')
         if not os.path.exists(basedir):
             os.mkdir(basedir)
-        sname = os.path.join(server, workdir, 'Maps', currscan)
-        oname = os.path.join(server, workdir, 'Maps', 'PreviousScan.ini')
+
+        sname = os.path.join(basedir, currscan)
+        oname = os.path.join(basedir, 'PreviousScan.ini')
+        fname = fix_filename(self.filename)
+        mapdir = os.path.join(basedir, fname + '_rawmap')
+        counter = 0
+        while os.path.exists(mapdir) and counter < 9999:
+            fname = increment_filename(fname)
+            mapdir = os.path.join(basedir, fname + '_rawmap')
+            counter += 1
+        os.mkdir(mapdir)
+        self.mapdir = mapdir
+        self.fileroot = fileroot
+
         if os.path.exists(sname):
             shutil.copy(sname, oname)
+
         txt = ['# FastMap configuration file (saved: %s)'%(time.ctime()),
-               '#-------------------------#',  '[scan]',
-               'filename = %s' % self.filename,
-               'comments = %s' % self.comments]
+               '#-------------------------#','[general]',
+               'basedir = %s' % userdir,
+               '[xps]']
+
+        scnf = json.loads(self.scandb.get_config('slew').notes)
+        posnames = ', '.join(scnf['motors'].keys())
+        txt.extend(['host = %s' % scnf['host'],
+                    'user = %s' % scnf['username'],
+                    'passwd = %s' % scnf['password'],
+                    'group = %s' % scnf['group'],
+                    'positioners = %s' % posnames])
+
+        txt.append('[slow_positioners]')
+        for i, pos in enumerate(self.scandb.get_positioners()):
+            txt.append("%i = %s | %s" % (i+1, pos.drivepv, pos.name))
 
         dim  = 1
         if self.outer is not None:
@@ -778,13 +803,7 @@ class StepScan(object):
         if pospv.endswith('.VAL'):
             pospv = pospv[:-4]
         step = abs(start-stop)/(npts-1)
-        dtime = self.dwelltime*(npts-1)
-        txt.append('dimension = %i' % dim)
-        txt.append('pos1 = %s'     % pospv)
-        txt.append('start1 = %.4f' % start)
-        txt.append('stop1 = %.4f'  % stop)
-        txt.append('step1 = %.4f'  % step)
-        txt.append('time1 = %.4f'  % dtime)
+        self.rowtime = dtime = self.dwelltime*(npts-1)
 
         axis = None
         for ax, pvname in self.slewscan_config['motors'].items():
@@ -798,16 +817,28 @@ class StepScan(object):
                                           start=start, stop=stop,
                                           step=step, scantime=dtime)
 
+        txt.extend(['[scan]',
+                    'filename = %s' % self.filename,
+                    'comments = %s' % self.comments,
+                    'dimension = %i' % dim,
+                    'pos1 = %s'     % pospv,
+                    'start1 = %.4f' % start,
+                    'stop1 = %.4f'  % stop,
+                    'step1 = %.4f'  % step,
+                    'time1 = %.4f'  % dtime])
+
+
+
         if dim == 2:
             l_, pvs, start, stop, npts = self.outer
             pospv = pvs[0]
             if pospv.endswith('.VAL'):
                 pospv = pospv[:-4]
             step = abs(start-stop)/(npts-1)
-            txt.append('pos2 = %s'   % pospv)
-            txt.append('start2 = %.4f' % start)
-            txt.append('stop2 = %.4f' % stop)
-            txt.append('step2 = %.4f' % step)
+            txt.extend(['pos2 = %s'   % pospv,
+                        'start2 = %.4f' % start,
+                        'stop2 = %.4f' % stop,
+                        'step2 = %.4f' % step])
 
         txt.append('#------------------#')
         txt.append('[xrd_ad]')
@@ -820,10 +851,14 @@ class StepScan(object):
             txt.append('use = False')
         else:
             txt.append('use = True')
-            txt.append('type = PEDET1')
+            txt.append('type = AreadDetector')
             txt.append('prefix = %s' % det.prefix)
-            txt.append('fileplugin = netCDF1:')
+            txt.append('fileplugin = :')
 
+        sini = os.path.join(mapdir, 'Scan.ini')
+        f = open(sini, 'w')
+        f.write('\n'.join(txt))
+        f.close()
         f = open(sname, 'w')
         f.write('\n'.join(txt))
         f.close()
@@ -836,13 +871,55 @@ class StepScan(object):
         """
         self.prepare_slewscan()
         self.xps.arm_trajectory('backward')
-        for det in self.detectors:
-            det.Arm(mode=self.detmode)
 
-        print("Ready for SLEWSCAN !! ")
+        pjoin = os.path.join
+        abspath = os.path.abspath
+        master_file = os.path.join(self.mapdir, 'Master.dat')
+        env_file = os.path.join(self.mapdir, 'Environ.dat')
+        roi_file = os.path.join(self.mapdir, 'ROI.dat')
+
+        master = open(master_file, 'w')
+
+        dim = 2
+        l_, pvs, start, stop, npts = self.outer
+        step = abs(start-stop)/(npts-1)
+        master.write("#Scan.version = 1.3\n")
+        master.write('#SCAN.starttime = %s\n' % time.ctime())
+        master.write('#SCAN.filename  = %s\n' % self.filename)
+        master.write('#SCAN.dimension = %i\n' % dim)
+        master.write('#SCAN.nrows_expected = %i\n' % npts)
+        master.write('#SCAN.time_per_row_expected = %.2f\n' % self.rowtime)
+        master.write('#Y.positioner  = %s\n' %  str(pvs[0]))
+        master.write('#Y.start_stop_step = %f, %f, %f \n' %  (start, stop, step))
+        master.write('#------------------------------------\n')
+        master.write('# yposition  xmap_file  struck_file  xps_file    time\n')
+
+
+        detpath = self.mapdir[len(self.fileroot):]
+        for det in self.detectors:
+            det.arm(mode=self.detmode)
+            det.config_filesaver(number=1, path=detpath, auto_increment=True)
+
+        print("Ready for SLEWSCAN !! ", self.mapdir )
 
         self.clear_interrupts()
         self.set_info('scan_progress', 'starting')
+        self.set_info('filename', filename)
+
+        npts = len(self.positioners[0].array)
+        def make_filename(n, i):
+            return abspath(pjoin(self.mapdir, "%s.%4.4i" % (n, i)))
+
+        for i in range(npts):
+            print('row %i of %i' % (i+1, npts))
+            self.set_info('scan_progress', 'row %i of %i' % (i+1, npts))
+            [p.move_to_pos(i, wait=False) for p in self.positioners]
+            [p.move_to_pos(i, wait=True) for p in self.positioners]
+            yval = self.positioners[0].array[i]
+            time.sleep(0.5)
+            master.write("%8.4f ..... \n" % yval)
+
+
         return
 
         # watch scan
