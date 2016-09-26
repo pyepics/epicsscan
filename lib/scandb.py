@@ -479,6 +479,9 @@ class ScanDB(object):
             sdict['rois'] = json.loads(self.get_info('rois'), object_hook=asciikeys)
         sdict['filename'] = filename
         sdict['scandb'] = self
+        sdict['extra_pvs'] = []
+        for row  in self.getall('extrapvs', orderby='id'):
+            sdict['extra_pvs'].append((row.name, row.pvname))
         return create_scan(**sdict)
 
     # macros
