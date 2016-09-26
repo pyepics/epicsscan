@@ -105,6 +105,7 @@ class Struck(Device):
         1. This sets AquireMode to Continuous.  If dwelltime or numframes
            is not None, they will be set
         """
+        self.InternalMode()
         if numframes is not None:
             self.put('NuseAll', numframes)
         if dwelltime is not None:
@@ -131,12 +132,12 @@ class Struck(Device):
             self.scaler.OneShotMode()
         self._mode = SCALER_MODE
 
-    def NDArrayMode(self, dwelltime=0.25, numframes=16384, trigger_width=None):
+    def NDArrayMode(self, dwelltime=None, numframes=None, trigger_width=None):
         """ set to array mode: ready for slew scanning
 
     Arguments:
         dwelltime (None or float): dwelltime per frame in seconds [0.25]
-        numframes (None int):   number of frames to collect [16384]
+        numframes (None int):   number of frames to collect [8192]
         trigger_width (None or float):   output trigger width (in seconds)
              for optional SIS 3820 [None]
 
@@ -153,8 +154,8 @@ class Struck(Device):
         self._mode = NDARRAY_MODE
 
         self.put('StopAll', 1)
-        self.put('EraseAll', 1)
-        self.ExternalMode(trigger_width=trigger_width)
+        # self.put('EraseAll', 1)
+        self.ExternalMode(trigger_width=trigger_width, countonstart=False)
 
     def start(self, wait=False):
         "Start Struck"
@@ -181,8 +182,7 @@ class Struck(Device):
     def read_all_mcas(self):
         return [self.readmca(nmcas=i+1) for i in range(self._nchan)]
 
-    def save_arraydata(self, fname='Struck.dat', ignore_prefix=None,
-                      npts=None):
+    def save_arraydata(self, filename='Struck.dat', ignore_prefix=None, npts=None):
         "save MCA spectra to ASCII file"
         sdata, names, addrs = [], [], []
         npts = 1.e99
@@ -214,7 +214,7 @@ class Struck(Device):
         names = ' | '.join(names)
         formt = '%9i ' * nmcas + '\n'
 
-        fout = open(fname, 'w')
+        fout = open(filename, 'w')
         fout.write(HEADER % (self._prefix, npts, nmcas, addrs, names))
         for i in range(npts):
             fout.write(formt % tuple(sdata[i]))
@@ -257,24 +257,31 @@ class StruckDetector(DetectorMixin):
                                       nchan=nchan)
         self.counters = self._counter.counters
 
-    def pre_scan(self, **kws):
+    def pre_scan(self, mode=None, npulses=None, dwelltime=None, **kws):
         "run just prior to scan"
-        self.arm(mode=self.mode)
+        if mode is not None:
+            self.mode = mode
+        # print("StruckDetector Prescan", mode, self.mode, kws)
+        self.arm(mode=self.mode, numframes=npulses)
         self.counters = self._counter.counters
+        if dwelltime is not None:
+            self.dwelltime = dwelltime
         self.struck.set_dwelltime(self.dwelltime)
+        if npulses is not None:
+            self.struck.put('NuseAll', npulses)
 
     def post_scan(self, **kws):
         "run just after scan"
         self.struck.ContinuousMode(numframes=1)
 
-    def arm(self, mode=None, wait=False):
+    def arm(self, mode=None, wait=False, numframes=None):
         "arm detector, ready to collect with optional mode"
         if self.mode == SCALER_MODE:
             self.struck.ScalerMode()
         elif self.mode == ROI_MODE:
             self.struck.ROIMode()
         elif self.mode == NDARRAY_MODE:
-            self.struck.NDArrayMode()
+            self.struck.NDArrayMode(numframes=numframes)
 
     def start(self, mode=None, arm=False, wait=False):
         "start detector, optionally arming and waiting"
@@ -285,3 +292,7 @@ class StruckDetector(DetectorMixin):
     def stop(self):
         "stop detector"
         self.struck.stop()
+
+    def save_arraydata(self, filename=None, npts=None):
+        if filename is not None:
+            self.struck.save_arraydata(filename=filename, npts=npts)
