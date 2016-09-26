@@ -33,7 +33,8 @@ class Saveable(object):
         return (self.__class, self._saved_args(), self._saved_kws())
 
     def __eq__(self, other):
-        return (self._saved_class() == other._saved_class() and
+        return (hasattr(other, '_saved_class') and
+                self._saved_class() == other._saved_class() and
                 self._saved_args() == other._saved_args() and
                 self._saved_kws() == other._saved_kws())
 
