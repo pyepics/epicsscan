@@ -39,8 +39,6 @@ class Slew_Scan(StepScan):
 
     def prepare_scan(self):
         """prepare slew scan"""
-
-        print("Enabling Slew SCAN")
         conf = self.scandb.get_config(self.scantype)
         conf = self.slewscan_config = json.loads(conf.notes)
         self.xps = NewportXPS(conf['host'],
@@ -156,21 +154,44 @@ class Slew_Scan(StepScan):
         f = open(sname, 'w')
         f.write('\n'.join(txt))
         f.close()
-        print("Wrote Simple Scan Config: ", sname)
+        # print("Wrote Simple Scan Config: ", sname)
         return sname
+
+    def post_scan(self):
+        self.set_info('scan_progress', 'finishing')
+        for m in self.post_scan_methods:
+            m()
+
+        for det in self.detectors:
+            det.disarm(mode=self.detmode)
+            det.ContinuousMode()
+
 
     def run(self, filename='map.001', comments=None, debug=False):
         """
         run a slew scan
         """
         self.prepare_scan()
-        self.xps.arm_trajectory('backward')
+        trajs = self.xps.trajectories
+        dir_off = 1
+        tname = 'foreward'
+        if trajs['foreward']['axes'][0] == 'X':
+            dir_off += 1
+        if trajs['foreward']['start'] >  trajs['foreward']['stop']:
+            dir_off += 1
+        if dir_off % 2 == 0:
+            tname = 'backward'
 
-        pjoin = os.path.join
-        abspath = os.path.abspath
+        self.xps.arm_trajectory(tname)
+        npulses = trajs[tname]['npulses']
+        dwelltime = trajs[tname]['pixeltime']
+
         master_file = os.path.join(self.mapdir, 'Master.dat')
         env_file = os.path.join(self.mapdir, 'Environ.dat')
         roi_file = os.path.join(self.mapdir, 'ROI.dat')
+
+        [p.move_to_pos(0, wait=False) for p in self.positioners]
+        self.pre_scan(npulses=npulses, dwelltime=dwelltime, mode='ndarray')
 
         master = open(master_file, 'w')
 
@@ -188,103 +209,116 @@ class Slew_Scan(StepScan):
         master.write('#------------------------------------\n')
         master.write('# yposition  xmap_file  struck_file  xps_file    time\n')
 
+        def make_filename(fname, i):
+            return "%s.%4.4i" % (fname, i)
 
         detpath = self.mapdir[len(self.fileroot):]
+        scadet = xrfdet = xrddet = None
+        xrbase = xrdbase = scabase = posbase = '__UNUSED'
+        posbase = os.path.abspath(os.path.join(self.mapdir, 'xps'))
         for det in self.detectors:
-            det.arm(mode=self.detmode)
-            det.config_filesaver(number=1, path=detpath, auto_increment=True)
+            if det.label.lower() == 'struck':
+                scadet = det
+                scabase=  os.path.abspath(os.path.join(self.mapdir, 'struck'))
+            elif det.label.lower() == 'xspress3':
+                xrfdet = det
+                xrfbase =  os.path.abspath(os.path.join(self.mapdir, 'xsp3'))
+            elif 'perkin' in det.label.lower():
+                xrddet = det
+                xrfbase =  os.path.abspath(os.path.join(self.mapdir, 'xrd'))
 
-        print("Ready for SLEWSCAN !! ", self.mapdir )
+            det.arm(mode=self.detmode, numframes=npulses)
+            det.config_filesaver(number=1, path=detpath, auto_increment=True,
+                                 auto_save=True)
 
         self.clear_interrupts()
         self.set_info('scan_progress', 'starting')
         self.set_info('filename', filename)
 
         npts = len(self.positioners[0].array)
-        def make_filename(n, i):
-            return abspath(pjoin(self.mapdir, "%s.%4.4i" % (n, i)))
+        start_time = time.time()
+        irow = 0
+        while irow < npts:
+            irow += 1
+            self.set_info('scan_progress', 'row %i of %i' % (irow, npts))
+            rowdata_ok = True
 
-        for i in range(npts):
-            print('row %i of %i' % (i+1, npts))
-            self.set_info('scan_progress', 'row %i of %i' % (i+1, npts))
-            [p.move_to_pos(i, wait=False) for p in self.positioners]
-            [p.move_to_pos(i, wait=True) for p in self.positioners]
-            yval = self.positioners[0].array[i]
-            time.sleep(0.5)
-            master.write("%8.4f ..... \n" % yval)
+            trajname = ['foreward', 'backward'][(dir_off + irow) % 2]
+            print('row %i of %i, %s' % (irow, npts, trajname))
+            self.xps.arm_trajectory(trajname)
+            for det in self.detectors:
+                det.start(arm=True, mode='ndarray')
 
+            [p.move_to_pos(irow-1, wait=True) for p in self.positioners]
 
-        return
+            # start trajectory in another thread
+            scan_thread = Thread(target=self.xps.run_trajectory,
+                                 kwargs=dict(save=False), name='trajectory_thread')
+            scan_thread.start()
 
-        # watch scan
-        # first, wait for scan to start (status == 2)
-        collecting = False
-        t0 = time.time()
-        while not collecting and time.time()-t0 < 120:
+            posfile = make_filename(posbase, irow)
+            scafile = make_filename(scabase, irow)
+            xrffile = make_filename(xrfbase, irow)
+            xrdfile = make_filename(xrdbase, irow)
+            if irow < 2:
+                for det in self.detectors:
+                    if det.label == 'xspress3':
+                        det.save_calibration(roi_file)
+                self.save_envdata(filename=env_file)
 
-            collecting = (2 == caget('%sstatus' % mapper))
-            time.sleep(0.25)
+            masterline = "%8.4f" % (self.positioners[0].array[irow-1])
+
+            for fname in (posfile, xrffile, xrdfile, scafile, posfile):
+                if not fname.startswith('__UNUSED'):
+                    d, fn = os.path.split(fname)
+                    masterline = "%s %s" % (masterline, fn)
+
+            # wait for trajectory to finish
+            scan_thread.join()
             if self.look_for_interrupts():
                 break
-        if self.abort:
-            caput("%sAbort" % mapper, 1)
 
-        nrow = 0
-        t0 = time.time()
-        maxrow = caget('%smaxrow' % mapper)
-        info = caget("%sinfo" % mapper, as_string=True)
-        self.set_info('scan_progress', info)
-        #  wait for scan to get past row 1
-        while nrow < 1 and time.time()-t0 < 120:
-            nrow = caget('%snrow' % mapper)
-            time.sleep(0.25)
-            if self.look_for_interrupts():
-                break
-        if self.abort:
-            caput("%sAbort" % mapper, 1)
+            masterline = "%s %8.4f\n" % (masterline, time.time()-start_time)
+            master.write(masterline)
+            if irow < npts-1:
+                [p.move_to_pos(irow, wait=False) for p in self.positioners]
 
-        maxrow  = caget("%smaxrow" % mapper)
-        time.sleep(1.0)
-        fname  = caget("%sfilename" % mapper, as_string=True)
-        self.set_info('filename', fname)
+            saver_thread = Thread(target=self.xps.read_and_save,
+                                  args=(posfile,), name='saver_thread')
+            saver_thread.start()
 
-        # wait for map to finish:
-        # must see "status=Idle" for 10 consequetive seconds
-        collecting_map = True
-        nrowx, nrow = 0, 0
-        t0 = time.time()
-        while collecting_map:
-            time.sleep(0.25)
-            status_val = caget("%sstatus" % mapper)
-            status_str = caget("%sstatus" % mapper, as_string=True)
-            nrow       = caget("%snrow" % mapper)
-            self.set_info('scan_status', status_str)
-            time.sleep(0.25)
-            if self.look_for_interrupts():
-                break
-            if nrowx != nrow:
-                info = caget("%sinfo" % mapper, as_string=True)
-                self.set_info('scan_progress', info)
-                nrowx = nrow
-            if status_val == 0:
-                collecting_map = ((time.time() - t0) < 10.0)
-            else:
+            if xrfdet is not None:
                 t0 = time.time()
+                while not xrfdet.file_write_complete() and (time.time()-t0 < 5.0):
+                    time.sleep(0.1)
+                # print(" File write complete? ", xrfdet.file_write_complete())
+                if not xrfdet.file_write_complete():
+                    rowdata_ok = False
+                    time.sleep(0.25)
+                    xrfdet.stop()
+                    time.sleep(0.25)
+            if scadet is not None:
+                scadet.save_arraydata(filename=scafile, npts=npulses)
+            saver_thread.join()
+            if not rowdata_ok:
+                self.write('bad data for row: redoing this row\n')
+                irow -= 1
+                [p.move_to_pos(irow, wait=False) for p in self.positioners]
+            if self.look_for_interrupts():
+                break
+            self.check_beam_ok()
 
-        # if aborted from ScanDB / ScanGUI wait for status
-        # to go to 0 (or 5 minutes)
-        self.look_for_interrupts()
-        if self.abort:
-            caput('%sAbort' % mapper, 1)
-            time.sleep(0.5)
-            t0 = time.time()
-            status_val = caget('%sstatus' % mapper)
-            while status_val != 0 and (time.time()-t0 < 10.0):
-                time.sleep(0.25)
-                status_val = caget('%sstatus' % mapper)
-
-        status_strg = caget('%sstatus' % mapper, as_string=True)
-        self.set_info('scan_status', status_str)
-        if self.abort:
-            raise ScanDBAbort("slewscan aborted")
+        self.post_scan()
         return
+
+    def check_beam_ok(self):
+        return True
+
+    def save_envdata(self,filename='Environ.dat'):
+        buff = []
+        for desc, pvname, value in self.read_extra_pvs():
+            buff.append("; %s (%s) = %s" % (desc, pvname, value))
+        buff.append("")
+        with open(filename,'w') as fh:
+            fh.write('\n'.join(buff))
+        fh.close()
