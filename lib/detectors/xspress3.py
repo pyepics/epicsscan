@@ -63,6 +63,14 @@ class Xspress3(Device, ADFileMixin):
                 self.add_pv("%s%s:Value_RBV" % (prefix, attr), attr)
         poll(0.003, 0.25)
 
+    def set_dwelltime(self, dwelltime):
+        """set dwell time in seconds
+
+        Arguments:
+        dwelltime (float): dwelltime per frame in seconds.   No default
+        """
+        self.put('AcquireTime', dwelltime)
+
     def roi_calib_info(self):
         buff = ['[rois]']
         add = buff.append
@@ -287,15 +295,27 @@ class Xspress3Detector(DetectorMixin):
             fh.write('\n'.join(buff))
             fh.write('\n')
 
-    def pre_scan(self, scan=None, **kws):
-        """ """
-        # print "Xspress3 pre_scan  ", self.mode
+    def pre_scan(self, mode=None, npulses=None, dwelltime=None, **kws):
+        "run just prior to scan"
+        if mode is not None:
+            self.mode = mode
+        # print("Xspress3 Prescan", mode, self.mode, kws)
         if self.mode == SCALER_MODE:
             self.ScalerMode()
         elif self.mode == ROI_MODE:
             self.ROIMode()
         elif self.mode == NDARRAY_MODE:
             self.NDArrayMode()
+
+        self.arm(mode=self.mode)
+
+        if dwelltime is not None:
+            self.dwelltime = dwelltime
+        if self.dwelltime is not None:
+            self.dwelltime_pv.put(self.dwelltime)
+
+        if npulses is not None:
+            self._xsp3.put('NumImages', npulses)
 
         t0 = time.time()
         self._xsp3.put('Acquire', 0)
@@ -307,27 +327,6 @@ class Xspress3Detector(DetectorMixin):
         self._counter._get_counters()
         self.counters = self._counter.counters
         self.extra_pvs = self._counter.extra_pvs
-
-        dtime = 0.5
-        if self.dwelltime is not None:
-            dtime = self.dwelltime
-        self.dwelltime_pv.put(dtime)
-
-        # for i in range(1, self.nmcas+1):
-        #     card = "%sC%i" % (self.prefix, i)
-        #     caput("%s_PluginControlValExtraROI" % (card), 0)
-        #     caput("%s_PluginControlVal"         % (card), 1)
-        #    poll(0.005, 0.5)
-        self._xsp3.put('ERASE', 1)
-
-        self._xsp3.put('TriggerMode', 1)
-        self._xsp3.put('NumImages', 1)
-        self._xsp3.put('CTRL_DTC', self.use_dtc)
-        poll(0.01, 0.5)
-        self._xsp3.put('Acquire', 0, wait=True)
-        poll(0.01, 0.5)
-        self._xsp3.put('ERASE', 1, wait=True)
-        poll(0.01, 0.5)
 
 
     def ContinuousMode(self, dwelltime=0.25, numframes=16384):
@@ -341,12 +340,7 @@ class Xspress3Detector(DetectorMixin):
         1. The Xspress3 doesn't support true continuous mode, so this sets
         the dwelltime to 0.25 and NumImages to 16384
            """
-        if numframes is not None:
-            self._xsp3.put('NumImages', numframes)
-        if dwelltime is not None:
-            self._xsp3.set_dwelltime(dwelltime)
-        self.mode = SCALER_MODE
-
+        self.ScalerMode(dwelltime=dwelltime, numframes=numframes)
 
     def ScalerMode(self, dwelltime=None, numframes=1):
         """ set to scaler mode: ready for step scanning
@@ -360,6 +354,7 @@ class Xspress3Detector(DetectorMixin):
         """
         # print "Xspress3 ScalerMode"
         self._xsp3.put('TriggerMode', 1) # Internal
+        self._xsp3.put('ERASE', 1)
         if numframes is not None:
             self._xsp3.put('NumImages', numframes)
         if dwelltime is not None:
@@ -429,19 +424,20 @@ class Xspress3Detector(DetectorMixin):
         """
         self._xsp3.put('AcquireTime', dwelltime)
 
-    def arm(self, mode=None, wait=False):
+    def arm(self, mode=None, wait=False, numframes=None):
         if mode is not None:
             self.mode = mode
         time.sleep(.001)
-        if self._mode == NDARRAY_MODE:
+        if numframes is not None:
+            self._xsp3.put('NumImages', numframes)
+        if self.mode == NDARRAY_MODE:
             self._xsp3.FileCaptureOn()
-        elif self._mode == SCALER_MODE:
+        elif self.mode == SCALER_MODE:
             self._xsp3.FileCaptureOff()
-        elif self._mode == ROI_MODE:
+        elif self.mode == ROI_MODE:
             self._xsp3.FileCaptureOff()
             for i in self._chans:
                 self._xsp3.put('MCA%iROI:TSControl' % i, 0) # 'Erase/Start'
-
 
     def disarm(self, mode=None, wait=False):
         if mode is not None:
@@ -453,7 +449,7 @@ class Xspress3Detector(DetectorMixin):
         if mode is not None:
             self.mode = mode
         if arm:
-            self.am()
+            self.arm()
         self._xsp3.put('Acquire', 1, wait=wait)
 
     def stop(self, mode=None, disarm=False, wait=False):
@@ -464,3 +460,6 @@ class Xspress3Detector(DetectorMixin):
 
     def save_arraydata(self, filename=None):
         pass
+
+    def file_write_complete(self):
+        return self._xsp3.FileWriteComplete()
