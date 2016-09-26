@@ -520,21 +520,29 @@ class NewportXPS:
             accel = max_accel/2.0
         accel = min(accel, max_accel)
 
-        distance = (stop - start)*1.0
+        npulses = 1 + int((abs(stop - start) + abs(step)*0.1) / abs(step))
         scantime = abs(scantime)
+        pixeltime= scantime / (npulses-1)
+
+        scantime = pixeltime*npulses
+        distance = (abs(stop - start) + abs(step))*1.0
         velocity = min(distance/scantime, max_velo)
-        ramptime = abs(velocity / accel)
-        rampdist = 0.5 * velocity * ramptime
-        pixeltime= scantime * step / abs(distance)
+        ramptime = 4.0 * abs(velocity/accel)
+        rampdist = 2.0 * velocity * ramptime
+
 
         self.trajectories['foreward'] = {'axes': [axis],
-                                         'start': [start-rampdist],
+                                         'start': [start-step/2.0-rampdist],
+                                         'stop':  [stop+step/2.0+rampdist],
                                          'pixeltime': pixeltime,
+                                         'npulses': npulses,
                                          'nsegments': 3}
 
-        self.trajectories['backward'] = {'axes': [axis],
-                                         'start': [stop+rampdist],
+        self.trajectories['backward'] = {'axes':  [axis],
+                                         'start': [stop+step/2.0+rampdist],
+                                         'stop':  [start-step/2.0-rampdist],
                                          'pixeltime': pixeltime,
+                                         'npulses': npulses,
                                          'nsegments': 3}
 
         base = {'start': start, 'stop': stop, 'step': step,
@@ -555,7 +563,8 @@ class NewportXPS:
             back["%s_%s" % (axis, attr)] *= -1.0
 
         ret = True
-        # print("Fore:")
+        # print("Foreward:", accel, velocity, max_velo)
+        # print("Traj: ", self.trajectories['foreward'])
         # print (self.linear_template % fore)
         if upload:
             ret = False
@@ -642,12 +651,17 @@ class NewportXPS:
         self.traj_state = COMPLETE
         npulses = 0
         if save:
-            npulses, buff = self.read_gathering(set_idle_when_done=False)
-            self.save_gathering_file(output_file, buff, verbose=verbose,
-                                     set_idle_when_done=False)
+            self.read_and_save(outputfile)
         self.traj_state = IDLE
         return npulses
 
+
+    def read_and_save(self, outputfile):
+        "read and save gathering file"
+        npulses, buff = self.read_gathering(set_idle_when_done=False)
+        self.save_gathering_file(outputfile, buff,
+                                 verbose=False,
+                                 set_idle_when_done=False)
 
     def read_gathering(self, set_idle_when_done=True):
         """
