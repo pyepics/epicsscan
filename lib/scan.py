@@ -169,7 +169,7 @@ class StepScan(object):
     """
     def __init__(self, filename=None, auto_increment=True,
                  comments=None, messenger=None, scandb=None,
-                 prescan_func=None, **kws):
+                 prescan_func=None, larch=None, **kws):
         self.pos_settle_time = MIN_POLL_TIME
         self.det_settle_time = MIN_POLL_TIME
         self.pos_maxmove_time = 3600.0
@@ -182,6 +182,7 @@ class StepScan(object):
         self.scantype = 'linear'
         self.detmode  = 'scaler'
         self.scandb = scandb
+        self.larch = larch
         self.prescan_func = prescan_func
         self.verified = False
         self.abort = False
@@ -304,6 +305,11 @@ class StepScan(object):
         out = [m(breakpoint=breakpoint) for m in self.at_break_methods]
         if self.datafile is not None:
             self.datafile.write_data(breakpoint=breakpoint)
+        if self.larch is not None:
+            try:
+                self.larch.run("pre_scan_command()")
+            except:
+                print("Failed to run pre_scan_command()")
         return out
 
     def pre_scan(self, **kws):
@@ -326,6 +332,11 @@ class StepScan(object):
             except:
                 ret = None
             out.append(ret)
+        if self.larch is not None:
+            try:
+                self.larch.run("pre_scan_command()")
+            except:
+                print("Failed to run pre_scan_command()")
         return out
 
     def post_scan(self):
@@ -471,9 +482,7 @@ class StepScan(object):
         """set interrupt requests:
 
         abort / pause / resume
-
         if scandb is being used, these are looked up from database.
-        otherwise local larch variables are used.
         """
         self.abort  = self.get_infobool('request_abort')
         self.pause  = self.get_infobool('request_pause')
@@ -489,7 +498,6 @@ class StepScan(object):
         abort / pause / resume
 
         if scandb is being used, these are looked up from database.
-        otherwise local larch variables are used.
         """
         self.abort = self.pause = self.resume = False
         self.set_info('request_abort', 0)
