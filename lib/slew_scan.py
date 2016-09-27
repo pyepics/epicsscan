@@ -30,10 +30,12 @@ class Slew_Scan(StepScan):
     """Slew Scans"""
     def __init__(self, filename=None, auto_increment=True,
                  comments=None, messenger=None, scandb=None,
-                 prescan_func=None, **kws):
+                 prescan_func=None, larch=None, **kws):
+
         StepScan.__init__(self, auto_increment=auto_increment,
                           comments=comments, messenger=messenger,
                           scandb=scandb, **kws)
+        self.larch = larch
         self.scantype = 'slew'
         self.detmode  = 'ndarray'
 
@@ -155,6 +157,14 @@ class Slew_Scan(StepScan):
         f.write('\n'.join(txt))
         f.close()
         # print("Wrote Simple Scan Config: ", sname)
+
+        detpath = self.mapdir[len(self.fileroot):]
+        if detpath.startswith('/'):
+            detpath = detpath[1:]
+        for det in self.detectors:
+            det.config_filesaver(number=1, path=detpath, auto_increment=True,
+                                 auto_save=True)
+
         return sname
 
     def post_scan(self):
@@ -226,10 +236,7 @@ class Slew_Scan(StepScan):
             elif 'perkin' in det.label.lower():
                 xrddet = det
                 xrfbase =  os.path.abspath(os.path.join(self.mapdir, 'xrd'))
-
             det.arm(mode=self.detmode, numframes=npulses)
-            det.config_filesaver(number=1, path=detpath, auto_increment=True,
-                                 auto_save=True)
 
         self.clear_interrupts()
         self.set_info('scan_progress', 'starting')
@@ -243,8 +250,15 @@ class Slew_Scan(StepScan):
             self.set_info('scan_progress', 'row %i of %i' % (irow, npts))
             rowdata_ok = True
 
+
             trajname = ['foreward', 'backward'][(dir_off + irow) % 2]
             print('row %i of %i, %s' % (irow, npts, trajname))
+            if self.larch is not None and irow > 1 and irow % 10 == 0:
+                try:
+                    self.larch.run("pre_scan_command()")
+                except:
+                    print("Failed to run pre_scan_command()")
+
             self.xps.arm_trajectory(trajname)
             for det in self.detectors:
                 det.start(arm=True, mode='ndarray')
