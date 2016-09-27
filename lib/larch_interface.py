@@ -28,7 +28,6 @@ try:
 except:
     pass
 
-
 class LarchScanDBWriter(object):
     """Writer for Larch Interface that writes to both Stdout
     and Messages table of scandb
@@ -100,9 +99,6 @@ class LarchScanDBServer(object):
         self.symtab.set_symbol('_epics.caput', caput)
         self.symtab.set_symbol('_epics.PV', PV)
 
-    def load_plugins(self, macro_dir=None):
-        print("load_plugins() no longer needed")
-        return
 
     def load_modules(self, macro_dir=None, verbose=False):
         self.load_macros(macro_dir=macro_dir, verbose=verbose)
