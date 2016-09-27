@@ -457,7 +457,7 @@ class ScanDB(object):
             raise ScanDBException('get_scandict needs valid scan name')
         return json.loads(sobj.text, object_hook=asciikeys)
 
-    def make_scan(self, scanname, filename='scan.001'):
+    def make_scan(self, scanname, filename='scan.001', larch=None):
         """
         create a StepScan object from a saved scan definition
 
@@ -479,6 +479,7 @@ class ScanDB(object):
             sdict['rois'] = json.loads(self.get_info('rois'), object_hook=asciikeys)
         sdict['filename'] = filename
         sdict['scandb'] = self
+        sdict['larch'] = larch
         sdict['extra_pvs'] = []
         for row  in self.getall('extrapvs', orderby='id'):
             sdict['extra_pvs'].append((row.name, row.pvname))

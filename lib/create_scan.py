@@ -22,7 +22,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
                 e0=None, dimension=1, regions=None,
                 energy_drive=None, energy_read=None,
                 time_kw=0, max_time=0, is_relative=False,
-                scandb=None, **kws):
+                scandb=None, larch=None, **kws):
     """
     return a StepScan object, built from function arguments
 
@@ -165,6 +165,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
         scan.add_extra_pvs(extra_pvs)
 
     scan.scandb = scandb
+    scan.larch = larch
     scan.scantype = scantype
     scan.filename = filename
     scan.scantime = scantime
