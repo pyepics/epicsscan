@@ -241,6 +241,7 @@ class Xspress3Detector(DetectorMixin):
         self.nmcas = nmcas = int(nmcas)
         self._chans = range(1, nmcas+1)
         self.nrois = nrois = int(nrois)
+        self.fileroot = fileroot
         DetectorMixin.__init__(self, prefix, label=label)
         self._xsp3 = Xspress3(prefix, nmcas=nmcas,
                               fileroot=fileroot,
@@ -287,7 +288,6 @@ class Xspress3Detector(DetectorMixin):
 
     def config_filesaver(self, **kws):
         self._xsp3.config_filesaver(**kws)
-
 
     def save_calibration(self, filename, **kws):
         buff = self._xsp3.roi_calib_info()

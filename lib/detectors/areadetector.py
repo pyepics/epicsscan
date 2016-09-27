@@ -55,7 +55,9 @@ class ADFileMixin(object):
 
     def setFilePath(self, pathname):
         "set FilePath"
-        fullpath = os.path.join(self.fileroot, pathname)
+        if pathname.startswith('/'):
+            pathname = pathname[1:]
+        fullpath = os.path.join(str(self.fileroot), str(pathname))
         return self.filePut('FilePath', fullpath)
 
     def setFileTemplate(self, fmt):
@@ -185,6 +187,8 @@ class AreaDetector(DetectorMixin, ADFileMixin):
             fname = fix_filename("%s_%s" % (fname, label))
             s_froot = scan.scandb.get_info('server_fileroot')
             workdir = scan.scandb.get_info('user_folder')
+            if workdir.startswith('/'):
+                workdir = workdir[1:]
             d_froot = self.fileroot
             if d_froot is None or len(d_froot) < 1:
                 d_froot = s_froot
