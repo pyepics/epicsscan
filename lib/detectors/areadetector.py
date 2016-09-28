@@ -16,7 +16,8 @@ AD_FILE_PLUGINS = ('TIFF1', 'JPEG1', 'NetCDF1',
 class ADFileMixin(object):
     """mixin class for Xspress3"""
     def config_filesaver(self, path=None, name=None, number=None,
-                         format=None, auto_save=None, write_mode=None,
+                         numcapture=None,
+                         template=None, auto_save=None, write_mode=None,
                          auto_increment=None):
         """configure filesaver, setting multiple attributes at once
         Arguments
@@ -24,20 +25,26 @@ class ADFileMixin(object):
            path
            name
            number
-           format
+           numcapture
+           template
            auto_save
            write_mode
            auto_increment
         Each of these is forwarded to the right PV, if not None.
         """
+        print("AD Config FileSaver ", self.filesaver)
         if path is not None:
             self.setFilePath(path)
         if name is not None:
             self.setFileName(name)
         if number is not None:
-            self.setFileNumber(number)
-        if format is not None:
-            self.setFileFormat(format)
+            self.filePut('AutoIncrement', 0, wait=True)
+            self.filePut('FileNumber', number)
+        if numcapture is not None:
+            self.setFileNumCapture(numcapture)
+        if template is not None:
+            self.setFileTemplate(template)
+
         if auto_increment is not None:
             self.filePut('AutoIncrement', auto_increment)
         if auto_save is not None:
