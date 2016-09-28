@@ -162,9 +162,10 @@ class Slew_Scan(StepScan):
         if detpath.startswith('/'):
             detpath = detpath[1:]
         for det in self.detectors:
-            det.config_filesaver(number=1, path=detpath, auto_increment=True,
+            det.config_filesaver(number=1, path=detpath,
+                                 format="%s%s.%4.4d",
+                                 auto_increment=True,
                                  auto_save=True)
-
         return sname
 
     def post_scan(self):
