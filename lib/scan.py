@@ -312,14 +312,14 @@ class StepScan(object):
                 print("Failed to run pre_scan_command()")
         return out
 
-    def pre_scan(self, **kws):
-        if self.debug: print('Stepscan PRE SCAN ')
+    def pre_scan(self, row=0, **kws):
+        # if self.debug:
+        self.set_info('scan_progress', 'running pre_scan routines')
         for (desc, pv) in self.extra_pvs:
             pv.connect()
-
         out = []
         for meth in self.pre_scan_methods:
-            out.append( meth(scan=self))
+            out.append(meth(scan=self, row=row, **kws))
             time.sleep(0.05)
 
         for det in self.detectors:
@@ -328,13 +328,13 @@ class StepScan(object):
 
         if callable(self.prescan_func):
             try:
-                ret = self.prescan_func(scan=self)
+                ret = self.prescan_func(scan=self, row=row, **kws)
             except:
                 ret = None
             out.append(ret)
         if self.larch is not None:
             try:
-                self.larch.run("pre_scan_command()")
+                self.larch.run("pre_scan_command(row=%i)" % row)
             except:
                 print("Failed to run pre_scan_command()")
         return out
