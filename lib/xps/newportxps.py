@@ -593,20 +593,21 @@ class NewportXPS:
         self.traj_state = ARMING
         self.traj_file = '%s.trj'  % name
 
-        move_kws = {}
+        # move_kws = {}
         outputs = []
         for out in self.gather_outputs:
             for i, ax in enumerate(traj['axes']):
                 outputs.append('%s.%s.%s' % (self.traj_group, ax, out))
-                move_kws[ax] = float(traj['start'][i])
+                # move_kws[ax] = float(traj['start'][i])
 
-        self.move_group(self.traj_group, **move_kws)
+        # print("XPS : Arm Trajectory, move to ", name, move_kws)
+        # self.move_group(self.traj_group, **move_kws)
 
         self.gather_titles = "%s\n#%s\n" % (self.gather_header, " ".join(outputs))
         self._xps.GatheringReset(self._sid)
         self._xps.GatheringConfigurationSet(self._sid, outputs)
         self._xps.MultipleAxesPVTPulseOutputSet(self._sid, self.traj_group,
-                                                2, traj['nsegments'],
+                                                0, traj['nsegments'],
                                                 traj['pixeltime'])
 
         self._xps.MultipleAxesPVTVerification(self._sid,

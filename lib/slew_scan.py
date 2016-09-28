@@ -41,6 +41,7 @@ class Slew_Scan(StepScan):
 
     def prepare_scan(self):
         """prepare slew scan"""
+        self.set_info('scan_progress', 'preparing')
         conf = self.scandb.get_config(self.scantype)
         conf = self.slewscan_config = json.loads(conf.notes)
         self.xps = NewportXPS(conf['host'],
@@ -158,14 +159,19 @@ class Slew_Scan(StepScan):
         f.close()
         # print("Wrote Simple Scan Config: ", sname)
 
+        self.motor_vals = {}
+        trajs = self.xps.trajectories
+        for i, axes in enumerate(trajs['foreward']['axes']):
+            pvname = self.slewscan_config['motors'][axes]
+            v1, v2 = trajs['foreward']['start'][i], trajs['backward']['start'][i]
+            self.motor_vals[pvname] = (PV(pvname), v1, v2)
+
         detpath = self.mapdir[len(self.fileroot):]
         if detpath.startswith('/'):
             detpath = detpath[1:]
         for det in self.detectors:
-            det.config_filesaver(number=1, path=detpath,
-                                 format="%s%s.%4.4d",
-                                 auto_increment=True,
-                                 auto_save=True)
+            det.config_filesaver(path=detpath)
+
         return sname
 
     def post_scan(self):
@@ -177,13 +183,15 @@ class Slew_Scan(StepScan):
             det.disarm(mode=self.detmode)
             det.ContinuousMode()
 
-
     def run(self, filename='map.001', comments=None, debug=False):
         """
         run a slew scan
         """
+        # print("RUN SLEW 1")
         self.prepare_scan()
+        # print("RUN SLEW 2")
         trajs = self.xps.trajectories
+
         dir_off = 1
         tname = 'foreward'
         if trajs['foreward']['axes'][0] == 'X':
@@ -192,6 +200,10 @@ class Slew_Scan(StepScan):
             dir_off += 1
         if dir_off % 2 == 0:
             tname = 'backward'
+
+        # print(" Traj: ", tname, self.xps.trajectories[tname])
+        # pvnames = trajs[tname]['axes']
+        # print("SlewScan Config ", pvnames, self.slewscan_config['motors'])
 
         self.xps.arm_trajectory(tname)
         npulses = trajs[tname]['npulses']
@@ -202,6 +214,11 @@ class Slew_Scan(StepScan):
         roi_file = os.path.join(self.mapdir, 'ROI.dat')
 
         [p.move_to_pos(0, wait=False) for p in self.positioners]
+        for pv, v1, v2 in self.motor_vals.values():
+            val = v1
+            if tname == 'backward': val = v2
+            pv.put(val, wait=False)
+
         self.pre_scan(npulses=npulses, dwelltime=dwelltime, mode='ndarray')
 
         master = open(master_file, 'w')
@@ -237,7 +254,8 @@ class Slew_Scan(StepScan):
             elif 'perkin' in det.label.lower():
                 xrddet = det
                 xrfbase =  os.path.abspath(os.path.join(self.mapdir, 'xrd'))
-            det.arm(mode=self.detmode, numframes=npulses)
+            # det.arm(mode=self.detmode, numframes=npulses)
+
 
         self.clear_interrupts()
         self.set_info('scan_progress', 'starting')
@@ -256,15 +274,27 @@ class Slew_Scan(StepScan):
             print('row %i of %i, %s' % (irow, npts, trajname))
             if self.larch is not None and irow > 1 and irow % 10 == 0:
                 try:
-                    self.larch.run("pre_scan_command()")
+                    self.larch.run("pre_scan_command(row=%i)" % irow)
                 except:
-                    print("Failed to run pre_scan_command()")
+                    print("Failed to run pre_scan_command(row=%i)" % irow)
 
-            self.xps.arm_trajectory(trajname)
             for det in self.detectors:
                 det.start(arm=True, mode='ndarray')
 
+            for pv, v1, v2 in self.motor_vals.values():
+                val = v1
+                if trajname == 'backward': val = v2
+                pv.put(val, wait=False)
+
+            self.xps.arm_trajectory(trajname)
+            if irow < 2:
+                time.sleep(0.25)
+
             [p.move_to_pos(irow-1, wait=True) for p in self.positioners]
+            for pv, v1, v2 in self.motor_vals.values():
+                val = v1
+                if trajname == 'backward': val = v2
+                pv.put(val, wait=True)
 
             # start trajectory in another thread
             scan_thread = Thread(target=self.xps.run_trajectory,
@@ -322,8 +352,8 @@ class Slew_Scan(StepScan):
             if self.look_for_interrupts():
                 break
             self.check_beam_ok()
-
         self.post_scan()
+        print('Scan done.')
         return
 
     def check_beam_ok(self):
