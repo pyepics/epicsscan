@@ -25,6 +25,8 @@ from file_utils import fix_varname, fix_filename, increment_filename
 from epics import PV, poll, get_pv, caget, caput
 from .xps import NewportXPS
 
+from .debugtime import debugtime
+
 
 class Slew_Scan(StepScan):
     """Slew Scans"""
@@ -183,13 +185,12 @@ class Slew_Scan(StepScan):
             det.disarm(mode=self.detmode)
             det.ContinuousMode()
 
-    def run(self, filename='map.001', comments=None, debug=False):
+    def run(self, filename='map.001', comments=None, debug=False, npts=None):
         """
         run a slew scan
         """
-        # print("RUN SLEW 1")
         self.prepare_scan()
-        # print("RUN SLEW 2")
+
         trajs = self.xps.trajectories
 
         dir_off = 1
@@ -206,6 +207,7 @@ class Slew_Scan(StepScan):
         # print("SlewScan Config ", pvnames, self.slewscan_config['motors'])
 
         self.xps.arm_trajectory(tname)
+
         npulses = trajs[tname]['npulses']
         dwelltime = trajs[tname]['pixeltime']
 
@@ -224,7 +226,10 @@ class Slew_Scan(StepScan):
         master = open(master_file, 'w')
 
         dim = 2
-        l_, pvs, start, stop, npts = self.outer
+        l_, pvs, start, stop, _npts = self.outer
+        if npts is None:
+            npts = _npts
+        npts = min(npts, len(self.positioners[0].array))
         step = abs(start-stop)/(npts-1)
         master.write("#Scan.version = 1.3\n")
         master.write('#SCAN.starttime = %s\n' % time.ctime())
@@ -261,11 +266,13 @@ class Slew_Scan(StepScan):
         self.set_info('scan_progress', 'starting')
         self.set_info('filename', filename)
 
-        npts = len(self.positioners[0].array)
         start_time = time.time()
         irow = 0
+
         while irow < npts:
             irow += 1
+            # dtimer =  debugtime()
+            # dtimer.add('=== row start %i ====' % irow)
             self.set_info('scan_progress', 'row %i of %i' % (irow, npts))
             rowdata_ok = True
 
@@ -277,30 +284,31 @@ class Slew_Scan(StepScan):
                     self.larch.run("pre_scan_command(row=%i)" % irow)
                 except:
                     print("Failed to run pre_scan_command(row=%i)" % irow)
-
+            # dtimer.add('start det')
             for det in self.detectors:
                 det.start(arm=True, mode='ndarray')
-
+            # dtimer.add('inner pos move(1)')
             for pv, v1, v2 in self.motor_vals.values():
                 val = v1
                 if trajname == 'backward': val = v2
                 pv.put(val, wait=False)
-
+            # dtimer.add('arm trajectory')
             self.xps.arm_trajectory(trajname)
             if irow < 2:
                 time.sleep(0.25)
-
+            # dtimer.add('outer pos move')
             [p.move_to_pos(irow-1, wait=True) for p in self.positioners]
+            # dtimer.add('inner pos move(2)')
             for pv, v1, v2 in self.motor_vals.values():
                 val = v1
                 if trajname == 'backward': val = v2
                 pv.put(val, wait=True)
-
+            # dtimer.add('inner pos move done')
             # start trajectory in another thread
             scan_thread = Thread(target=self.xps.run_trajectory,
                                  kwargs=dict(save=False), name='trajectory_thread')
             scan_thread.start()
-
+            # dtimer.add('scan thread start')
             posfile = make_filename(posbase, irow)
             scafile = make_filename(scabase, irow)
             xrffile = make_filename(xrfbase, irow)
@@ -319,7 +327,9 @@ class Slew_Scan(StepScan):
                     masterline = "%s %s" % (masterline, fn)
 
             # wait for trajectory to finish
+            # dtimer.add('scan thread join(1)')
             scan_thread.join()
+            # dtimer.add('scan thread joined')
             if self.look_for_interrupts():
                 break
 
@@ -327,11 +337,10 @@ class Slew_Scan(StepScan):
             master.write(masterline)
             if irow < npts-1:
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
-
+            # dtimer.add('start read')
             saver_thread = Thread(target=self.xps.read_and_save,
                                   args=(posfile,), name='saver_thread')
             saver_thread.start()
-
             if xrfdet is not None:
                 t0 = time.time()
                 while not xrfdet.file_write_complete() and (time.time()-t0 < 5.0):
@@ -342,16 +351,20 @@ class Slew_Scan(StepScan):
                     time.sleep(0.25)
                     xrfdet.stop()
                     time.sleep(0.25)
+            # dtimer.add('read xrf done')
             if scadet is not None:
                 scadet.save_arraydata(filename=scafile, npts=npulses)
+            # dtimer.add('read sis done')
             saver_thread.join()
+            # dtimer.add('read xps done')
+
             if not rowdata_ok:
-                self.write('bad data for row: redoing this row\n')
+                self.write('#### BAD DATA for row: redoing this row\n')
                 irow -= 1
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
             if self.look_for_interrupts():
                 break
-            self.check_beam_ok()
+            # dtimer.show()
         self.post_scan()
         print('Scan done.')
         return
