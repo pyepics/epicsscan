@@ -32,7 +32,7 @@ class ADFileMixin(object):
            auto_increment
         Each of these is forwarded to the right PV, if not None.
         """
-        print("AD Config FileSaver ", self.filesaver)
+        # print("AD Config FileSaver ", self.filesaver)
         if path is not None:
             self.setFilePath(path)
         if name is not None:
