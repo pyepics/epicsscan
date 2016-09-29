@@ -27,8 +27,9 @@ from sqlalchemy.dialects import sqlite, postgresql
 
 import epics
 
-from scandb_schema import get_dbengine, create_scandb, map_scandb
-from scandb_schema import (Info, Status, PVs, MonitorValues, ExtraPVs,
+
+from .scandb_schema import get_dbengine, create_scandb, map_scandb
+from .scandb_schema import (Info, Status, PVs, MonitorValues, ExtraPVs,
                            Macros, Commands, ScanData, ScanPositioners,
                            ScanCounters, ScanDetectors, ScanDefs,
                            SlewScanPositioners, Positions, Position_PV,
@@ -36,20 +37,9 @@ from scandb_schema import (Info, Status, PVs, MonitorValues, ExtraPVs,
                            Instrument_Precommands, Instrument_Postcommands)
 
 
-
-from .utils import strip_quotes, normalize_pvname, asciikeys, pv_fullname
-
-class ScanDBException(Exception):
-    """Scan Exception: General Errors"""
-    def __init__(self, *args):
-        Exception.__init__(self, *args)
-        sys.excepthook(*sys.exc_info())
-
-class ScanDBAbort(Exception):
-    """Scan Abort Exception"""
-    def __init__(self, *args):
-        Exception.__init__(self, *args)
-        sys.excepthook(*sys.exc_info())
+from .utils import (normalize_pvname, asciikeys, pv_fullname,
+                    ScanDBException, ScanDBAbort)
+from .create_scan import create_scan
 
 def json_encode(val):
     "simple wrapper around json.dumps"
@@ -460,12 +450,40 @@ class ScanDB(object):
         self.session.add(row)
         return row
 
-    def get_scandict(self, scan):
+    def get_scandict(self, scanname):
         """return dictionary of scan configuration for a named scan"""
-        sobj = self.get_scandef(scan)
+        sobj = self.get_scandef(scanname)
         if sobj is None:
             raise ScanDBException('get_scandict needs valid scan name')
         return json.loads(sobj.text, object_hook=asciikeys)
+
+    def make_scan(self, scanname, filename='scan.001', larch=None):
+        """
+        create a StepScan object from a saved scan definition
+
+        Arguments
+        ---------
+        scanname (string): name of scan
+        filename (string): name for datafile
+
+        Returns
+        -------
+        scan object
+        """
+        try:
+            sdict = self.get_scandict(scanname)
+        except ScanDBException:
+            raise ScanDBException("make.scan(): '%s' not a valid scan name" % scanname)
+
+        if 'rois' not in sdict:
+            sdict['rois'] = json.loads(self.get_info('rois'), object_hook=asciikeys)
+        sdict['filename'] = filename
+        sdict['scandb'] = self
+        sdict['larch'] = larch
+        sdict['extra_pvs'] = []
+        for row  in self.getall('extrapvs', orderby='id'):
+            sdict['extra_pvs'].append((row.name, row.pvname))
+        return create_scan(**sdict)
 
     # macros
     def get_macro(self, name):

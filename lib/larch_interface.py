@@ -28,7 +28,6 @@ try:
 except:
     pass
 
-
 class LarchScanDBWriter(object):
     """Writer for Larch Interface that writes to both Stdout
     and Messages table of scandb
@@ -54,7 +53,7 @@ class LarchScanDBWriter(object):
         if self.scandb is not None:
             self.scandb.commit()
 
-                
+
 class LarchScanDBServer(object):
     """      """
     def __init__(self, scandb, fileroot=None):
@@ -63,7 +62,6 @@ class LarchScanDBServer(object):
         self.writer = LarchScanDBWriter(scandb=scandb)
         self.macro_dir = self.scandb.get_info('macro_folder')
         self.loaded_modules = {}
-
 
         self.larch = self.symtab = None
         if HAS_LARCH:
@@ -101,32 +99,11 @@ class LarchScanDBServer(object):
         self.symtab.set_symbol('_epics.caput', caput)
         self.symtab.set_symbol('_epics.PV', PV)
 
-    def load_plugins(self, macro_dir=None):
-        print("load_plugins() no longer needed")
-        return
-        if not HAS_LARCH:
-            return
-        if macro_dir is None:
-            macro_dir = self.macro_dir
-        if macro_dir is None:
-            print("load_plugins: no Macro folder")
-            return
-        else:
-            plugindir = os.path.join(self.fileroot, macro_dir, 'plugins')
-            self.symtab._sys.config.plugins_path.insert(0, plugindir)
-            for pyfile in glob.glob(os.path.join(plugindir, '*.py')):
-                plugin_name = str(os.path.split(pyfile)[1][:-3])
-                out = self.larch.run("add_plugin('%s')" % plugin_name)
-                if  not out:
-                    print("Error adding plugin '%s'" % (plugin_name))
-                    if len(self.larch.error) > 0:
-                        emsg = '\n'.join(self.larch.error[0].get_error())
-                        self.scandb.set_info('error_message', emsg)
 
     def load_modules(self, macro_dir=None, verbose=False):
         self.load_macros(macro_dir=macro_dir, verbose=verbose)
-        
-    def load_macros(self, macro_dir=None, verbose=False):        
+
+    def load_macros(self, macro_dir=None, verbose=False):
         """read latest larch macros / modules"""
         if not HAS_LARCH:
             return
@@ -173,11 +150,11 @@ class LarchScanDBServer(object):
                     thismod  = self.symtab.get_symbol(modname)
                     _sys.searchGroupObjects.append(thismod)
             os.chdir(origdir)
-        except OSError: 
+        except OSError:
             pass
         self.scandb.set_path(fileroot=self.fileroot)
         return self.get_macros()
-    
+
     def __call__(self, arg):
         return self.run(arg)
 
@@ -213,7 +190,7 @@ class LarchScanDBServer(object):
         for mod in self.loaded_modules:
             if hasattr(symtab, mod):
                 modlist.append(getattr(symtab, mod))
-        
+
         for group in modlist:
             for name in dir(group):
                 obj = getattr(group, name)

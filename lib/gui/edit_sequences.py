@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import wx
 import wx.lib.scrolledpanel as scrolled
 
-from ..ordereddict import OrderedDict
+from collections import OrderedDict
 from .gui_utils import (GUIColors, set_font_with_children, YesNo, popup,
                         add_button, pack, SimpleText, check, okcancel,
                         add_subtitle, Font, LCEN, CEN, RCEN, FRAMESTYLE)
@@ -59,7 +59,7 @@ class SequencesFrame(wx.Frame) :
         self.Font10=wx.Font(10, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
         titlefont = wx.Font(13, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
 
-        wx.Frame.__init__(self, None, -1, 
+        wx.Frame.__init__(self, None, -1,
                           'Epics Scanning: Command Sequence',  size=size)
 
         self.SetFont(self.Font10)
@@ -75,7 +75,7 @@ class SequencesFrame(wx.Frame) :
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.cmdlist, 1, wx.ALIGN_LEFT|wx.ALL|wx.GROW)
         pack(spanel, sizer)
-        
+
         spanel.SetupScrolling()
 
         bpan = wx.Panel(self)

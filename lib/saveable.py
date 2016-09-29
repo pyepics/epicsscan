@@ -26,14 +26,15 @@ class Saveable(object):
         return self.__class
 
     def _saved_repr(self):
-        return "<%s: args=%s, kws=%s>" % (self.__class,
-                                          self._saved_args(),
-                                          self._saved_kws())
+        return "%s(args=%s, kws=%s)" % (self.__class,
+                                        self._saved_args(),
+                                        self._saved_kws())
     def _saved_state(self):
         return (self.__class, self._saved_args(), self._saved_kws())
 
     def __eq__(self, other):
-        return (self._saved_class() == other._saved_class() and
+        return (hasattr(other, '_saved_class') and
+                self._saved_class() == other._saved_class() and
                 self._saved_args() == other._saved_args() and
                 self._saved_kws() == other._saved_kws())
 
@@ -74,4 +75,3 @@ if __name__ == '__main__':
         b = TestCase(*args, **kws) #@ *args, **kws)
         print b
         print a == b, a is b
-

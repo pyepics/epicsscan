@@ -5,17 +5,121 @@ based on EpicsApps.StepScan.
 
 """
 import numpy as np
+from threading import Thread
+from epics import caget, caput, PV
 
-from .stepscan import StepScan
+from .scan import StepScan
 from .positioner import Positioner
 from .saveable import Saveable
 
-from .xps import XPSTrajectory
+from .utils import ScanDBAbort
+from .detectors import Struck, TetrAMM, Xspress3
 
 XAFS_K2E = 3.809980849311092
 HC       = 12398.4193
 RAD2DEG  = 180.0/np.pi
 MAXPTS   = 8192
+
+
+class PVSlaveThread(Thread):
+    """
+    Sets up a Thread to allow a Master Index PV (say, an advancing channel)
+    to send a Slave PV to a value from a pre-defined array.
+
+    undulator = PVSlaveThread(master_pvname='13IDE:SIS1:CurrentChannel',
+                              slave_pvname='ID13us:ScanEnergy')
+    undulator.set_array(array_of_values)
+    undulator.enable()
+    # start thread
+    undulator.start()
+
+    # other code that may trigger the master PV
+
+    # to finish, set 'running' to False, and join() thread
+    undulator.running = False
+    undulator.join()
+
+    """
+    def __init__(self, master_pvname=None,  slave_pvname=None, scan=None,
+                 values=None, maxpts=8192, wait_time=0.05, dead_time=0.5,
+                 offset=3):
+        Thread.__init__(self)
+        self.maxpts = maxpts
+        self.offset = offset
+        self.wait_time = wait_time
+        self.dead_time = dead_time
+        self.last_move_time = time.time() - 100.0
+        self.pulse = -1
+        self.last  = None
+        self.scan = scan
+        self.running = False
+        self.vals = values
+        if self.vals is None:
+            self.vals  = np.zeros(self.maxpts)
+        self.master = None
+        self.slave = None
+        if master_pvname is not None: self.set_master(master_pvname)
+        if slave_pvname is not None: self.set_slave(slave_pvname)
+
+    def set_master(self, pvname):
+        self.master = PV(pvname, callback=self.onPulse)
+
+    def set_slave(self, pvname):
+        self.slave = PV(pvname)
+
+    def onPulse(self, pvname, value=1, **kws):
+        self.pulse  = max(0, min(self.maxpts, value + self.offset))
+
+    def set_array(self, vals):
+        "set array values for slave PV"
+        n = len(vals)
+        if n > self.maxpts:
+            vals = vals[:self.maxpts]
+        self.vals  = np.ones(self.maxpts) * vals[-1]
+        self.vals[:n] = vals
+
+    def enable(self):
+        self.last = self.pulse = -1
+        self.running = True
+
+    def run(self):
+        while self.running:
+            time.sleep(self.wait_time)
+            now = time.time()
+            if (self.pulse > self.last and self.last is not None and
+                (now - self.last_move_time) > self.dead_time):
+                val = self.vals[self.pulse]
+                if self.slave.write_access:
+                    try:
+                        self.slave.put(val)
+                        self.last_move_time = time.time()
+                    except:
+                        print("PVFollow Put failed: ", self.slave.pvname , val)
+                self.last = self.pulse
+                if (self.scan is not None and self.pulse > 3 and self.pulse % 5 == 0):
+                    npts = self.scan.npts
+                    cpt = self.pulse
+                    dtime = self.scan.dwelltime
+                    if isinstance(dtime, list):
+                        dtime = dtime[0]
+                    time_left = (npts-cpt)*dtime
+                    self.scan.set_info('scan_time_estimate', time_left)
+                    time_est  = hms(time_left)
+                    msg = 'Point %i/%i,  time left: %s' % (cpt, npts, time_est)
+                    if cpt % self.scan.message_points == 0:
+                        self.scan.write("%s\n" % msg)
+                    self.scan.set_info('scan_progress', msg)
+                    for c in self.scan.counters:
+                        try:
+                            c.buff = c.pv.get().tolist()
+                        except:
+                            pass
+                        name = getattr(c, 'db_label', None)
+                        if name is None:
+                            name = c.label
+                        c.db_label = fix_varname(name)
+                        self.scan.scandb.set_scandata(c.db_label, c.buff)
+                    self.scan.scandb.commit()
 
 
 def etok(energy):
@@ -49,8 +153,8 @@ class XAFS_Scan(StepScan):
         self.energies = []
         self.regions = []
         StepScan.__init__(self, **kws)
-        self.is_qxafs = False
         self.scantype = 'xafs'
+        self.detmode  = 'scaler'
         self.dwelltime = []
         self.energy_pos = None
         self.set_energy_pv(energy_pv, read_pv=read_pv, extra_pvs=extra_pvs)
@@ -125,7 +229,6 @@ class XAFS_Scan(StepScan):
         if self.energy_pos is not None:
             self.energy_pos.array = np.array(self.energies)
 
-
 class QXAFS_Scan(XAFS_Scan):
     """QuickXAFS Scan"""
 
@@ -136,30 +239,22 @@ class QXAFS_Scan(XAFS_Scan):
         self.e0 = e0
         self.energies = []
         self.regions = []
+        self.xps = None
         XAFS_Scan.__init__(self, label=label, energy_pv=energy_pv,
                            read_pv=read_pv, e0=e0, extra_pvs=extra_pvs,  **kws)
 
-        self.is_qxafs = True
-        self.scantype = 'xafs'
-        qconf = self.scandb.get_config('QXAFS')
-        qconf = self.qconf = json.loads(qconf.notes)
-
-        self.xps = XPSTrajectory(qconf['host'],
-                                 user=qconf['user'],
-                                 password=qconf['passwd'],
-                                 group=qconf['group'],
-                                 positioners=qconf['positioners'],
-                                 outputs=qconf['outputs'])
-
-
         self.set_energy_pv(energy_pv, read_pv=read_pv, extra_pvs=extra_pvs)
+        self.scantype = 'qxafs'
+        self.detmode  = 'roi'
 
-    def make_XPS_trajectory(self, reverse=False,
-                            theta_accel=0.25, width_accel=0.25, **kws):
+    def make_trajectory(self, reverse=False,
+                        theta_accel=0.25, width_accel=0.25, **kws):
         """this method builds the text of a Trajectory script for
         a Newport XPS Controller based on the energies and dwelltimes"""
 
-        qconf = self.qconf
+        qconf = self.slewscan_config
+        qconf['theta_motor'] = qconf['motors']['THETA']
+        qconf['width_motor'] = qconf['motors']['HEIGHT']
 
         dspace = caget(qconf['dspace_pv'])
         height = caget(qconf['height_pv'])
@@ -211,7 +306,7 @@ class QXAFS_Scan(XAFS_Scan):
     def init_qscan(self, traj):
         """initialize a QXAFS scan"""
 
-        qconf = self.qconf
+        qconf = self.slewscan_config
 
         caput(qconf['id_track_pv'],  1)
         caput(qconf['y2_track_pv'],  1)
@@ -219,14 +314,12 @@ class QXAFS_Scan(XAFS_Scan):
         time.sleep(0.1)
         caput(qconf['width_motor'] + '.DVAL', traj.start_width)
         caput(qconf['theta_motor'] + '.DVAL', traj.start_theta)
-        # caput(qconf['id_track_pv'], 0)
-        # caput(qconf['id_wait_pv'], 0)
         caput(qconf['y2_track_pv'], 0)
 
 
     def finish_qscan(self):
         """initialize a QXAFS scan"""
-        qconf = self.qconf
+        qconf = self.slewscan_config
 
         caput(qconf['id_track_pv'],  1)
         caput(qconf['y2_track_pv'],  1)
@@ -249,6 +342,7 @@ class QXAFS_Scan(XAFS_Scan):
         angle  = (angle[1:] + angle[:-1])/2.0
         height = (height[1:] + height[:-1])/2.0
 
+        qconf = self.slewscan_config
         angle += caget(self.qconf['theta_motor'] + '.OFF')
         dspace = caget(self.qconf['dspace_pv'])
         energy = HC/(2.0 * dspace * np.sin(angle/RAD2DEG))
@@ -273,10 +367,10 @@ class QXAFS_Scan(XAFS_Scan):
             self.set_info('scan_message', 'cannot execute scan')
             return
 
-        qconf = self.qconf
+        qconf = self.slewscan_config
         energy_orig = caget(qconf['energy_pv'])
 
-        traj = self.make_XPS_trajectory(reverse=reverse)
+        traj = self.make_trajectory(reverse=reverse)
         self.init_qscan(traj)
 
         idarray = 0.001*traj.energy + caget(qconf['id_offset_pv'])
@@ -326,13 +420,14 @@ class QXAFS_Scan(XAFS_Scan):
                 xsp3_prefix = d.prefix
 
         qxsp3 = Xspress3(xsp3_prefix)
+        qxsp3.Acquire = 0
         sis  = Struck(sis_prefix, **sis_opts)
 
         caput(qconf['energy_pv'], traj.energy[0])
 
         out = self.pre_scan()
         self.check_outputs(out, msg='pre scan')
-
+        sis.stop()
         orig_counters = self.counters[:]
         # specialized QXAFS Counters
         qxafs_counters = []
@@ -341,6 +436,8 @@ class QXAFS_Scan(XAFS_Scan):
             if len(scalername) > 1:
                 qxafs_counters.append((scalername, mca._pvs['VAL']))
 
+        ## need to use self.rois to re-load ROI arrays
+        ## names like  MCA1ROI:N:TSTotal
         for roi in range(1, 5):
             desc = caget('%sC1_ROI%i:ValueSum_RBV.DESC' % (xsp3_prefix, roi))
             if len(desc) > 0 and not desc.lower().startswith('unused'):
@@ -351,7 +448,7 @@ class QXAFS_Scan(XAFS_Scan):
 
         # SCAs for count time
         for card in range(1, 5):
-            pvname = '%sC%i_SCA0:ArrayData_RBV' % (xsp3_prefix, card)
+            pvname = '%sC%iSCA0:TSArrayValue' % (xsp3_prefix, card)
             qxafs_counters.append(("Clock_mca%i" % card, PV(pvname)))
 
         self.counters = []
@@ -361,17 +458,8 @@ class QXAFS_Scan(XAFS_Scan):
 
         self.init_scandata()
 
-        sis.stop()
-        sis.ExternalMode()
-        sis.NuseAll = MAXPTS
-        sis.put('PresetReal', 0.0)
-        sis.put('Prescale',   1.0)
-
-        qxsp3.NumImages = MAXPTS
-        qxsp3.useExternalTrigger()
-        qxsp3.Acquire = 0
-        time.sleep(0.1)
-        qxsp3.ERASE  = 1
+        sis.ArrayMode(numframes=npts+5)
+        qxsp3.ArrayMode(numframs=npts+5)
 
         self.datafile = self.open_output_file(filename=self.filename,
                                               comments=self.comments)
@@ -405,15 +493,15 @@ class QXAFS_Scan(XAFS_Scan):
 
         self.xps.SetupTrajectory(npts+1, dtime, traj_file=qconf['traj_name'])
 
-        sis.start()
-        qxsp3.FileCaptureOn()
-        qxsp3.Acquire = 1
+        sis.Start()
+        qxsp3.Start()
+
         time.sleep(0.1)
         self.xps.RunTrajectory()
         self.xps.EndTrajectory()
 
-        sis.stop()
-        qxsp3.Acquire = 0
+        sis.Stop()
+        qxsp3.Stop()
         self.finish_qscan()
         und_thread.running = False
         und_thread.join()

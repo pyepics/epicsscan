@@ -60,6 +60,14 @@ def nativepath(d):
         return winpath(d)
     return unixpath(d)
 
+def basepath(d):
+    if d.startswith(WIN_BASE):
+        d = d.replace(WIN_BASE, '')
+    if d.startswith(UNIX_BASE):
+        d = d.replace(UNIX_BASE, '')
+    return nativepath(d)
+
+
 def random_string(n):
     """  random_string(n)
     generates a random string of length n, that will match this pattern:
@@ -123,7 +131,7 @@ def increment_filename(inpfile,ndigits=3, delim='.'):
         base, ext = base
     elif len(base) == 1:
         base, ext = base[0], '.000'
-        
+
     if ext.startswith('.'):
         ext   = ext[1:]
     if ndigits < 3:

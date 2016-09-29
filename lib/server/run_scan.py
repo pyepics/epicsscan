@@ -5,7 +5,7 @@ import numpy as np
 
 from ..detectors import get_detector
 from ..positioner import Positioner
-from ..stepscan import StepScan
+from ..scan import StepScan
 from ..xafs_scan import XAFS_Scan
 
 from .utils import js2ascii
@@ -128,4 +128,3 @@ def run_scan(conf):
     #for i in range(conf['nscans']):
     #    outfile = scan.run(conf['filename'], comments=conf['user_comments'])
     #    print 'wrote %s' % outfile
-

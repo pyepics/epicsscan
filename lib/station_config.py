@@ -13,7 +13,7 @@ import os
 import time
 from ConfigParser import  ConfigParser
 from cStringIO import StringIO
-from .ordereddict import OrderedDict
+from collections import OrderedDict
 from .file_utils import get_homedir, get_timestamp
 
 LEGEND     = '# index = label || PVname'
@@ -260,4 +260,3 @@ class StationConfig(object):
 
     def sections(self):
         return self.__sects.keys()
-

@@ -9,16 +9,16 @@ import numpy as np
 import glob
 import epics
 
-from ..scandb import ScanDB, ScanDBException, ScanDBAbort, make_datetime
+from ..scandb import ScanDB, make_datetime
 
 from ..file_utils import fix_varname, nativepath
-from ..utils import  strip_quotes, plain_ascii
+from ..utils import  strip_quotes, plain_ascii, ScanDBException, ScanDBAbort
 
 from ..larch_interface import LarchScanDBServer, HAS_LARCH
 
 from ..site_config import get_fileroot
-from ..epics_scandb import EpicsScanDB
-from ..abort_slewscan import abort_slewscan
+from .epics_scandb import EpicsScanDB
+from .abort_slewscan import abort_slewscan
 
 DEBUG_TIMER = False
 ALWAYS_LOAD_MODULES = False

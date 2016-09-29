@@ -188,7 +188,7 @@ class Commands(_BaseTable):
     def __repr__(self):
         name = self.__class__.__name__
         fields = ['%s' % getattr(self, 'command', 'Unknown'),
-                  'id=%d' % getattr(self, 'id', 'NOID')]
+                  'id=%s' % getattr(self, 'id', 'NOID')]
         return "<%s(%s)>" % (name, ', '.join(fields))
 
 class ScanData(_BaseTable):

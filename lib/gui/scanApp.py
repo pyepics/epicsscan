@@ -298,8 +298,8 @@ class ScanFrame(wx.Frame):
         for ct in sdb.select('scancounters', use=1):
             scan['counters'].append((ct.name, ct.pvname))
 
-        for ep in sdb.select('extrapvs', use=1):
-            scan['extra_pvs'].append((ep.name, ep.pvname))
+        # for ep in sdb.select('extrapvs', use=1):
+        #    scan['extra_pvs'].append((ep.name, ep.pvname))
 
         if debug:
             return (scanname,  scan)

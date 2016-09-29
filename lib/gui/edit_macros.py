@@ -8,7 +8,7 @@ import wx
 import wx.lib.scrolledpanel as scrolled
 from wx.lib.editor import Editor
 
-from ..ordereddict import OrderedDict
+from collections import OrderedDict
 from .gui_utils import (GUIColors, set_font_with_children, YesNo,
                         add_menu, add_button, add_choice, pack, SimpleText,
                         FileOpen, FileSave, popup,
@@ -458,7 +458,6 @@ class MacroFrame(wx.Frame) :
             fh.close()
         except:
             print('could not save MacroFile %s' % fname)
-            # logging.exception('could not save MacroFile %s' % fname)
 
     def onStart(self, event=None):
         now = time.time()
@@ -510,13 +509,10 @@ class MacroFrame(wx.Frame) :
         self.onResume()
 
     def onClose(self, event=None):
-        # print("onCLOSE Macro " , self.histfile, AUTOSAVE_FILE)
         self.SaveMacroFile(AUTOSAVE_FILE)
         self._stimer.Stop()
 
         time.sleep(0.25)
         self.input.SaveHistory(self.histfile)
-
         time.sleep(0.25)
-
         self.Destroy()
