@@ -313,18 +313,22 @@ class StepScan(object):
         return out
 
     def pre_scan(self, row=0, **kws):
-        # if self.debug:
+        # dtimer = debugtime()
+
         self.set_info('scan_progress', 'running pre_scan routines')
         for (desc, pv) in self.extra_pvs:
             pv.connect()
+        # dtimer.add('pre_scan connect to extra pvs')
         out = []
         for meth in self.pre_scan_methods:
             out.append(meth(scan=self, row=row, **kws))
             time.sleep(0.05)
+            # dtimer.add('pre_scan ran %s' % meth)
 
         for det in self.detectors:
             for counter in det.counters:
                 self.add_counter(counter)
+            # dtimer.add('pre_scan add counters for %s' % det)
 
         if callable(self.prescan_func):
             try:
@@ -332,11 +336,14 @@ class StepScan(object):
             except:
                 ret = None
             out.append(ret)
+        # dtimer.add('pre_scan ran local prescan')
         if self.larch is not None:
             try:
                 self.larch.run("pre_scan_command(row=%i)" % row)
             except:
                 print("Failed to run pre_scan_command()")
+        # dtimer.add('pre_scan ran larch prescan')
+        # dtimer.show()
         return out
 
     def post_scan(self):
