@@ -37,7 +37,7 @@ class NewportXPS:
         self.username = username
         self.password = password
         self.timeout = timeout
-
+        self.errcodes = OrderedDict()
         self.gather_outputs = tuple(outputs)
 
         self.trajectories = {}
@@ -253,7 +253,12 @@ class NewportXPS:
             pass
 
         time.sleep(0.1)
-        self.enable_group(self.traj_group)
+        try:
+            self.enable_group(self.traj_group)
+        except XPSError:
+            print("Warning: could not enable trajectory group '%s'"% self.traj_group)
+            return
+
         for i in range(64):
             self._xps.EventExtendedRemove(self._sid, i)
 
@@ -404,7 +409,6 @@ class NewportXPS:
             max_jerktime = jt1_cur
         self._xps.PositionerSGammaParametersGet(self._sid, stage, vel, accl,
                                                 min_jerktime, max_jerktime)
-
 
     def move_group(self, group=None, **kws):
         """move group to supplied position
