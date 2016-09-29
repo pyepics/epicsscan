@@ -54,6 +54,10 @@ class Struck(Device):
         Device.__init__(self, prefix, delim='',
                         attrs=self.attrs, mutable=False)
 
+        time.sleep(0.05)
+        for pvname, pv in self._pvs.items():
+            pv.get()
+
     def ExternalMode(self, countonstart=0, initialadvance=None,
                      realtime=0, prescale=1, trigger_width=None):
         """put Struck in External Mode, with the following options:
