@@ -1055,26 +1055,36 @@ class SlewScanPanel(GenericScanPanel):
         sizer.Add(SimpleText(self, 'Select from Common Square Maps:'),
                   (ir, 0), (1, 5), wx.ALL, 2)
 
+        jrow = 0
+        jcol = 0
+        lsizer = wx.GridBagSizer(2, 6)
+        lpanel = wx.Panel(self)
+
+        for mapname in (u' 50 x 50 \u03bcm', u'100 x 100 \u03bcm',
+                        u'200 x 200 \u03bcm', u'300 x 300 \u03bcm',
+                        u'400 x 400 \u03bcm', u'500 x 500 \u03bcm',
+                        u'600 x 600 \u03bcm', u'800 x 800 \u03bcm',
+                        '1 x 1 mm', '2 x 2 mm'):
+            link = HyperText(lpanel, mapname,
+                             action=Closure(self.onDefinedMap,
+                                            label=mapname))
+            lsizer.Add(link, (jrow, jcol), (1, 1), wx.ALL, 7)
+            jcol += 1
+            if jcol > 4:
+                jrow += 1
+                jcol = 0
+
         ir += 1
-        icol = 1
-        for mapname in ('50 micron', '100 micron', '200 micron',
-                        '300 micron', '400 micron', '500 micron',
-                        '1 mm', '2 mm'):
-            link = HyperText(self, mapname, action=Closure(self.onDefinedMap,
-                                                           label=mapname))
-
-            sizer.Add(link, (ir, icol), (1, 2), wx.ALL, 2)
-            icol += 2
-            if icol > 7:
-                ir +=1
-                icol = 1
-
+        pack(lpanel, lsizer)
+        sizer.Add(lpanel, (ir, 1), (2, 7), wx.ALL, 2)
+        ir += 1
         self.finish_layout(ir+1, with_nscans=False)
 
     def onDefinedMap(self, label=None, event=None):
-        size, units = label.split()
-        size = int(size)
-        if units == 'micron': size *= 0.001
+        words = label.split()
+        size  = int(words[0])
+        units = words[-1]
+        if units == u'\u03bcm': size *= 0.001
         halfsize = size/2.0
         for irow, name in ((0, 'inner'), (1, 'outer')):
             pos, units, cur, start, stop, step, npts = self.pos_settings[irow]
