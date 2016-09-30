@@ -1058,7 +1058,7 @@ class SlewScanPanel(GenericScanPanel):
         ir += 1
         icol = 1
         for mapname in ('50 micron', '100 micron', '200 micron',
-                        '400 micron', '300 micron', '500 micron',
+                        '300 micron', '400 micron', '500 micron',
                         '1 mm', '2 mm'):
             link = HyperText(self, mapname, action=Closure(self.onDefinedMap,
                                                            label=mapname))
