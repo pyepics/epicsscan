@@ -158,7 +158,7 @@ class Struck(Device):
         self._mode = NDARRAY_MODE
 
         self.put('StopAll', 1)
-        # self.put('EraseAll', 1)
+        time.sleep(0.05)
         self.ExternalMode(trigger_width=trigger_width, countonstart=False)
 
     def start(self, wait=False):
@@ -202,7 +202,26 @@ class Struck(Device):
                     _name = scaler_name.replace(' ', '_')
                     _addr = self.scaler._prefix + 'S%i' % nmcas
             mcadat = self.readmca(nmcas=nmcas)
-            npts = min(npts, len(mcadat))
+            nmca = None
+            try:
+                nmca = len(mcadat)
+            except:
+                nmca = None
+            ntries = 0
+            while nmca is None and ntries < 10:
+                time.sleep(0.05)
+                mcadat = self.readmca(nmcas=nmcas)
+                try:
+                    nmca = len(mcadat)
+                except:
+                    nmca = None
+                ntries += 1
+
+            if nmca is None:
+                print("Could not read MCA data from Struck ", filename)
+                return
+
+            npts = min(npts, nmca)
             if len(_name) > 0 or sum(mcadat) > 0:
                 names.append(_name)
                 addrs.append(_addr)
