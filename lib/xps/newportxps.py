@@ -525,7 +525,7 @@ class NewportXPS:
         accel = min(accel, max_accel)
 
         npulses = 1 + int((abs(stop - start) + abs(step)*0.1) / abs(step))
-        scantime = abs(scantime)
+        scantime = float(abs(scantime))
         pixeltime= scantime / (npulses-1)
 
         scantime = pixeltime*npulses
@@ -656,15 +656,15 @@ class NewportXPS:
         self.traj_state = COMPLETE
         npulses = 0
         if save:
-            self.read_and_save(outputfile)
+            self.read_and_save(output_file)
         self.traj_state = IDLE
         return npulses
 
 
-    def read_and_save(self, outputfile):
+    def read_and_save(self, output_file):
         "read and save gathering file"
         npulses, buff = self.read_gathering(set_idle_when_done=False)
-        self.save_gathering_file(outputfile, buff,
+        self.save_gathering_file(output_file, buff,
                                  verbose=False,
                                  set_idle_when_done=False)
 
