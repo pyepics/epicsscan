@@ -458,7 +458,7 @@ class Xspress3Detector(DetectorMixin):
             self._xsp3.FileCaptureOff()
             for i in self._chans:
                 self._xsp3.put('MCA%iROI:TSControl' % i, 0) # 'Erase/Start'
-        time.sleep(0.20)
+        time.sleep(0.25)
 
     def disarm(self, mode=None, wait=False):
         if mode is not None:
@@ -472,8 +472,7 @@ class Xspress3Detector(DetectorMixin):
         if arm:
             self.arm()
         self._xsp3.put('Acquire', 1, wait=wait)
-        time.sleep(0.05*2)
-
+        time.sleep(0.10)
 
     def stop(self, mode=None, disarm=False, wait=False):
         self._xsp3.put('Acquire', 0, wait=wait)
