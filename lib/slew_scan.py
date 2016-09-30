@@ -40,6 +40,8 @@ class Slew_Scan(StepScan):
         self.larch = larch
         self.scantype = 'slew'
         self.detmode  = 'ndarray'
+        self.motor_vals = {}
+        self.orig_positions = {}
 
     def prepare_scan(self):
         """prepare slew scan"""
@@ -161,23 +163,32 @@ class Slew_Scan(StepScan):
         f.close()
         # print("Wrote Simple Scan Config: ", sname)
 
-        self.motor_vals = {}
         trajs = self.xps.trajectories
+        self.motor_vals = {}
+        self.orig_positions = {}
         for i, axes in enumerate(trajs['foreward']['axes']):
             pvname = self.slewscan_config['motors'][axes]
             v1, v2 = trajs['foreward']['start'][i], trajs['backward']['start'][i]
-            self.motor_vals[pvname] = (PV(pvname), v1, v2)
+            thispv = PV(pvname)
+            self.motor_vals[pvname] = (thispv, v1, v2)
+            self.orig_positions[thispv] = thispv.get()
+
+        for p in self.positioners:
+            self.orig_positions[p.pv] = p.current()
+
 
         detpath = self.mapdir[len(self.fileroot):]
         if detpath.startswith('/'):
             detpath = detpath[1:]
         for det in self.detectors:
             det.config_filesaver(path=detpath)
-
         return sname
 
     def post_scan(self):
         self.set_info('scan_progress', 'finishing')
+        for pv, val in self.orig_positions.items():
+            pv.put(val)
+
         for m in self.post_scan_methods:
             m()
 
@@ -220,6 +231,7 @@ class Slew_Scan(StepScan):
             val = v1
             if tname == 'backward': val = v2
             pv.put(val, wait=False)
+
 
         self.pre_scan(npulses=npulses, dwelltime=dwelltime, mode='ndarray')
 
@@ -286,8 +298,11 @@ class Slew_Scan(StepScan):
                     print("Failed to run pre_scan_command(row=%i)" % irow)
             # dtimer.add('start det')
             for det in self.detectors:
-                det.start(arm=True, mode='ndarray')
-            time.sleep(0.1)
+                det.arm(mode='ndarray')
+            time.sleep(0.2)
+            for det in self.detectors:
+                det.start()
+            time.sleep(0.2)
             # dtimer.add('inner pos move(1)')
             for pv, v1, v2 in self.motor_vals.values():
                 val = v1
