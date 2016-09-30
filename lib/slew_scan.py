@@ -287,6 +287,7 @@ class Slew_Scan(StepScan):
             # dtimer.add('start det')
             for det in self.detectors:
                 det.start(arm=True, mode='ndarray')
+            time.sleep(0.1)
             # dtimer.add('inner pos move(1)')
             for pv, v1, v2 in self.motor_vals.values():
                 val = v1
@@ -305,6 +306,7 @@ class Slew_Scan(StepScan):
                 pv.put(val, wait=True)
             # dtimer.add('inner pos move done')
             # start trajectory in another thread
+            time.sleep(0.05)
             scan_thread = Thread(target=self.xps.run_trajectory,
                                  kwargs=dict(save=False), name='trajectory_thread')
             scan_thread.start()
