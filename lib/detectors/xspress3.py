@@ -329,6 +329,7 @@ class Xspress3Detector(DetectorMixin):
 
         dt.add('xspress3: set dtime, npulses')
         self.config_filesaver(number=1,
+                              name='xsp3',
                               numcapture=npulses,
                               template="%s%s.%4.4d",
                               auto_increment=True,
