@@ -143,13 +143,11 @@ class Xspress3Trigger(Trigger):
 
 
 class Xspress3Counter(DeviceCounter):
-    """Counters for Xspress3-1-10 (weird ROIs / areaDetector hybrid)
-    """
-    sca_labels = ('', 'Clock', 'ResetTicks', 'ResetCounts',
+    """Counters for Xspress3-1-10"""
+    sca_labels = ('Clock', 'ResetTicks', 'ResetCounts',
                   'AllEvent', 'AllGood', 'Window1', 'Window2', 'Pileup')
-    scas2save = (1, 2, 3, 4, 5, 8)
-    scas2save = (1, 2, 4)
-    scas2save = (1, )
+    scas2save = (0, 1, 2, 3, 4, 7)
+    scas2save = (0, 1, 3)
     def __init__(self, prefix, outpvs=None, nmcas=4,
                  nrois=32, rois=None, nscas=1, use_unlabeled=False,
                  use_full=False):
