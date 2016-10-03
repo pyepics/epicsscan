@@ -86,7 +86,7 @@ class ScanViewerFrame(wx.Frame):
         self.x_cursor = None
         self.x_label = None
         self.SetTitle(title)
-        self.SetSize((750, 750))
+        self.SetSize((800, 700))
         self.SetFont(Font(9))
         self.createMainPanel()
         self.createMenus()
@@ -222,7 +222,7 @@ class ScanViewerFrame(wx.Frame):
 
         self.yops = [[],[]]
         self.yarr = [[],[]]
-        arr_kws= {'choices':[], 'size':(120, -1), 'action':self.onPlot}
+        arr_kws= {'choices':[], 'size':(150, -1), 'action':self.onPlot}
 
         self.title = SimpleText(panel, 'initializing...',
                                 font=Font(13), colour='#880000')
@@ -231,8 +231,9 @@ class ScanViewerFrame(wx.Frame):
             self.yarr[0].append(add_choice(panel, **arr_kws))
             self.yarr[1].append(add_choice(panel, **arr_kws))
 
-        for opts, sel, wid in ((PRE_OPS, 0, 100), (ARR_OPS, 3, 60),
-                               (ARR_OPS, 3, 60)):
+        for opts, sel, wid in ((PRE_OPS, 0, 80),
+                               (ARR_OPS, 3, 40),
+                               (ARR_OPS, 3, 40)):
             arr_kws['choices'] = opts
             arr_kws['size'] = (wid, -1)
             self.yops[0].append(add_choice(panel, default=sel, **arr_kws))
@@ -241,7 +242,7 @@ class ScanViewerFrame(wx.Frame):
         # place widgets
         sizer = wx.GridBagSizer(5, 10)
         sizer.Add(self.title,                  (0, 1), (1, 6), LCEN, 2)
-        sizer.Add(SimpleText(panel, '  X ='), (1, 0), (1, 1), CEN, 0)
+        sizer.Add(SimpleText(panel, '  X ='),  (1, 0), (1, 1), CEN, 0)
         sizer.Add(self.xarr,                   (1, 3), (1, 1), RCEN, 0)
 
         ir = 1
