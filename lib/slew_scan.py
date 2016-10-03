@@ -290,10 +290,10 @@ class Slew_Scan(StepScan):
 
 
             trajname = ['foreward', 'backward'][(dir_off + irow) % 2]
-            print('row %i of %i, %s' % (irow, npts, trajname))
+            # print('row %i of %i, %s' % (irow, npts, trajname))
             if self.larch is not None and irow > 1 and irow % 10 == 0:
                 try:
-                    self.larch.run("pre_scan_command(row=%i)" % irow)
+                    self.larch.run("pre_scan_command(row=%i, npts=%i)" % (irow, npts))
                 except:
                     print("Failed to run pre_scan_command(row=%i)" % irow)
             # dtimer.add('start det')
