@@ -92,7 +92,7 @@ def compare_scans(scan1, scan2, verbose=False):
     "compare dictionary for 2 scans"
 
     REQ_COMPS = ('pos_settle_time', 'det_settle_time', 'dwelltime', 'type',
-                 'extra_pvs', 'detectors', 'counters')
+                 'detectors', 'counters')
 
     OPT_COMPS = ('positioners', 'inner', 'outer', 'dimension', 'elem',
                  'e0', 'is_relative', 'regions', 'energy_drive',
@@ -653,12 +653,13 @@ class ScanFrame(wx.Frame):
             sdb.set_info('rois', json.dumps(scan['rois']))
 
         ep = [x.pvname for x in sdb.select('extrapvs')]
-        for name, pvname in scan['extra_pvs']:
-            if pvname not in ep:
-                try:
-                    self.scandb.add_extrapv(name, pvname)
-                except:
-                    pass
+        if 'extra_pvs' in scan:
+            for name, pvname in scan['extra_pvs']:
+                if pvname not in ep:
+                    try:
+                        self.scandb.add_extrapv(name, pvname)
+                    except:
+                        pass
 
         for detdat in scan['detectors']:
             det = sdb.get_detector(detdat['label'])
