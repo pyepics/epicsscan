@@ -722,7 +722,7 @@ class StepScan(object):
         self.dtimer.add('Post: file written')
         if self.look_for_interrupts():
             self.write("scan aborted at point %i of %i." % (self.cpt, self.npts))
-            raise ScanDBAbort("scan aborted")
+            # raise ScanDBAbort("scan aborted")
 
         # run post_scan methods
         out = self.post_scan()
