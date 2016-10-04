@@ -196,13 +196,17 @@ class XAFS_Scan(StepScan):
         # note: save region definition using npts here,
         # even though npts may be reduced below, this set
         # will provide reproducible results, and so can be
-        # savd for later re-use.
-        self.regions.append(ScanRegion(start, stop, npts=npts,
-                                       relative=relative,
-                                       e0=e0, use_k=use_k,
-                                       dtime=dtime,
-                                       dtime_final=dtime_final,
-                                       dtime_wt=dtime_wt))
+        # save for later re-use.
+        #         self.regions.append(ScanRegion(start, stop, npts=npts,
+        #                              relative=relative,
+        #                              e0=e0, use_k=use_k,
+        #                              dtime=dtime,
+        #                              dtime_final=dtime_final,
+        #                              dtime_wt=dtime_wt))
+        #
+
+        self.regions.append((start, stop, npts, relative, e0, use_k, dtime,
+                             dtime_final, dtime_wt))
 
         if use_k:
             en_arr = [e0 + ktoe(v) for v in en_arr]
