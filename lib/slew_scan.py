@@ -61,6 +61,8 @@ class Slew_Scan(StepScan):
         if not os.path.exists(basedir):
             os.mkdir(basedir)
 
+        caput('13XRM:map:basedir', basedir)
+        caput('13XRM:map:status', 'Starting')
         sname = os.path.join(basedir, currscan)
         oname = os.path.join(basedir, 'PreviousScan.ini')
         fname = fix_filename(self.filename)
@@ -71,6 +73,12 @@ class Slew_Scan(StepScan):
             mapdir = os.path.join(basedir, fname + '_rawmap')
             counter += 1
         os.mkdir(mapdir)
+        h5fname= os.path.join(basedir, fname + '.h5')
+        fhx  = open(h5fname, 'w')
+        fhx.write("%s\n"% mapdir)
+        fhx.close()
+        caput('13XRM:map:filename', h5fname)
+
         self.mapdir = mapdir
         self.fileroot = fileroot
 
@@ -90,9 +98,19 @@ class Slew_Scan(StepScan):
                     'group = %s' % scnf['group'],
                     'positioners = %s' % posnames])
 
+        txt.append('#------------------#')
         txt.append('[slow_positioners]')
         for i, pos in enumerate(self.scandb.get_positioners()):
-            txt.append("%i = %s | %s" % (i+1, pos.drivepv, pos.name))
+            dpv = pos.drivepv
+            if dpv.endswith('.VAL'): dpv = dpv[:-4]
+            txt.append("%i = %s | %s" % (i+1, dpv, pos.name))
+
+        txt.append('#------------------#')
+        txt.append('[fast_positioners]')
+        for i, pos in enumerate(self.scandb.get_slewpositioners()):
+            dpv = pos.drivepv
+            if dpv.endswith('.VAL'): dpv = dpv[:-4]
+            txt.append("%i = %s | %s" % (i+1, dpv, pos.name))
 
         dim  = 1
         if self.outer is not None:
@@ -103,7 +121,8 @@ class Slew_Scan(StepScan):
             pospv = pospv[:-4]
         step = abs(start-stop)/(npts-1)
         self.rowtime = dtime = self.dwelltime*(npts-1)
-
+        caput('13XRM:map:npts', npts)
+        caput('13XRM:map:nrow', 0)
         axis = None
         for ax, pvname in self.slewscan_config['motors'].items():
             if pvname == pospv:
@@ -116,7 +135,7 @@ class Slew_Scan(StepScan):
                                           start=start, stop=stop,
                                           step=step, scantime=dtime)
 
-        txt.extend(['[scan]',
+        txt.extend(['#------------------#', '[scan]',
                     'filename = %s' % self.filename,
                     'comments = %s' % self.comments,
                     'dimension = %i' % dim,
@@ -138,14 +157,28 @@ class Slew_Scan(StepScan):
                         'start2 = %.4f' % start,
                         'stop2 = %.4f' % stop,
                         'step2 = %.4f' % step])
+            caput('13XRM:map:maxrow', npts)
 
-        txt.append('#------------------#')
-        txt.append('[xrd_ad]')
         xrd_det = None
+        xrf_det = None
         for det in self.detectors:
             if isinstance(det, AreaDetector):
                 xrd_det = det
+            if 'xspress3' in det.label.lower():
+                xrf_det = det
 
+        txt.append('#------------------#')
+        txt.append('[xrf]')
+        if xrf_det is None:
+            txt.append('use = False')
+        else:
+            txt.append('use = True')
+            txt.append('type = xsp3')
+            txt.append('prefix = %s' % det.prefix)
+            txt.append('fileplugin = %s' % det.filesaver)
+
+        txt.append('#------------------#')
+        txt.append('[xrd_ad]')
         if xrd_det is None:
             txt.append('use = False')
         else:
@@ -252,7 +285,7 @@ class Slew_Scan(StepScan):
         master.write('#Y.positioner  = %s\n' %  str(pvs[0]))
         master.write('#Y.start_stop_step = %f, %f, %f \n' %  (start, stop, step))
         master.write('#------------------------------------\n')
-        master.write('# yposition  xmap_file  struck_file  xps_file    time\n')
+        master.write('# yposition  xrf_file  struck_file  xps_file    time\n')
 
         def make_filename(fname, i):
             return "%s.%4.4i" % (fname, i)
@@ -280,12 +313,13 @@ class Slew_Scan(StepScan):
 
         start_time = time.time()
         irow = 0
-
+        caput('13XRM:map:status', 'Collecting')
         while irow < npts:
             irow += 1
             # dtimer =  debugtime()
             # dtimer.add('=== row start %i ====' % irow)
             self.set_info('scan_progress', 'row %i of %i' % (irow, npts))
+            caput('13XRM:map:nrow', irow)
             rowdata_ok = True
 
 
@@ -338,7 +372,7 @@ class Slew_Scan(StepScan):
 
             masterline = "%8.4f" % (self.positioners[0].array[irow-1])
 
-            for fname in (posfile, xrffile, xrdfile, scafile, posfile):
+            for fname in (xrffile, xrdfile, scafile, posfile):
                 if not fname.startswith('__UNUSED'):
                     d, fn = os.path.split(fname)
                     masterline = "%s %s" % (masterline, fn)
@@ -348,6 +382,7 @@ class Slew_Scan(StepScan):
             scan_thread.join()
             # dtimer.add('scan thread joined')
             if self.look_for_interrupts():
+                caput('13XRM:map:status', 'Aborting')
                 break
 
             masterline = "%s %8.4f\n" % (masterline, time.time()-start_time)
@@ -380,9 +415,12 @@ class Slew_Scan(StepScan):
                 irow -= 1
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
             if self.look_for_interrupts():
+                caput('13XRM:map:status', 'Aborting')
                 break
             # dtimer.show()
+        caput('13XRM:map:status', 'Finishing')
         self.post_scan()
+        caput('13XRM:map:status', 'IDLE')
         print('Scan done.')
         return
 
