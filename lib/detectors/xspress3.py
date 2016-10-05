@@ -240,6 +240,7 @@ class Xspress3Detector(DetectorMixin):
         self._chans = range(1, nmcas+1)
         self.nrois = nrois = int(nrois)
         self.fileroot = fileroot
+        self.filesaver = filesaver
         DetectorMixin.__init__(self, prefix, label=label)
         self._xsp3 = Xspress3(prefix, nmcas=nmcas,
                               fileroot=fileroot,
