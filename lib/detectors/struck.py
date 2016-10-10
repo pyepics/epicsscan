@@ -188,9 +188,12 @@ class Struck(Device):
 
     def save_arraydata(self, filename='Struck.dat', ignore_prefix=None, npts=None):
         "save MCA spectra to ASCII file"
+        # print("SIS Save Array Data")
         sdata, names, addrs = [], [], []
-        npts = 1.e99
-        time.sleep(0.005)
+        if npts is None:
+            npts = self.MaxChannels
+        time.sleep(0.025)
+        nmca_chans = []
         for nchan in range(self._nchan):
             nmcas = nchan + 1
             _name = 'MCA%i' % nmcas
@@ -201,31 +204,31 @@ class Struck(Device):
                 if scaler_name is not None:
                     _name = scaler_name.replace(' ', '_')
                     _addr = self.scaler._prefix + 'S%i' % nmcas
-            mcadat = self.readmca(nmcas=nmcas)
-            nmca = None
-            try:
-                nmca = len(mcadat)
-            except:
-                nmca = None
+            if len(_name) < 1:
+                continue
+            read_ok = False
             ntries = 0
-            while nmca is None and ntries < 10:
-                time.sleep(0.05)
+            while not read_ok and ntries < 10:
+                ntries += 1
                 mcadat = self.readmca(nmcas=nmcas)
                 try:
                     nmca = len(mcadat)
                 except:
-                    nmca = None
-                ntries += 1
-
-            if nmca is None:
-                print("Could not read MCA data from Struck ", filename)
-                return
-
-            npts = min(npts, nmca)
-            if len(_name) > 0 or sum(mcadat) > 0:
+                    nmca = 0
+                if nmca >  npts-1:
+                    read_ok = True
+                else:
+                    time.sleep(0.1)
+                    continue
+            # print("SIS Read Channel:  ", nchan, _name, nmca, ntries)
+            if nmca > 2:
                 names.append(_name)
                 addrs.append(_addr)
                 sdata.append(mcadat)
+            nmca_chans.append(nmca)
+
+        npts = min(npts, min(nmca_chans))
+        # print("SIS Read Channels, npts = ", npts, nmca_chans)
 
         sdata = numpy.array([s[:npts] for s in sdata]).transpose()
         sdata[:, 0] = sdata[:, 0]/self.clockrate
