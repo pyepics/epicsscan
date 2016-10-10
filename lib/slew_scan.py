@@ -276,16 +276,21 @@ class Slew_Scan(StepScan):
             npts = _npts
         npts = min(npts, len(self.positioners[0].array))
         step = abs(start-stop)/(npts-1)
+        ypos = str(pvs[0])
+        if ypos.endswith('.VAL'):
+            ypos = ypos[:-4]
         master.write("#Scan.version = 1.3\n")
         master.write('#SCAN.starttime = %s\n' % time.ctime())
         master.write('#SCAN.filename  = %s\n' % self.filename)
         master.write('#SCAN.dimension = %i\n' % dim)
         master.write('#SCAN.nrows_expected = %i\n' % npts)
         master.write('#SCAN.time_per_row_expected = %.2f\n' % self.rowtime)
-        master.write('#Y.positioner  = %s\n' %  str(pvs[0]))
+        master.write('#Y.positioner  = %s\n' %  ypos)
         master.write('#Y.start_stop_step = %f, %f, %f \n' %  (start, stop, step))
         master.write('#------------------------------------\n')
         master.write('# yposition  xrf_file  struck_file  xps_file    time\n')
+        master.flush()
+        os.fsync(master.fileno())
 
         def make_filename(fname, i):
             return "%s.%4.4i" % (fname, i)
@@ -384,9 +389,14 @@ class Slew_Scan(StepScan):
             if self.look_for_interrupts():
                 caput('13XRM:map:status', 'Aborting')
                 break
+            for det in self.detectors:
+                det.stop()
 
             masterline = "%s %8.4f\n" % (masterline, time.time()-start_time)
             master.write(masterline)
+            master.flush()
+            os.fsync(master.fileno())
+
             if irow < npts-1:
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
             # dtimer.add('start read')
