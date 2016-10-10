@@ -603,7 +603,7 @@ class StepScan(object):
         if comments is not None:
             self.comments = comments
 
-        caput('13XRM:map:filename', filename)
+        # caput('13XRM:map:filename', filename)
         self.complete = False
         self.dtimer = debugtime(verbose=debug)
         self.publishing_scandata = False
