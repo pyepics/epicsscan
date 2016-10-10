@@ -148,6 +148,7 @@ class Xspress3Counter(DeviceCounter):
                   'AllEvent', 'AllGood', 'Window1', 'Window2', 'Pileup')
     scas2save = (0, 1, 2, 3, 4, 7)
     scas2save = (0, 1, 3)
+    scas2save = (0,)
     def __init__(self, prefix, outpvs=None, nmcas=4,
                  nrois=32, rois=None, nscas=1, use_unlabeled=False,
                  use_full=False):
