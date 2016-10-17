@@ -220,9 +220,20 @@ class ScanServer():
         msgtime = time.time()
         self.set_scan_message('Server Ready')
         is_paused = False
+
+        # we're going to be doing a lot of reading of the 'commands'
+        # table in scandb, so we pre-compile the query to get the
+        # requested commands, in order.
+        cmd_cls, cmd_table = self.scandb.get_table('commands')
+        request_id = self.scandb.status_codes['requested']
+        cmd_query = cmd_table.select().where(
+            cmd_table.c.status_id==request_id).order_by(cmd_cls.id)
+
+        # Note: this loop is really just looking for new commands
+        # or interrupts, so does not need to go super fast.
         while True:
-            time.sleep(0.050)
             epics.poll(0.025, 1.0)
+            time.sleep(0.250)
             self.look_for_interrupts()
             if (self.req_shutdown or (self.epicsdb is not None
                                      and  self.epicsdb.Shutdown == 1)):
@@ -234,8 +245,8 @@ class ScanServer():
                     self.epicsdb.setTime()
             if self.req_pause:
                 continue
-            reqs = self.scandb.get_commands(status='requested',
-                                            reverse=False)
+            # look for recently requested commands
+            reqs = cmd_query.execute().fetchall()
             if (self.req_abort or (self.epicsdb is not None
                                    and  self.epicsdb.Abort == 1)):
                 if len(reqs) > 0:
