@@ -629,6 +629,8 @@ class XAFSScanPanel(GenericScanPanel):
         etime = (float(self.scandb.get_info('pos_settle_time', default=0)) +
                  float(self.scandb.get_info('det_settle_time', default=0)))
 
+        etime = etime + 0.25  # estimate time to move energy positioner
+
         dtime = 0.0
         kwt_max = float(self.kwtimemax.GetValue())
         kwt_pow = float(self.kwtimechoice.GetStringSelection())
