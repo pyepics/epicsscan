@@ -638,7 +638,7 @@ class StepScan(object):
                 # publish scan data
                 if i > 1 and not self.publishing_scandata:
                     self.publish_scandata()
-
+                self.dtimer.add('Pt %i : publish scandata' % i)
                 # move positioners
                 t0 = time.time()
                 while (not all([p.done for p in self.positioners]) and
@@ -681,17 +681,17 @@ class StepScan(object):
                 poll(self.det_settle_time, 0.1)
                 self.dtimer.add('Pt %i : det settled done.' % i)
                 [c.read() for c in self.counters]
-                self.dtimer.add('Pt %i : read counters' % i)
+                # self.dtimer.add('Pt %i : read counters' % i)
 
                 self.pos_actual.append([p.current() for p in self.positioners])
                 if self.message_thread is not None:
                     self.message_thread.cpt = self.cpt
-                self.dtimer.add('Pt %i : sent message' % i)
+                # self.dtimer.add('Pt %i : sent message' % i)
 
                 # if this is a breakpoint, execute those functions
                 if i in self.breakpoints:
                     self.at_break(breakpoint=i, clear=True)
-                self.dtimer.add('Pt %i: done.' % i)
+                # self.dtimer.add('Pt %i: done.' % i)
                 self.look_for_interrupts()
 
             except KeyboardInterrupt:
