@@ -63,7 +63,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
         min_dtime = dwelltime
         if isinstance(min_dtime, np.ndarray):
             min_dtime = min(dtime)
-        kwargs = dict(filename=filename, comments=comments,
+        kwargs = dict(filename=filename, comments=comments, scandb=scandb,
                       energy_pv=energy_drive, read_pv=energy_read, e0=e0)
         if scantype == 'qxafs' or min_dtime < 0.4900:
             scan = QXAFS_Scan(**kwargs)
@@ -135,13 +135,17 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
     # if it is a slew scan or qxafs scan, this should really
     # be the corresponding Struck detector
     scaler_shim = None
-    if scantype in ('slew', 'qxafs') and scandb is not None:
+    # print(" for scaler_shim", scantype, scan.scantype, scandb)
+    # print(" dets: ", detectors)
+    if scan.scantype in ('slew', 'qxafs') and scandb is not None:
+        # print (" look for scaler shim!")
         scaler_pvname = '_no_scaler_available_'
         alldets = scandb.get_detectors()
+        for d in detectors:
+            if d['kind'] == 'scaler':
+                scaler_pvname =d['prefix']
         for a in alldets:
-            if a.kind == 'scaler':
-                scaler_pvname = a.pvname
-        for a in alldets:
+            # print("Scaler Shim", scaler_pvname, a, a.kind, a.pvname, json.loads(a.options))
             if scaler_pvname == json.loads(a.options).get('scaler', None):
                 scaler_shim = {'kind': a.kind,
                                'prefix': a.pvname,
@@ -149,12 +153,14 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
                                'scaler': scaler_pvname}
 
     scan.rois = rois
+    # print("make scan scaler shim ", scaler_shim)
     for dpars in detectors:
         dpars['rois'] = scan.rois
         dpars['mode'] = scan.detmode
         if dpars['kind'] == 'scaler' and scaler_shim is not None:
             dpars.update(scaler_shim)
         scan.add_detector(get_detector(**dpars))
+        #print(" added det ", dpars)
 
     # extra counters (not-triggered things to count)
     if counters is not None:
