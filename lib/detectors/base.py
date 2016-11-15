@@ -79,9 +79,6 @@ class DetectorMixin(Saveable):
         "save array data to external file"
         pass
 
-    def sett(self):
-        pass
-
 
     def set_dwelltime(self, val):
         "set detector dwelltime"
