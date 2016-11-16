@@ -42,7 +42,6 @@ class Struck(Device):
         self.scaler = None
         self.clockrate = clockrate # clock rate in MHz
         self._mode = SCALER_MODE
-        self.ROIMode = self.NDArrayMode
 
         if scaler is not None:
             self.scaler = Scaler(scaler, nchan=nchan)
@@ -96,7 +95,9 @@ class Struck(Device):
 
     def set_dwelltime(self, val):
         "Set Dwell Time"
-        return self.put('Dwell', val)
+        print("Struck DwellTime ", self._pvs['Dwell'], val)
+        if val is not None:
+            self.put('Dwell', val)
 
     def ContinuousMode(self, dwelltime=None, numframes=None):
         """set to continuous mode: use for live reading
@@ -161,6 +162,10 @@ class Struck(Device):
         time.sleep(0.05)
         self.ExternalMode(trigger_width=trigger_width, countonstart=False)
 
+    def ROIMode(self, dwelltime=None, numframes=None, trigger_width=None):
+        """set to ROI mode: ready for slew scanning"""
+        self.NDArrayMode(dwelltime=dwelltime, numframes=numframes, trigger_width=trigger_width)
+
     def start(self, wait=False):
         "Start Struck"
         if self.scaler is not None:
@@ -197,7 +202,7 @@ class Struck(Device):
         for nchan in range(self._nchan):
             nmcas = nchan + 1
             _name = 'MCA%i' % nmcas
-            _addr = '%s.MCA%i' % (self._prefix, nmcas)
+            _addr = '%s.mca%i' % (self._prefix, nmcas)
             time.sleep(0.002)
             if self.scaler is not None:
                 scaler_name = self.scaler.get('NM%i' % nmcas)
@@ -260,7 +265,7 @@ class StruckCounter(DeviceCounter):
             for i in range(1, nchan+1):
                 label = caget('%s.NM%i' % (scaler, i))
                 if len(label) > 0 or use_unlabeled:
-                    suff = 'MCA%i' % (i)
+                    suff = 'mca%i' % (i)
                     fields.append((suff, label))
         self.extra_pvs = extra_pvs
         self.set_counters(fields)
@@ -305,7 +310,7 @@ class StruckDetector(DetectorMixin):
         if self.mode == SCALER_MODE:
             self.struck.ScalerMode()
         elif self.mode == ROI_MODE:
-            self.struck.ROIMode()
+            self.struck.ROIMode(numframes=numframes)
         elif self.mode == NDARRAY_MODE:
             self.struck.NDArrayMode(numframes=numframes)
 
