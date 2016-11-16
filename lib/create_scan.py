@@ -135,17 +135,13 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
     # if it is a slew scan or qxafs scan, this should really
     # be the corresponding Struck detector
     scaler_shim = None
-    # print(" for scaler_shim", scantype, scan.scantype, scandb)
-    # print(" dets: ", detectors)
     if scan.scantype in ('slew', 'qxafs') and scandb is not None:
-        # print (" look for scaler shim!")
         scaler_pvname = '_no_scaler_available_'
         alldets = scandb.get_detectors()
         for d in detectors:
             if d['kind'] == 'scaler':
-                scaler_pvname =d['prefix']
+                scaler_pvname = d['prefix']
         for a in alldets:
-            # print("Scaler Shim", scaler_pvname, a, a.kind, a.pvname, json.loads(a.options))
             if scaler_pvname == json.loads(a.options).get('scaler', None):
                 scaler_shim = {'kind': a.kind,
                                'prefix': a.pvname,
@@ -153,14 +149,14 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
                                'scaler': scaler_pvname}
 
     scan.rois = rois
-    # print("make scan scaler shim ", scaler_shim)
+    # print  "Made Detectors: shim=",  scaler_shim, scandb, scantype, scan.scantype
     for dpars in detectors:
         dpars['rois'] = scan.rois
         dpars['mode'] = scan.detmode
         if dpars['kind'] == 'scaler' and scaler_shim is not None:
             dpars.update(scaler_shim)
-        scan.add_detector(get_detector(**dpars))
-        #print(" added det ", dpars)
+        thisdet = get_detector(**dpars)
+        scan.add_detector(thisdet)
 
     # extra counters (not-triggered things to count)
     if counters is not None:
