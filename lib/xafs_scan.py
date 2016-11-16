@@ -11,10 +11,10 @@ from threading import Thread
 from epics import caget, caput, PV
 from larch import Group
 
-from .scan import StepScan
+from .scan import StepScan, hms
 from .positioner import Positioner
 from .saveable import Saveable
-
+from file_utils import fix_varname
 from .utils import ScanDBAbort
 from .detectors import Struck, TetrAMM, Xspress3, Counter
 from .xps import NewportXPS
@@ -244,7 +244,6 @@ class QXAFS_Scan(XAFS_Scan):
     def __init__(self, label=None, energy_pv=None, read_pv=None,
                  extra_pvs=None, e0=0, scandb=None, **kws):
 
-        print("QXAFS Scan! ", scandb)
         self.label = label
         self.e0 = e0
         self.energies = []
@@ -253,41 +252,39 @@ class QXAFS_Scan(XAFS_Scan):
         XAFS_Scan.__init__(self, label=label, energy_pv=energy_pv,
                            read_pv=read_pv, e0=e0, scandb=scandb,
                            extra_pvs=extra_pvs,  **kws)
-
         self.set_energy_pv(energy_pv, read_pv=read_pv, extra_pvs=extra_pvs)
         self.scantype = 'qxafs'
         self.detmode  = 'roi'
-        self.slewscan_config = None
+        self.config = None
         if scandb is not None:
             self.connect_qxafs()
 
 
     def connect_qxafs(self):
         """initialize a QXAFS scan"""
-        if self.slewscan_config is None:
-            self.slewscan_config = json.loads(self.scandb.get_config('qxafs').notes)
-        conf = self.slewscan_config
+        if self.config is None:
+            self.config = json.loads(self.scandb.get_config('qxafs').notes)
+        conf = self.config
         if self.xps is None:
             self.xps = NewportXPS(conf['host'],
                                   username=conf['username'],
                                   password=conf['password'],
                                   group=conf['group'],
                                   outputs=conf['outputs'])
-        qconf = self.slewscan_config
-        caput(qconf['id_track_pv'],  1)
-        caput(qconf['y2_track_pv'], 0)
-        print("connect qxafs scan", self.detectors)
-        print(" .. ", conf.keys())
+
+        qconf = self.config
+        caput(qconf['id_track_pv'], 1)
+        caput(qconf['y2_track_pv'], 1)
 
     def make_trajectory(self, reverse=False,
-                        theta_accel=0.25, width_accel=0.25, **kws):
+                        theta_accel=25, width_accel=0.25, **kws):
         """this method builds the text of a Trajectory script for
         a Newport XPS Controller based on the energies and dwelltimes"""
 
-        if self.slewscan_config is None:
+        if self.config is None:
             self.connect_qxafs()
 
-        qconf = self.slewscan_config
+        qconf = self.config
         qconf['theta_motor'] = qconf['motors']['THETA']
         qconf['width_motor'] = qconf['motors']['HEIGHT']
 
@@ -298,6 +295,7 @@ class QXAFS_Scan(XAFS_Scan):
 
         energy = np.array(self.energies)
         times  = np.array(self.dwelltime)
+
         if reverse:
             energy = energy[::-1]
             times  = times[::-1]
@@ -333,30 +331,35 @@ class QXAFS_Scan(XAFS_Scan):
         buff.append(elast)
 
         old =  Group(buffer='\n'.join(buff),
-                     start_theta=theta[0]-the0,
+                     start_theta=theta[0]+the0,
                      start_width=width[0]-wid0,
                      theta=theta, tvelo=tvelo,   times=times,
                      energy=energy, width=width, wvelo=wvelo)
 
+        buff.append("")
         buff = '\n'.join(buff)
-        traj = {'energy': energy,
-                'width': width,
+        traj = {'energy': energy, 'buff': buff,
+                'width': width, 'theta': theta, 'theta0': the0,
                 'axes': ['THETA', 'HEIGHT'],
                 'start': [theta[0]-the0, width[0]-wid0],
                 'stop':  [theta[-1]+the0, width[-1]+wid0],
-                'pixeltime': self.dwelltime,
-                'npulses': npts+1, 'nsegments': npts}
+                'pixeltime': self.dwelltime[0],
+                'npulses': npts, 'nsegments': npts-1}
         self.xps.trajectories['qxafs'] = traj
-        self.xps.upload_trajectory('qxafs', buff)
+        self.xps.upload_trajectory('qxafs.trj', buff)
         return traj
 
     def finish_qscan(self):
         """initialize a QXAFS scan"""
-        qconf = self.slewscan_config
+        qconf = self.config
 
         caput(qconf['id_track_pv'],  1)
         caput(qconf['y2_track_pv'],  1)
         time.sleep(0.1)
+
+        for det in self.detectors:
+            det.stop()
+
 
     def gathering2energy(self, text):
         """read gathering file, calculate and return
@@ -375,9 +378,9 @@ class QXAFS_Scan(XAFS_Scan):
         angle  = (angle[1:] + angle[:-1])/2.0
         height = (height[1:] + height[:-1])/2.0
 
-        qconf = self.slewscan_config
-        angle += caget(self.qconf['theta_motor'] + '.OFF')
-        dspace = caget(self.qconf['dspace_pv'])
+        qconf = self.config
+        angle += caget(qconf['theta_motor'] + '.OFF')
+        dspace = caget(qconf['dspace_pv'])
         energy = HC/(2.0 * dspace * np.sin(angle/RAD2DEG))
         return (energy, height)
 
@@ -386,8 +389,6 @@ class QXAFS_Scan(XAFS_Scan):
         """
         run the actual QXAFS scan
         """
-        print("RUN QXAFS Scan")
-
         self.complete = False
         if filename is not None:
             self.filename  = filename
@@ -402,12 +403,9 @@ class QXAFS_Scan(XAFS_Scan):
             return
 
         self.connect_qxafs()
-        qconf = self.slewscan_config
+        qconf = self.config
 
-        print("QXAFS Config ", qconf)
-        traj = self.make_trajectory(reverse=reverse)
-        print("QXAFS made, uploaded trajectory")
-
+        traj = self.make_trajectory()
         energy_orig = caget(qconf['energy_pv'])
 
         idarray = 0.001*traj['energy'] + caget(qconf['id_offset_pv'])
@@ -422,7 +420,6 @@ class QXAFS_Scan(XAFS_Scan):
             pass
         caput(qconf['energy_pv'],  traj['energy'][0], wait=False)
 
-
         self.clear_interrupts()
         orig_positions = [p.current() for p in self.positioners]
 
@@ -431,8 +428,8 @@ class QXAFS_Scan(XAFS_Scan):
                                    slave_pvname=qconf['id_drive_pv'],
                                    scan=self)
 
-        # und_thread.set_array(idarray)
-        # und_thread.running = False
+        und_thread.set_array(idarray)
+        und_thread.running = False
 
         caput(qconf['energy_pv'], traj['energy'][0], wait=True)
         try:
@@ -449,68 +446,35 @@ class QXAFS_Scan(XAFS_Scan):
         for desc, pv in self.extra_pvs:
             extra_vals.append((desc, pv.get(as_string=True), pv.pvname))
 
-        print("QXAFS arm trajectory")
         self.xps.arm_trajectory('qxafs')
 
-        sis_opts = {}
-        xsp3_prefix = None
-        for d in self.detectors:
-            print "Detector ", d
-            if 'scaler' in d.label.lower():
-                sis_opts['scaler'] = d.prefix
-            elif 'xspress3' in d.label.lower():
-                xsp3_prefix = d.prefix
-
-        print("QXAFS create detectors")
-
-        qxsp3 = Xspress3(xsp3_prefix)
-        qxsp3.Acquire = 0
-        sis  = Struck(sis_prefix, **sis_opts)
-
-        caput(qconf['energy_pv'], traj['energy'][0])
-
-        print("QXAFS run prescan ")
-        out = self.pre_scan()
+        out = self.pre_scan(npulses=traj['npulses'],
+                            dweltims=dtime, mode='roi')
 
         self.check_outputs(out, msg='pre scan')
-        sis.stop()
+
         orig_counters = self.counters[:]
 
-        sis.arm(mode='roi', numframes=npts+2)
-        qxsp3.arm(mode='roi', numframes=npts+2)
-
-        # specialized QXAFS Counters
-        print("QXAFS Counters: ")
-        qxafs_counters = []
-        for i, mca in enumerate(sis.mcas):
-            scalername = getattr(sis.scaler, 'NM%i' % (i+1), '')
-            if len(scalername) > 1:
-                qxafs_counters.append((scalername, mca._pvs['VAL']))
-        print("QXAFS Counters (SIS):")
-
-
+        det_prefixes = []
+        for det in self.detectors:
+            det_prefixes.append(det.prefix)
+            det.arm(mode='roi')
 
         ## need to use self.rois to re-load ROI arrays
         ## names like  MCA1ROI:N:TSTotal
+        qxafs_counters = []
         for c in self.counters:
             pvname = c.pv.pvname
-            if pvname.startswith(xsp3_prefix) and 'MCA' in pvname:
-                pvname = pvname.replace('Total_RBV', 'TSTotal')
+            found = any([pref in pvname for pref in det_prefixes])
+            if found:
                 qxafs_counters.append((c.label, PV(pvname)))
 
-        # SCAs for count time, dt factors
-        for lab, sca in (('Clock', 0), ('ResetTicks', 1), ('AllEvent', 3)):
-            for card in range(1, 5):
-                pvname = '%sC%iSCA%i:TSArrayValue' % (xsp3_prefix, card, sca)
-                qxafs_counters.append(("%s_mca%i" % (lab, card), PV(pvname)))
         self.counters = []
         time.sleep(0.5)
         for label, cpv in qxafs_counters:
             self.counters.append(Counter(cpv.pvname, label=label))
-            print label, cpv
 
         self.init_scandata()
-        return
 
         self.datafile = self.open_output_file(filename=self.filename,
                                               comments=self.comments)
@@ -523,62 +487,58 @@ class QXAFS_Scan(XAFS_Scan):
         self.set_info('scan_time_estimate', npts*dtime)
         self.set_info('scan_total_points', npts)
 
-        out = [p.move_to_start(wait=True) for p in self.positioners]
-        self.check_outputs(out, msg='move to start, wait=True')
-
-        print("QXAFS A ")
-
-        caput(qconf['energy_pv'], traj['energy'][0], wait=True)
-        caput(qconf['theta_motor'] + '.DVAL', traj['start'][0], wait=True)
-        caput(qconf['width_motor'] + '.DVAL', traj['start'][1], wait=True)
+        self.datafile.flush()
+        # caput(qconf['energy_pv'], traj['energy'][0], wait=True)
+        # caput(qconf['theta_motor'] + '.DVAL', traj['start'][0], wait=True)
+        # caput(qconf['width_motor'] + '.DVAL', traj['start'][1], wait=True)
 
         self.set_info('scan_progress', 'starting scan')
         self.cpt = 0
         self.npts = npts
 
-        # und_thread.enable()
-        # und_thread.start()
-        # time.sleep(0.1)
-
         ts_init = time.time()
         self.inittime = ts_init - ts_start
         start_time = time.strftime('%Y-%m-%d %H:%M:%S')
 
-        self.xps.arm_trajectory('qxafs')
+        und_thread.enable()
+        und_thread.start()
+        for det in self.detectors:
+            det.start()
+        time.sleep(0.5)
+        out = self.xps.run_trajectory(name='qxafs', save=False)
 
-        sis.Start()
-        qxsp3.Start()
-
-        time.sleep(0.1)
-        self.xps.run_trajectory()
-        # self.xps.EndTrajectory()
-
-        sis.Stop()
-        qxsp3.Stop()
-        self.finish_qscan()
-        # und_thread.running = False
-        # und_thread.join()
+        und_thread.running = False
+        und_thread.join()
 
         self.set_info('scan_progress', 'reading data')
 
-        npulses, gather_text = self.xps.ReadGathering()
+        npulses, gather_text = self.xps.read_gathering()
         energy, height = self.gathering2energy(gather_text)
+
         self.pos_actual = []
         for e in energy:
            self.pos_actual.append([e])
-        ne = len(energy)
-        caput(qconf['energy_pv'], energy_orig-2.0)
 
-        nout = sis.CurrentChannel
+        ne = len(energy)
+        caput(qconf['energy_pv'], energy_orig-0.50)
+
+        out = self.post_scan()
+        self.check_outputs(out, msg='post scan')
+
+        self.finish_qscan()
+
+        nout = npulses-3
         narr = 0
         t0  = time.time()
-        while narr < (nout-1) and (time.time()-t0) < 30.0:
-            time.sleep(0.05)
+        ix = 0
+        while narr < (nout-1) and (time.time()-t0) < 15.0:
+            time.sleep(0.1 + ix*0.025)
             try:
-                dat =  [p.get(timeout=5.0) for (_d, p) in qxafs_counters]
+                dat = [p.get(timeout=5.0) for (_d, p) in qxafs_counters]
                 narr = min([len(d) for d in dat])
             except:
                 narr = 0
+            ix += 1
 
         # reset the counters, and fill in data read from arrays
         # note that we may need to trim *1st point* from qxspress3 data
@@ -592,7 +552,6 @@ class QXAFS_Scan(XAFS_Scan):
             self.counters.append(_c)
 
         self.publish_scandata()
-
         for val, pos in zip(orig_positions, self.positioners):
             pos.move_to(val, wait=False)
 
