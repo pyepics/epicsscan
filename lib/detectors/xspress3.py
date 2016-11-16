@@ -151,11 +151,12 @@ class Xspress3Counter(DeviceCounter):
     scas2save = (0,)
     def __init__(self, prefix, outpvs=None, nmcas=4,
                  nrois=32, rois=None, nscas=1, use_unlabeled=False,
-                 use_full=False):
+                 use_full=False, mode=None):
 
         if not prefix.endswith(':'):
             prefix = "%s:" % prefix
 
+        self.mode = mode
         self.nmcas, self.nrois = int(nmcas), int(nrois)
         self.nscas = int(nscas)
         self.use_full = use_full
@@ -175,6 +176,8 @@ class Xspress3Counter(DeviceCounter):
 
     def _get_counters(self):
         prefix = self.prefix
+        if self.mode is None:
+            self.mode == SCALER_MODE
         self.counters = []
         t0 = time.time()
         def add_counter(pv, lab):
@@ -197,25 +200,37 @@ class Xspress3Counter(DeviceCounter):
             else:
                 break
 
+        roi_format = '%sMCA%iROI:%i:Total_RBV'
+        sca_format = '%sC%iSCA%i:Value_RBV'
+        scas2save = (0, )
+        save_dtcorrect = True
+        if self.mode == ROI_MODE:
+            roi_format = '%sMCA%iROI:%i:TSTotal'
+            sca_format = None # '%sC%iSCA%i:TSArrayValue'
+            scas2save = (0, 1, 3)
+            save_dtcorrect = False
+
         for roiname in self.rois:
             lname = roiname.lower()
             if lname in current_rois:
                 iroi = current_rois[lname]
                 for imca in range(1, self.nmcas+1):
-                    _pvname = '%sMCA%iROI:%i:Total_RBV' % (prefix, imca, iroi)
+                    _pvname = roi_format % (prefix, imca, iroi)
                     _label  = "%s mca%i" % (roiname, imca)
                     add_counter(_pvname, _label)
 
-        for imca in range(1, self.nmcas+1):
-            _pvname = '%sC%i:DTFactor_RBV' % (prefix, imca)
-            _label = 'DTFactor mca%i' % (imca)
-            add_counter(_pvname, _label)
-
-        for isca in self.scas2save:
+        if save_dtcorrect:
             for imca in range(1, self.nmcas+1):
-                _pvname = '%sC%iSCA%i:Value_RBV' % (prefix, imca, isca)
-                _label = '%s mca%i' % (self.sca_labels[isca], imca)
+                _pvname = '%sC%i:DTFactor_RBV' % (prefix, imca)
+                _label = 'DTFactor mca%i' % (imca)
                 add_counter(_pvname, _label)
+
+        if sca_format is not None:
+            for isca in scas2save:
+                for imca in range(1, self.nmcas+1):
+                    _pvname = sca_format % (prefix, imca, isca)
+                    _label = '%s mca%i' % (self.sca_labels[isca], imca)
+                    add_counter(_pvname, _label)
 
 
         if self.use_full:
@@ -265,7 +280,7 @@ class Xspress3Detector(DetectorMixin):
 
 
         self._connect_args = dict(nmcas=nmcas, nrois=nrois, rois=rois,
-                                  use_unlabeled=use_unlabeled,
+                                  mode=mode, use_unlabeled=use_unlabeled,
                                   use_full=use_full)
         self.connect_counters()
 
@@ -344,6 +359,10 @@ class Xspress3Detector(DetectorMixin):
         self.extra_pvs = self._counter.extra_pvs
         dt.add('xspress3: done')
         # dt.show()
+
+    def post_scan(self, **kws):
+        "run just after scan"
+        self.ContinuousMode()
 
     def ContinuousMode(self, dwelltime=0.25, numframes=16384):
         """set to continuous mode: use for live reading
