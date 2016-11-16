@@ -21,7 +21,8 @@ LCEN  |= wx.ALL
 RCEN  |= wx.ALL
 CEN  |= wx.ALL
 
-DET_CHOICES = ('scaler', 'tetramm', 'xspress3', 'mca', 'multimca', 'areadetector')
+DET_CHOICES = ('scaler', 'tetramm', 'xspress3', 'struck',
+               'mca', 'multimca', 'areadetector')
 
 AD_CHOICES = ['None'] + list(AD_FILE_PLUGINS)
 
