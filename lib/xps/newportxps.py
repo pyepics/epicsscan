@@ -50,7 +50,6 @@ class NewportXPS:
         self._sid = None
         self._xps = XPS()
         self.connect()
-
         if group is not None:
             self.set_trajectory_group(group)
 
@@ -228,7 +227,7 @@ class NewportXPS:
         self.ftpconn.storbinary('STOR %s' % filename, StringIO(text))
         self.ftp_disconnect()
 
-    def set_trajectory_group(self, group):
+    def set_trajectory_group(self, group, reenable=False):
         """set group name for upcoming trajectories"""
         valid = False
         if group in self.groups:
@@ -247,17 +246,18 @@ class NewportXPS:
         self.traj_group = group
         self.traj_positioners = self.groups[group]['positioners']
 
-        try:
-            self.disable_group(self.traj_group)
-        except XPSError:
-            pass
+        if reenable:
+            try:
+                self.disable_group(self.traj_group)
+            except XPSError:
+                pass
 
-        time.sleep(0.1)
-        try:
-            self.enable_group(self.traj_group)
-        except XPSError:
-            print("Warning: could not enable trajectory group '%s'"% self.traj_group)
-            return
+            time.sleep(0.1)
+            try:
+                self.enable_group(self.traj_group)
+            except XPSError:
+                print("Warning: could not enable trajectory group '%s'"% self.traj_group)
+                return
 
         for i in range(64):
             self._xps.EventExtendedRemove(self._sid, i)
@@ -604,9 +604,7 @@ class NewportXPS:
                 outputs.append('%s.%s.%s' % (self.traj_group, ax, out))
                 # move_kws[ax] = float(traj['start'][i])
 
-        # print("XPS : Arm Trajectory, move to ", name, move_kws)
         # self.move_group(self.traj_group, **move_kws)
-
         self.gather_titles = "%s\n#%s\n" % (self.gather_header, " ".join(outputs))
         self._xps.GatheringReset(self._sid)
         self._xps.GatheringConfigurationSet(self._sid, outputs)
@@ -614,10 +612,7 @@ class NewportXPS:
                                                 2, traj['nsegments'],
                                                 traj['pixeltime'])
 
-        self._xps.MultipleAxesPVTVerification(self._sid,
-                                              self.traj_group,
-                                              self.traj_file)
-
+        self._xps.MultipleAxesPVTVerification(self._sid, self.traj_group, name)
         self.traj_state = ARMED
 
     def run_trajectory(self, name=None, save=True,
