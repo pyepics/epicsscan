@@ -336,7 +336,9 @@ class ASCIIScanFile(ScanFile):
         self.write_scanparams()
         self.write_comments()
         out = ["%s %s" % (COM1, COM3), self.column_label]
-        for i in range(len(self.scan.counters[0].buff)):
+        npts_all = [len(c.buff) for c in self.scan.counters]
+        # print("Npts: ", npts_all)
+        for i in range(min(npts_all)):
             words =  self.scan.pos_actual[i][:]
             words.extend([c.buff[i] for c in self.scan.counters])
             try:
