@@ -45,7 +45,7 @@ class PVSlaveThread(Thread):
 
     """
     def __init__(self, master_pvname=None,  slave_pvname=None, scan=None,
-                 values=None, maxpts=8192, wait_time=0.05, dead_time=0.5,
+                 values=None, maxpts=8192, wait_time=0.05, dead_time=1.00,
                  offset=3):
         Thread.__init__(self)
         self.maxpts = maxpts
@@ -53,8 +53,8 @@ class PVSlaveThread(Thread):
         self.wait_time = wait_time
         self.dead_time = dead_time
         self.last_move_time = time.time() - 100.0
+        self.last = -1
         self.pulse = -1
-        self.last  = None
         self.scan = scan
         self.running = False
         self.vals = values
@@ -84,13 +84,14 @@ class PVSlaveThread(Thread):
 
     def enable(self):
         self.last = self.pulse = -1
+        self.last_message = 0.1
         self.running = True
 
     def run(self):
         while self.running:
-            time.sleep(self.wait_time)
+            time.sleep(0.005)
             now = time.time()
-            if (self.pulse > self.last and self.last is not None and
+            if (self.pulse > self.last and
                 (now - self.last_move_time) > self.dead_time):
                 val = self.vals[self.pulse]
                 if self.slave.write_access:
@@ -100,7 +101,7 @@ class PVSlaveThread(Thread):
                     except:
                         print("PVFollow Put failed: ", self.slave.pvname , val)
                 self.last = self.pulse
-                if (self.scan is not None and self.pulse > 3 and self.pulse % 5 == 0):
+                if (self.scan is not None) and self.pulse > 3:
                     npts = self.scan.npts
                     cpt = self.pulse
                     dtime = self.scan.dwelltime
@@ -109,9 +110,10 @@ class PVSlaveThread(Thread):
                     time_left = (npts-cpt)*dtime
                     self.scan.set_info('scan_time_estimate', time_left)
                     time_est  = hms(time_left)
-                    msg = 'Point %i/%i,  time left: %s' % (cpt, npts, time_est)
-                    if cpt % self.scan.message_points == 0:
+                    msg = 'Point %i/%i, time left: %s' % (cpt, npts, time_est)
+                    if (cpt - self.last_message) >  self.scan.message_points:
                         self.scan.write("%s\n" % msg)
+                        self.last_message = cpt*1.0
                     self.scan.set_info('scan_progress', msg)
                     for c in self.scan.counters:
                         try:
@@ -408,7 +410,8 @@ class QXAFS_Scan(XAFS_Scan):
         traj = self.make_trajectory()
         energy_orig = caget(qconf['energy_pv'])
 
-        idarray = 0.001*traj['energy'] + caget(qconf['id_offset_pv'])
+        idfrac  = 1000*caget(qconf['id_offset_pv'])/energy_orig
+        idarray = 0.001*(traj['energy']*(1.0 + idfrac))
 
         time.sleep(0.1)
         caput(qconf['theta_motor'] + '.DVAL', traj['start'][0])
