@@ -54,7 +54,8 @@ class ADFileMixin(object):
 
     def filePut(self, attr, value, **kws):
         "put file attribute"
-        return self.put("%s%s" % (self.filesaver, attr), value, **kws)
+        pvattr = "%s%s" % (self.filesaver, attr)
+        return self.put(pvattr, value, **kws)
 
     def fileGet(self, attr, **kws):
         "get file attribute"
