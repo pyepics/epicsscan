@@ -95,7 +95,7 @@ class Struck(Device):
 
     def set_dwelltime(self, val):
         "Set Dwell Time"
-        print("Struck DwellTime ", self._pvs['Dwell'], val)
+        # print("Struck DwellTime ", self._pvs['Dwell'], val)
         if val is not None:
             self.put('Dwell', val)
 
@@ -152,19 +152,20 @@ class Struck(Device):
            as it can lead to inconsistent data arrays.
 
         """
+        print("SIS NDArrayMode ", dwelltime, numframes)
         if numframes is not None:
             self.put('NuseAll', numframes)
         if dwelltime is not None:
             self.set_dwelltime(dwelltime)
         self._mode = NDARRAY_MODE
 
-        self.put('StopAll', 1)
         time.sleep(0.05)
         self.ExternalMode(trigger_width=trigger_width, countonstart=False)
 
     def ROIMode(self, dwelltime=None, numframes=None, trigger_width=None):
         """set to ROI mode: ready for slew scanning"""
         self.NDArrayMode(dwelltime=dwelltime, numframes=numframes, trigger_width=trigger_width)
+        self.put('CountOnStart', 1)
 
     def start(self, wait=False):
         "Start Struck"
@@ -174,7 +175,9 @@ class Struck(Device):
 
     def stop(self):
         "Stop Struck Collection"
-        return self.put('StopAll', 1)
+        if self.get('Acquiring'):
+            self.put('StopAll', 1)
+        return
 
     def erase(self):
         "Start Struck"
@@ -292,7 +295,7 @@ class StruckDetector(DetectorMixin):
         "run just prior to scan"
         if mode is not None:
             self.mode = mode
-        # print("StruckDetector Prescan", mode, self.mode, kws)
+        # print("StruckDetector Prescan", self.mode, npulses, dwelltime, kws)
         self.arm(mode=self.mode, numframes=npulses)
         self.counters = self._counter.counters
         if dwelltime is not None:
@@ -307,6 +310,7 @@ class StruckDetector(DetectorMixin):
 
     def arm(self, mode=None, wait=False, numframes=None):
         "arm detector, ready to collect with optional mode"
+        # print("Struck Arm: ", mode, numframes)
         if self.mode == SCALER_MODE:
             self.struck.ScalerMode()
         elif self.mode == ROI_MODE:
