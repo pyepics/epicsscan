@@ -143,13 +143,14 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
                 scaler_pvname = d['prefix']
         for a in alldets:
             if scaler_pvname == json.loads(a.options).get('scaler', None):
-                scaler_shim = {'kind': a.kind,
+                scaler_shim = {'kind': 'struck', # a.kind,
                                'prefix': a.pvname,
                                'label': a.name,
                                'scaler': scaler_pvname}
 
     scan.rois = rois
     # print  "Made Detectors: shim=",  scaler_shim, scandb, scantype, scan.scantype
+    # print(" Create Scan detectors: ")
     for dpars in detectors:
         dpars['rois'] = scan.rois
         dpars['mode'] = scan.detmode
