@@ -28,7 +28,7 @@ class Xspress3(Device, ADFileMixin):
                'pathattrs', '_nonpvs', 'nmcas', 'mcas', '_chans')
 
     pathattrs = ('FilePath', 'FileTemplate', 'FileName', 'FileNumber',
-                 'Capture', 'NumCapture')
+                 'Capture', 'NumCapture', 'AutoIncrement', 'AutoSave')
 
     def __init__(self, prefix, nmcas=4, filesaver='HDF1:',
                  fileroot='/T/xas_user'):
@@ -440,6 +440,7 @@ class Xspress3Detector(DetectorMixin):
         2. setting dwelltime or numframes to None is discouraged,
            as it can lead to inconsistent data arrays.
         """
+        # print("Xspress3 NDArrayMode ", dwelltime, numframes)
         self._xsp3.put('TriggerMode', 3)
         for i in self._chans:
             self._xsp3.put('MCA%iROI:TSControl' % i, 2) # 'Stop
