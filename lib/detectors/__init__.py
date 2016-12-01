@@ -26,8 +26,8 @@ from .quadem import TetrAMM, TetrAMMDetector
 
 DET_DEFAULT_OPTS = {'scaler': {'use_calc': True, 'nchans': 8},
                     'tetramm': {'nchans': 4},
-                    'areadetector': {'file_plugin': 'TIFF1',
-                                     'fileroot': '',
+                    'areadetector': {'filesaver': 'TIFF1:',
+                                     'fileroot': '/cars5/Data/xas_user',
                                      'auto_increment': True},
                     'mca': {'nrois': 32, 'use_full': False,
                             'use_net': False},
@@ -85,11 +85,14 @@ def get_detector(prefix, kind=None, mode='scaler', rois=None, label=None, **kws)
     if kind is None:
         if prefix.endswith('.VAL'):
             prefix = prefix[-4]
-        rtyp = caget("%s.RTYP" % prefix)
+
+        try:
+            rtyp = caget("%s.RTYP" % prefix)
+        except:
+            rtyp = 'unknown'
         if rtyp in ('motor', 'mca', 'scaler'):
             kind = rtyp
     else:
         kind = kind.lower()
     builder = dtypes.get(kind, SimpleDetector)
-    # print(">> Get Detector: ", prefix, kind, label, builder, mode, rois, kws)
     return builder(prefix, label=label, mode=mode, rois=rois, **kws)
