@@ -1,6 +1,7 @@
 """
 Basic Counter
 """
+import numpy as np
 from collections import OrderedDict
 from epics import get_pv, caget
 
@@ -26,7 +27,12 @@ class Counter(Saveable):
     def read(self, **kws):
         "read counter to internal buffer"
         val = self.pv.get(**kws)
-        self.buff.append(val)
+        if isinstance(val, np.ndarray):
+            self.buff = val.tolist()
+        elif isinstance(val, (list, tuple)):
+            self.buff = list(val)
+        else:
+            self.buff.append(val)
         return val
 
     def clear(self):
@@ -59,7 +65,11 @@ class DeviceCounter(object):
             prefix = prefix[-4]
         self.prefix = prefix
         if rtype is not None:
-            if caget("%s.RTYP" % self.prefix) != rtype:
+            try:
+                rtype_found = caget("%s.RTYP" % self.prefix)
+            except:
+                rtype_found = None
+            if rtype_found is not None and rtype_found != rtype:
                 raise TypeError(self.invalid_device_msg)
         self.outpvs = outpvs
         self.set_counters(fields)
