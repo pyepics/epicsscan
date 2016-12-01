@@ -174,8 +174,8 @@ class Slew_Scan(StepScan):
         else:
             txt.append('use = True')
             txt.append('type = xsp3')
-            txt.append('prefix = %s' % det.prefix)
-            txt.append('fileplugin = %s' % det.filesaver)
+            txt.append('prefix = %s' % xrf_det.prefix)
+            txt.append('fileplugin = %s' % xrf_det.filesaver)
 
         txt.append('#------------------#')
         txt.append('[xrd_ad]')
@@ -184,8 +184,8 @@ class Slew_Scan(StepScan):
         else:
             txt.append('use = True')
             txt.append('type = AreadDetector')
-            txt.append('prefix = %s' % det.prefix)
-            txt.append('fileplugin = :')
+            txt.append('prefix = %s' % xrd_det.prefix)
+            txt.append('fileplugin = %s' % xrd_det.filesaver)
 
         sini = os.path.join(mapdir, 'Scan.ini')
         f = open(sini, 'w')
@@ -265,7 +265,6 @@ class Slew_Scan(StepScan):
             if tname == 'backward': val = v2
             pv.put(val, wait=False)
 
-
         self.pre_scan(npulses=npulses, dwelltime=dwelltime, mode='ndarray')
 
         master = open(master_file, 'w')
@@ -309,7 +308,7 @@ class Slew_Scan(StepScan):
             elif 'perkin' in det.label.lower():
                 xrddet = det
                 xrfbase =  os.path.abspath(os.path.join(self.mapdir, 'xrd'))
-            # det.arm(mode=self.detmode, numframes=npulses)
+            det.NDArrayMode(numframes=npulses)
 
 
         self.clear_interrupts()
@@ -337,7 +336,7 @@ class Slew_Scan(StepScan):
                     print("Failed to run pre_scan_command(row=%i)" % irow)
             # dtimer.add('start det')
             for det in self.detectors:
-                det.arm(mode='ndarray')
+                det.arm(mode='ndarray', numframes=npulses)
             time.sleep(0.2)
             for det in self.detectors:
                 det.start()
