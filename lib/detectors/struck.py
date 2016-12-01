@@ -152,7 +152,7 @@ class Struck(Device):
            as it can lead to inconsistent data arrays.
 
         """
-        print("SIS NDArrayMode ", dwelltime, numframes)
+        # print("SIS NDArrayMode ", dwelltime, numframes)
         if numframes is not None:
             self.put('NuseAll', numframes)
         if dwelltime is not None:
