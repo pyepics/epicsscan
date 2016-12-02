@@ -10,7 +10,7 @@ import json
 import time
 import atexit
 import logging
-
+import numpy as np
 from socket import gethostname
 from datetime import datetime
 
@@ -516,6 +516,10 @@ class ScanDB(object):
 
     def set_scandata(self, name, value,  **kws):
         cls, tab = self.get_table('scandata')
+        if isinstance(value, np.ndarray):
+            value = value.tolist()
+        if isinstance(value, (int, float)):
+            value = [value]
         where = "name='%s'" % name
         tab.update().where(whereclause=where
                            ).values({tab.c.data: value}).execute()
