@@ -57,7 +57,7 @@ class Struck(Device):
         for pvname, pv in self._pvs.items():
             pv.get()
 
-    def ExternalMode(self, countonstart=0, initialadvance=None,
+    def ExternalMode(self, countonstart=1, initialadvance=None,
                      realtime=0, prescale=1, trigger_width=None):
         """put Struck in External Mode, with the following options:
         option            meaning                   default value
@@ -129,6 +129,7 @@ class Struck(Device):
     Notes:
         1. numframes should be 1, unless you know what you're doing.
         """
+
         if numframes is not None:
             self.put('NuseAll', numframes)
         if dwelltime is not None:
@@ -160,7 +161,7 @@ class Struck(Device):
         self._mode = NDARRAY_MODE
 
         time.sleep(0.05)
-        self.ExternalMode(trigger_width=trigger_width, countonstart=False)
+        self.ExternalMode(trigger_width=trigger_width, countonstart=1)
 
     def ROIMode(self, dwelltime=None, numframes=None, trigger_width=None):
         """set to ROI mode: ready for slew scanning"""
@@ -306,7 +307,20 @@ class StruckDetector(DetectorMixin):
 
     def post_scan(self, **kws):
         "run just after scan"
-        self.struck.ContinuousMode(numframes=1)
+        pass
+#     if self.struck.get('Acquiring'):
+#             self.put('StopAll', 1)
+#         if self.mode == ROI_MODE:
+#             self.struck.scaler.OneShotMode()
+#             count = 0
+#             while self.get('Acquiring'):
+#                 time.sleep(0.05)
+#                 count += 1
+#                 if count > 20:
+#                     break
+#                 self.put('StopAll', 1)
+#                 self.struck.scaler.Count()
+#             # self.struck.ContinuousMode(numframes=1)
 
     def arm(self, mode=None, wait=False, numframes=None):
         "arm detector, ready to collect with optional mode"
