@@ -57,7 +57,7 @@ class Struck(Device):
         for pvname, pv in self._pvs.items():
             pv.get()
 
-    def ExternalMode(self, countonstart=1, initialadvance=None,
+    def ExternalMode(self, countonstart=0, initialadvance=None,
                      realtime=0, prescale=1, trigger_width=None):
         """put Struck in External Mode, with the following options:
         option            meaning                   default value
@@ -129,7 +129,6 @@ class Struck(Device):
     Notes:
         1. numframes should be 1, unless you know what you're doing.
         """
-
         if numframes is not None:
             self.put('NuseAll', numframes)
         if dwelltime is not None:
@@ -161,7 +160,7 @@ class Struck(Device):
         self._mode = NDARRAY_MODE
 
         time.sleep(0.05)
-        self.ExternalMode(trigger_width=trigger_width, countonstart=1)
+        self.ExternalMode(trigger_width=trigger_width, countonstart=False)
 
     def ROIMode(self, dwelltime=None, numframes=None, trigger_width=None):
         """set to ROI mode: ready for slew scanning"""
