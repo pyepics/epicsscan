@@ -8,7 +8,7 @@ import time
 import json
 import numpy as np
 from threading import Thread
-from epics import caget, caput, PV
+from epics import caget, caput, PV, get_pv
 from larch import Group
 
 from .scan import StepScan, hms
@@ -45,8 +45,8 @@ class PVSlaveThread(Thread):
 
     """
     def __init__(self, master_pvname=None,  slave_pvname=None, scan=None,
-                 values=None, maxpts=8192, wait_time=0.05, dead_time=1.00,
-                 offset=3):
+                 values=None, maxpts=8192, wait_time=0.05, dead_time=1.1,
+                 offset=3, ready_pv=None, ready_val=0):
         Thread.__init__(self)
         self.maxpts = maxpts
         self.offset = offset
@@ -58,18 +58,27 @@ class PVSlaveThread(Thread):
         self.scan = scan
         self.running = False
         self.vals = values
+        self.ready_pv = None
+        self.ready_val = ready_val
+        # if ready_pv is None:
+        #     ready_pv = 'ID13us:Busy.VAL'
+
         if self.vals is None:
             self.vals  = np.zeros(self.maxpts)
         self.master = None
         self.slave = None
-        if master_pvname is not None: self.set_master(master_pvname)
-        if slave_pvname is not None: self.set_slave(slave_pvname)
+        if master_pvname is not None:
+            self.set_master(master_pvname)
+        if slave_pvname is not None:
+            self.set_slave(slave_pvname)
+        if ready_pv is not None:
+            self.ready_pv = get_pv(ready_pv)
 
     def set_master(self, pvname):
-        self.master = PV(pvname, callback=self.onPulse)
+        self.master = get_pv(pvname, callback=self.onPulse)
 
     def set_slave(self, pvname):
-        self.slave = PV(pvname)
+        self.slave = get_pv(pvname)
 
     def onPulse(self, pvname, value=1, **kws):
         self.pulse  = max(0, min(self.maxpts, value + self.offset))
@@ -91,11 +100,15 @@ class PVSlaveThread(Thread):
         while self.running:
             time.sleep(0.005)
             now = time.time()
-            if (self.pulse > self.last and
-                (now - self.last_move_time) > self.dead_time):
-                val = self.vals[self.pulse]
-                if self.slave.write_access:
+            if self.pulse > self.last:
+                ready = True
+                if self.ready_pv is not None:
+                    ready = (self.ready_pv.get() == self.ready_val)
+                ready = ready and ((now- self.last_move_time) > self.dead_time)
+                if ready and self.slave.write_access:
+                    val = self.vals[self.pulse]
                     try:
+                        print("Put ID To %i  E=%.4f" % (self.pulse, val))
                         self.slave.put(val)
                         self.last_move_time = time.time()
                     except:
@@ -277,6 +290,8 @@ class QXAFS_Scan(XAFS_Scan):
         qconf = self.config
         caput(qconf['id_track_pv'], 1)
         caput(qconf['y2_track_pv'], 1)
+        self.scandb.set_info('qxafs_running', 0)
+        caput(qconf['id_array_pv'], np.zeros(2000))
 
     def make_trajectory(self, reverse=False,
                         theta_accel=25, width_accel=0.25, **kws):
@@ -295,8 +310,14 @@ class QXAFS_Scan(XAFS_Scan):
         th_off = caget(qconf['theta_motor'] + '.OFF')
         wd_off = caget(qconf['width_motor'] + '.OFF')
 
-        energy = np.array(self.energies)
-        times  = np.array(self.dwelltime)
+        en0 = (3*self.energies[0] - self.energies[1])/2.
+        enx = (self.energies[-2] + self.energies[-1])/2.
+        energy = [en0]
+        energy.extend(list(self.energies))
+        energy.append(enx)
+
+        energy = np.array(energy)
+        times  = np.array(len(energy)*[self.dwelltime[0]])
 
         if reverse:
             energy = energy[::-1]
@@ -346,7 +367,7 @@ class QXAFS_Scan(XAFS_Scan):
                 'start': [theta[0]-the0, width[0]-wid0],
                 'stop':  [theta[-1]+the0, width[-1]+wid0],
                 'pixeltime': self.dwelltime[0],
-                'npulses': npts, 'nsegments': npts-1}
+                'npulses': npts, 'nsegments': npts}
         self.xps.trajectories['qxafs'] = traj
         self.xps.upload_trajectory('qxafs.trj', buff)
         return traj
@@ -354,14 +375,9 @@ class QXAFS_Scan(XAFS_Scan):
     def finish_qscan(self):
         """initialize a QXAFS scan"""
         qconf = self.config
-
         caput(qconf['id_track_pv'],  1)
         caput(qconf['y2_track_pv'],  1)
         time.sleep(0.1)
-
-        for det in self.detectors:
-            det.stop()
-
 
     def gathering2energy(self, text):
         """read gathering file, calculate and return
@@ -427,12 +443,10 @@ class QXAFS_Scan(XAFS_Scan):
         orig_positions = [p.current() for p in self.positioners]
 
         sis_prefix = qconf['mcs_prefix']
-        und_thread = PVSlaveThread(master_pvname=sis_prefix+'CurrentChannel',
-                                   slave_pvname=qconf['id_drive_pv'],
-                                   scan=self)
 
-        und_thread.set_array(idarray)
-        und_thread.running = False
+        caput(qconf['id_array_pv'], idarray)
+        self.scandb.set_info('qxafs_running', 1)
+        self.scandb.set_info('qxafs_dwelltime', self.dwelltime[0])
 
         caput(qconf['energy_pv'], traj['energy'][0], wait=True)
         try:
@@ -456,28 +470,27 @@ class QXAFS_Scan(XAFS_Scan):
 
         self.check_outputs(out, msg='pre scan')
 
-        orig_counters = self.counters[:]
-
         det_prefixes = []
         for det in self.detectors:
             det_prefixes.append(det.prefix)
             det.arm(mode='roi')
 
+
         ## need to use self.rois to re-load ROI arrays
         ## names like  MCA1ROI:N:TSTotal
-        qxafs_counters = []
+        _counters = []
         for c in self.counters:
             pvname = c.pv.pvname
             found = any([pref in pvname for pref in det_prefixes])
             if found:
-                qxafs_counters.append((c.label, PV(pvname)))
+                _counters.append((pvname, c.label))
 
-        self.counters = []
-        time.sleep(0.5)
-        for label, cpv in qxafs_counters:
-            self.counters.append(Counter(cpv.pvname, label=label))
+        self.counters = [Counter(pv, label=lab) for pv, lab in _counters]
 
         self.init_scandata()
+
+        for det in self.detectors:
+            det.start()
 
         self.datafile = self.open_output_file(filename=self.filename,
                                               comments=self.comments)
@@ -491,9 +504,6 @@ class QXAFS_Scan(XAFS_Scan):
         self.set_info('scan_total_points', npts)
 
         self.datafile.flush()
-        # caput(qconf['energy_pv'], traj['energy'][0], wait=True)
-        # caput(qconf['theta_motor'] + '.DVAL', traj['start'][0], wait=True)
-        # caput(qconf['width_motor'] + '.DVAL', traj['start'][1], wait=True)
 
         self.set_info('scan_progress', 'starting scan')
         self.cpt = 0
@@ -503,17 +513,15 @@ class QXAFS_Scan(XAFS_Scan):
         self.inittime = ts_init - ts_start
         start_time = time.strftime('%Y-%m-%d %H:%M:%S')
 
-        und_thread.enable()
-        und_thread.start()
-        for det in self.detectors:
-            det.start()
-        time.sleep(0.5)
+        time.sleep(1.0)
         out = self.xps.run_trajectory(name='qxafs', save=False)
 
-        und_thread.running = False
-        und_thread.join()
 
         self.set_info('scan_progress', 'reading data')
+        for det in self.detectors:
+            det.stop()
+
+        time.sleep(0.5)
 
         npulses, gather_text = self.xps.read_gathering()
         energy, height = self.gathering2energy(gather_text)
@@ -525,36 +533,31 @@ class QXAFS_Scan(XAFS_Scan):
         ne = len(energy)
         caput(qconf['energy_pv'], energy_orig-0.50)
 
+        self.finish_qscan()
+
         out = self.post_scan()
         self.check_outputs(out, msg='post scan')
 
-        self.finish_qscan()
 
-        nout = npulses-3
-        narr = 0
+        [c.read() for c in self.counters]
+
+        narr, ix = 0, 0
         t0  = time.time()
-        ix = 0
-        while narr < (nout-1) and (time.time()-t0) < 15.0:
-            time.sleep(0.1 + ix*0.025)
-            try:
-                dat = [p.get(timeout=5.0) for (_d, p) in qxafs_counters]
-                narr = min([len(d) for d in dat])
-            except:
-                narr = 0
-            ix += 1
+        while narr < (ne-1) and (time.time()-t0) < 15.0:
+            time.sleep(0.1 + ix*0.1)
+            [c.read() for c in self.counters]
+            ndat = [len(c.buff) for c in self.counters]
+            narr = min(ndat)
 
-        # reset the counters, and fill in data read from arrays
-        # note that we may need to trim *1st point* from qxspress3 data
-        self.counters = []
-        for label, cpv in qxafs_counters:
-            _c = Counter(cpv.pvname, label=label)
-            arr = cpv.get()
-            if len(arr) > ne:
-                arr = arr[-ne:]
-            _c.buff = arr.tolist()
-            self.counters.append(_c)
+        #  print("Read QXAFS Data %i points (NE=%i) %.3f secs" % (narr, ne, time.time() - t0))
 
-        self.publish_scandata()
+        # remove hot first pixel AND align to proper energy
+        # really, we tested this, comparing to slow XAFS scans!
+        for c in self.counters:
+            c.buff = c.buff[1:]
+
+        self.set_all_scandata()
+
         for val, pos in zip(orig_positions, self.positioners):
             pos.move_to(val, wait=False)
 
@@ -571,6 +574,7 @@ class QXAFS_Scan(XAFS_Scan):
         self.complete = True
         self.set_info('scan_progress',
                       'scan complete. Wrote %s' % self.datafile.filename)
+        self.scandb.set_info('qxafs_running', 0)
         self.runtime  = time.time() - ts_start
         return self.datafile.filename
         ##
