@@ -117,6 +117,8 @@ class ScanDB(object):
 
         fullpath = os.path.join(fileroot, workdir)
         fullpath = fullpath.replace('\\', '/').replace('//', '/')
+        if os.name == 'nt':
+            fullpath = '/%s' % fullpath
         try:
             os.chdir(fullpath)
         except:
