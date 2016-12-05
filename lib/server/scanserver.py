@@ -48,6 +48,7 @@ class ScanServer():
         self.scandb.set_info('request_abort',    0)
         self.scandb.set_info('request_pause',    0)
         self.scandb.set_info('request_shutdown', 0)
+        self.set_path()
 
         if HAS_LARCH:
             self.larch = LarchScanDBServer(self.scandb, fileroot=self.fileroot)

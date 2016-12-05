@@ -528,6 +528,7 @@ class ScanFrame(wx.Frame):
         self.scandb.set_info('user_folder', basedir)
         fullpath = os.path.join(fileroot, basedir)
         fullpath = fullpath.replace('\\', '/').replace('//', '/')
+        self.scandb.set_path()
         try:
             os.chdir(fullpath)
         except:
