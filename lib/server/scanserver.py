@@ -106,6 +106,7 @@ class ScanServer():
         self.scandb.set_path(fileroot=self.fileroot)
 
     def do_command(self, req):
+        self.set_path()
         cmd_stat = self.scandb.get_command_status(req.id).lower()
         if not cmd_stat.startswith('request'):
             self.set_scan_message("Warning: skipping command '%s'" % repr(req))

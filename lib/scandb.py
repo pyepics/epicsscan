@@ -117,8 +117,6 @@ class ScanDB(object):
 
         fullpath = os.path.join(fileroot, workdir)
         fullpath = fullpath.replace('\\', '/').replace('//', '/')
-        if os.name == 'nt':
-            fullpath = '/%s' % fullpath
         try:
             os.chdir(fullpath)
         except:
@@ -126,7 +124,7 @@ class ScanDB(object):
         finally:
             self.set_info('server_fileroot',  fileroot)
             self.set_info('user_folder',  workdir)
-        print("ScanDB: Working directory %s " % os.getcwd())
+        # print("ScanDB: Working directory %s " % os.getcwd())
         time.sleep(0.1)
 
     def isScanDB(self, dbname, server='sqlite',
