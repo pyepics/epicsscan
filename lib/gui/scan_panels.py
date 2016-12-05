@@ -263,6 +263,13 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         for i in (3, 4, 5, 6):
             wids[i].Enable()
 
+        if name == 'Dummy':
+            for i in (3, 4):
+                wids[i].SetMin(None)
+                wids[i].SetMax(None)
+                wids[i].SetPrecision(3)
+            return
+
         pvnames = list(self.pospvs[name])
         if len(pvnames[0]) < 1:
             return
@@ -476,14 +483,14 @@ class LinearScanPanel(GenericScanPanel):
             s['nscans'] = int(self.nscans.GetValue())
 
         is_relative =  self.absrel.GetSelection()
+
         for i, wids in enumerate(self.pos_settings):
             pos, u, cur, start, stop, dx, wnpts = wids
             if i == 0:
                 npts = wnpts.GetValue()
             if start.Enabled:
                 name = pos.GetStringSelection()
-                xpos = self.scandb.get_positioner(name)
-                pvnames = (xpos.drivepv, xpos.readpv)
+                pvnames = self.pospvs[name]
                 p1 = start.GetValue()
                 p2 = stop.GetValue()
                 if is_relative:
