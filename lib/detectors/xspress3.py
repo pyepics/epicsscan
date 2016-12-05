@@ -52,6 +52,8 @@ class Xspress3(Device, ADFileMixin):
             self.mcas.append(mca)
             attrs.append("%s:MCA%iROI:TSControl" % (prefix, imca))
             attrs.append("%s:MCA%iROI:TSNumPoints" % (prefix, imca))
+            attrs.append("%s:C%iSCA:TSControl" % (prefix, imca))
+            attrs.append("%s:C%iSCA:TSNumPoints" % (prefix, imca))
         Device.__init__(self, prefix, attrs=attrs, delim='')
         for attr in self.det_attrs:
             self.add_pv("%sdet1:%s" % (prefix, attr), attr)
@@ -206,7 +208,7 @@ class Xspress3Counter(DeviceCounter):
         save_dtcorrect = True
         if self.mode == ROI_MODE:
             roi_format = '%sMCA%iROI:%i:TSTotal'
-            sca_format = None # '%sC%iSCA%i:TSArrayValue'
+            sca_format = '%sC%iSCA%i:TSArrayValue'
             scas2save = (0, 1, 3)
             save_dtcorrect = False
 
@@ -395,6 +397,7 @@ class Xspress3Detector(DetectorMixin):
         if dwelltime is not None:
             self.set_dwelltime(dwelltime)
         for i in self._chans:
+            self._xsp3.put('C%iSCA:TSControl' % i, 2) # 'Stop'
             self._xsp3.put('MCA%iROI:TSControl' % i, 2) # 'Stop'
             self._xsp3.put('MCA%iROI:BlockingCallbacks' % i, 1)
         self.mode = SCALER_MODE
@@ -416,10 +419,12 @@ class Xspress3Detector(DetectorMixin):
         self._xsp3.put('TriggerMode', 3) # External, TTL Veto
         for i in self._chans:
             self._xsp3.put('MCA%iROI:TSControl' % i, 2) # 'Stop'
+            self._xsp3.put('C%iSCA:TSControl' % i, 2) # 'Stop'
         if numframes is not None:
             self._xsp3.put('NumImages', numframes)
             for i in self._chans:
                 self._xsp3.put('MCA%iROI:TSNumPoints' % i, numframes)
+                self._xsp3.put('C%iSCA:TSNumPoints' % i, numframes)
                 self._xsp3.put('MCA%iROI:BlockingCallbacks' % i, 1)
 
         if dwelltime is not None:
@@ -444,6 +449,7 @@ class Xspress3Detector(DetectorMixin):
         self._xsp3.put('TriggerMode', 3)
         for i in self._chans:
             self._xsp3.put('MCA%iROI:TSControl' % i, 2) # 'Stop
+            self._xsp3.put('C%iSCA:TSControl' % i, 2) # 'Stop
 
         if numframes is not None:
             self._xsp3.put('NumImages', numframes)
@@ -479,6 +485,7 @@ class Xspress3Detector(DetectorMixin):
             self._xsp3.FileCaptureOff()
             for i in self._chans:
                 self._xsp3.put('MCA%iROI:TSControl' % i, 0) # 'Erase/Start'
+                self._xsp3.put('C%iSCA:TSControl' % i, 0)
 
     def disarm(self, mode=None, wait=False):
         if mode is not None:
