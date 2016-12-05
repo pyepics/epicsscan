@@ -65,8 +65,8 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         self._initialized = False # used to shunt events while creating windows
 
     def get_positioners(self):
-        self.pospvs = {'None': ('', ''), 'Dummy': ('', '')}
-        self.poslist = ['None', 'Dummy']
+        self.pospvs = {'None': ('', '')}
+        self.poslist = ['None']
         for pos in self.scandb.get_positioners():
             self.poslist.append(pos.name)
             self.pospvs[pos.name] = (pos.drivepv, pos.readpv)
@@ -262,13 +262,6 @@ class GenericScanPanel(scrolled.ScrolledPanel):
             return
         for i in (3, 4, 5, 6):
             wids[i].Enable()
-
-        if name == 'Dummy':
-            for i in (3, 4):
-                wids[i].SetMin(None)
-                wids[i].SetMax(None)
-                wids[i].SetPrecision(3)
-            return
 
         pvnames = list(self.pospvs[name])
         if len(pvnames[0]) < 1:
