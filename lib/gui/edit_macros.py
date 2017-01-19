@@ -14,7 +14,6 @@ from .gui_utils import (GUIColors, set_font_with_children, YesNo,
                         FileOpen, FileSave, popup,
                         FRAMESTYLE, Font)
 
-from ..abort_slewscan import abort_slewscan
 from ..scandb import InstrumentDB
 
 import larch
@@ -498,7 +497,6 @@ class MacroFrame(wx.Frame) :
     def onAbort(self, event=None):
         self.scandb.set_info('request_abort', 1)
         self.scandb.commit()
-        abort_slewscan()
         time.sleep(1.0)
 
     def onCancelAll(self, event=None):

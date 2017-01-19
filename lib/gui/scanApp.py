@@ -54,7 +54,7 @@ from .gui_utils import (SimpleText, FloatCtrl, Closure, pack, add_button,
                         CEN, LCEN, FRAMESTYLE, Font)
 
 from ..utils import normalize_pvname, read_oldscanfile, atGSECARS
-from ..stepscan import StepScan
+
 from ..xafs_scan import XAFS_Scan
 
 from ..file_utils import new_filename, nativepath, fix_filename
@@ -79,8 +79,6 @@ from .edit_extrapvs    import ExtraPVsFrame
 from .edit_scandefs    import ScandefsFrame
 from .edit_sequences   import SequencesFrame
 from .edit_macros      import MacroFrame
-
-from ..abort_slewscan import abort_slewscan
 
 ICON_FILE = 'epics_scan.ico'
 ALL_CEN =  wx.ALL|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL
@@ -395,7 +393,6 @@ class ScanFrame(wx.Frame):
             self.onDebugScan()
         elif cmd.startswith('abort'):
             self.scandb.set_info('request_abort', 1)
-            abort_slewscan()
         elif cmd.startswith('pause'):
             self.scandb.set_info('request_pause', 1)
         elif cmd.startswith('resume'):
