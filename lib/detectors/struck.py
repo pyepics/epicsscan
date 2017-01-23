@@ -57,16 +57,18 @@ class Struck(Device):
         for pvname, pv in self._pvs.items():
             pv.get()
 
-    def ExternalMode(self, countonstart=0, initialadvance=None,
+    def ExternalMode(self, countonstart=None, initialadvance=None,
                      realtime=0, prescale=1, trigger_width=None):
         """put Struck in External Mode, with the following options:
         option            meaning                   default value
         ----------------------------------------------------------
-        countonstart    set Count on Start             0
+        countonstart    set Count on Start             None
         initialadvance  set Initial Channel Advance    None
         reatime         set Preset Real Time           0
         prescale        set Prescale value             1
         trigger_width   set trigger width in sec       None
+
+        here, `None` means "do not change from current value"
         """
         out = self.put('ChannelAdvance', 1)  # external
         if self.scaler is not None:
@@ -137,12 +139,14 @@ class Struck(Device):
             self.scaler.OneShotMode()
         self._mode = SCALER_MODE
 
-    def NDArrayMode(self, dwelltime=None, numframes=None, trigger_width=None):
+    def NDArrayMode(self, dwelltime=None, numframes=None, countonstart=True,
+                    trigger_width=None):
         """ set to array mode: ready for slew scanning
 
     Arguments:
         dwelltime (None or float): dwelltime per frame in seconds [0.25]
-        numframes (None int):   number of frames to collect [8192]
+        numframes (None or int):   number of frames to collect [8192]
+        countonstart (None or bool):  whether to count on start [True]
         trigger_width (None or float):   output trigger width (in seconds)
              for optional SIS 3820 [None]
 
@@ -160,12 +164,14 @@ class Struck(Device):
         self._mode = NDARRAY_MODE
 
         time.sleep(0.05)
-        self.ExternalMode(trigger_width=trigger_width, countonstart=False)
+        self.ExternalMode(trigger_width=trigger_width, countonstart=countonstart)
 
-    def ROIMode(self, dwelltime=None, numframes=None, trigger_width=None):
+    def ROIMode(self, dwelltime=None, numframes=None, countonstart=True,
+                trigger_width=None):
         """set to ROI mode: ready for slew scanning"""
-        self.NDArrayMode(dwelltime=dwelltime, numframes=numframes, trigger_width=trigger_width)
-        self.put('CountOnStart', 1)
+        self.NDArrayMode(dwelltime=dwelltime, numframes=numframes,
+                         countonstart=countonstart, trigger_width=trigger_width)
+
 
     def start(self, wait=False):
         "Start Struck"
