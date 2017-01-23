@@ -278,7 +278,7 @@ class Slew_Scan(StepScan):
         ypos = str(pvs[0])
         if ypos.endswith('.VAL'):
             ypos = ypos[:-4]
-        master.write("#Scan.version = 1.3\n")
+        master.write("#Scan.version = 1.4\n")
         master.write('#SCAN.starttime = %s\n' % time.ctime())
         master.write('#SCAN.filename  = %s\n' % self.filename)
         master.write('#SCAN.dimension = %i\n' % dim)
