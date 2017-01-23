@@ -158,9 +158,6 @@ class AreaDetector(DetectorMixin, ADFileMixin):
             self.counters.append(f_counter)
         self._repr_extra = ', file_plugin=%s' % repr(file_plugin)
 
-    def config_filesaver(self, **kws):
-        self._xsp3.config_filesaver(**kws)
-
     def pre_scan(self, scan=None, **kws):
         if self.dwelltime is not None and isinstance(self.dwelltime_pv, PV):
             self.dwelltime_pv.put(self.dwelltime)
