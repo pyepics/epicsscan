@@ -304,7 +304,13 @@ class ScanDB(object):
     def set_config(self, name, text):
         """add configuration, general purpose table"""
         cls, table = self.get_table('config')
-        table.insert().execute(name=name, notes=text)
+        row = self.get_config(name)
+        if row is None:
+            table.insert().execute(name=name, notes=text)
+        else:
+            q = table.update().where(table.c.name==name)
+            q.values({table.c.notes: text}).execute()
+
         self.commit()
 
     def get_config(self, name):
