@@ -34,8 +34,10 @@ class debugtime(object):
             tlast = t
         return "\n".join(out)
 
-    def show(self):
+    def show(self, clear=True):
         print(self.get_report())
+        if clear:
+            self.clear()
         
     def save(self, fname='debugtimer.dat'):
         dat = self.get_report()
