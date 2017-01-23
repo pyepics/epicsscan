@@ -658,10 +658,12 @@ class NewportXPS:
 
     def read_and_save(self, output_file):
         "read and save gathering file"
+        self.ngathered = 0
         npulses, buff = self.read_gathering(set_idle_when_done=False)
         self.save_gathering_file(output_file, buff,
                                  verbose=False,
                                  set_idle_when_done=False)
+        self.ngathered = npulses
 
     def read_gathering(self, set_idle_when_done=True):
         """
