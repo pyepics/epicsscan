@@ -252,7 +252,7 @@ class Slew_Scan(StepScan):
 
         self.xps.arm_trajectory(tname)
 
-        npulses = trajs[tname]['npulses']
+        npulses = trajs[tname]['npulses'] + 1
         dwelltime = trajs[tname]['pixeltime']
 
         master_file = os.path.join(self.mapdir, 'Master.dat')
@@ -334,10 +334,11 @@ class Slew_Scan(StepScan):
                     self.larch.run("pre_scan_command(row=%i, npts=%i)" % (irow, npts))
                 except:
                     print("Failed to run pre_scan_command(row=%i)" % irow)
-            # dtimer.add('start det')
+            # dtimer.add('arm detectors')
             for det in self.detectors:
                 det.arm(mode='ndarray', numframes=npulses)
             time.sleep(0.2)
+            # dtimer.add('start detectors')
             for det in self.detectors:
                 det.start()
             time.sleep(0.2)
@@ -388,6 +389,7 @@ class Slew_Scan(StepScan):
             if self.look_for_interrupts():
                 caput('13XRM:map:status', 'Aborting')
                 break
+            # dtimer.add("stopping detectors after delay")
             for det in self.detectors:
                 det.stop()
 
@@ -418,7 +420,6 @@ class Slew_Scan(StepScan):
             # dtimer.add('read sis done')
             saver_thread.join()
             # dtimer.add('read xps done')
-
             if not rowdata_ok:
                 self.write('#### BAD DATA for row: redoing this row\n')
                 irow -= 1
