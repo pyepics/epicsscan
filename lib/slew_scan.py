@@ -318,15 +318,12 @@ class Slew_Scan(StepScan):
         start_time = time.time()
         irow = 0
         caput('13XRM:map:status', 'Collecting')
+        dtimer =  debugtime()
         while irow < npts:
             irow += 1
-            # dtimer =  debugtime()
-            # dtimer.add('=== row start %i ====' % irow)
+            dtimer.add('=== row start %i ====' % irow)
             self.set_info('scan_progress', 'row %i of %i' % (irow, npts))
             caput('13XRM:map:nrow', irow)
-            rowdata_ok = True
-
-
             trajname = ['foreward', 'backward'][(dir_off + irow) % 2]
             # print('row %i of %i, %s' % (irow, npts, trajname))
             if self.larch is not None and irow > 1 and irow % 10 == 0:
@@ -358,13 +355,13 @@ class Slew_Scan(StepScan):
                 val = v1
                 if trajname == 'backward': val = v2
                 pv.put(val, wait=True)
-            # dtimer.add('inner pos move done')
+            dtimer.add('inner pos move done')
             # start trajectory in another thread
             time.sleep(0.05)
             scan_thread = Thread(target=self.xps.run_trajectory,
                                  kwargs=dict(save=False), name='trajectory_thread')
             scan_thread.start()
-            # dtimer.add('scan thread start')
+            dtimer.add('scan thread start')
             posfile = make_filename(posbase, irow)
             scafile = make_filename(scabase, irow)
             xrffile = make_filename(xrfbase, irow)
@@ -383,9 +380,9 @@ class Slew_Scan(StepScan):
                     masterline = "%s %s" % (masterline, fn)
 
             # wait for trajectory to finish
-            # dtimer.add('scan thread join(1)')
+            dtimer.add('scan thread join()')
             scan_thread.join()
-            # dtimer.add('scan thread joined')
+            dtimer.add('scan thread joined')
             if self.look_for_interrupts():
                 caput('13XRM:map:status', 'Aborting')
                 break
@@ -400,34 +397,61 @@ class Slew_Scan(StepScan):
 
             if irow < npts-1:
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
-            # dtimer.add('start read')
-            saver_thread = Thread(target=self.xps.read_and_save,
-                                  args=(posfile,), name='saver_thread')
-            saver_thread.start()
+            dtimer.add('start read')
+            rowdata_ok = True
+            xps_saver_thread = Thread(target=self.xps.read_and_save,
+                                  args=(posfile,), name='xps_saver')
+            xps_saver_thread.start()
+
+            npts_sca = npulses
+            if scadet is not None:
+                ncsa, npts_sca = scadet.save_arraydata(filename=scafile, npts=npulses)
+            dtimer.add('saved SIS data')
+
+            xps_saver_thread.join()
+            dtimer.add('saved XPS data')
+
+            nxrf = nxrd = 0
             if xrfdet is not None:
                 t0 = time.time()
                 while not xrfdet.file_write_complete() and (time.time()-t0 < 5.0):
                     time.sleep(0.1)
                 # print(" File write complete? ", xrfdet.file_write_complete())
-                if not xrfdet.file_write_complete():
+                nxrf = xrfdet._xsp3.getNumCaptured_RBV()
+                if (nxrf < npulses -2) or not xrfdet.file_write_complete():
                     rowdata_ok = False
-                    time.sleep(0.25)
                     xrfdet.stop()
                     time.sleep(0.25)
-            # dtimer.add('read xrf done')
-            if scadet is not None:
-                scadet.save_arraydata(filename=scafile, npts=npulses)
-            # dtimer.add('read sis done')
-            saver_thread.join()
-            # dtimer.add('read xps done')
+            dtimer.add('saved XRF data')
+
+            if xrddet is not None:
+                t0 = time.time()
+                while not xrddet.file_write_complete() and (time.time()-t0 < 5.0):
+                    time.sleep(0.1)
+                # print(" File write complete? ", xrfdet.file_write_complete())
+                nxrd = xrddet._xsp3.getNumCaptured_RBV()
+                if (nxrd < npulses -2) or not xrddet.file_write_complete():
+                    rowdata_ok = False
+                    xrddet.stop()
+                    time.sleep(0.25)
+            dtimer.add('saved XRD data')
+
+            rowdata_ok = (rowdata_ok and
+                          (npts_sca > npulses-2) and
+                          (self.xps.ngathered > npulses-2))
+
+            if debug:
+                print("Row OK ? ", rowdata_ok, npulses, npts_sca, self.xps.ngathered, nxrf, nxrd)
             if not rowdata_ok:
-                self.write('#### BAD DATA for row: redoing this row\n')
+                fmt=  '## BAD DATA (NSIS=%i, NXPS=%i): redoing row\n'
+                self.write(fmt % (npts_sca, self.xps.ngathered))
                 irow -= 1
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
             if self.look_for_interrupts():
                 caput('13XRM:map:status', 'Aborting')
                 break
-            # dtimer.show()
+            if debug:
+                dtimer.show()
         caput('13XRM:map:status', 'Finishing')
         self.post_scan()
         caput('13XRM:map:status', 'IDLE')
