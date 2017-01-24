@@ -1,4 +1,5 @@
-HE"""
+#!/usr/bin/env python
+"""
 Struck SIS3820
 """
 import os
