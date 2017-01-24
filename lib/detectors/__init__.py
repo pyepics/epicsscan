@@ -17,12 +17,13 @@ from ..file_utils import fix_filename
 from .trigger import Trigger
 from .counter import Counter, DeviceCounter, MotorCounter
 from .base  import DetectorMixin, SimpleDetector, MotorDetector
-from .areadetector import AreaDetector
 from .mca import McaDetector, MultiMcaDetector
 from .scaler import ScalerCounter, ScalerDetector
 from .xspress3 import Xspress3, Xspress3Detector
 from .struck import Struck, StruckDetector
+from .areadetector import AreaDetector
 from .quadem import TetrAMM, TetrAMMDetector
+from .ad_perkinelmer import AD_PerkinElmer
 
 DET_DEFAULT_OPTS = {'scaler': {'use_calc': True, 'nchans': 8},
                     'tetramm': {'nchans': 4},
@@ -80,6 +81,7 @@ def get_detector(prefix, kind=None, mode='scaler', rois=None, label=None, **kws)
               'xspress3': Xspress3Detector,
               'struck': StruckDetector,
               'tetramm': TetrAMMDetector,
+              'perkinelmer': AD_PerkinElmer,
               None: SimpleDetector}
 
     if kind is None:
@@ -94,5 +96,9 @@ def get_detector(prefix, kind=None, mode='scaler', rois=None, label=None, **kws)
             kind = rtyp
     else:
         kind = kind.lower()
+    if kind.startswith('area') and 'type' in kws:
+        kind = kws['type'].lower()
+        
     builder = dtypes.get(kind, SimpleDetector)
+
     return builder(prefix, label=label, mode=mode, rois=rois, **kws)

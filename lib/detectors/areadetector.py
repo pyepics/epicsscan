@@ -26,6 +26,12 @@ AD_CAM_ATTRS = ("Acquire", "AcquirePeriod", "AcquirePeriod_RBV",
                 "TriggerMode_RBV", "TriggerSoftware", 'Model_RBV',
                 'ShutterControl', 'ShutterMode')
 
+AD_FILE_ATTRS = ('AutoIncrement', 'AutoSave', 'Capture', 'EnableCallbacks',
+                 'FileName', 'FileName_RBV', 'FileNumber', 'FileNumber', 'FileNumber_RBV',
+                 'FilePath', 'FilePath_RBV', 'FileTemplate', 'FileTemplate_RBV',
+                 'FileWriteMode', 'FileWriteMode', 'FullFileName_RBV', 'NumCapture',
+                 'NumCaptured_RBV', 'WriteFile_RBV')
+
 class ADFileMixin(object):
     """mixin class for area detector, MUST part of an epics Device"""
 
@@ -92,7 +98,6 @@ class ADFileMixin(object):
 
     def setFileName(self, fname):
         "set FileName"
-        print("Set File Name ", fname)
         return self.filePut('FileName', fname)
 
     def nextFileNumber(self):
@@ -159,39 +164,26 @@ class ADFileMixin(object):
 class AD_Base(Device, ADFileMixin):
     """Base area Detecor with File Mixin"""
 
-    _nonpvs  = ('_prefix', '_pvs', '_delim', 'filesaver',
-                'camattrs', 'pathattrs', '_nonpvs')
-
-    pathattrs = ('FilePath', 'FileTemplate', 'FileName', 'FileNumber',
-                 'Capture', 'NumCapture', 'AutoIncrement', 'AutoSave')
-
+    _nonpvs  = ('_prefix', '_pvs', '_delim', 'filesaver', 'fileroot',
+                 'pathattrs', '_nonpvs')
     def __init__(self, prefix, filesaver='TIFF1:', fileroot='T:/xas_user'):
-
         if not prefix.endswith(':'):
             prefix = "%s:" % prefix
 
-        attrs = []
-        attrs.extend(['cam1:%s' % p for p in AD_CAM_ATTRS])
-        attrs.extend(['%s%s' % (filesaver, p) for p in self.pathattrs])
-
+        attrs = ['%s%s' % (filesaver, p) for p in AD_FILE_ATTRS]
         Device.__init__(self, prefix, delim='', mutable=False, attrs=attrs)
-
         self.filesaver = filesaver
         self.fileroot = fileroot
         self._prefix = prefix
-        poll(0.003, 0.25)
 
-    def camput(self, attr, value, **kws):
-        self.put("cam1:%s" % attr, value, **kws)
-
-    def set_dwelltime(self, dwelltime):
-        """set dwell time in seconds
-
-        Arguments:
-        dwelltime (float): dwelltime per frame in seconds.   No default
-        """
-        self.put('cam1:AcquireTime', dwelltime)
-
+        
+class AD_Camera(Device):
+    """area Detecor camera"""
+    _nonpvs  = ('_prefix', '_pvs', '_delim', '_nonpvs')
+    def __init__(self, prefix):
+        if not prefix.endswith(':'):
+            prefix = "%s:" % prefix
+        Device.__init__(self, '%scam1:' % prefix, delim='', attrs=AD_CAM_ATTRS)
         
 class AreaDetector(DetectorMixin):
     """very simple area detector interface...
@@ -201,7 +193,7 @@ class AreaDetector(DetectorMixin):
     settings = {'cam1:ImageMode': 0,
                 'cam1:ArrayCallbacks': 1}
 
-    def __init__(self, prefix, filesaver=None, fileroot='',
+    def __init__(self, prefix, filesaver='TIFF1:', fileroot='',
                  label='ad', mode='scaler', **kws):
         if not prefix.endswith(':'):
             prefix = "%s:" % prefix
@@ -213,7 +205,9 @@ class AreaDetector(DetectorMixin):
 
         DetectorMixin.__init__(self, prefix, label=label, **kws)
 
-        self.ad = AD_Base(prefix, fileroot=fileroot, filesaver=filesaver)
+        self.cam = AD_Camera(prefix)
+        self.ad  = AD_Base(prefix, filesaver=filesaver, fileroot=fileroot)
+
         self.dwelltime_pv = get_pv('%scam1:AcquireTime' % prefix)
         self.counters = [Counter("%scam1:ArrayCounter_RBV" % prefix,
                                  label='Image Counter')]
@@ -237,7 +231,7 @@ class AreaDetector(DetectorMixin):
         if mode is not None:
             self.mode = mode
 
-        self.ad.put('cam1:Acquire', 0, wait=True)
+        self.cam.put('Acquire', 0, wait=True)
         poll(0.05, 0.5)
 
         if self.mode == SCALER_MODE:
@@ -254,7 +248,7 @@ class AreaDetector(DetectorMixin):
             self.dwelltime_pv.put(self.dwelltime)
 
         if npulses is not None:
-            self.ad.put('cam1:NumImages', npulses)
+            self.cam.put('NumImages', npulses)
 
         self.config_filesaver(number=1, name=self.label, numcapture=npulses,
                               template="%s%s.%4.4d", auto_increment=True,
@@ -264,7 +258,7 @@ class AreaDetector(DetectorMixin):
         self.config_filesaver(enable=False)
         self.ContinuousMode()
 
-    def ContinuousMode(self, dwelltime=None, numframes=16384):
+    def ContinuousMode(self, dwelltime=None, numframes=300200100):
         """set to continuous mode: use for live reading
 
         Arguments:
@@ -273,13 +267,13 @@ class AreaDetector(DetectorMixin):
 
         """
         if numframes is not None:
-            self._xsp3.put('NumImages', numframes)
+            self.cam.put('NumImages', numframes)
         if dwelltime is not None:
             self.set_dwelltime(dwelltime)
         
         self.ad.FileCaptureOff()
-        self.ad.put('cam1:ImageMode', 'Continuous')
-        self.ad.put('cam1:Acquire', 1)
+        self.cam.put('ImageMode', 'Continuous')
+        self.cam.put('Acquire', 1)
 
     def ScalerMode(self, dwelltime=None, numframes=1):
         """ set to scaler mode: ready for step scanning
@@ -293,9 +287,9 @@ class AreaDetector(DetectorMixin):
         2. Files will be saved by the file saver
         """
 
-        self.ad.put('cam1:TriggerMode', 1) # Internal
+        self.cam.put('TriggerMode', 1) # Internal
         if numframes is not None:
-            self.ad.put('cam1:NumImages', numframes)
+            self.cam.put('NumImages', numframes)
         if dwelltime is not None:
             self.set_dwelltime(dwelltime)
         self.ad.put('ROIStats1:TSControl', 2) # 'Stop'
@@ -316,11 +310,11 @@ class AreaDetector(DetectorMixin):
         2. setting dwelltime or numframes to None is discouraged,
            as it can lead to inconsistent data arrays.
         """
-        self.ad.put('cam1:TriggerMode', 'External') # External
+        self.cam.put('TriggerMode', 'External') # External
         self.ad.put('ROIStat1:TSControl', 2) # 'Stop'
 
         if numframes is not None:
-            self.ad.put('cam1:NumImages', numframes)
+            self.cam.put('NumImages', numframes)
             self.ad.put('ROIStats1:ArrayCallbacks', 1)
             self.ad.put('ROIStats1:TSNumPoints', numframes)
             self.ad.put('ROIStats1:BlockingCallbacks', 1)
@@ -342,11 +336,11 @@ class AreaDetector(DetectorMixin):
         2. setting dwelltime or numframes to None is discouraged,
            as it can lead to inconsistent data arrays.
         """
-        self.ad.put('cam1:TriggerMode', 'External')
+        self.cam.put('TriggerMode', 'External')
         self.ad.put('ROIStat1:TSControl', 2) # 'Stop
 
         if numframes is not None:
-            self.ad.put('cam1:NumImages', numframes)
+            self.cam.put('NumImages', numframes)
             self.ad.setFileNumCapture(numframes)
 
         if dwelltime is not None:
@@ -359,18 +353,18 @@ class AreaDetector(DetectorMixin):
     Arguments:
         dwelltime (float): dwelltime per frame in seconds.   No default
         """
-        self.ad.put('cam1:AcquireTime', dwelltime)
+        self.cam.put('AcquireTime', dwelltime)
 
     def arm(self, mode=None, wait=False, numframes=None):
         if mode is not None:
             self.mode = mode
-        self.ad.put('cam1:Acquire', 0, wait=True)
+        self.cam.put('Acquire', 0, wait=True)
 
         if self.mode == SCALER_MODE:
             numframes = 1
 
         if numframes is not None:
-            self.ad.put('cam1:NumImages', numframes)
+            self.cam.put('NumImages', numframes)
             self.ad.setFileNumCapture(numframes)
 
         self.ad.setFileWriteMode(2) # Stream
@@ -391,10 +385,10 @@ class AreaDetector(DetectorMixin):
             self.mode = mode
         if arm or self.mode == SCALER_MODE:
             self.arm()
-        self.ad.put('cam1:Acquire', 1, wait=wait)
+        self.cam.put('Acquire', 1, wait=wait)
 
     def stop(self, mode=None, disarm=False, wait=False):
-        self.ad.put('cam1:Acquire', 0, wait=wait)
+        self.cam.put('Acquire', 0, wait=wait)
         if disarm:
             self.disarm()
         self.ad.FileCaptureOff()
