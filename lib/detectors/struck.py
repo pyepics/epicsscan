@@ -1,24 +1,18 @@
-"""
+HE"""
 Struck SIS3820
 """
+import os
 import sys
 import time
 import copy
 import numpy
+import asteval
 from epics import Device, caget
 from epics.devices.scaler import Scaler
 from epics.devices.mca import MCA
 
 from .counter import DeviceCounter
 from .base import DetectorMixin, SCALER_MODE, NDARRAY_MODE, ROI_MODE
-
-HEADER = '''# Struck MCA data: %s
-# Nchannels, Nmcas = %i, %i
-# Time in microseconds
-#----------------------
-# %s
-# %s
-'''
 
 class Struck(Device):
     """
@@ -33,7 +27,7 @@ class Struck(Device):
              'ReadAll', 'DoReadAll', 'Model', 'Firmware')
 
     _nonpvs = ('_prefix', '_pvs', '_delim', '_nchan',
-               'clockrate', 'scaler', 'mcas')
+               'clockrate', 'scaler', 'mcas', 'ast_interp')
 
     def __init__(self, prefix, scaler=None, nchan=8, clockrate=50.0):
         if not prefix.endswith(':'):
@@ -56,6 +50,9 @@ class Struck(Device):
         time.sleep(0.05)
         for pvname, pv in self._pvs.items():
             pv.get()
+
+        self.ast_interp = asteval.Interpreter()
+        self.read_scaler_config()
 
     def ExternalMode(self, countonstart=None, initialadvance=None,
                      realtime=0, prescale=1, trigger_width=None):
@@ -193,71 +190,100 @@ class Struck(Device):
         "Read a Struck MCA"
         return self.get('mca%i.NORD' % nmcas)
 
-    def readmca(self, nmcas=1, count=None):
+    def readmca(self, nmca=1, count=None):
         "Read a Struck MCA"
-        return self.get('mca%i' % nmcas, count=count)
+        return self.get('mca%i' % nmca, count=count)
 
     def read_all_mcas(self):
-        return [self.readmca(nmcas=i+1) for i in range(self._nchan)]
+        return [self.readmca(nmca=i+1) for i in range(self._nchan)]
+
+    def read_scaler_config(self):
+        """read names and calcs for scaler channels"""
+        if self.scaler is None:
+            return []
+        conf = []
+        for n in range(1, self._nchan+1):
+            name = self.scaler.get('NM%i' % n).strip()
+            if len(name) > 0:
+                name = name.strip().replace(' ', '_')
+                calc = self.scaler.get('expr%i' % n)
+                conf.append((n, name, calc))
+        return conf
 
     def save_arraydata(self, filename='Struck.dat', ignore_prefix=None, npts=None):
         "save MCA spectra to ASCII file"
-        # print("SIS Save Array Data")
-        sdata, names, addrs = [], [], []
+
+        # print("SIS Save Array Data ", filename, os.getcwd())
+        rdata, sdata, names, calcs, fmts = [], [], [], [], []
+        npts_chans = []
+        headers = []
         if npts is None:
-            npts = self.MaxChannels
-        time.sleep(0.025)
-        nmca_chans = []
-        for nchan in range(self._nchan):
-            nmcas = nchan + 1
-            _name = 'MCA%i' % nmcas
-            _addr = '%s.mca%i' % (self._prefix, nmcas)
-            time.sleep(0.002)
-            if self.scaler is not None:
-                scaler_name = self.scaler.get('NM%i' % nmcas)
-                if scaler_name is not None:
-                    _name = scaler_name.replace(' ', '_')
-                    _addr = self.scaler._prefix + 'S%i' % nmcas
-            if len(_name) < 1:
-                continue
-            read_ok = False
+            npts = self.NuseAll
+
+        avars = ('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H')
+        for name in avars:
+            self.ast_interp.symtable[name] = numpy.zeros(npts)
+        scaler_config = self.read_scaler_config()
+
+        icol = 0
+        hformat = "# Column.%i: %16s | %s" 
+        for nchan, name, calc in scaler_config:
+            icol += 1
+            dat = numpy.zeros(npts)
             ntries = 0
-            while not read_ok and ntries < 10:
+            while ntries < 10:
                 ntries += 1
-                mcadat = self.readmca(nmcas=nmcas)
-                try:
-                    nmca = len(mcadat)
-                except:
-                    nmca = 0
-                if nmca >  npts-1:
-                    read_ok = True
-                else:
-                    time.sleep(0.1)
-                    continue
-            # print("SIS Read Channel:  ", nchan, _name, nmca, ntries)
-            if nmca > 2:
-                names.append(_name)
-                addrs.append(_addr)
-                sdata.append(mcadat)
-            nmca_chans.append(nmca)
+                dat = self.readmca(nmca=nchan)
+                if len(dat) > npts-1:
+                    break
+                time.sleep(0.005*ntries)
 
-        npts = min(npts, min(nmca_chans))
-        # print("SIS Read Channels, npts = ", npts, nmca_chans)
+            varname = avars[nchan-1]
+            self.ast_interp.symtable[varname] = dat
+            label = "%s | %s" % ("%smca%i" % (self._prefix, nchan), varname)
+            if icol == 1 or len(calc) > 1:
+                if icol == 1:
+                    calc = 'A / 50.0'
+                label = "calculated | %s" % calc
+                rdata.append(("%s_raw" % name, nchan, varname, dat))
 
+            headers.append(hformat % (icol, name, label))
+            names.append(name)
+            calcs.append(calc)
+            fmt = ' {:14f} '
+            if icol == 1:
+                fmt = ' {:14.2f} '
+            fmts.append(fmt)
+            npts_chans.append(len(dat))
+
+        for calc in calcs:
+            sdata.append(self.ast_interp.eval(calc))
+
+        for name, nchan, varname, rdat in rdata:
+            icol += 1
+            label = "%s | %s" % ("%smca%i" % (self._prefix, nchan), varname)
+            headers.append(hformat % (icol, name, label))
+            names.append(name)
+            sdata.append(rdat)
+            fmts.append(' {:10.0f} ')
+
+        npts = min(npts, min(npts_chans))
         sdata = numpy.array([s[:npts] for s in sdata]).transpose()
-        sdata[:, 0] = sdata[:, 0]/self.clockrate
+        npts, nmcas = sdata.shape
+        buff = ['# Struck MCA data: %s' % self._prefix,
+                '# Nchannels, Nmcas = %i, %i' % (npts, nmcas),
+                '# Time in microseconds']
 
-        nelem, nmcas = sdata.shape
-        npts = min(nelem, npts)
+        buff.extend(headers)
+        buff.append("#%s" % ("-"*60))
+        buff.append("# %s" % ' | '.join(names))
 
-        addrs = ' | '.join(addrs)
-        names = ' | '.join(names)
-        formt = '%9i ' * nmcas + '\n'
-
-        fout = open(filename, 'w')
-        fout.write(HEADER % (self._prefix, npts, nmcas, addrs, names))
+        fmt  = ''.join(fmts)
         for i in range(npts):
-            fout.write(formt % tuple(sdata[i]))
+            buff.append(fmt.format(*sdata[i]))
+        buff.append('')
+        fout = open(filename, 'w')
+        fout.write("\n".join(buff))
         fout.close()
         return (nmcas, npts)
 
@@ -349,4 +375,9 @@ class StruckDetector(DetectorMixin):
 
     def save_arraydata(self, filename=None, npts=None):
         if filename is not None:
-            self.struck.save_arraydata(filename=filename, npts=npts)
+            return self.struck.save_arraydata(filename=filename, npts=npts)
+        return None
+
+    def config_filesaver(self, **kws):
+        "configure filesaver"
+        pass
