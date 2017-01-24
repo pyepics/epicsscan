@@ -96,6 +96,14 @@ class ADFileMixin(object):
         "get FullFileName"
         return self.fileGet('FullFileName_RBV', as_string=True)
 
+    def getNumCapture(self):
+        "get NumCapture"
+        return self.fileGet('NumCapture')
+
+    def getNumCaptured_RBV(self):
+        "get NumCaptured_RBV readback"
+        return self.fileGet('NumCaptured_RBV')
+
     def FileCaptureOn(self):
         "turn Capture on"
         return self.filePut('Capture', 1)
