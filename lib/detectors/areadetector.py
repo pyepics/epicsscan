@@ -389,7 +389,7 @@ class AreaDetector(DetectorMixin):
     def start(self, mode=None, arm=False, wait=False):
         if mode is not None:
             self.mode = mode
-        if arm or self.mode == SCALER_MODE
+        if arm or self.mode == SCALER_MODE:
             self.arm()
         self.ad.put('cam1:Acquire', 1, wait=wait)
 
