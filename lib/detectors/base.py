@@ -51,10 +51,6 @@ class DetectorMixin(Saveable):
         typically through areaDetector file saving mechanism"""
         return self.ScalerMode(dwelltime=dwelltime, numframes=numframes, **kws)
 
-    def config_filesaver(self, **kws):
-        "configure filesaver"
-        pass
-
     def save_calibration(self, filename, **kws):
         "save calibration information to file"
         pass
