@@ -349,7 +349,7 @@ class Xspress3Detector(DetectorMixin):
                               name='xsp3',
                               numcapture=npulses,
                               template="%s%s.%4.4d",
-                              auto_increment=True,
+                              auto_increment=False,
                               auto_save=True)
         dt.add('xspress3: config filesaver')
         if self._counter is None:
@@ -467,11 +467,18 @@ class Xspress3Detector(DetectorMixin):
         """
         self._xsp3.put('AcquireTime', dwelltime)
 
-    def arm(self, mode=None, wait=False, numframes=None):
+    def get_next_filename(self):
+        return self._xsp3.getNextFileName()
+
+    def arm(self, mode=None, fnum=None, wait=False, numframes=None):
         if mode is not None:
             self.mode = mode
         self._xsp3.put('Acquire', 0, wait=True)
         self._xsp3.put('ERASE',   1, wait=True)
+
+        if fnum is not None:
+            self.fnum = fnum
+            self._xsp3.setFileNumber(fnum)
 
         if numframes is not None:
             self._xsp3.put('NumImages', numframes)
