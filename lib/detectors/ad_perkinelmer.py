@@ -24,6 +24,12 @@ class AD_PerkinElmer(AreaDetector):
         self.cam.PV('PEAcquireOffsetFrames')
         self.cam.PV('PENumOffsetFrames')
         self.mode = mode
+        self.arm_delay = 0.25
+        self.start_delay = 0.50
+
+    def custom_pre_scan(self, row=0, dwelltime=None, **kws):
+        if row == 0:
+            self.AcquireOffset(timeout=10, open_shutter=True)
 
     def AcquireOffset(self, timeout=10, open_shutter=True):
         """Acquire Offset -- a slightly complex process
@@ -58,5 +64,5 @@ class AD_PerkinElmer(AreaDetector):
         if open_shutter:
             self.cam.ShutterControl = 1
         self.cam.ShutterMode = 0
-        time.sleep(1.00)
+        time.sleep(1.50)
         
