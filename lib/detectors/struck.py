@@ -340,23 +340,12 @@ class StruckDetector(DetectorMixin):
     def post_scan(self, **kws):
         "run just after scan"
         pass
-#     if self.struck.get('Acquiring'):
-#             self.put('StopAll', 1)
-#         if self.mode == ROI_MODE:
-#             self.struck.scaler.OneShotMode()
-#             count = 0
-#             while self.get('Acquiring'):
-#                 time.sleep(0.05)
-#                 count += 1
-#                 if count > 20:
-#                     break
-#                 self.put('StopAll', 1)
-#                 self.struck.scaler.Count()
-#             # self.struck.ContinuousMode(numframes=1)
 
-    def arm(self, mode=None, wait=False, numframes=None):
+    def arm(self, mode=None, fnum=None, wait=False, numframes=None):
         "arm detector, ready to collect with optional mode"
         # print("Struck Arm: ", mode, numframes)
+        if fnum is not None:
+            self.fnum = fnum
         if self.mode == SCALER_MODE:
             self.struck.ScalerMode()
         elif self.mode == ROI_MODE:

@@ -16,6 +16,7 @@ class DetectorMixin(Saveable):
         Saveable.__init__(self, prefix, label=label, **kws)
         self.prefix = prefix
         self.label = label
+        self.fnum = 1
         if self.label is None:
             self.label = self.prefix
         self.trigger = None
@@ -55,7 +56,7 @@ class DetectorMixin(Saveable):
         "save calibration information to file"
         pass
 
-    def arm(self, mode=None, wait=False):
+    def arm(self, mode=None, wait=False, fnum=None):
         "arm detector, ready to collect with optional mode"
         pass
 
@@ -75,6 +76,8 @@ class DetectorMixin(Saveable):
         "save array data to external file"
         pass
 
+    def get_next_filename(self):
+        return "%s.%4.4d" % (self.label, self.fnum)
 
     def set_dwelltime(self, val):
         "set detector dwelltime"
