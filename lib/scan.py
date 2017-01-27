@@ -530,6 +530,9 @@ class StepScan(object):
         out = [p.move_to_start(wait=False) for p in self.positioners]
         self.check_outputs(out, msg='move to start')
 
+        for det in self.detectors:
+            det.arm(mode=SCALER_MODE, fnum=1, numframes=1)
+
         npts = len(self.positioners[0].array)
         self.message_points = min(100, max(10, 25*round(npts/250.0)))
         self.dwelltime_varys = False
@@ -611,8 +614,6 @@ class StepScan(object):
 
         ts_start = time.time()
         self.prepare_scan()
-        for det in self.detectors:
-            det.arm(mode=SCALER_MODE, fnum=1, numframes=1)
         ts_init = time.time()
         self.inittime = ts_init - ts_start
 
