@@ -10,6 +10,8 @@ from XPS_C8_drivers import XPS
 
 from collections import OrderedDict
 
+from ..debugtime import debugtime
+
 class XPSError(Exception):
     """XPS Controller Exception"""
     def __init__(self, msg,*args):
@@ -665,10 +667,11 @@ class NewportXPS:
                                  set_idle_when_done=False)
         self.ngathered = npulses
 
-    def read_gathering(self, set_idle_when_done=True):
+    def read_gathering(self, set_idle_when_done=True, debug=False):
         """
         read gathering data from XPS
         """
+        dt = debugtime()
         self.traj_state = READING
         ret, npulses, nx = self._xps.GatheringCurrentNumberGet(self._sid)
         counter = 0
@@ -677,9 +680,10 @@ class NewportXPS:
             time.sleep(0.5)
             ret, npulses, nx = self._xps.GatheringCurrentNumberGet(self._sid)
             print( 'Had to do repeat XPS Gathering: ', ret, npulses, nx)
-
+        # dt.add('CurrentNumber %i/%i/%i/%i' %(ret, npulses, nx, counter))
         ret, buff = self._xps.GatheringDataMultipleLinesGet(self._sid, 0, npulses)
-
+        # dt.add('DataMultipleLinesGet:  %i, %i '%(ret, len(buff)))
+        nchunks = -1
         if ret < 0:  # gathering too long: need to read in chunks
             nchunks = 3
             nx  = int((npulses-2) / nchunks)
@@ -703,11 +707,15 @@ class NewportXPS:
             buff.append(xbuff)
             buff = ''.join(buff)
 
+        # dt.add('MultipleLinesGet nchunks=%i' %(nchunks))
         obuff = buff[:]
         for x in ';\r\t':
             obuff = obuff.replace(x,' ')
+        # dt.add(' buffer cleaned')
         if set_idle_when_done:
             self.traj_state = IDLE
+        if debug:
+            dt.show()
         return npulses, obuff
 
     def save_gathering_file(self, fname, buffer, verbose=False, set_idle_when_done=True):
