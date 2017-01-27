@@ -7,7 +7,6 @@ from ConfigParser import ConfigParser
 from epics import get_pv, caput, caget, Device, poll
 from epics.devices.ad_mca import ADMCA
 
-from .trigger import Trigger
 from .counter import Counter, DeviceCounter
 from .base import DetectorMixin, SCALER_MODE, NDARRAY_MODE, ROI_MODE
 from .areadetector import ADFileMixin
@@ -108,41 +107,6 @@ class Xspress3(Device, ADFileMixin):
 
         for mca in self.mcas:
             mca.set_rois(roidat)
-
-
-class Xspress3Trigger(Trigger):
-    """Triggers for Xspress3, AD2 version
-    where Start does an EraseStart for the MCA arrays
-    """
-    def __init__(self, prefix, value=1, **kws):
-        Trigger.__init__(self, prefix, value=value, **kws)
-        self._start = get_pv(prefix + 'det1:Acquire')
-        self._erase = get_pv(prefix + 'det1:ERASE')
-        self.prefix = prefix
-        self._val = value
-        self.done = False
-        self._t0 = 0
-        self.runtime = -1
-
-    def __repr__(self):
-        return "Xspress3Trigger(%s, value=%i)" % (self.prefix, self._val)
-
-    def __onComplete(self, pvname=None, **kws):
-        self.done = True
-        self.runtime = time.time() - self._t0
-
-    def start(self, value=1):
-        """Start Xspress3"""
-        self.done = False
-        runtime = -1
-        self._t0 = time.time()
-        self._start.put(value, callback=self.__onComplete)
-        poll(0.01, 0.5)
-
-    def abort(self, value=0):
-        self._start.put(0, wait=False)
-        poll(0.050, 0.5)
-
 
 class Xspress3Counter(DeviceCounter):
     """Counters for Xspress3-1-10"""
@@ -259,6 +223,7 @@ class Xspress3Detector(DetectorMixin):
         self.nrois = nrois = int(nrois)
         self.fileroot = fileroot
         self.filesaver = filesaver
+        self.trigger_suffix = 'det1:Acquire'
         DetectorMixin.__init__(self, prefix, label=label)
         self._xsp3 = Xspress3(prefix, nmcas=nmcas,
                               fileroot=fileroot,
@@ -267,7 +232,6 @@ class Xspress3Detector(DetectorMixin):
         self.dwelltime = None
         self.mode = mode
         self.dwelltime_pv = get_pv('%sdet1:AcquireTime' % prefix)
-        self.trigger = Xspress3Trigger(prefix)
         self.extra_pvs = self.add_extrapvs_GSE()
         self.use_dtc = use_dtc  # KLUDGE DTC!!
         self.label = label
@@ -280,7 +244,7 @@ class Xspress3Detector(DetectorMixin):
                                             repr(use_dtc),
                                             repr(use_full))
 
-
+        # print("Xspress3, mode, trigger = ", mode, self.trigger)
         self._connect_args = dict(nmcas=nmcas, nrois=nrois, rois=rois,
                                   mode=mode, use_unlabeled=use_unlabeled,
                                   use_full=use_full)
@@ -475,7 +439,6 @@ class Xspress3Detector(DetectorMixin):
             self.mode = mode
         self._xsp3.put('Acquire', 0, wait=True)
         self._xsp3.put('ERASE',   1, wait=True)
-
         if fnum is not None:
             self.fnum = fnum
             self._xsp3.setFileNumber(fnum)
