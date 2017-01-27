@@ -254,6 +254,7 @@ class AreaDetector(DetectorMixin):
         self.mode = mode
         self.arm_delay = arm_delay
         self.start_delay = start_delay
+        self.trigger_suffix = cam + 'Acquire'
         
         DetectorMixin.__init__(self, prefix, label=label, **kws)
 
@@ -266,7 +267,7 @@ class AreaDetector(DetectorMixin):
                                  label='Image Counter')]
         if filesaver in AD_FILESAVERS:
             self.filesaver = filesaver
-            f_counter = Counter("%s%s:FileNumber_RBV" % (prefix, filesaver),
+            f_counter = Counter("%s%sFileNumber_RBV" % (prefix, filesaver),
                                 label='File Counter')
             self.counters.append(f_counter)
         self._repr_extra = 'filesaver=%s' % repr(filesaver)
