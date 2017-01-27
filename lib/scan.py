@@ -100,7 +100,7 @@ from file_utils import fix_varname, fix_filename, increment_filename
 from epics import PV, poll, get_pv, caget, caput
 
 from .utils import ScanDBException, ScanDBAbort
-from .detectors import (Counter, Trigger, AreaDetector)
+from .detectors import (Counter, Trigger, AreaDetector, SCALER_MODE)
 from .datafile import ASCIIScanFile
 from .positioner import Positioner
 
@@ -328,7 +328,7 @@ class StepScan(object):
         for det in self.detectors:
             for counter in det.counters:
                 self.add_counter(counter)
-            # dtimer.add('pre_scan add counters for %s' % det)
+        # dtimer.add('pre_scan add counters for %s' % det)
 
         if callable(self.prescan_func):
             try:
@@ -611,6 +611,8 @@ class StepScan(object):
 
         ts_start = time.time()
         self.prepare_scan()
+        for det in self.detectors:
+            det.arm(mode=SCALER_MODE, fnum=1, numframes=1)
         ts_init = time.time()
         self.inittime = ts_init - ts_start
 
