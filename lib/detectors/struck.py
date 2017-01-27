@@ -211,16 +211,16 @@ class Struck(Device):
                 conf.append((n, name, calc))
         return conf
 
-    def save_arraydata(self, filename='Struck.dat', ignore_prefix=None, npts=None):
+    def save_arraydata(self, filename='sis.dat', npts=None, **kws):
         "save MCA spectra to ASCII file"
-
+        t0 = time.time()
         # print("SIS Save Array Data ", filename, os.getcwd())
         rdata, sdata, names, calcs, fmts = [], [], [], [], []
         npts_chans = []
         headers = []
         if npts is None:
             npts = self.NuseAll
-
+        npts_req = npts
         avars = ('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H')
         for name in avars:
             self.ast_interp.symtable[name] = numpy.zeros(npts)
@@ -232,12 +232,13 @@ class Struck(Device):
             icol += 1
             dat = numpy.zeros(npts)
             ntries = 0
-            while ntries < 10:
+            while ntries < 20:
                 ntries += 1
                 dat = self.readmca(nmca=nchan)
-                if len(dat) > npts-1:
+                if dat is None or len(dat) < npts_req-1:
+                    time.sleep(0.003*ntries*ntries)
+                else:
                     break
-                time.sleep(0.005*ntries)
 
             varname = avars[nchan-1]
             self.ast_interp.symtable[varname] = dat
@@ -257,8 +258,13 @@ class Struck(Device):
             fmts.append(fmt)
             npts_chans.append(len(dat))
 
+        # print("READ SIS ", npts_chans)
+
         for calc in calcs:
-            sdata.append(self.ast_interp.eval(calc))
+            result = self.ast_interp.eval(calc)
+            if result is None:
+                result = numpy.zeros(1)
+            sdata.append(result)
 
         for name, nchan, varname, rdat in rdata:
             icol += 1
@@ -269,8 +275,15 @@ class Struck(Device):
             fmts.append(' {:10.0f} ')
 
         npts = min(npts, min(npts_chans))
-        sdata = numpy.array([s[:npts] for s in sdata]).transpose()
-        npts, nmcas = sdata.shape
+        if max(npts_chans) != min(npts_chans):
+            print(" Struck warning, weird number of points!")
+            print(" -- ", npts_chans)
+        try:
+            sdata = numpy.array([s[:npts] for s in sdata]).transpose()
+            npts, nmcas = sdata.shape
+        except:
+            return (0, 0)
+
         buff = ['# Struck MCA data: %s' % self._prefix,
                 '# Nchannels, Nmcas = %i, %i' % (npts, nmcas),
                 '# Time in microseconds']
@@ -286,6 +299,7 @@ class Struck(Device):
         fout = open(filename, 'w')
         fout.write("\n".join(buff))
         fout.close()
+        # print("SIS saved in %.3f seconds" % (time.time()-t0))
         return (nmcas, npts)
 
 class StruckCounter(DeviceCounter):
