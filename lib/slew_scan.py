@@ -296,7 +296,7 @@ class Slew_Scan(StepScan):
 
         detpath = self.mapdir[len(self.fileroot):]
         scadet = xrfdet = xrddet = None
-        scafile = xrffile = xrffile = '_unused_'
+        scafile = xrffile = xrdfile = '_unused_'
         for det in self.detectors:
             if det.label.lower() == 'struck':
                 scadet = det
