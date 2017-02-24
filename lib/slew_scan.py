@@ -234,7 +234,7 @@ class Slew_Scan(StepScan):
         run a slew scan
         """
         self.prepare_scan()
-
+        # debug = True
         trajs = self.xps.trajectories
 
         dir_off = 1
@@ -444,11 +444,11 @@ class Slew_Scan(StepScan):
                           (self.xps.ngathered > npulses-2))
 
             if debug:
-                print("Row OK ? ", rowdata_ok, npulses, npts_sca,
-                      self.xps.ngathered, nxrf, nxrd)
+                print("Row OK ? nXPS, nSIS, xNXRF, nXRD=", rowdata_ok,
+                      self.xps.ngathered, npts_sca, nxrf, nxrd)
             if not rowdata_ok:
-                fmt=  '## BAD DATA (NSIS=%i, NXPS=%i): redoing row\n'
-                self.write(fmt % (npts_sca, self.xps.ngathered))
+                fmt=  '#BAD Row (nXPS=%i, nSIS=%i, nXRF=%o, nXRD=%i: redo!\n'
+                self.write(fmt % (self.xps.ngathered, npts_sca, nxrf, nxrd))
                 irow -= 1
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
             if self.look_for_interrupts():
