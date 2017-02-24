@@ -106,7 +106,11 @@ class NewportXPS:
         else:
             self.ftphome = '/Admin'
 
-        self.read_systemini()
+        try:
+            self.read_systemini()
+        except:
+            print("Could not read system.ini")
+            
         self.read_errorcodes()
 
     def read_errorcodes(self):
@@ -300,7 +304,20 @@ class NewportXPS:
         else:
             raise ValueError("Group '%s' not found" % group)
 
+    def kill_group(self, group=None):
+        """
+        initialize groups, optionally homing each.
 
+        Parameters:
+            with_encoder (bool): whethter to initialize with encoder [True]
+            home (bool): whether to home all groups [False]
+        """
+
+        method = 'GroupKill'
+        self._group_act(method, group=group, action='killing')
+
+
+        
     def initialize_group(self, group=None, with_encoder=True, home=False):
         """
         initialize groups, optionally homing each.
