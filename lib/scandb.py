@@ -848,8 +848,12 @@ class ScanDB(object):
         status = status.lower()
         if status not in self.status_codes:
             status = 'unknown'
+
         statid = self.status_codes[status]
-        table.update(whereclause="id='%i'" % cmdid).execute(status_id=statid)
+        thiscmd = table.update(whereclause="id='%i'" % cmdid)
+        thiscmd.execute(status_id=statid)
+        if status.startswith('start'):
+            thiscmd.execute(start_time=datetime.now())
 
 
     def set_command_output(self, cmdid, value=None):

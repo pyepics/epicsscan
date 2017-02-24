@@ -1189,7 +1189,12 @@ class SlewScanPanel(GenericScanPanel):
                 pvnames = (xpos.drivepv, xpos.readpv)
                 p1 = start.GetValue()
                 p2 = stop.GetValue()
-                mname = 'inner'
-                if i > 0: mname = 'outer'
+                mname = 'outer'
+                if i == 0:
+                    mname = 'inner'
+                    if p1 > p2:  # force inner scan to be from low to high
+                        p1, p2 = p2, p1
+                        start.SetValue(p1)
+                        stop.SetValue(p2)
                 s[mname] = [name, pvnames, p1, p2, npts]
         return s

@@ -543,6 +543,11 @@ class NewportXPS:
             accel = max_accel/2.0
         accel = min(accel, max_accel)
 
+        scandir  = 1,0
+        if start > stop:
+            scandir = -1.0
+        step = scandir*abs(step)
+
         npulses = 1 + int((abs(stop - start) + abs(step)*0.1) / abs(step))
         scantime = float(abs(scantime))
         pixeltime= scantime / (npulses-1)
@@ -551,7 +556,7 @@ class NewportXPS:
         distance = (abs(stop - start) + abs(step))*1.0
         velocity = min(distance/scantime, max_velo)
         ramptime = 4.0 * abs(velocity/accel)
-        rampdist = 2.0 * velocity * ramptime
+        rampdist = 2.0 * velocity * ramptime * scandir
 
 
         self.trajectories['foreward'] = {'axes': [axis],
