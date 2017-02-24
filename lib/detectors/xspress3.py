@@ -437,7 +437,7 @@ class Xspress3Detector(DetectorMixin):
     def arm(self, mode=None, fnum=None, wait=False, numframes=None):
         if mode is not None:
             self.mode = mode
-        self._xsp3.put('Acquire', 0, wait=True)
+        self._xsp3.put('Acquire', 0)
         self._xsp3.put('ERASE',   1, wait=True)
         if fnum is not None:
             self.fnum = fnum
