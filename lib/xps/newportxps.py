@@ -543,7 +543,7 @@ class NewportXPS:
             accel = max_accel/2.0
         accel = min(accel, max_accel)
 
-        scandir  = 1,0
+        scandir  = 1.0
         if start > stop:
             scandir = -1.0
         step = scandir*abs(step)
