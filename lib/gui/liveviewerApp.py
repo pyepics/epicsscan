@@ -22,7 +22,6 @@ try:
 except:
     PyDeadObjectError = Exception
 
-
 import epics
 from epics.wx import DelayedEpicsCallback, EpicsFunction
 
@@ -77,10 +76,10 @@ class ScanViewerFrame(wx.Frame):
         self.larch.run("_sys.localGroup = %s" % (SCANGROUP))
         # self.larch.run("show(_sys)")
         self.lgroup =  self.larch.get_symbol(SCANGROUP)
-
+        self.last_cpt = -1
         self.force_newplot = False
         self.scan_inprogress = False
-        self.last_column_update = 0.0
+        self.last_plot_update = 0.0
         self.need_column_update = True
         self.positioner_pvs = {}
         self.x_cursor = None
@@ -157,6 +156,7 @@ class ScanViewerFrame(wx.Frame):
             self.last_status_msg = msg
             self.SetStatusText(msg)
 
+        # print(" Scan Timer ", do_newplot, npts)
         if not (self.scan_inprogress or do_newplot):
             # print 'Scan Timer no reason to plot', do_newplot, self.scan_inprogress
             return
@@ -168,12 +168,13 @@ class ScanViewerFrame(wx.Frame):
             setattr(self.lgroup, fix_varname(row.name), np.array(dat))
 
         if ((npts > 1 and npts != self.live_cpt)  or
-            (time.time() - self.last_column_update) > 30.0):
+            (time.time() - self.last_plot_update) > 15.0):
             if do_newplot:
                 self.force_newplot = True
             self.onPlot(npts=npts)
-            self.last_column_update = time.time()
+            self.last_plot_update = time.time()
         self.live_cpt = npts
+        # print(" Scan Timer ", do_newplot, npts)
 
 
     def set_column_names(self, sdata):
@@ -320,7 +321,6 @@ class ScanViewerFrame(wx.Frame):
 
     def onPlot(self, evt=None, npts=None):
         """draw plot of newest data"""
-
         new_plot = self.force_newplot or npts < 3
         lgroup, gname = self.lgroup, SCANGROUP
 
@@ -406,7 +406,7 @@ class ScanViewerFrame(wx.Frame):
             return
 
         if len(lgroup.arr_x) != len(lgroup.arr_y1):
-            print 'data length mismatch ', len(lgroup.arr_x), len(lgroup.arr_y1)
+            print( 'data length mismatch ', len(lgroup.arr_x), len(lgroup.arr_y1))
             return
         ppnl = self.plotpanel
         if new_plot:
@@ -438,7 +438,6 @@ class ScanViewerFrame(wx.Frame):
 
         self.force_newplot = False
 
-
     def createMenus(self):
         self.menubar = wx.MenuBar()
         #
@@ -448,7 +447,6 @@ class ScanViewerFrame(wx.Frame):
 
         fmenu.AppendSeparator()
         add_menu(self, fmenu, "&Quit\tCtrl+Q", "Quit program", self.onClose)
-
         self.menubar.Append(fmenu, "&File")
 
         fmenu.AppendSeparator()

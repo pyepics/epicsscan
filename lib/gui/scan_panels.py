@@ -664,6 +664,8 @@ class XAFSScanPanel(GenericScanPanel):
         self.absrel_value = 1
         self.absrel.SetSelection(1)
 
+        self.qxafs = add_choice(self, ('StepScan', 'Continuous'),
+                                size=(125, -1), action=self.onQXAFS)
 
         self.qxafs.SetSelection(0)
         qxafs_time_threshold = float(self.scandb.get_info('qxafs_time_threshold'))
