@@ -310,8 +310,8 @@ class QXAFS_Scan(XAFS_Scan):
         th_off = caget(qconf['theta_motor'] + '.OFF')
         wd_off = caget(qconf['width_motor'] + '.OFF')
 
-        en0 = (3*self.energies[0] - self.energies[1])/2.
-        enx = (self.energies[-2] + self.energies[-1])/2.
+        en0 = (3*self.energies[0]  - self.energies[1])/2.
+        enx = (3*self.energies[-1] - self.energies[-2])/2.
         energy = [en0]
         energy.extend(list(self.energies))
         energy.append(enx)
@@ -420,6 +420,7 @@ class QXAFS_Scan(XAFS_Scan):
             self.set_info('scan_message', 'cannot execute scan')
             return
 
+        self.scandb.set_info('qxafs_running', 1) # preparing
         self.connect_qxafs()
         qconf = self.config
 
@@ -428,6 +429,7 @@ class QXAFS_Scan(XAFS_Scan):
 
         idfrac  = 1000*caget(qconf['id_offset_pv'])/energy_orig
         idarray = 0.001*(traj['energy']*(1.0 + idfrac))
+        idarray = np.concatenate((idarray, idarray[-1]+np.arange(1,26)/250.0))
 
         time.sleep(0.1)
         caput(qconf['theta_motor'] + '.DVAL', traj['start'][0])
@@ -445,7 +447,6 @@ class QXAFS_Scan(XAFS_Scan):
         sis_prefix = qconf['mcs_prefix']
 
         caput(qconf['id_array_pv'], idarray)
-        self.scandb.set_info('qxafs_running', 1)
         self.scandb.set_info('qxafs_dwelltime', self.dwelltime[0])
 
         caput(qconf['energy_pv'], traj['energy'][0], wait=True)
@@ -488,13 +489,13 @@ class QXAFS_Scan(XAFS_Scan):
         self.counters = [Counter(pv, label=lab) for pv, lab in _counters]
 
         self.init_scandata()
-
         for det in self.detectors:
             det.start()
 
         self.datafile = self.open_output_file(filename=self.filename,
                                               comments=self.comments)
 
+        self.scandb.set_info('qxafs_running', 2) # running
         self.datafile.write_data(breakpoint=0)
         self.filename =  self.datafile.filename
 
