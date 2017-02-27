@@ -11,11 +11,11 @@ from threading import Thread
 from epics import caget, caput, PV, get_pv
 from larch import Group
 
-from .scan import StepScan, hms
+from .scan import StepScan
 from .positioner import Positioner
 from .saveable import Saveable
 from file_utils import fix_varname
-from .utils import ScanDBAbort
+from .utils import ScanDBAbort, hms
 from .detectors import Struck, TetrAMM, Xspress3, Counter
 from .xps import NewportXPS
 
