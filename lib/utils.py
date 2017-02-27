@@ -1,5 +1,7 @@
 import sys
 import socket
+import time
+from datetime import timedelta
 
 class ScanDBException(Exception):
     """Scan Exception: General Errors"""
@@ -13,6 +15,12 @@ class ScanDBAbort(Exception):
         Exception.__init__(self, *args)
         sys.excepthook(*sys.exc_info())
 
+def tstamp():
+    return time.strftime("%Y-%b-%d %H:%M:%S")
+
+def hms(secs):
+    "format time in seconds to H:M:S"
+    return str(timedelta(seconds=int(secs)))
 
 def atGSECARS():
     hostname, aliaslist, ipaddrs = socket.gethostbyname_ex(socket.gethostname())

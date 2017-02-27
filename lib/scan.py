@@ -93,13 +93,11 @@ import numpy as np
 import random
 import six
 
-from datetime import timedelta
-
 from file_utils import fix_varname, fix_filename, increment_filename
 
 from epics import PV, poll, get_pv, caget, caput
 
-from .utils import ScanDBException, ScanDBAbort
+from .utils import ScanDBException, ScanDBAbort, hms
 from .detectors import (Counter, Trigger, AreaDetector, SCALER_MODE)
 from .datafile import ASCIIScanFile
 from .positioner import Positioner
@@ -107,11 +105,6 @@ from .positioner import Positioner
 from .debugtime import debugtime
 
 MIN_POLL_TIME = 1.e-3
-
-
-def hms(secs):
-    "format time in seconds to H:M:S"
-    return str(timedelta(seconds=int(secs)))
 
 class ScanMessenger(Thread):
     """ Provides a way to run user-supplied functions per scan point,
