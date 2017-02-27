@@ -213,7 +213,7 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         return 2
 
     def StartStopStepNpts(self, i, with_npts=True, initvals=(-1,1,1,3)):
-        fsize = (95, -1)
+        fsize = (85, -1)
         s0, s1, ds, ns = initvals
 
         start = FloatCtrl(self, size=fsize, value=s0, act_on_losefocus=True,
@@ -224,7 +224,7 @@ class GenericScanPanel(scrolled.ScrolledPanel):
                           precision=4,
                           action=Closure(self.onVal, index=i, label='step'))
         if with_npts:
-            npts  = FloatCtrl(self, precision=0,  value=ns, size=(50, -1),
+            npts  = FloatCtrl(self, precision=0,  value=ns, size=(70, -1),
                               act_on_losefocus=True,
                               action=Closure(self.onVal, index=i, label='npts'))
         else:
@@ -345,11 +345,12 @@ class LinearScanPanel(GenericScanPanel):
 
         sizer.Add(self.hline(), (ir, 0), (1, 8), wx.ALIGN_CENTER)
         ir += 1
-        for ic, txt in enumerate(("Role", "Positioner", "Units",
-                                  "Current", "Start",
-                                  "Stop", "Step", " Npts")):
+        for ic, txt in enumerate((" Role", " Positioner", " Units",
+                                  " Current", " Start",
+                                  " Stop", " Step", " Npts")):
             s  = CEN
-            if txt == " Npts": s = LEFT
+            if txt == " Npts":
+                s = LEFT
             sizer.Add(wx.StaticText(self, -1, label=txt),
                       (ir, ic), (1, 1), s, 2)
 
@@ -519,8 +520,8 @@ class XAFSScanPanel(GenericScanPanel):
 
         sizer.Add(self.hline(),    (ir, 0), (1, 8), wx.ALIGN_CENTER)
         ir += 1
-        for ic, lab in enumerate((" Region", "Start", "Stop", "Step",
-                                    "Npts", "Time (s)", "Units")):
+        for ic, lab in enumerate((" Region", " Start", " Stop", " Step",
+                                  " Npts", " Time (s)", " Units")):
             sizer.Add(SimpleText(self, lab),  (ir, ic), (1, 1), LEFT, 2)
 
         for i, reg in enumerate((('Pre-Edge', (-100, -10, 5,  19)),
@@ -533,7 +534,7 @@ class XAFSScanPanel(GenericScanPanel):
             ir += 1
             reg   = wx.StaticText(self, -1, size=(100, -1), label=' %s' % label)
             start, stop, step, npts = self.StartStopStepNpts(i, initvals=initvals)
-            dtime = FloatCtrl(self, size=(65, -1), value=1, minval=0,
+            dtime = FloatCtrl(self, size=(70, -1), value=1, minval=0,
                               precision=3,
                               action=Closure(self.onVal, index=i, label='dtime'))
 
@@ -626,11 +627,10 @@ class XAFSScanPanel(GenericScanPanel):
         self.kwtimechoice.SetSelection(scan['time_kw'])
 
     def setScanTime(self):
+        "set Scan Time for XAFS Scan"
         etime = (float(self.scandb.get_info('pos_settle_time', default=0)) +
                  float(self.scandb.get_info('det_settle_time', default=0)))
-
         etime = etime + 0.25  # estimate time to move energy positioner
-
         dtime = 0.0
         kwt_max = float(self.kwtimemax.GetValue())
         kwt_pow = float(self.kwtimechoice.GetStringSelection())
@@ -642,7 +642,7 @@ class XAFSScanPanel(GenericScanPanel):
                 dtimes.append((nx, dx))
 
         # qxafs: ignore settling time and k-weighting of time
-        if dtimes[0][1] < 0.5:
+        if self.qxafs.GetSelection() == 1:
             etime  = 0
             kwt_pow = 0
 
@@ -655,29 +655,32 @@ class XAFSScanPanel(GenericScanPanel):
         for nx, dx in dtimes:
             dtime += nx*(dx + etime)
         self.scantime = dtime
-
-
         self.est_time.SetLabel(hms(dtime))
 
     def top_widgets(self, title, dwell_prec=3, dwell_value=1):
         "XAFS top widgets"
         self.absrel = add_choice(self, ('Absolute', 'Relative'),
-                                 size=(100, -1),
-                                 action = self.onAbsRel)
+                                 size=(100, -1), action=self.onAbsRel)
         self.absrel_value = 1
         self.absrel.SetSelection(1)
+
+
+        self.qxafs.SetSelection(0)
+        qxafs_time_threshold = float(self.scandb.get_info('qxafs_time_threshold'))
+        if dwell_value < qxafs_time_threshold:
+            self.qxafs.SetSelection(1)
+
         self.dwelltime = FloatCtrl(self, precision=dwell_prec,
                                    value=dwell_value,
                                    act_on_losefocus=True,
-                                   minval=0, size=(50, -1),
+                                   minval=0, size=(60, -1),
                                    action=Closure(self.onVal,
                                                   label='dwelltime'))
-
 
         self.est_time  = SimpleText(self, '  00:00:00  ')
         self.nregs_wid = FloatCtrl(self, precision=0, value=3,
                                    minval=1, maxval=5,
-                                   size=(25, -1),  act_on_losefocus=True,
+                                   size=(40, -1),  act_on_losefocus=True,
                                    action=Closure(self.onVal, label='nreg'))
         nregs = self.nregs_wid.GetValue()
 
@@ -685,8 +688,9 @@ class XAFSScanPanel(GenericScanPanel):
                              font=self.Font13, colour='#880000')
 
         alabel = SimpleText(self, ' Mode: ', size=(60, -1))
-        dlabel = SimpleText(self, ' Time/Point (sec):')
+        dlabel = SimpleText(self, ' Time/Pt (s):')
         tlabel = SimpleText(self, ' Estimated Scan Time:  ')
+        rlabel = SimpleText(self, ' # Regions: ')
 
         sizer = self.sizer
 
@@ -695,10 +699,12 @@ class XAFSScanPanel(GenericScanPanel):
         sizer.Add(self.est_time,  (0, 6), (1, 2), CEN,   3)
         sizer.Add(alabel,         (1, 0), (1, 1), LEFT,  3)
         sizer.Add(self.absrel,    (1, 1), (1, 1), LEFT,  3)
-        sizer.Add(dlabel,         (1, 2), (1, 2), RIGHT, 3)
-        sizer.Add(self.dwelltime, (1, 4), (1, 1), LEFT,  3)
-        sizer.Add(SimpleText(self, "# Regions:"), (1, 5), (1, 1), LEFT)
-        sizer.Add(self.nregs_wid,                 (1, 6), (1, 1), LEFT)
+        sizer.Add(rlabel,         (1, 2), (1, 1), RIGHT, 3)
+        sizer.Add(self.nregs_wid, (1, 3), (1, 1), LEFT,  3)
+        sizer.Add(dlabel,         (1, 4), (1, 1), RIGHT, 3)
+        sizer.Add(self.dwelltime, (1, 5), (1, 1), LEFT,  3)
+        sizer.Add(self.qxafs,     (1, 6), (1, 1), LEFT,  3)
+
 
         # return next row for sizer
         return 2
@@ -768,15 +774,24 @@ class XAFSScanPanel(GenericScanPanel):
         #if en_pvname in self.pvlist and self.energy_pv.pv is None:
         #    self.energy_pv.SetPV(self.pvlist[en_pvname])
         e0_off = 0
-        update_esttime = label in ('dtime', 'dwelltime',
-                                   'kwpow', 'kwtime', 'step', 'npts')
+        qxafs_time_threshold = float(self.scandb.get_info('qxafs_time_threshold'))
         if 0 == self.absrel.GetSelection(): # absolute
             e0_off = self.e0.GetValue()
 
         if label == 'dwelltime':
             for wid in self.reg_settings:
                 wid[4].SetValue(value)
-            update_esttime = True
+
+            if value < qxafs_time_threshold:
+                self.qxafs.SetSelection(1)
+        elif label == 'dtime':
+            equal_times = True
+            for ireg, reg in enumerate(self.reg_settings):
+                if reg[4].Enabled:
+                    rtime = float(reg[4].GetValue())
+                    equal_times = equal_times and abs(value -rtime)  < 0.01
+            if not equal_times:
+                self.qxafs.SetSelection(0)
         elif label == 'nreg':
             nregs = value
             for ireg, reg in enumerate(self.reg_settings):
@@ -819,6 +834,20 @@ class XAFSScanPanel(GenericScanPanel):
                 self.setStepNpts(self.reg_settings[index-1], label)
         self.setScanTime()
 
+    def onQXAFS(self, evt=None):
+        """continuous/step scans """
+        # note: save qxafs selection, because setting the
+        # per-region time may auto-set the qxafs selection to 'step'
+        sel = self.qxafs.GetSelection()
+        dtime = float(self.dwelltime.GetValue())
+        equal_times = True
+        for ireg, reg in enumerate(self.reg_settings):
+            if reg[4].Enabled:
+                reg[4].SetValue(dtime)
+
+        self.qxafs.SetSelection(sel)
+        self.setScanTime()
+
     def onAbsRel(self, evt=None):
         """xafs abs/rel"""
         offset = 0
@@ -836,6 +865,7 @@ class XAFSScanPanel(GenericScanPanel):
                 for ix in range(2):
                     wids[ix].SetValue(wids[ix].GetValue() + offset, act=False)
 
+
     def onEdgeChoice(self, evt=None):
         edge = self.edgechoice.GetStringSelection()
         elem = self.elemchoice.GetStringSelection()
@@ -849,7 +879,10 @@ class XAFSScanPanel(GenericScanPanel):
         "generate xafs scan"
         enpos = str(self.scandb.get_info('xafs_energy', 'Energy'))
         enpos = self.scandb.get_positioner(enpos)
-        s = {'type': 'xafs',
+        scantype = 'xafs'
+        if self.qxafs.GetSelection() == 1:
+            scantype = 'qxafs'
+        s = {'type': scantype,
              'e0': self.e0.GetValue(),
              'elem':  self.elemchoice.GetStringSelection(),
              'dwelltime':  float(self.dwelltime.GetValue()),
@@ -891,10 +924,11 @@ class MeshScanPanel(GenericScanPanel):
         sizer.Add(self.hline(), (ir, 0), (1, 8), wx.ALIGN_CENTER)
         ir += 1
 
-        for ic, lab in enumerate(("Loop", "Positioner", "Units",
-                                  "Current", "Start","Stop", "Step", " Npts")):
+        for ic, lab in enumerate((" Loop", " Positioner", " Units",
+                                  " Current", " Start", " Stop", " Step", " Npts")):
             s  = CEN
-            if lab == " Npts": s = LEFT
+            if lab == " Npts":
+                s = LEFT
             sizer.Add(SimpleText(self, lab), (ir, ic), (1, 1), s, 2)
 
         self.pos_settings = []
@@ -1018,10 +1052,11 @@ class SlewScanPanel(GenericScanPanel):
 
         sizer.Add(self.hline(), (ir, 0), (1, 8), wx.ALIGN_CENTER)
         ir += 1
-        for ic, lab in enumerate(("Loop", "Positioner", "Units",
-                                  "Current", "Start","Stop", "Step", " Npts")):
+        for ic, lab in enumerate((" Loop", " Positioner", " Units",
+                                  " Current", " Start", " Stop", " Step", " Npts")):
             s  = CEN
-            if lab == " Npts": s = LEFT
+            if lab == " Npts":
+                s = LEFT
             # if lab == "Current": s = RIGHT
             sizer.Add(SimpleText(self, lab), (ir, ic), (1, 1), s, 2)
 
