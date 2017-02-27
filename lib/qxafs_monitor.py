@@ -115,8 +115,8 @@ class QXAFS_ScanWatcher(object):
                 time_left = (npts-cpt)*self.dtime
                 self.scandb.set_info('scan_time_estimate', time_left)
                 time_est  = hms(time_left)
-                msg = 'Point %i/%i, time left: %s' % (cpt, npts, time_est)
-                if cpt >= 2*msg_counter:
+                msg = 'Point %i/%i, %i time left: %s' % (cpt, npts, msg_counter, time_est)
+                if cpt >= msg_counter:
                     self.scandb.set_info('scan_progress',  msg)
                     self.scandb.set_info('heartbeat', tstamp())                    
                     msg_counter += 1
