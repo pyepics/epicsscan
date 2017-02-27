@@ -575,6 +575,7 @@ class StepScan(object):
             self.set_info('request_abort', 0)
             self.set_info('scan_time_estimate', time_est)
             self.set_info('scan_total_points', npts)
+            self.set_info('scan_current_point', 0)
 
         self.dtimer.add('PRE: wrote data 0')
         self.set_info('scan_progress', 'starting scan')
@@ -641,6 +642,7 @@ class StepScan(object):
                 # publish scan data
                 if i > 1 and not self.publishing_scandata:
                     self.publish_scandata()
+                    self.set_info('scan_current_point', i)
                 self.dtimer.add('Pt %i : publish scandata' % i)
                 # move positioners
                 t0 = time.time()
