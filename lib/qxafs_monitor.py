@@ -36,6 +36,7 @@ class QXAFS_ScanWatcher(object):
         self.config = None
         self.dead_time = 1.1
         self.connect()
+        self.qxafs_prep()
 
     def connect(self):
         self.config = json.loads(self.scandb.get_config('qxafs').notes)
