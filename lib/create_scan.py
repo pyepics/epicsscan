@@ -65,7 +65,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
             min_dtime = min(dtime)
         kwargs = dict(filename=filename, comments=comments, scandb=scandb,
                       energy_pv=energy_drive, read_pv=energy_read, e0=e0)
-        if scantype == 'qxafs' or min_dtime < 1.250:
+        if scantype == 'qxafs': #  or min_dtime < 1.250:
             scan = QXAFS_Scan(**kwargs)
             scan.detmode = 'roi'
             scan.scantype = 'qxafs'
