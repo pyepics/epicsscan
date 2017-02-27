@@ -1,17 +1,7 @@
 #!/usr/bin/env python
 """
-companion script for QXAFS for use with epicsscan 
-
-This program needs to be run as a separate process.
-
-It looks in the scan DBB for a wakeup signal, then
-monitors the SIS channel as the QXAFS scan runs, and 
-does two tasks:
-  a) move the undulator to the correct energy based on
-     the pre-loaded id_array and the current SIS point
-  b) push data from the counters into the ScandDB, so
-     that live clients can read the data.
-
+xafs scan
+based on EpicsApps.StepScan.
 
 """
 import os
@@ -22,7 +12,7 @@ import numpy as np
 from epics import caget, caput, PV, get_pv
 
 from epicsscan.scandb import ScanDB
-from epicsscan.scan import hms
+from epicsscan.utils import hms, tstamp
 from scan_credentials import conn
 
 from optparse import OptionParser
@@ -36,7 +26,8 @@ HEARTBEAT_PVNAME = '13XRM:edb:info02'
 PULSECOUNT_PVNAME = '13XRM:edb:info03'
 
 class QXAFS_ScanWatcher(object):
-    def __init__(self, **conn_kws):
+    def __init__(self, verbose=False, **conn_kws):
+        self.verbose = verbose
         self.scandb = ScanDB(**conn_kws)
         self.state = 0
         self.last = self.pulse = -1
@@ -59,6 +50,8 @@ class QXAFS_ScanWatcher(object):
     def qxafs_prep(self):
         self.idarray = self.idarray_pv.get()
         self.dtime = float(self.get_info(key='qxafs_dwelltime', default=0.5))
+        if self.verbose:
+            print("QXAFS_Prep %i ID values, dtime=%.3f" %(len(self.idarray), self.dtime))
         self.pulse = 0
         self.last_move_time = 0
         self.counters = []
@@ -70,7 +63,9 @@ class QXAFS_ScanWatcher(object):
             pv = get_pv(c.pvname)
             pv.connect()
             self.counters.append((c.name, pv, pv.nelm))
-
+        if self.verbose:
+            print("QXAFS_Prep connected %i counters" % (len(self.counters)))
+            
     def qxafs_finish(self):
         nidarr = len(self.idarray)
         self.idarray_pv.put(np.zeros(nidarr))
@@ -84,11 +79,12 @@ class QXAFS_ScanWatcher(object):
         self.pulse = value
 
     def monitor_qxafs(self):
-        self.qxafs_prep()
-        print("Monitor QXAFS begin")
+        if self.verbose:
+            print("Monitor QXAFS begin")
         msg_counter = 0
         last_pulse = 0
         self.pulse = 0
+        self.qxafs_prep()
         while True:
             if self.get_state() == 0:
                 print("Break : state=0")
@@ -97,8 +93,11 @@ class QXAFS_ScanWatcher(object):
             time.sleep(0.05)
             now = time.time()
             self.pulsecount_pv.put("%i" % self.pulse)
+            self.set_info('scan_current_point', self.pulse)
             if self.pulse > last_pulse:
                 self.heartbeat_pv.put("%i" % int(time.time()))
+                if self.verbose:
+                    print("QXAFS Monitor " , self.pulse)
                 val = self.idarray[self.pulse]
                 if (self.iddrive_pv.write_access and
                     (self.idbusy_pv.get() == 0) and
@@ -116,20 +115,19 @@ class QXAFS_ScanWatcher(object):
                 self.scandb.set_info('scan_time_estimate', time_left)
                 time_est  = hms(time_left)
                 msg = 'Point %i/%i, time left: %s' % (cpt, npts, time_est)
-                if cpt >= 10*msg_counter:
+                if cpt >= 2*msg_counter:
                     self.scandb.set_info('scan_progress',  msg)
+                    self.scandb.set_info('heartbeat', tstamp())                    
                     msg_counter += 1
-                    print(msg)
                 for name, pv, nelm in self.counters:
                     try:
                         if nelm > 1:
                             self.scandb.set_scandata(name, pv.get())
                         else:
-                            buff = pv.get()
+                            val = pv.get()
                             self.scandb.append_scandata(name, pv.get())
                     except:
                         print "Could not set scandata for %s: %i, %s" % (name, nelm, pv)
-
                 self.scandb.commit()
         print("Monitor QXAFS done")
         last_pulse = self.pulse = 0
@@ -138,8 +136,11 @@ class QXAFS_ScanWatcher(object):
     def get_info(self, *args, **kws):
         return self.scandb.get_info(*args, **kws)
 
+    def set_info(self, key,  val):
+        return self.scandb.set_info(key, val)
+
     def set_state(self, val):
-        return self.scandb.set_info('qxafs_running', val)
+        return self.set_info('qxafs_running', val)
 
     def get_state(self):
         return int(self.scandb.get_info(key='qxafs_running', default=0))
@@ -152,17 +153,20 @@ class QXAFS_ScanWatcher(object):
             self.heartbeat_pv.put("%i"%int(time.time()))
 
 
-def start():
+def start(verbose=False):
     """save pid for later killing, start process"""
     fpid = open(PIDFILE, 'w')
     fpid.write("%d\n" % os.getpid() )
     fpid.close()
 
-    watcher = QXAFS_ScanWatcher(**conn)
+    watcher = QXAFS_ScanWatcher(verbose=verbose, **conn)
     watcher.mainloop()
 
 def get_lastupdate():
-    return int(caget(HEARTBEAT_PVNAME, as_string=True))
+    try:
+        return int(caget(HEARTBEAT_PVNAME, as_string=True))
+    except:
+        return -1
 
 def kill_old_process():
     try:
@@ -176,20 +180,29 @@ def kill_old_process():
     except:
         pass
 
-if __name__ == '__main__':
+
+def run_qxafs_monitor():
     usage = "usage: %prog [options] file(s)"
 
     parser = OptionParser(usage=usage, prog="qxafs_monitor",  version="1")
 
     parser.add_option("-f", "--force", dest="force", action="store_true",
                       default=False, help="force restart, default = False")
+    parser.add_option("-v", "--verbose", dest="verbose", action="store_true",
+                      default=False, help="verbose messages, default = False")
 
+    
     (options, args) = parser.parse_args()
 
     oldtime = get_lastupdate()
     if (options.force or (abs(time.time() - oldtime) > 120.0)):
         kill_old_process()
         time.sleep(1.0)
-        start()
+        start(verbose=options.verbose)
     else:
         print 'QXAFS Monitor running OK at ', time.ctime()
+ 
+if __name__ == '__main__':
+    run_qxafs_monitor()
+    
+       
