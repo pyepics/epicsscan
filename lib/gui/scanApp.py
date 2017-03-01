@@ -591,7 +591,7 @@ class ScanFrame(wx.Frame):
 
         snames = []
         for sdef in self.scandb.getall('scandefs', orderby='last_used_time'):
-            if ((_alltypes or stype == sdef.type) and
+            if ((_alltypes or stype in sdef.type) and
                 (_autotypes or not sdef.name.startswith('__'))):
                 snames.append(sdef.name)
 
