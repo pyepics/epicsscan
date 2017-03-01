@@ -686,6 +686,8 @@ class ScanFrame(wx.Frame):
         # now fill in page
         self.last_scanname = scanname
         stype = scan['type'].lower()
+        if stype == 'qxafs':
+            stype = 'xafs'
         iscan = self.scanpanel_types.index(stype)
         self.nb.SetSelection(iscan)
         self.scanpanels[iscan].load_scandict(scan)

@@ -172,7 +172,7 @@ class ScanDefPanel(wx.Panel):
 
         cls, table = self.scandb.get_table('scandefs')
 
-        q = table.select().where(table.c.type==self.scantype)
+        q = table.select().where(table.c.type.ilike("%%%s%%" % self.scantype))
         if self.name_filter not in (None, 'None', ''):
             q = q.where(table.c.name.ilike('%%%s%%' % self.name_filter))
 

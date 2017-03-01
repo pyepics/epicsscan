@@ -152,7 +152,7 @@ class PosScanMacroBuilder(wx.Frame):
         elif 'map' in sname or 'slew' in sname:
             scantype = 'slew'
         cls, table = self.scandb.get_table('scandefs')
-        q = table.select().where(table.c.type==scantype).order_by('last_used_time')
+        q = table.select().where(table.c.type.ilike("%%%s%%" % scantype)).order_by('last_used_time')
         scannames = []
         for s in q.execute().fetchall():
             if not (s.name.startswith('__') and s.name.endswith('__')):
