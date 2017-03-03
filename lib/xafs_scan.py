@@ -426,10 +426,10 @@ class QXAFS_Scan(XAFS_Scan):
 
         traj = self.make_trajectory()
         energy_orig = caget(qconf['energy_pv'])
-
-        idfrac  = 1000*caget(qconf['id_offset_pv'])/energy_orig
-        idarray = 0.001*(traj['energy']*(1.0 + idfrac))
+        id_offset = 1000.0*caget(qconf['id_offset_pv'])
+        idarray = 1.e-3*(1.0+id_offset/energy_orig)*traj['energy']
         idarray = np.concatenate((idarray, idarray[-1]+np.arange(1,26)/250.0))
+        # print("idarray: ", idarray)
 
         time.sleep(0.1)
         caput(qconf['theta_motor'] + '.DVAL', traj['start'][0])
