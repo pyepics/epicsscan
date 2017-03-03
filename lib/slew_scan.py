@@ -417,7 +417,7 @@ class Slew_Scan(StepScan):
             nxrf = nxrd = 0
             if xrfdet is not None:
                 t0 = time.time()
-                while not xrfdet.file_write_complete() and (time.time()-t0 < 5.0):
+                while not xrfdet.file_write_complete() and (time.time()-t0 < 10.0):
                     time.sleep(0.1)
                 # print(" File write complete? ", xrfdet.file_write_complete())
                 nxrf = xrfdet._xsp3.getNumCaptured_RBV()
@@ -447,8 +447,9 @@ class Slew_Scan(StepScan):
                 print("Row OK ? nXPS, nSIS, xNXRF, nXRD=", rowdata_ok,
                       self.xps.ngathered, npts_sca, nxrf, nxrd)
             if not rowdata_ok:
-                fmt=  '#BAD Row (nXPS=%i, nSIS=%i, nXRF=%o, nXRD=%i: redo!\n'
-                self.write(fmt % (self.xps.ngathered, npts_sca, nxrf, nxrd))
+                fmt=  '#BAD Row nXPS=%i, nSIS=%i, nXRF=%i, nXRD=%i: (npulses=%i) redo!\n'
+                self.write(fmt % (self.xps.ngathered, npts_sca, nxrf, nxrd, npulses))
+                self.write(" bad row xrfdet file write complete: ", xrfdet.file_write_complete())
                 irow -= 1
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
             if self.look_for_interrupts():
