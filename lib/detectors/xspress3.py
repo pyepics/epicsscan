@@ -7,7 +7,7 @@ from ConfigParser import ConfigParser
 from epics import get_pv, caput, caget, Device, poll
 from epics.devices.ad_mca import ADMCA
 
-from .counter import Counter, DeviceCounter
+from .counter import Counter, DummyCounter, DeviceCounter
 from .base import DetectorMixin, SCALER_MODE, NDARRAY_MODE, ROI_MODE
 from .areadetector import ADFileMixin
 from ..debugtime import debugtime

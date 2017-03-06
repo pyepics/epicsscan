@@ -15,7 +15,7 @@ from ..saveable import Saveable
 from ..file_utils import fix_filename
 
 from .trigger import Trigger
-from .counter import Counter, DeviceCounter, MotorCounter
+from .counter import Counter, DummyCounter, DeviceCounter, MotorCounter
 from .base  import DetectorMixin, SimpleDetector, MotorDetector
 from .base  import SCALER_MODE, ROI_MODE, NDARRAY_MODE
 from .mca import McaDetector, MultiMcaDetector

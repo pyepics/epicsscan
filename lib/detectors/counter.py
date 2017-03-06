@@ -43,6 +43,33 @@ class Counter(Saveable):
         "return {label: buffer} dictionary"
         return {self.label: self.buff}
 
+class DummyCounter(Saveable):
+    """dummy counter, not associated with PV"""
+    def __init__(self, pvname, label=None, units=''):
+        Saveable.__init__(self, pvname, label=label, units=units)
+        self.pvname = pvname
+        if label is None:
+            label = pvname
+        self.label = label
+        self.units = units
+        self.clear()
+
+    def __repr__(self):
+        return "counter(%s, label='%s')" % (self.pvname, self.label)
+
+    def read(self, val, **kws):
+        self.buff = list(val)
+        return val
+
+    def clear(self):
+        "clear counter"
+        self.buff = []
+
+    def get_buffers(self):
+        "return {label: buffer} dictionary"
+        return {self.label: self.buff}
+    
+
 class MotorCounter(Counter):
     """Motor Counter: save Readback value
     """
