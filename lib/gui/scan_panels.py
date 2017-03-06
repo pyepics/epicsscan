@@ -596,6 +596,7 @@ class XAFSScanPanel(GenericScanPanel):
         self.e0.SetValue(scan['e0'])
         self.absrel_value = {True:1, False:0}[scan['is_relative']]
         self.absrel.SetSelection(self.absrel_value)
+
         nregs = len(scan['regions'])
         self.nregs_wid.SetValue(nregs)
         for ireg, reg in enumerate(self.reg_settings):
@@ -604,6 +605,7 @@ class XAFSScanPanel(GenericScanPanel):
             else:
                 for wid in reg: wid.Disable()
 
+        dtimes = []
         for ireg, reg in enumerate(scan['regions']):
             start, stop, step, npts, dtime, units = self.reg_settings[ireg]
             # set units first!
@@ -620,11 +622,23 @@ class XAFSScanPanel(GenericScanPanel):
             stop.SetValue(reg[1])
             npts.SetValue(reg[2])
             dtime.SetValue(reg[3])
+            dtimes.append(reg[3])
             if ireg == 0:
                 self.dwelltime.SetValue(reg[3])
 
         self.kwtimemax.SetValue(scan['max_time'])
         self.kwtimechoice.SetSelection(scan['time_kw'])
+
+        # is this a step or continuous scan?
+        scanmode = scan.get('scanmode', None)
+        dtimes_vary = (max(dtimes) - min(dtimes)) > 0.1
+        qxafs_ttime = float(self.scandb.get_info('qxafs_time_threshold'))
+        if scanmode is None:
+            step_xafs = (max(dtimes) > qxafs_ttime or dtimes_vary)
+        else:
+            step_xafs = 'step' in scanmode
+        self.qxafs.SetSelection({True:0, False:1}[step_xafs])
+
 
     def setScanTime(self):
         "set Scan Time for XAFS Scan"

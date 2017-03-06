@@ -235,8 +235,9 @@ class ScanFrame(wx.Frame):
 
         btnsizer = wx.BoxSizer(wx.HORIZONTAL)
         btnpanel = wx.Panel(self)
-        for ibtn, label in enumerate(("Start", "Abort", "Pause", "Resume")):
-            # "Debug Scan")):
+        # bnames = ("Start", "Abort", "Pause", "Resume", "Debug")
+        bnames = ("Start", "Abort", "Pause", "Resume")
+        for ibtn, label in enumerate(bnames):
             btn = add_button(btnpanel, "%s Scan" % label, size=(120, -1),
                              action=Closure(self.onCtrlScan, cmd=label))
             btnsizer.Add(btn, 0, CEN, 8)
@@ -588,9 +589,10 @@ class ScanFrame(wx.Frame):
         stype = None
         if not _alltypes:
             stype = self.scanpanel_types[self.nb.GetSelection()]
-
         snames = []
         for sdef in self.scandb.getall('scandefs', orderby='last_used_time'):
+            if sdef.type is None:
+                continue
             if ((_alltypes or stype in sdef.type) and
                 (_autotypes or not sdef.name.startswith('__'))):
                 snames.append(sdef.name)
