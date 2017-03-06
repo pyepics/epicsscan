@@ -19,7 +19,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
                 positioners=None, detectors=None, counters=None,
                 extra_pvs=None, inner=None, outer=None, dwelltime=1.0,
                 pos_settle_time=0.01, det_settle_time=0.01, scantime=None,
-                elem=None, e0=None, dimension=1, regions=None,
+                elem=None, edge=None, e0=None, dimension=1, regions=None,
                 energy_drive=None, energy_read=None, time_kw=0, max_time=0,
                 is_relative=False, scandb=None, larch=None, **kws):
     """
@@ -65,7 +65,10 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
         if isinstance(min_dtime, np.ndarray):
             min_dtime = min(dtime)
         kwargs = dict(filename=filename, comments=comments, scandb=scandb,
-                      energy_pv=energy_drive, read_pv=energy_read, e0=e0)
+                      energy_pv=energy_drive, read_pv=energy_read, e0=e0,
+                      elem=elem, edge=edge)
+
+        # print("Create XAFS Scan ", scanmode, scantype, kwargs, kws)
         if scantype == 'qxafs' or scanmode=='slew':
             scan = QXAFS_Scan(**kwargs)
             scan.detmode = 'roi'
@@ -134,7 +137,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
     # if it is a slew scan or qxafs scan, this should really
     # be the corresponding Struck detector
     scaler_shim = None
-    if scan.scantype in ('slew', 'qxafs') and scandb is not None:
+    if scan.detmode in ('roi', 'ndaray') and scandb is not None:
         scaler_pvname = '_no_scaler_available_'
         alldets = scandb.get_detectors()
         for d in detectors:
