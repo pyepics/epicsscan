@@ -72,7 +72,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
         else:
             scan = XAFS_Scan(**kwargs)
             scan.detmode = 'scaler'
-        nregions  = len(re1gions)
+        nregions  = len(regions)
         for ireg, det in enumerate(regions):
             start, stop, npts, dt, units = det
             kws  = {'relative': is_relative}
