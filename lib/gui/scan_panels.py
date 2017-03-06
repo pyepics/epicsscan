@@ -593,6 +593,9 @@ class XAFSScanPanel(GenericScanPanel):
         elem = scan.get('elem', None)
         if elem:
             self.elemchoice.SetStringSelection(elem)
+        edge = scan.get('edge', None)
+        if edge:
+            self.edgechoice.SetStringSelection(edge)
         self.e0.SetValue(scan['e0'])
         self.absrel_value = {True:1, False:0}[scan['is_relative']]
         self.absrel.SetSelection(self.absrel_value)
@@ -903,6 +906,7 @@ class XAFSScanPanel(GenericScanPanel):
              'scanmode': scanmode,
              'e0': self.e0.GetValue(),
              'elem':  self.elemchoice.GetStringSelection(),
+             'edge':  self.edgechoice.GetStringSelection(),
              'dwelltime':  float(self.dwelltime.GetValue()),
              'is_relative': 1==self.absrel.GetSelection(),
              'max_time': self.kwtimemax.GetValue(),
