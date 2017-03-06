@@ -882,9 +882,11 @@ class XAFSScanPanel(GenericScanPanel):
         enpos = str(self.scandb.get_info('xafs_energy', 'Energy'))
         enpos = self.scandb.get_positioner(enpos)
         scantype = 'xafs'
+        scanmode = 'step'
         if self.qxafs.GetSelection() == 1:
-            scantype = 'qxafs'
+            scanmode = 'slew'
         s = {'type': scantype,
+             'scanmode': scanmode,
              'e0': self.e0.GetValue(),
              'elem':  self.elemchoice.GetStringSelection(),
              'dwelltime':  float(self.dwelltime.GetValue()),

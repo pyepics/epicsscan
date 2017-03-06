@@ -15,14 +15,13 @@ from .slew_scan import Slew_Scan
 from .debugtime import debugtime
 
 def create_scan(filename='scan.dat', comments=None, type='linear',
-                detmode=None, rois=None, nscans=1, positioners=None,
-                detectors=None, counters=None, extra_pvs=None, inner=None,
-                outer=None, dwelltime=1.0, pos_settle_time=0.01,
-                det_settle_time=0.01, scantime=None, elem=None,
-                e0=None, dimension=1, regions=None,
-                energy_drive=None, energy_read=None,
-                time_kw=0, max_time=0, is_relative=False,
-                scandb=None, larch=None, **kws):
+                scanmode=None, detmode=None, rois=None, nscans=1,
+                positioners=None, detectors=None, counters=None,
+                extra_pvs=None, inner=None, outer=None, dwelltime=1.0,
+                pos_settle_time=0.01, det_settle_time=0.01, scantime=None,
+                elem=None, e0=None, dimension=1, regions=None,
+                energy_drive=None, energy_read=None, time_kw=0, max_time=0,
+                is_relative=False, scandb=None, larch=None, **kws):
     """
     return a StepScan object, built from function arguments
 
@@ -30,7 +29,9 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
     ---------
     filename (string): name for datafile ['scan.dat']
     type (string):  type of scan, for building positions ('linear',
-                   'xafs', 'mesh', 'slew', 'qxafs', ...)  ['linear']
+                   'xafs', 'mesh', 'slew',  ...)  ['linear']
+    scanmode (string or None): scan-specific mode info, 
+         typically 'step' or 'slew', as for step/continuous XAFS scans
     detmode (string):  detector mode, for configuring detector and counters,
                    one of 'scaler', 'roi', 'ndarray' [None: guess from scan type]
     dwelltime (float or array):  dwelltime per point
@@ -65,15 +66,13 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
             min_dtime = min(dtime)
         kwargs = dict(filename=filename, comments=comments, scandb=scandb,
                       energy_pv=energy_drive, read_pv=energy_read, e0=e0)
-        if scantype == 'qxafs': #  or min_dtime < 1.250:
+        if scantype == 'qxafs' or scanmode=='slew':
             scan = QXAFS_Scan(**kwargs)
             scan.detmode = 'roi'
-            scan.scantype = 'qxafs'
         else:
             scan = XAFS_Scan(**kwargs)
             scan.detmode = 'scaler'
-            scan.scantype = 'xafs'
-        nregions  = len(regions)
+        nregions  = len(re1gions)
         for ireg, det in enumerate(regions):
             start, stop, npts, dt, units = det
             kws  = {'relative': is_relative}

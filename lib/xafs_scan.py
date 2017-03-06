@@ -268,7 +268,7 @@ class QXAFS_Scan(XAFS_Scan):
                            read_pv=read_pv, e0=e0, scandb=scandb,
                            extra_pvs=extra_pvs,  **kws)
         self.set_energy_pv(energy_pv, read_pv=read_pv, extra_pvs=extra_pvs)
-        self.scantype = 'qxafs'
+        self.scantype = 'xafs'
         self.detmode  = 'roi'
         self.config = None
         if scandb is not None:
