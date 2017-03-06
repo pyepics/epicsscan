@@ -111,7 +111,8 @@ class Xspress3(Device, ADFileMixin):
 class Xspress3Counter(DeviceCounter):
     """Counters for Xspress3-1-10"""
     sca_labels = ('Clock', 'ResetTicks', 'ResetCounts',
-                  'AllEvent', 'AllGood', 'Window1', 'Window2', 'Pileup')
+                  'AllEvent', 'AllGood', 'Window1', 'Window2',
+                  'Pileup', 'DTFactor')
     scas2save = (0, 1, 2, 3, 4, 7)
     scas2save = (0, 1, 3)
     scas2save = (0,)
@@ -121,6 +122,10 @@ class Xspress3Counter(DeviceCounter):
 
         if not prefix.endswith(':'):
             prefix = "%s:" % prefix
+
+        # ROI #8 for DTFactor is a recent addition,
+        # here we get ready to test if it is connected.
+        self.sca8 = get_pv('%sC1SCA8:Value_RBV' % prefix)
 
         self.mode = mode
         self.nmcas, self.nrois = int(nmcas), int(nrois)
@@ -168,13 +173,22 @@ class Xspress3Counter(DeviceCounter):
 
         roi_format = '%sMCA%iROI:%i:Total_RBV'
         sca_format = '%sC%iSCA%i:Value_RBV'
-        scas2save = (0, )
-        save_dtcorrect = True
+        time.sleep(0.01)
+
+        scas2save = (0, 8)
+        has_sca8 = self.sca8.connected
+        # print("XSPRESS3 has SCA8 : ", self.sca8, has_sca8)
+        save_dtcorrect = False
+        if not has_sca8:
+            scas2save = (0, )
+            save_dtcorrect = True
+
         if self.mode == ROI_MODE:
+            save_dtcorrect = False
             roi_format = '%sMCA%iROI:%i:TSTotal'
             sca_format = '%sC%iSCA%i:TSArrayValue'
-            scas2save = (0, 1, 3)
-            save_dtcorrect = False
+            if not has_sca8:
+                scas2save = (0, 1, 3)
 
         for roiname in self.rois:
             lname = roiname.lower()
@@ -197,7 +211,6 @@ class Xspress3Counter(DeviceCounter):
                     _pvname = sca_format % (prefix, imca, isca)
                     _label = '%s mca%i' % (self.sca_labels[isca], imca)
                     add_counter(_pvname, _label)
-
 
         if self.use_full:
             for imca in range(1, self.nmcas+1):
@@ -244,7 +257,6 @@ class Xspress3Detector(DetectorMixin):
                                             repr(use_dtc),
                                             repr(use_full))
 
-        # print("Xspress3, mode, trigger = ", mode, self.trigger)
         self._connect_args = dict(nmcas=nmcas, nrois=nrois, rois=rois,
                                   mode=mode, use_unlabeled=use_unlabeled,
                                   use_full=use_full)
