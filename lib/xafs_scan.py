@@ -166,9 +166,11 @@ class ScanRegion(Saveable):
 class XAFS_Scan(StepScan):
     """XAFS Scan"""
     def __init__(self, label=None, energy_pv=None, read_pv=None,
-                 extra_pvs=None,  e0=0, scandb=None, **kws):
+                 extra_pvs=None,  e0=0, elem='', edge='', scandb=None, **kws):
         self.label = label
         self.e0 = e0
+        self.elem = elem
+        self.edge = edge
         self.energies = []
         self.regions = []
         StepScan.__init__(self, **kws)
@@ -257,7 +259,7 @@ class QXAFS_Scan(XAFS_Scan):
     """QuickXAFS Scan"""
 
     def __init__(self, label=None, energy_pv=None, read_pv=None,
-                 extra_pvs=None, e0=0, scandb=None, **kws):
+                 extra_pvs=None, e0=0, elem='', edge='', scandb=None, **kws):
 
         self.label = label
         self.e0 = e0
@@ -266,7 +268,7 @@ class QXAFS_Scan(XAFS_Scan):
         self.xps = None
         XAFS_Scan.__init__(self, label=label, energy_pv=energy_pv,
                            read_pv=read_pv, e0=e0, scandb=scandb,
-                           extra_pvs=extra_pvs,  **kws)
+                           extra_pvs=extra_pvs, elem=elem, edge=edge, **kws)
         self.set_energy_pv(energy_pv, read_pv=read_pv, extra_pvs=extra_pvs)
         self.scantype = 'xafs'
         self.detmode  = 'roi'
@@ -419,10 +421,11 @@ class QXAFS_Scan(XAFS_Scan):
             self.write('Cannot execute scan: %s' % self._scangroup.error_message)
             self.set_info('scan_message', 'cannot execute scan')
             return
-
+        
         self.scandb.set_info('qxafs_running', 1) # preparing
         self.connect_qxafs()
         qconf = self.config
+
 
         traj = self.make_trajectory()
         energy_orig = caget(qconf['energy_pv'])
@@ -476,7 +479,7 @@ class QXAFS_Scan(XAFS_Scan):
             det_prefixes.append(det.prefix)
             det.arm(mode='roi')
 
-
+            
         ## need to use self.rois to re-load ROI arrays
         ## names like  MCA1ROI:N:TSTotal
         _counters = []
@@ -550,8 +553,7 @@ class QXAFS_Scan(XAFS_Scan):
             ndat = [len(c.buff) for c in self.counters]
             narr = min(ndat)
 
-        #  print("Read QXAFS Data %i points (NE=%i) %.3f secs" % (narr, ne, time.time() - t0))
-
+        # print("Read QXAFS Data %i points (NE=%i) %.3f secs" % (narr, ne, time.time() - t0))
         # remove hot first pixel AND align to proper energy
         # really, we tested this, comparing to slow XAFS scans!
         for c in self.counters:
