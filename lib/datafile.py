@@ -259,9 +259,15 @@ class ASCIIScanFile(ScanFile):
         "write scan parameters"
         out = ['%s ScanParameters.Start: Scan.Member: Value' % COM1]
         s = self.scan
+        # print("WRITE SCAN PARAMS", s, s.elem, s.edge, s.e0)
+
         out.append('%s ScanParameters.ScanType: %s' % (COM1, s.scantype))
         regfmt = '%9.3f, %9.3f, %9.3f  %s  %.2f'
         if 'xafs' in s.scantype.lower():
+            elem = getattr(s, 'elem', 'Unknown')
+            edge = getattr(s, 'edge', 'Unknown')
+            out.append('%s ScanParameters.element: %s' % (COM1, elem))
+            out.append('%s ScanParameters.edge: %s' % (COM1, edge))
             out.append('%s ScanParameters.E0: %.3f' % (COM1, s.e0))
             out.append('%s ScanParameters.Legend:  Start, Stop, Step, K-space, Time' % COM1)
             for ireg, reg in enumerate(s.regions):
