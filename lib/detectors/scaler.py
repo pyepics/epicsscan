@@ -86,3 +86,7 @@ class ScalerDetector(DetectorMixin):
         self.scaler.put('CNT', 0, wait=wait)
         if disarm:
             self.disarm(mode=mode)
+
+    def config_filesaver(self, **kws):
+        "configure filesaver"
+        pass
