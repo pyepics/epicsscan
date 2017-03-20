@@ -93,9 +93,9 @@ class QXAFS_ScanWatcher(object):
             npts = int(self.get_info(key='scan_total_points', default=0))
             time.sleep(0.05)
             now = time.time()
-            self.pulsecount_pv.put("%i" % self.pulse)
-            self.set_info('scan_current_point', self.pulse)
             if self.pulse > last_pulse:
+                self.pulsecount_pv.put("%i" % self.pulse)
+                self.set_info('scan_current_point', self.pulse)
                 self.heartbeat_pv.put("%i" % int(time.time()))
                 if self.verbose and self.pulse % 5 == 0:
                     print("QXAFS Monitor " , self.pulse, len(self.counters))
@@ -130,6 +130,8 @@ class QXAFS_ScanWatcher(object):
                     except:
                         print "Could not set scandata for %s: %i, %s" % (name, pv)
                 self.scandb.commit()
+        self.pulsecount_pv.put("%i" % self.pulse)
+        self.set_info('scan_current_point', self.pulse)
         print("Monitor QXAFS done")
         last_pulse = self.pulse = 0
         self.qxafs_finish()
@@ -153,6 +155,7 @@ class QXAFS_ScanWatcher(object):
                 self.monitor_qxafs()
             time.sleep(1.0)
             self.heartbeat_pv.put("%i"%int(time.time()))
+            self.set_state(0)
 
 
 def start(verbose=False):
