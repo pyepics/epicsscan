@@ -21,7 +21,7 @@ from optparse import OptionParser
 MIN_ID_ENERGY =   2.0
 MAX_ID_ENERGY = 200.0
 
-PIDFILE = '/home/epics/logs/qxafs_monitor.pid'
+PIDFILE = '/home/xas_user/logs/qxafs_monitor.pid'
 HEARTBEAT_PVNAME = '13XRM:edb:info02'
 PULSECOUNT_PVNAME = '13XRM:edb:info03'
 
@@ -87,6 +87,7 @@ class QXAFS_ScanWatcher(object):
 
         self.qxafs_connect_counters()
         while True:
+            # print(" QXAFS Pulse ", self.pulse, last_pulse, self.get_state())
             if self.get_state() == 0:
                 print("Break : state=0")
                 break
@@ -146,16 +147,19 @@ class QXAFS_ScanWatcher(object):
         return self.set_info('qxafs_running', val)
 
     def get_state(self):
-        return int(self.scandb.get_info(key='qxafs_running', default=0))
+        val  = self.scandb.get_info(key='qxafs_running', default=0)
+        return int(val)
 
     def mainloop(self):
         self.qxafs_connect_counters()
         while True:
-            if 2 == self.get_state():
+            state = self.get_state()
+            # print("Main loop ", state, 2==state)
+            if 2 == int(state):
                 self.monitor_qxafs()
             time.sleep(1.0)
             self.heartbeat_pv.put("%i"%int(time.time()))
-            self.set_state(0)
+            # self.set_state(0)
 
 
 def start(verbose=False):
@@ -176,7 +180,7 @@ def get_lastupdate():
 def kill_old_process():
     try:
         caput(HEARTBEAT_PVNAME, '1')
-        finp = open(pidfile)
+        finp = open(PIDFILE)
         pid = int(finp.readlines()[0][:-1])
         finp.close()
         cmd = "kill -9 %d" % pid
