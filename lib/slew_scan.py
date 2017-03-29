@@ -135,6 +135,8 @@ class Slew_Scan(StepScan):
                                           start=start, stop=stop,
                                           step=step, scantime=dtime)
 
+        self.comments = self.comments.replace('\n', ' | ')
+
         txt.extend(['#------------------#', '[scan]',
                     'filename = %s' % self.filename,
                     'comments = %s' % self.comments,
@@ -449,7 +451,7 @@ class Slew_Scan(StepScan):
             if not rowdata_ok:
                 fmt=  '#BAD Row nXPS=%i, nSIS=%i, nXRF=%i, nXRD=%i: (npulses=%i) redo!\n'
                 self.write(fmt % (self.xps.ngathered, npts_sca, nxrf, nxrd, npulses))
-                self.write(" bad row xrfdet file write complete: ", xrfdet.file_write_complete())
+                self.write(" bad row xrfdet file write complete: %s "% repr(xrfdet.file_write_complete()))
                 irow -= 1
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
             if self.look_for_interrupts():
