@@ -367,7 +367,7 @@ class MacroFrame(wx.Frame) :
                                     style=wx.ALIGN_CENTER|wx.ALIGN_RIGHT)
         self.histfile = os.path.join(larch.site_config.larchdir, MACRO_HISTORY)
         self.input = ReadlineTextCtrl(panel, -1,  '', size=(525,-1),
-                                      historyfile=self.histfile, mode='emacs',
+                                      historyfile=self.histfile,
                                       style=wx.ALIGN_LEFT|wx.TE_PROCESS_ENTER)
 
         self.input.Bind(wx.EVT_TEXT_ENTER, self.onText)
