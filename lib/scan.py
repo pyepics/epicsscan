@@ -305,13 +305,16 @@ class StepScan(object):
                 print("Failed to run pre_scan_command()")
         return out
 
-    def pre_scan(self, row=0, **kws):
+    def pre_scan(self, row=0, filename=None, **kws):
         # dtimer = debugtime()
 
         self.set_info('scan_progress', 'running pre_scan routines')
         for (desc, pv) in self.extra_pvs:
             pv.connect()
         # dtimer.add('pre_scan connect to extra pvs')
+        if filename is None:
+            filename = self.filename
+        kws['filename'] = filename
         out = []
         for meth in self.pre_scan_methods:
             out.append(meth(scan=self, row=row, **kws))
@@ -515,18 +518,23 @@ class StepScan(object):
             self.set_info('scan_message', 'cannot execute scan')
             return
 
+        userdir = self.scandb.get_info('user_folder')
+
         self.clear_interrupts()
         self.dtimer.add('PRE: cleared interrupts')
-
         self.orig_positions = [p.current() for p in self.positioners]
 
         out = [p.move_to_start(wait=False) for p in self.positioners]
         self.check_outputs(out, msg='move to start')
 
+        npts = self.npts = len(self.positioners[0].array)
+
         for det in self.detectors:
             det.arm(mode=SCALER_MODE, fnum=1, numframes=1)
+            fname = fix_varname(fix_filename("%s_%s" % (self.filename, det.label)))
+            det.config_filesaver(path=userdir, name=fname, 
+                                 numcapture=npts)
 
-        npts = len(self.positioners[0].array)
         self.message_points = min(100, max(10, 25*round(npts/250.0)))
         self.dwelltime_varys = False
         if self.dwelltime is not None:
