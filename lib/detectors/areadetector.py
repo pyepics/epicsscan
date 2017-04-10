@@ -304,7 +304,8 @@ class AreaDetector(DetectorMixin):
     def get_next_filename(self):
         return self.ad.getNextFileName()
         
-    def pre_scan(self, row=0, mode=None, npulses=None, dwelltime=None, **kws):
+    def pre_scan(self, row=0, mode=None, npulses=None,
+                 dwelltime=None, filename=None, scan=None, **kws):
         "run just prior to scan"
         if mode is not None:
             self.mode = mode
@@ -312,8 +313,31 @@ class AreaDetector(DetectorMixin):
         self.cam.put('Acquire', 0, wait=True)
         poll(0.05, 0.5)
 
+        fileopts = dict(number=1, name=self.label,
+                        numcapture=npulses,
+                        template="%s%s.%4.4d",
+                        auto_increment=False,
+                        auto_save=True, enable=True)
+
         if self.mode == SCALER_MODE:
             self.ScalerMode()
+            fileopts['auto_increment']=True
+            fileopts['number'] = 1
+            fileopts['numcapture'] = scan.npts
+            file_ext = self.filesaver.lower()
+            if file_ext.endswith(':'):
+                file_ext = file_ext[:-1]
+            if file_ext.endswith('1'):
+                file_ext = file_ext[:-1]
+
+            fileopts['template']  = "%%s%%s_%%4.4d.%s" % file_ext
+
+            if filename is None:
+                filename = ''
+            fname = fix_filename('%s_%s' % (filename, self.label))
+            fname = fname.replace('.', '_')
+            fileopts['name'] = fname
+
         elif self.mode == ROI_MODE:
             self.ROIMode()
         elif self.mode == NDARRAY_MODE:
@@ -328,9 +352,8 @@ class AreaDetector(DetectorMixin):
         if npulses is not None:
             self.cam.put('NumImages', npulses)
 
-        self.config_filesaver(number=1, name=self.label, numcapture=npulses,
-                              template="%s%s.%4.4d", auto_increment=False,
-                              auto_save=True, enable=True)
+        self.config_filesaver(**fileopts)
+
         if hasattr(self, 'custom_pre_scan'):
            self.custom_pre_scan(row=row, mode=mode, npulse=npulses,
                                 dwelltime=dwelltime, **kws)
@@ -356,7 +379,10 @@ class AreaDetector(DetectorMixin):
         
         self.ad.FileCaptureOff()
         self.cam.put('ImageMode', 'Continuous')
-        self.cam.put('TriggerMode', 'Internal')
+        try:
+            self.cam.put('TriggerMode', 'Internal')
+        except ValueError: # may not have Internal mode!
+            pass
         self.cam.put('Acquire', 1)
 
     def ScalerMode(self, dwelltime=None, numframes=1):
@@ -370,7 +396,11 @@ class AreaDetector(DetectorMixin):
         1. numframes should be 1, unless you know what you're doing.
         2. Files will be saved by the file saver
         """
-        self.cam.put('TriggerMode', 'Internal') # Internal
+        print("Putting Area Detector to ScalerMode" , self.prefix)
+        try:
+            self.cam.put('TriggerMode', 'Internal') # Internal
+        except ValueError:
+            pass
         self.cam.put('ImageMode', 'Single')
         if numframes is not None:
             self.cam.put('NumImages', numframes)
@@ -394,7 +424,10 @@ class AreaDetector(DetectorMixin):
         2. setting dwelltime or numframes to None is discouraged,
            as it can lead to inconsistent data arrays.
         """
-        self.cam.put('TriggerMode', 'External') # External
+        try:
+            self.cam.put('TriggerMode', 'External') # External
+        except ValueError:
+            pass
         self.cam.put('ImageMode', 'Multiple')        
         self.roistat.stop()
 
@@ -419,7 +452,10 @@ class AreaDetector(DetectorMixin):
         2. setting dwelltime or numframes to None is discouraged,
            as it can lead to inconsistent data arrays.
         """
-        self.cam.put('TriggerMode', 'External')
+        try:
+            self.cam.put('TriggerMode', 'External')
+        except ValueError:
+            pass
         self.cam.put('ImageMode', 'Multiple')
         self.roistat.stop()
 
