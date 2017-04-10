@@ -109,16 +109,19 @@ def compare_scans(scan1, scan2, verbose=False):
                 pass
             return this == other
         elif isinstance(this, (list, tuple)):
-            out = True
-            for thisitem, otheritem in zip(this, other):
-                out = out and equal(thisitem, otheritem)
+            out = (len(this) == len(other))
+            if out:
+                for thisitem, otheritem in zip(this, other):
+                    out = out and equal(thisitem, otheritem)
             return out
         elif isinstance(this, dict):
-            out = True
-            for thisitem in this:
-                out = out and equal(this[thisitem], other[thisitem])
-            return out
+            out = (len(this) == len(other))
+            if out:
+                for thisitem in this:
+                    out = out and equal(this[thisitem], other[thisitem])
+                    return out
         return this == other
+
     for comp in REQ_COMPS:
         try:
             if not equal(scan1[comp], scan2[comp]):
@@ -312,6 +315,7 @@ class ScanFrame(wx.Frame):
             except:
                 lastscan = ''
                 scan_is_new = True
+
         if scan_is_new or force_save:
             sdb.add_scandef(scanname, text=json.dumps(scan), type=scan['type'])
             sdb.commit()
@@ -344,6 +348,7 @@ class ScanFrame(wx.Frame):
 
     def onDebugScan(self, evt=None):
         sname, scan = self.generate_scan(force_save=False)
+        print("DEBUG generated scan name  ", sname)
         fname  = scan.get('filename', 'scan.001')
         nscans = int(scan.get('nscans', 1))
         comments = scan.get('comments', '')
