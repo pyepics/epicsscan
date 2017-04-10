@@ -137,7 +137,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
     # if it is a slew scan or qxafs scan, this should really
     # be the corresponding Struck detector
     scaler_shim = None
-    if scan.detmode in ('roi', 'ndarray') and scandb is not None:
+    if scan.detmode in ('roi', 'ndaray') and scandb is not None:
         scaler_pvname = '_no_scaler_available_'
         alldets = scandb.get_detectors()
         for d in detectors:
@@ -151,6 +151,8 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
                                'scaler': scaler_pvname}
 
     scan.rois = rois
+    # print  "Made Detectors: shim=",  scaler_shim, scandb, scantype, scan.scantype
+    # print(" Create Scan detectors: ")
     for dpars in detectors:
         dpars['rois'] = scan.rois
         dpars['mode'] = scan.detmode
