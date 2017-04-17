@@ -13,7 +13,7 @@ from .areadetector import ADFileMixin
 from ..debugtime import debugtime
 
 MAX_ROIS = 32
-
+MAX_FRAMES = 16384
 
 class Xspress3(Device, ADFileMixin):
     """Epics Xspress3.20 interface (with areaDetector2)"""
@@ -298,9 +298,9 @@ class Xspress3Detector(DetectorMixin):
         dt.add('xspress3: clear, erase')
 
         if self.mode == SCALER_MODE:
-            self.ScalerMode()
+            self.ScalerMode(dwelltime=dwelltime, numframes=npulses)
         elif self.mode == ROI_MODE:
-            self.ROIMode()
+            self.ROIMode(dwelltime=dwelltime, numframes=npulses)
         elif self.mode == NDARRAY_MODE:
             self._xsp3.FileCaptureOff()
             time.sleep(0.01)
@@ -392,11 +392,13 @@ class Xspress3Detector(DetectorMixin):
             self._xsp3.put('MCA%iROI:TSControl' % i, 2) # 'Stop'
             self._xsp3.put('C%iSCA:TSControl' % i, 2) # 'Stop'
         if numframes is not None:
-            self._xsp3.put('NumImages', numframes)
-            for i in self._chans:
-                self._xsp3.put('MCA%iROI:TSNumPoints' % i, numframes)
-                self._xsp3.put('C%iSCA:TSNumPoints' % i, numframes)
-                self._xsp3.put('MCA%iROI:BlockingCallbacks' % i, 1)
+            numframes = MAX_FRAMES
+
+        self._xsp3.put('NumImages', numframes)
+        for i in self._chans:
+            self._xsp3.put('MCA%iROI:TSNumPoints' % i, numframes)
+            self._xsp3.put('C%iSCA:TSNumPoints' % i, numframes)
+            self._xsp3.put('MCA%iROI:BlockingCallbacks' % i, 1)
 
         if dwelltime is not None:
             self.set_dwelltime(dwelltime)
