@@ -371,6 +371,9 @@ class Xspress3Detector(DetectorMixin):
             self._xsp3.put('C%iSCA:TSControl' % i, 2) # 'Stop'
             self._xsp3.put('MCA%iROI:TSControl' % i, 2) # 'Stop'
             self._xsp3.put('MCA%iROI:BlockingCallbacks' % i, 1)
+            self._xsp3.put('MCA%iROI:TSNumPoints' % i, MAX_FRAMES)
+            self._xsp3.put('C%iSCA:TSNumPoints' % i, MAX_FRAMES)
+
         self.mode = SCALER_MODE
 
     def ROIMode(self, dwelltime=None, numframes=None):
@@ -387,11 +390,13 @@ class Xspress3Detector(DetectorMixin):
         2. setting dwelltime or numframes to None is discouraged,
            as it can lead to inconsistent data arrays.
         """
+        # print("Xspress3 ROI Mode ", dwelltime, numframes)
+
         self._xsp3.put('TriggerMode', 3) # External, TTL Veto
         for i in self._chans:
             self._xsp3.put('MCA%iROI:TSControl' % i, 2) # 'Stop'
             self._xsp3.put('C%iSCA:TSControl' % i, 2) # 'Stop'
-        if numframes is not None:
+        if numframes is None:
             numframes = MAX_FRAMES
 
         self._xsp3.put('NumImages', numframes)
