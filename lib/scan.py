@@ -441,6 +441,7 @@ class StepScan(object):
     def init_scandata(self):
         if self.scandb is None:
             return
+
         self.scandb.clear_scandata()
         self.scandb.commit()
         time.sleep(0.05)
@@ -518,7 +519,9 @@ class StepScan(object):
             self.set_info('scan_message', 'cannot execute scan')
             return
 
-        userdir = self.scandb.get_info('user_folder')
+        userdir = '.'
+        if self.scandb is not None:
+            userdir = self.scandb.get_info('user_folder')
 
         self.clear_interrupts()
         self.dtimer.add('PRE: cleared interrupts')
