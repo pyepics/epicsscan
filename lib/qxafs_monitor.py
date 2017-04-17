@@ -13,6 +13,7 @@ from epics import caget, caput, PV, get_pv
 
 from epicsscan.scandb import ScanDB
 from epicsscan.utils import hms, tstamp
+from epicsscan.xps import NewportXPS
 from scan_credentials import conn
 
 from optparse import OptionParser
@@ -48,6 +49,15 @@ class QXAFS_ScanWatcher(object):
         self.idbusy_pv = PV(self.config['id_busy_pv'])
         self.pulsecount_pv = PV(PULSECOUNT_PVNAME)
         self.heartbeat_pv = PV(HEARTBEAT_PVNAME)
+
+
+        self.xps = NewportXPS(self.config['host'],
+                              username=self.config['username'],
+                              password=self.config['password'],
+                              group=self.config['group'],
+                              outputs=self.config['outputs'])
+        
+
 
     def qxafs_connect_counters(self):
         self.counters = []
@@ -92,6 +102,12 @@ class QXAFS_ScanWatcher(object):
                 print("Break : state=0")
                 break
             npts = int(self.get_info(key='scan_total_points', default=0))
+            if self.scandb.get_info(key='request_abort', as_bool=True):
+                print("aborting QXAFS scan")
+                self.xps.abort_group()
+                time.sleep(1.0)
+                self.set_info('request_abort', 0)
+             
             time.sleep(0.05)
             now = time.time()
             if self.pulse > last_pulse:
@@ -101,7 +117,7 @@ class QXAFS_ScanWatcher(object):
                 if self.verbose and self.pulse % 5 == 0:
                     print("QXAFS Monitor " , self.pulse, len(self.counters))
                 val = self.idarray[self.pulse + self.id_lookahead]
-                if (self.iddrive_pv.write_access and
+                if (True and # self.iddrive_pv.write_access and
                     (self.idbusy_pv.get() == 0) and
                     ((now- self.last_move_time) > self.dead_time) and
                     (val > MIN_ID_ENERGY) and
@@ -116,7 +132,7 @@ class QXAFS_ScanWatcher(object):
                 time_left = (npts-cpt)*self.dtime
                 self.scandb.set_info('scan_time_estimate', time_left)
                 time_est  = hms(time_left)
-                msg = 'Point %i/%i, %i time left: %s' % (cpt, npts, msg_counter, time_est)
+                msg = 'Point %i/%i, time left: %s' % (cpt, npts, time_est)
                 if cpt >= msg_counter:
                     self.scandb.set_info('scan_progress',  msg)
                     self.scandb.set_info('heartbeat', tstamp())                    

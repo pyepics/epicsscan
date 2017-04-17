@@ -429,6 +429,15 @@ class NewportXPS:
         self._xps.PositionerSGammaParametersGet(self._sid, stage, vel, accl,
                                                 min_jerktime, max_jerktime)
 
+    def abort_group(self, group=None):
+        """abort group move"""
+        if group is None or group not in self.groups:
+            group = self.traj_group
+        if group is None:
+            print("Do have a group to move")
+            return
+        ret = self._xps.GroupMoveAbort(self._sid, group)
+
     def move_group(self, group=None, **kws):
         """move group to supplied position
         """
