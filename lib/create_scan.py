@@ -21,7 +21,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
                 pos_settle_time=0.01, det_settle_time=0.01, scantime=None,
                 elem=None, edge=None, e0=None, dimension=1, regions=None,
                 energy_drive=None, energy_read=None, time_kw=0, max_time=0,
-                is_relative=False, scandb=None, larch=None, **kws):
+                is_relative=False, scandb=None, larch=None, data_callback=None, **kws):
     """
     return a StepScan object, built from function arguments
 
@@ -131,6 +131,9 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
                 pos.array = np.linspace(start, stop, npts)
                 scan.add_positioner(pos)
 
+    # data callback
+    if data_callback is not None:
+        scan.data_callback = data_callback
     # detectors, with ROIs and det mode
     # also, note this hack:
     # a scan may have specified a 'scaler' detector, but
