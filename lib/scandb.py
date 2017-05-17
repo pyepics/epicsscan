@@ -17,7 +17,7 @@ from datetime import datetime
 # from utils import backup_versions, save_backup
 import sqlalchemy
 from sqlalchemy import MetaData, Table, select, and_, create_engine
-from sqlalchemy.orm import sessionmaker, mapper
+from sqlalchemy.orm import sessionmaker, mapper, clear_mappers
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import  NoResultFound
@@ -80,13 +80,63 @@ def None_or_one(val, msg='Expected 1 or None result'):
     else:
         raise ScanDBException(msg)
 
+def save_sqlite(filename, dbname=None, server='postgresql', **kws):
+    """save scandb to sqlite format
+
+    Arguments
+    ---------
+    filename  name of sqlite3 database to write -- will be clobbered if it exists
+    dbname    name of database
+    server    server type (only postgresql supported)
+    """
+    if server.startswith('sqlit'):
+        raise ValueError("no need to save sqlite db to sqlite!")
+
+    pg_scandb = ScanDB(dbname=dbname, server=server, **kws)
+    if os.path.exists(filename):
+        os.unlink(filename)
+        time.sleep(0.5)
+
+    tablenames = ('info', 'config', 'slewscanpositioners', 'scanpositioners',
+                  'scancounters', 'scandetectors', 'scandefs', 'extrapvs',
+                  'macros', 'pvs', 'instruments', 'positions', 'instrument_pv',
+                  'position_pv', 'commands')
+
+    rows, cols = {}, {}
+    for tname in tablenames:
+        allrows = pg_scandb.select(tname)
+        if len(allrows) > 0:
+            cols[tname] = allrows[0].keys()
+            rows[tname] = [[item for item in row] for row in allrows]
+
+    pg_scandb.close()
+    clear_mappers()
+
+    sdb = ScanDB(dbname=filename, server='sqlite3', create=True)
+    sdb.clobber_all_info()
+    sdb.commit()
+
+    for tname in tablenames:
+        if tname not in rows:
+            continue
+        cls, table = sdb.get_table(tname)
+        ckeys = cols[tname]
+        for row in rows[tname]:
+            kws = {}
+            for k, v in zip(ckeys, row):
+                kws[k] = v
+            table.insert().execute(**kws)
+    sdb.commit()
+    print(" Wrote %s " % filename)
+
 class ScanDB(object):
     """
     Main Interface to Scans Database
     """
     def __init__(self, dbname=None, server='sqlite', create=False, **kws):
         self.dbname = dbname
-        if server == 'sqlite3': server = 'sqlite'
+        if server == 'sqlite3':
+            server = 'sqlite'
         self.server = server
         self.tables = None
         self.engine = None
@@ -94,6 +144,7 @@ class ScanDB(object):
         self.conn    = None
         self.metadata = None
         self.pvs = {}
+        self.scandata = []
         self.restoring_pvs = []
         if dbname is not None:
             self.connect(dbname, server=server, create=create, **kws)
@@ -197,7 +248,7 @@ class ScanDB(object):
         for row in self.getall('status'):
             self.status_codes[row.name] = row.id
             self.status_names[row.id] = row.name
-        atexit.register(self.close)
+        # atexit.register(self.close)
 
     def commit(self):
         "commit session state -- null op since using autocommit"
@@ -507,17 +558,22 @@ class ScanDB(object):
         self.session.add(row)
         return row
 
-    ### scan data
+    ## scan data
+    ## note that this is supported differently for Postgres and Sqlite:
+    ##    With Postgres, data arrays are held internally,
+    ##    With Sqlite, data is held as json-ified arrays
     def get_scandata(self, **kws):
         return self.select('scandata', orderby='id', **kws)
-        # return self.getall('scandata', orderby='id', **kws)
 
     def add_scandata(self, name, value, notes='', pvname='', **kws):
         cls, table = self.get_table('scandata')
-        kws.update({'notes': notes, 'pvname': pvname})
         name = name.strip()
+        kws.update({'notes': notes, 'pvname': pvname})
+        if self.server.startswith('sqli'):
+            value = json_encode(value)
         row = self.__addRow(cls, ('name', 'data'), (name, value), **kws)
         self.session.add(row)
+        self.commit()
         return row
 
     def set_scandata(self, name, value,  **kws):
@@ -527,16 +583,26 @@ class ScanDB(object):
         if isinstance(value, (int, float)):
             value = [value]
         where = "name='%s'" % name
-        tab.update().where(whereclause=where
-                           ).values({tab.c.data: value}).execute()
+        update = tab.update().where(whereclause=where)
+        if self.server.startswith('sqli'):
+            update.execute(data=json_encode(value))
+        else:
+            update.values({tab.c.data: value}).execute()
+        self.commit()
 
     def append_scandata(self, name, val):
         cls, tab = self.get_table('scandata')
         where = "name='%s'" % name
-        n = len(tab.select(whereclause=where
-                           ).execute().fetchone().data)
-        tab.update().where(whereclause=where
-                           ).values({tab.c.data[n]: val}).execute()
+        tselect = tab.select(whereclause=where)
+        tupdate = tab.update().where(whereclause=where)
+        if self.server.startswith('sqli'):
+            data = json.loads(tselect.execute().fetchone().data)
+            data.append(val)
+            tupdate.execute(data=json_encode(data))
+        else:
+            n = len(tselect.execute().fetchone().data)
+            tupdate.values({tab.c.data[n]: val}).execute()
+        self.commit()
 
     def clear_scandata(self, **kws):
         cls, table = self.get_table('scandata')
@@ -544,6 +610,7 @@ class ScanDB(object):
         if len(a) < 0:
             return
         self.session.execute(table.delete().where(table.c.id != 0))
+        self.commit()
 
     ### positioners
     def get_positioners(self, **kws):
