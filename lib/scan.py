@@ -106,11 +106,11 @@ from .debugtime import debugtime
 
 MIN_POLL_TIME = 1.e-3
 
-class ScanMessenger(Thread):
+class ScanPublisher(Thread):
     """ Provides a way to run user-supplied functions per scan point,
     in a separate thread, so as to not delay scan operation.
 
-    Initialize a ScanMessenger with a function to call per point, and the
+    Initialize a ScanPublisher with a function to call per point, and the
     StepScan instance.  On .start(), a separate thread will createrd and
     the .run() method run.  Here, this runs a loop, looking at the .cpt
     attribute.  When this .cpt changes, the executing will run the user
@@ -124,17 +124,12 @@ class ScanMessenger(Thread):
     """
     # number of seconds to wait for .cpt to change before exiting thread
     timeout = 3600.
-    def __init__(self, func=None, scan=None,
-                 cpt=-1, npts=None, func_kws=None):
+    def __init__(self, func=None, scan=None, cpt=-1, npts=None, func_kws=None):
         Thread.__init__(self)
         self.func = func
-        self.scan = scan
         self.cpt = cpt
-        self.npts = npts
-        if func_kws is None:
-            func_kws = {}
-        self.func_kws = func_kws
-        self.func_kws['npts'] = npts
+        self.func_kws = func_kws or {}
+        self.func_kws.update({'npts': npts, 'scan': scan})
 
     def run(self):
         """execute thread, watching the .cpt attribute. Any chnage will
@@ -151,18 +146,20 @@ class ScanMessenger(Thread):
                 last_point =  self.cpt
                 t0 = time.time()
                 if self.cpt is not None and hasattr(self.func, '__call__'):
-                    self.func(cpt=self.cpt, scan=self.scan,
-                              **self.func_kws)
+                    self.func(cpt=self.cpt, **self.func_kws)
             if self.cpt is None or time.time()-t0 > self.timeout:
                 return
 
 class StepScan(object):
     """
     General Step Scanning for Epics
+
+
     """
-    def __init__(self, filename=None, auto_increment=True,
-                 comments=None, messenger=None, scandb=None,
+    def __init__(self, filename=None, auto_increment=True, comments=None,
+                 messenger=None, data_callback=None, scandb=None,
                  prescan_func=None, larch=None, **kws):
+
         self.pos_settle_time = MIN_POLL_TIME
         self.det_settle_time = MIN_POLL_TIME
         self.pos_maxmove_time = 3600.0
@@ -185,12 +182,13 @@ class StepScan(object):
         self.exittime = 0 # time to complete scan (post_scan, return positioners, complete i/o)
         self.runtime  = 0 # inittime + looptime + exittime
 
-        self.message_thread = None
         self.messenger = messenger or sys.stdout.write
+        self.data_callback = data_callback
+        self.publish_thread = None
+
         if filename is not None:
             self.datafile = self.open_output_file(filename=filename,
                                                   comments=comments)
-
         self.cpt = 0
         self.npts = 0
         self.complete = False
@@ -302,7 +300,7 @@ class StepScan(object):
             try:
                 self.larch.run("pre_scan_command()")
             except:
-                print("Failed to run pre_scan_command()")
+                self.write("Failed to run pre_scan_command()\n")
         return out
 
     def pre_scan(self, row=0, filename=None, **kws):
@@ -337,14 +335,12 @@ class StepScan(object):
             try:
                 self.larch.run("pre_scan_command(row=%i)" % row)
             except:
-                print("Failed to run pre_scan_command()")
+                self.write("Failed to run pre_scan_command()\n")
         # dtimer.add('pre_scan ran larch prescan')
         # dtimer.show()
         return out
 
     def post_scan(self):
-        if self.debug:
-            print('Stepscan POST SCAN ')
         self.set_info('scan_progress', 'finishing')
         return [m() for m in self.post_scan_methods]
 
@@ -394,20 +390,32 @@ class StepScan(object):
             c.clear()
         self.pos_actual = []
 
-    def show_scan_progress(self, cpt, npts=0, **kws):
+    def publish_data(self, cpt, npts=0, scan=None, **kws):
+        """function to publish data:
+
+        this will be called per point by an non-blocking thread
+        """
         time_left = (npts-cpt)* (self.pos_settle_time + self.det_settle_time)
         if self.dwelltime_varys:
             time_left += self.dwelltime[cpt:].sum()
         else:
             time_left += (npts-cpt)*self.dwelltime
+
         self.set_info('scan_time_estimate', time_left)
         time_est  = hms(time_left)
+
         if cpt < 4:
             self.set_info('filename', self.filename)
+
         msg = 'Point %i/%i,  time left: %s' % (cpt, npts, time_est)
+        self.set_info('scan_progress', msg)
         if cpt % self.message_points == 0:
             self.messenger("%s\n" % msg)
-        self.set_info('scan_progress', msg)
+
+        if not self.publishing_scandata:
+            self.set_all_scandata()
+        if callable(self.data_callback):
+            self.data_callback(scan=self, cpt=cpt, npts=npts, **kws)
 
     def set_all_scandata(self):
         self.publishing_scandata = True
@@ -418,25 +426,6 @@ class StepScan(object):
             c.db_label = fix_varname(name)
             self.scandb.set_scandata(c.db_label, c.buff)
         self.publishing_scandata = False
-
-    def publish_scandata(self, wait=False):
-        "post scan data to db"
-        if self.scandb is None:
-            return
-        if wait:
-            self.set_all_scandata()
-        else:
-            self.publish_thread = Thread(target=self.set_all_scandata)
-            self.publish_thread.start()
-
-    def set_error(self, msg):
-        """set scan error message"""
-        if self.scandb is not None:
-            self.set_info('last_error', msg)
-
-    def set_scandata(self, attr, value):
-        if self.scandb is not None:
-            self.scandb.set_scandata(fix_varname(attr), value)
 
     def init_scandata(self):
         if self.scandb is None:
@@ -477,6 +466,11 @@ class StepScan(object):
                 names.append(name)
         self.scandb.commit()
 
+    def set_error(self, msg):
+        """set scan error message"""
+        if self.scandb is not None:
+            self.set_info('last_error', msg)
+
     def get_infobool(self, key):
         if self.scandb is not None:
             return self.scandb.get_info(key, as_bool=True)
@@ -515,7 +509,7 @@ class StepScan(object):
         self.det_settle_time = max(MIN_POLL_TIME, self.det_settle_time)
 
         if not self.verify_scan():
-            self.write('Cannot execute scan: %s' % self._scangroup.error_message)
+            self.write('Cannot execute scan: %s\n' % self._scangroup.error_message)
             self.set_info('scan_message', 'cannot execute scan')
             return
 
@@ -535,7 +529,7 @@ class StepScan(object):
         for det in self.detectors:
             det.arm(mode=SCALER_MODE, fnum=1, numframes=1)
             fname = fix_varname(fix_filename("%s_%s" % (self.filename, det.label)))
-            det.config_filesaver(path=userdir, name=fname, 
+            det.config_filesaver(path=userdir, name=fname,
                                  numcapture=npts)
 
         self.message_points = min(100, max(10, 25*round(npts/250.0)))
@@ -584,11 +578,9 @@ class StepScan(object):
         self.dtimer.add('PRE: wrote data 0')
         self.set_info('scan_progress', 'starting scan')
 
-        self.message_thread = None
-        if callable(self.messenger):
-            self.message_thread = ScanMessenger(func=self.show_scan_progress,
-                                                scan = self, npts=npts, cpt=0)
-            self.message_thread.start()
+        self.publish_thread = ScanPublisher(func=self.publish_data,
+                                            scan=self, npts=npts, cpt=0)
+        self.publish_thread.start()
         self.cpt = 0
         self.npts = npts
 
@@ -615,7 +607,6 @@ class StepScan(object):
         self.complete = False
         self.dtimer = debugtime(verbose=debug)
         self.publishing_scandata = False
-        self.publish_thread = None
 
         ts_start = time.time()
         self.prepare_scan()
@@ -643,11 +634,9 @@ class StepScan(object):
                 # move to next position
                 [p.move_to_pos(i) for p in self.positioners]
                 self.dtimer.add('Pt %i : move_to_pos (%i)' % (i, len(self.positioners)))
-                # publish scan data
-                if i > 1 and not self.publishing_scandata:
-                    self.publish_scandata()
-                    self.set_info('scan_current_point', i)
-                self.dtimer.add('Pt %i : publish scandata' % i)
+
+                self.set_info('scan_current_point', i)
+
                 # move positioners
                 t0 = time.time()
                 while (not all([p.done for p in self.positioners]) and
@@ -693,8 +682,8 @@ class StepScan(object):
                 # self.dtimer.add('Pt %i : read counters' % i)
 
                 self.pos_actual.append([p.current() for p in self.positioners])
-                if self.message_thread is not None:
-                    self.message_thread.cpt = self.cpt
+                if self.publish_thread is not None:
+                    self.publish_thread.cpt = self.cpt
                 # self.dtimer.add('Pt %i : sent message' % i)
 
                 # if this is a breakpoint, execute those functions
@@ -714,14 +703,14 @@ class StepScan(object):
                 for det in self.detectors:
                     det.pre_scan(scan=self)
                 i -= 1
-            if self.publish_thread is not None:
-                self.publish_thread.join()
+
             self.dtimer.add('Pt %i: completely done.' % i)
 
         # scan complete
         # return to original positions, write data
         self.dtimer.add('Post scan start')
-        self.publish_scandata(wait=True)
+        self.set_all_scandata()
+
         ts_loop = time.time()
         self.looptime = ts_loop - ts_init
 
@@ -731,8 +720,7 @@ class StepScan(object):
         self.datafile.write_data(breakpoint=-1, close_file=True, clear=False)
         self.dtimer.add('Post: file written')
         if self.look_for_interrupts():
-            self.write("scan aborted at point %i of %i." % (self.cpt, self.npts))
-            # raise ScanDBAbort("scan aborted")
+            self.write("scan aborted at point %i of %i\n" % (self.cpt, self.npts))
 
         # run post_scan methods
         out = self.post_scan()
@@ -740,10 +728,10 @@ class StepScan(object):
         self.dtimer.add('Post: post_scan done')
         self.complete = True
 
-        # end messenger thread
-        if self.message_thread is not None:
-            self.message_thread.cpt = None
-            self.message_thread.join()
+        # end data thread
+        if self.publish_thread is not None:
+            self.publish_thread.cpt = None
+            self.publish_thread.join()
 
         self.set_info('scan_progress',
                       'scan complete. Wrote %s' % self.datafile.filename)
