@@ -4,6 +4,7 @@ SQLAlchemy wrapping of scan database
 
 Main Class for full Database:  ScanDB
 """
+from __future__ import print_function
 import os
 import sys
 import json
@@ -26,7 +27,6 @@ from sqlalchemy.orm.exc import  NoResultFound
 from sqlalchemy.dialects import sqlite, postgresql
 
 import epics
-
 
 from .scandb_schema import get_dbengine, create_scandb, map_scandb
 from .scandb_schema import (Info, Status, PVs, MonitorValues, ExtraPVs,
@@ -103,11 +103,16 @@ def save_sqlite(filename, dbname=None, server='postgresql', **kws):
                   'position_pv', 'commands')
 
     rows, cols = {}, {}
+    n = 0
     for tname in tablenames:
         allrows = pg_scandb.select(tname)
         if len(allrows) > 0:
             cols[tname] = allrows[0].keys()
             rows[tname] = [[item for item in row] for row in allrows]
+            n += 1
+            if n % 10000 == 0:
+                print('', end='.')
+                sys.stdout.flush()
 
     pg_scandb.close()
     clear_mappers()
@@ -115,7 +120,6 @@ def save_sqlite(filename, dbname=None, server='postgresql', **kws):
     sdb = ScanDB(dbname=filename, server='sqlite3', create=True)
     sdb.clobber_all_info()
     sdb.commit()
-
     for tname in tablenames:
         if tname not in rows:
             continue
@@ -125,6 +129,10 @@ def save_sqlite(filename, dbname=None, server='postgresql', **kws):
             kws = {}
             for k, v in zip(ckeys, row):
                 kws[k] = v
+                n += 1
+                if n % 10000 == 0:
+                    print('', end='.')
+                    sys.stdout.flush()
             table.insert().execute(**kws)
     sdb.commit()
     print(" Wrote %s " % filename)
@@ -514,7 +522,8 @@ class ScanDB(object):
             raise ScanDBException('get_scandict needs valid scan name')
         return json.loads(sobj.text, object_hook=asciikeys)
 
-    def make_scan(self, scanname, filename='scan.001', larch=None):
+    def make_scan(self, scanname, filename='scan.001',
+                  data_callback=None, larch=None):
         """
         create a StepScan object from a saved scan definition
 
@@ -537,6 +546,7 @@ class ScanDB(object):
         sdict['filename'] = filename
         sdict['scandb'] = self
         sdict['larch'] = larch
+        sdict['data_callback'] = data_callback
         sdict['extra_pvs'] = []
         for row  in self.getall('extrapvs', orderby='id'):
             sdict['extra_pvs'].append((row.name, row.pvname))
@@ -1119,7 +1129,7 @@ class InstrumentDB(object):
                                       positions_id = pos.id,
                                       notes= "'%s' / '%s'" % (inst.name, posname),
                                       value = float(values[name]))
-            ## print  "   ", thispv, thispv.id, pos.id, float(values[name])
+            ## print ( "   ", thispv, thispv.id, pos.id, float(values[name]))
         self.scandb.commit()
 
 
