@@ -942,12 +942,18 @@ class ScanDB(object):
         if status.startswith('start'):
             thiscmd.execute(start_time=datetime.now())
 
+    def set_filename(self, filename):
+        """set filename for info and command"""
+        self.set_info('filename', filename)
+        ufolder = self.get_info('user_folder', '')
+        self.set_command_filename(os.path.join(ufolder, filename))
+
+
     def set_command_filename(self, filename, cmdid=None):
         """set filename for command"""
         if cmdid is None:
             cmdid  = self.get_current_command_id()
         cls, table = self.get_table('commands')
-        print("Set Command Filename ", cmdid, type(cmdid), filename, type(filename))
         table.update(whereclause="id='%i'" % cmdid).execute(output_file=filename)
 
     def set_command_output(self, value=None, cmdid=None):
