@@ -405,7 +405,7 @@ class StepScan(object):
         time_est  = hms(time_left)
 
         if cpt < 4:
-            self.set_info('filename', self.filename)
+            self.scandb.set_filename(self.filename)
 
         msg = 'Point %i/%i,  time left: %s' % (cpt, npts, time_est)
         self.set_info('scan_progress', msg)
@@ -564,8 +564,7 @@ class StepScan(object):
                                               comments=self.comments)
 
         self.datafile.write_data(breakpoint=0)
-        self.filename =  self.datafile.filename
-        self.set_info('filename', self.filename)
+        self.filename = self.datafile.filename
 
         self.clear_data()
         if self.scandb is not None:
@@ -574,6 +573,7 @@ class StepScan(object):
             self.set_info('scan_time_estimate', time_est)
             self.set_info('scan_total_points', npts)
             self.set_info('scan_current_point', 0)
+            self.scandb.set_filename(self.filename)
 
         self.dtimer.add('PRE: wrote data 0')
         self.set_info('scan_progress', 'starting scan')

@@ -421,7 +421,7 @@ class QXAFS_Scan(XAFS_Scan):
             self.write('Cannot execute scan: %s' % self._scangroup.error_message)
             self.set_info('scan_message', 'cannot execute scan')
             return
-        
+
         self.scandb.set_info('qxafs_running', 1) # preparing
         self.connect_qxafs()
         qconf = self.config
@@ -479,7 +479,7 @@ class QXAFS_Scan(XAFS_Scan):
             det_prefixes.append(det.prefix)
             det.arm(mode='roi')
 
-            
+
         ## need to use self.rois to re-load ROI arrays
         ## names like  MCA1ROI:N:TSTotal
         _counters = []
@@ -502,13 +502,12 @@ class QXAFS_Scan(XAFS_Scan):
         self.datafile.write_data(breakpoint=0)
         self.filename =  self.datafile.filename
 
-        self.set_info('filename', self.filename)
+        self.scandb.set_filename(self.filename)
         self.set_info('request_abort', 0)
         self.set_info('scan_time_estimate', npts*dtime)
         self.set_info('scan_total_points', npts)
 
         self.datafile.flush()
-
         self.set_info('scan_progress', 'starting scan')
         self.cpt = 0
         self.npts = npts

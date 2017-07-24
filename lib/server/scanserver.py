@@ -143,7 +143,7 @@ class ScanServer():
                 words.append("comments='%s'" % notes)
             if len(filename) > 0:
                 words.append("filename='%s'" % filename)
-                self.scandb.set_info('filename', filename)
+                self.scandb.set_filename(filename)
 
             self.scandb.update_where('scandefs', {'name': scanname},
                                      {'last_used_time': make_datetime()})
