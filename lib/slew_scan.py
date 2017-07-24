@@ -65,19 +65,29 @@ class Slew_Scan(StepScan):
         caput('13XRM:map:status', 'Starting')
         sname = os.path.join(basedir, currscan)
         oname = os.path.join(basedir, 'PreviousScan.ini')
-        fname = fix_filename(self.filename)
-        mapdir = os.path.join(basedir, fname + '_rawmap')
+        if not self.filename.endswith('.h5'):
+            self.filename = self.filename + '.h5'
+
+        fname  = fix_filename(self.filename)
+        mapdir = os.path.join(basedir, fname[:-3] + '_rawmap')
         counter = 0
         while os.path.exists(mapdir) and counter < 9999:
             fname = increment_filename(fname)
-            mapdir = os.path.join(basedir, fname + '_rawmap')
+            mapdir = os.path.join(basedir, fname[:-3] + '_rawmap')
             counter += 1
+
+        self.filename = fname
+
         os.mkdir(mapdir)
-        h5fname= os.path.join(basedir, fname + '.h5')
-        fhx  = open(h5fname, 'w')
+
+        hfname= os.path.join(basedir, self.filename)
+
+        print("Opening H5 file ", hfname)
+
+        fhx  = open(hfname, 'w')
         fhx.write("%s\n"% mapdir)
         fhx.close()
-        caput('13XRM:map:filename', h5fname)
+        caput('13XRM:map:filename', hfname)
 
         self.mapdir = mapdir
         self.fileroot = fileroot
@@ -311,7 +321,7 @@ class Slew_Scan(StepScan):
 
         self.clear_interrupts()
         self.set_info('scan_progress', 'starting')
-        self.set_info('filename', filename)
+        self.scandb.set_filename(self.filename)
 
         start_time = time.time()
         irow = 0
@@ -369,14 +379,14 @@ class Slew_Scan(StepScan):
                 xrffile = xrfdet.get_next_filename()
             if xrddet is not None:
                 xrdfile = xrddet.get_next_filename()
-            
+
             if irow < 2:
                 for det in self.detectors:
                     if det.label == 'xspress3':
                         det.save_calibration(roi_file)
                 self.save_envdata(filename=env_file)
-            
-            pos0 = self.positioners[0]    
+
+            pos0 = self.positioners[0]
             masterline = "%8.4f %s %s %s %s" % (pos0.array[irow-1],
                                                 xrffile, scafile,
                                                 posfile, xrdfile)
@@ -402,14 +412,14 @@ class Slew_Scan(StepScan):
             dtimer.add('start read')
             rowdata_ok = True
             xpsfile = os.path.abspath(os.path.join(self.mapdir, posfile))
-            
+
             xps_saver_thread = Thread(target=self.xps.read_and_save,
                                   args=(xpsfile,), name='xps_saver')
             xps_saver_thread.start()
 
             npts_sca = npulses
             if scadet is not None:
-                sisfile = os.path.abspath(os.path.join(self.mapdir, scafile))                
+                sisfile = os.path.abspath(os.path.join(self.mapdir, scafile))
                 ncsa, npts_sca = scadet.save_arraydata(filename=sisfile, npts=npulses)
             dtimer.add('saved SIS data')
 
