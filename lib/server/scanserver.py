@@ -122,7 +122,7 @@ class ScanServer():
             all_macros = self.larch.load_modules()
         self.command_in_progress = True
         self.set_status('starting')
-        self.scandb.set_command_status(req.id, 'starting')
+        self.scandb.set_command_status('starting', cmdid=req.id)
 
         args    = strip_quotes(plain_ascii(req.arguments)).strip()
         notes   = strip_quotes(plain_ascii(req.notes)).strip()
@@ -165,7 +165,7 @@ class ScanServer():
             self.scandb.set_info('current_command', larch_cmd)
             self.scandb.set_info('current_command_id', req.id)
             self.set_status('running')
-            self.scandb.set_command_status(req.id, 'running')
+            self.scandb.set_command_status('running', cmdid=req.id)
             if self.epicsdb is not None:
                 self.epicsdb.cmd_id = req.id
                 self.epicsdb.command = larch_cmd
@@ -190,7 +190,7 @@ class ScanServer():
                         msg = 'scan completed with error'
             time.sleep(0.1)
             self.scandb.set_info('scan_progress', msg)
-            self.scandb.set_command_status(req.id, status)
+            self.scandb.set_command_status(status, cmdid=req.id)
         self.set_status('idle')
         self.command_in_progress = False
 
@@ -251,7 +251,7 @@ class ScanServer():
                                    and  self.epicsdb.Abort == 1)):
                 if len(reqs) > 0:
                     req = reqs[0]
-                    self.scandb.set_command_status(req.id, 'aborted')
+                    self.scandb.set_command_status('aborted', cmdid=req.id)
                     abort_slewscan()
                 time.sleep(1.0)
                 if self.epicsdb is not None:

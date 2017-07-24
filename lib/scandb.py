@@ -880,15 +880,6 @@ class ScanDB(object):
         q = self.query(cls).order_by(cls.request_time)
         return q.all()[-1]
 
-    def get_current_command(self):
-        """return command by status"""
-        cmd_id  = self.get_info('current_command_id', default=0)
-        if cmd_id == 0:
-            cmd_id = self.get_mostrecent_command().id
-
-        cls, table = self.get_table('commands')
-        q = table.select().where(table.c.id==cmd_id)
-        return q.execute().fetchall()[0]
 
     def add_command(self, command, arguments='',output_value='',
                     output_file='', notes='', nrepeat=1, **kws):
@@ -913,14 +904,33 @@ class ScanDB(object):
         self.session.add(this)
         return this
 
-    def get_command_status(self, cmdid):
+    def get_current_command_id(self):
+        """return id of current command"""
+        cmdid  = self.get_info('current_command_id', default=0)
+        if cmdid == 0:
+            cmdid = self.get_mostrecent_command().id
+        return int(cmdid)
+
+    def get_current_command(self):
+        """return command by status"""
+        cmdid  = self.get_current_command_id()
+        cls, table = self.get_table('commands')
+        q = table.select().where(table.c.id==cmdid)
+        return q.execute().fetchall()[0]
+
+    def get_command_status(self, cmdid=None):
         "get status for a command by id"
+        if cmdid is None:
+            cmdid = self.get_current_command_id()
         cls, table = self.get_table('commands')
         ret = table.select().where(table.c.id==cmdid).execute().fetchone()
         return self.status_names[ret.status_id]
 
-    def set_command_status(self, cmdid, status):
+    def set_command_status(self, status, cmdid=None):
         """set the status of a command (by id)"""
+        if cmdid is None:
+            cmdid = self.get_current_command_id()
+
         cls, table = self.get_table('commands')
         status = status.lower()
         if status not in self.status_codes:
@@ -932,15 +942,24 @@ class ScanDB(object):
         if status.startswith('start'):
             thiscmd.execute(start_time=datetime.now())
 
+    def set_command_filename(self, filename, cmdid=None):
+        """set filename for command"""
+        if cmdid is None:
+            cmdid  = self.get_current_command_id()
+        cls, table = self.get_table('commands')
+        print("Set Command Filename ", cmdid, type(cmdid), filename, type(filename))
+        table.update(whereclause="id='%i'" % cmdid).execute(output_file=filename)
 
-    def set_command_output(self, cmdid, value=None):
+    def set_command_output(self, value=None, cmdid=None):
         """set the status of a command (by id)"""
+        if cmdid is None:
+            cmdid  = self.get_current_command_id()
         cls, table = self.get_table('commands')
         table.update(whereclause="id='%i'" % cmdid).execute(output_value=repr(value))
 
-    def cancel_command(self, id):
+    def cancel_command(self, cmdid):
         """cancel command"""
-        self.set_command_status(id, 'canceled')
+        self.set_command_status('canceled', cmdid)
 
     def cancel_remaining_commands(self):
         """cancel all commmands to date"""
