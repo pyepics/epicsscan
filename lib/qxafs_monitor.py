@@ -50,13 +50,14 @@ class QXAFS_ScanWatcher(object):
         self.pulsecount_pv = PV(PULSECOUNT_PVNAME)
         self.heartbeat_pv = PV(HEARTBEAT_PVNAME)
 
-
         self.xps = NewportXPS(self.config['host'],
                               username=self.config['username'],
                               password=self.config['password'],
                               group=self.config['group'],
                               outputs=self.config['outputs'])
-        
+
+        time.sleep(0.25)
+        # print("Connected ", self.idarray_pv)
 
 
     def qxafs_connect_counters(self):
@@ -72,7 +73,7 @@ class QXAFS_ScanWatcher(object):
             self.counters.append((cname, pv))
         if self.verbose:
             print("QXAFS_connect_counters %i counters" % (len(self.counters)))
-            
+
     def qxafs_finish(self):
         nidarr = len(self.idarray)
         # self.idarray_pv.put(np.zeros(nidarr))
@@ -107,7 +108,7 @@ class QXAFS_ScanWatcher(object):
                 self.xps.abort_group()
                 time.sleep(1.0)
                 self.set_info('request_abort', 0)
-             
+
             time.sleep(0.05)
             now = time.time()
             if self.pulse > last_pulse:
@@ -135,7 +136,7 @@ class QXAFS_ScanWatcher(object):
                 msg = 'Point %i/%i, time left: %s' % (cpt, npts, time_est)
                 if cpt >= msg_counter:
                     self.scandb.set_info('scan_progress',  msg)
-                    self.scandb.set_info('heartbeat', tstamp())                    
+                    self.scandb.set_info('heartbeat', tstamp())
                     msg_counter += 1
                 for name, pv in self.counters:
                     try:
@@ -183,7 +184,7 @@ def start(verbose=False):
     fpid = open(PIDFILE, 'w')
     fpid.write("%d\n" % os.getpid() )
     fpid.close()
-    
+
     watcher = QXAFS_ScanWatcher(verbose=verbose, **conn)
     watcher.mainloop()
 
@@ -216,7 +217,7 @@ def run_qxafs_monitor():
     parser.add_option("-v", "--verbose", dest="verbose", action="store_true",
                       default=False, help="verbose messages, default = False")
 
-    
+
     (options, args) = parser.parse_args()
 
     oldtime = get_lastupdate()
@@ -226,8 +227,6 @@ def run_qxafs_monitor():
         start(verbose=options.verbose)
     else:
         print 'QXAFS Monitor running OK at ', time.ctime()
- 
+
 if __name__ == '__main__':
     run_qxafs_monitor()
-    
-       
