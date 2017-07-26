@@ -635,7 +635,7 @@ class XAFSScanPanel(GenericScanPanel):
         # is this a step or continuous scan?
         scanmode = scan.get('scanmode', None)
         dtimes_vary = (max(dtimes) - min(dtimes)) > 0.1
-        qxafs_ttime = float(self.scandb.get_info('qxafs_time_threshold'))
+        qxafs_ttime = float(self.scandb.get_info('qxafs_time_threshold', default=0))
         if scanmode is None:
             step_xafs = (max(dtimes) > qxafs_ttime or dtimes_vary)
         else:
@@ -685,7 +685,8 @@ class XAFSScanPanel(GenericScanPanel):
                                 size=(125, -1), action=self.onQXAFS)
 
         self.qxafs.SetSelection(0)
-        qxafs_time_threshold = float(self.scandb.get_info('qxafs_time_threshold'))
+        qxafs_time_threshold = float(self.scandb.get_info('qxafs_time_threshold',
+                                                          default=0))
         if dwell_value < qxafs_time_threshold:
             self.qxafs.SetSelection(1)
 
@@ -793,7 +794,8 @@ class XAFSScanPanel(GenericScanPanel):
         #if en_pvname in self.pvlist and self.energy_pv.pv is None:
         #    self.energy_pv.SetPV(self.pvlist[en_pvname])
         e0_off = 0
-        qxafs_time_threshold = float(self.scandb.get_info('qxafs_time_threshold'))
+        qxafs_time_threshold = float(self.scandb.get_info('qxafs_time_threshold',
+                                                          default=0))
         if 0 == self.absrel.GetSelection(): # absolute
             e0_off = self.e0.GetValue()
 
@@ -1067,8 +1069,7 @@ class SlewScanPanel(GenericScanPanel):
                               dwell_value=0.050)
 
         self.dimchoice = add_choice(self, ('1', '2'),
-                                 action = self.onDim)
-        self.dimchoice.SetSelection(1)
+                                    action = self.onDim)
         sizer.Add(SimpleText(self, ' Dimension:'), (ir-1, 6), (1, 1), CEN)
         sizer.Add(self.dimchoice,                  (ir-1, 7), (1, 2), CEN)
 
@@ -1137,6 +1138,17 @@ class SlewScanPanel(GenericScanPanel):
         pack(lpanel, lsizer)
         sizer.Add(lpanel, (ir, 1), (2, 7), wx.ALL, 2)
         ir += 1
+
+        self.zfmchoice = add_choice(self, ('No', 'Yes'),
+                                    action = self.onZeroFineMotors)
+        zfm = self.scandb.get_info('zero_finemotors_beforemap',
+                                   as_int=True, default=0)
+        self.zfmchoice.SetSelection(izfm)
+
+        sizer.Add(SimpleText(self, 'Zero Fine Motors before Map?:'),
+                  lpanel, (ir, 1), (1, 3), wx.ALL, 2)
+        sizer.Add(zfmchoice, (ir, 4), (1, 2), wx.ALL, 2)
+        ir +=1
         self.finish_layout(ir+1, with_nscans=False)
 
     def onDefinedMap(self, label=None, event=None):
@@ -1199,6 +1211,10 @@ class SlewScanPanel(GenericScanPanel):
         else:
             for i in (3, 4, 5, 6): wids[i].Enable()
             self.update_position_from_pv(1)
+
+    def onZeroFineMotors(self, evt=None):
+        zfm = self.zfmchoice.GetSelection()
+        self.scandb.set_info('zero_finemotors_beforemap', int(zfm))
 
     def onPos(self, evt=None, index=0):
         self.update_position_from_pv(index)
