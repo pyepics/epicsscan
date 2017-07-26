@@ -121,12 +121,11 @@ class YesNo(wx.Choice):
             self.SetSelection(self.choices.index(choice))
 
 class check(wx.CheckBox):
-    def __init__(self, parent, default=True, label=None, **kws):
-        wx.CheckBox.__init__(self, parent, -1, **kws)
-        self.SetValue(default)
-        if label is not None:
-            self.SetLabel(label)
-
+    def __init__(self, parent, default=True, label=None, action=None, **kws):
+        wx.CheckBox.__init__(self, parent, -1, label=label, **kws)
+        self.SetValue({True: 1, False:0}[default])
+        if action is not None:
+            self.Bind(wx.EVT_CHECKBOX, action)
 
 def make_steps(prec=3, tmin=0, tmax=10, base=10, steps=(1, 2, 5)):
     """make a list of 'steps' to use for a numeric ComboBox
