@@ -16,7 +16,7 @@ import epics
 from epics.wx import EpicsFunction, PVText, PVStaticText
 
 from .gui_utils import SimpleText, FloatCtrl, Closure, HyperText
-from .gui_utils import pack, add_choice, hms
+from .gui_utils import pack, add_choice, hms, check
 
 from .. import etok, ktoe, XAFS_Scan, StepScan, Positioner, Counter
 from ..utils import normalize_pvname, atGSECARS
@@ -1068,8 +1068,8 @@ class SlewScanPanel(GenericScanPanel):
         ir = self.top_widgets('Slew Scan (Fast Map)', with_absrel=False,
                               dwell_value=0.050)
 
-        self.dimchoice = add_choice(self, ('1', '2'),
-                                    action = self.onDim)
+        self.dimchoice = add_choice(self, ('1', '2'), action = self.onDim)
+        self.dimchoice.SetStringSelection('2')
         sizer.Add(SimpleText(self, ' Dimension:'), (ir-1, 6), (1, 1), CEN)
         sizer.Add(self.dimchoice,                  (ir-1, 7), (1, 2), CEN)
 
@@ -1112,6 +1112,16 @@ class SlewScanPanel(GenericScanPanel):
             sizer.Add(npts,  (ir, 7), (1, 1), wx.ALL, 2)
 
         ir += 1
+
+        zfm = self.scandb.get_info('zero_finemotors_beforemap',
+                                   as_bool=True, default=0)
+        self.zfmchoice = check(self, default=zfm,
+                               label='Zero Fine Motors before Map?',
+                               action=self.onZeroFineMotors)
+
+        sizer.Add(self.zfmchoice, (ir, 1), (1, 3), wx.ALL, 2)
+
+        ir += 1
         sizer.Add(SimpleText(self, 'Select from Common Square Maps:'),
                   (ir, 0), (1, 5), wx.ALL, 2)
 
@@ -1137,18 +1147,8 @@ class SlewScanPanel(GenericScanPanel):
         ir += 1
         pack(lpanel, lsizer)
         sizer.Add(lpanel, (ir, 1), (2, 7), wx.ALL, 2)
-        ir += 1
+        ir += 2
 
-        self.zfmchoice = add_choice(self, ('No', 'Yes'),
-                                    action = self.onZeroFineMotors)
-        izfm = self.scandb.get_info('zero_finemotors_beforemap',
-                                   as_int=True, default=0)
-        self.zfmchoice.SetSelection(izfm)
-
-        sizer.Add(SimpleText(self, 'Zero Fine Motors before Map?:'),
-                  (ir, 1), (1, 3), wx.ALL, 2)
-        sizer.Add(zfmchoice, (ir, 4), (1, 2), wx.ALL, 2)
-        ir +=1
         self.finish_layout(ir+1, with_nscans=False)
 
     def onDefinedMap(self, label=None, event=None):
@@ -1213,7 +1213,7 @@ class SlewScanPanel(GenericScanPanel):
             self.update_position_from_pv(1)
 
     def onZeroFineMotors(self, evt=None):
-        zfm = self.zfmchoice.GetSelection()
+        zfm = self.zfmchoice.IsChecked()
         self.scandb.set_info('zero_finemotors_beforemap', int(zfm))
 
     def onPos(self, evt=None, index=0):
