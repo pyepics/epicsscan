@@ -227,18 +227,23 @@ class Struck(Device):
         scaler_config = self.read_scaler_config()
 
         icol = 0
-        hformat = "# Column.%i: %16s | %s" 
+        hformat = "# Column.%i: %16s | %s"
         for nchan, name, calc in scaler_config:
             icol += 1
             dat = numpy.zeros(npts)
             ntries = 0
             while ntries < 20:
                 ntries += 1
+                time.sleep(0.003*ntries*ntries)
                 dat = self.readmca(nmca=nchan)
-                if dat is None or len(dat) < npts_req-1:
+                if (dat is None or
+                    not isinstance(dat, numpy.ndarray) or
+                    len(dat) < npts_req-1):
                     time.sleep(0.003*ntries*ntries)
                 else:
                     break
+            if ntries > 5:
+                print("Slow Read of SIS Data chan=%i, name=%s, ntries-%i" % (nchan, name, ntries))
 
             varname = avars[nchan-1]
             self.ast_interp.symtable[varname] = dat
