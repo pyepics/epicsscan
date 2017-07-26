@@ -1146,7 +1146,7 @@ class SlewScanPanel(GenericScanPanel):
         self.zfmchoice.SetSelection(izfm)
 
         sizer.Add(SimpleText(self, 'Zero Fine Motors before Map?:'),
-                  lpanel, (ir, 1), (1, 3), wx.ALL, 2)
+                  (ir, 1), (1, 3), wx.ALL, 2)
         sizer.Add(zfmchoice, (ir, 4), (1, 2), wx.ALL, 2)
         ir +=1
         self.finish_layout(ir+1, with_nscans=False)
