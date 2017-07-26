@@ -1141,7 +1141,7 @@ class SlewScanPanel(GenericScanPanel):
 
         self.zfmchoice = add_choice(self, ('No', 'Yes'),
                                     action = self.onZeroFineMotors)
-        zfm = self.scandb.get_info('zero_finemotors_beforemap',
+        izfm = self.scandb.get_info('zero_finemotors_beforemap',
                                    as_int=True, default=0)
         self.zfmchoice.SetSelection(izfm)
 
