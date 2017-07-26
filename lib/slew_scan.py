@@ -46,6 +46,29 @@ class Slew_Scan(StepScan):
     def prepare_scan(self):
         """prepare slew scan"""
         self.set_info('scan_progress', 'preparing')
+
+        # ZeroFineMotors before map?
+        if self.scandb.get_info('zero_finemotors_beforemap', as_bool=True):
+            zconf = self.scandb.get_config('zero_finemotors')
+            zconf = json.loads(zconf.notes)
+            vals  = dict(finex=0.0, finey=0.0, coarsex=0.0, coarsey=0.0)
+            pvs   = dict(finex=None, finey=None, coarsex=None, coarsey=None)
+            for pos in self.scandb.get_positioners():
+                pname = str(pos.name.lower().replace(' ', ''))
+                if pname in vals:
+                    pvs[pname]  = PV(pos.drivepv)
+                    vals[pname] = caget(pos.drivepv)
+            if abs(vals['finex']) > 1.e-5 and pvs['coarsex'] is not None:
+                coarsex = vals['coarsex'] + float(zconf['finex_scale']) * vals['finex']
+                pvs['coarsex'].put(coarsex, wait=True)
+            if abs(vals['finey']) > 1.e-5 and pvs['coarsey'] is not None:
+                coarsey = vals['coarsey'] + float(zconf['finey_scale']) * vals['finey']
+                pvs['coarsey'].put(coarsey, wait=True)
+            time.sleep(0.1)
+            pvs['finex'].put(0, wait=True)
+            pvs['finey'].put(0, wait=True)
+            time.sleep(0.1)
+
         conf = self.scandb.get_config(self.scantype)
         conf = self.slewscan_config = json.loads(conf.notes)
         self.xps = NewportXPS(conf['host'],
