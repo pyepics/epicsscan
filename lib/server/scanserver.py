@@ -151,6 +151,8 @@ class ScanServer():
             args = ', '.join(words)
         elif command.lower().startswith('load_plugins'):
             pass
+        elif command.lower().startswith('reboot_server'):
+            self.scandb.set_info('request_shutdown', 1)
         elif (command.lower().startswith('load_modules') or
               command.lower().startswith('load_macro')):
             self.set_scan_message('Server Reloading Larch Macros...')
