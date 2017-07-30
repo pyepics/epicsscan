@@ -22,6 +22,19 @@ class XPSError(Exception):
 IDLE, ARMING, ARMED, RUNNING, COMPLETE, WRITING, READING = \
       'IDLE', 'ARMING', 'ARMED', 'RUNNING', 'COMPLETE', 'WRITING', 'READING'
 
+
+def withConnectedXPS(fcn):
+    """decorator to ensure a NewportXPS is connected before a method is called"""
+    def wrapper(self, *args, **kwargs):
+        if self._sid is None or len(self.groups) < 1 or len(self.stages) < 1:
+            self.connect()
+        return fcn(self, *args, **kwargs)
+    wrapper.__doc__ = fcn.__doc__
+    wrapper.__name__ = fcn.__name__
+    wrapper.__dict__.update(fcn.__dict__)
+
+    return wrapper
+
 class NewportXPS:
     gather_header = '# XPS Gathering Data\n#--------------'
     def __init__(self, host, group=None,
@@ -48,6 +61,9 @@ class NewportXPS:
         self.traj_file = None
         self.traj_positioners = None
 
+        self.stages = OrderedDict()
+        self.groups = OrderedDict()
+
         self.ftpconn = ftplib.FTP()
         self._sid = None
         self._xps = XPS()
@@ -55,6 +71,7 @@ class NewportXPS:
         if group is not None:
             self.set_trajectory_group(group)
 
+    @withConnectedXPS
     def status_report(self):
         """return printable status report"""
         err, uptime = self._xps.ElapsedTimeGet(self._sid)
@@ -110,7 +127,7 @@ class NewportXPS:
             self.read_systemini()
         except:
             print("Could not read system.ini")
-            
+
         self.read_errorcodes()
 
     def read_errorcodes(self):
@@ -164,8 +181,9 @@ class NewportXPS:
         self.ftp_disconnect()
 
     def read_systemini(self):
-        """read group info from system.ini"""
-
+        """read group info from system.ini
+        this is part of the connection process
+        """
         self.ftp_connect()
         self.ftpconn.cwd('%s/Config' % self.ftphome)
 
@@ -233,6 +251,7 @@ class NewportXPS:
         self.ftpconn.storbinary('STOR %s' % filename, StringIO(text))
         self.ftp_disconnect()
 
+    @withConnectedXPS
     def set_trajectory_group(self, group, reenable=False):
         """set group name for upcoming trajectories"""
         valid = False
@@ -285,10 +304,9 @@ class NewportXPS:
         self.linear_template = '\n'.join(['', trajline1, trajline2, trajline3])
 
 
+    @withConnectedXPS
     def _group_act(self, method, group=None, action='doing something with'):
         """wrapper for many group actions"""
-        if self._sid is None:
-            self.connect()
         method = getattr(self._xps, method)
         if group is None:
             for group in self.groups:
@@ -317,7 +335,6 @@ class NewportXPS:
         self._group_act(method, group=group, action='killing')
 
 
-        
     def initialize_group(self, group=None, with_encoder=True, home=False):
         """
         initialize groups, optionally homing each.
@@ -333,7 +350,6 @@ class NewportXPS:
         self._group_act(method, group=group, action='initializing')
         if home:
             self.home_group(group=group)
-
 
     def home_group(self, group=None):
         """
@@ -370,6 +386,7 @@ class NewportXPS:
         """
         self._group_act('GroupMotionDisable', group=group, action='disabling')
 
+    @withConnectedXPS
     def get_group_status(self):
         """
         get dictionary of status for each group
@@ -382,6 +399,7 @@ class NewportXPS:
             out[group] = val
         return out
 
+    @withConnectedXPS
     def get_hardware_status(self):
         """
         get dictionary of hardware status for each stage
@@ -394,6 +412,7 @@ class NewportXPS:
             out[stage] = val
         return out
 
+    @withConnectedXPS
     def get_positioner_errors(self):
         """
         get dictionary of positioner errors for each stage
@@ -408,13 +427,12 @@ class NewportXPS:
             out[stage] = val
         return out
 
+    @withConnectedXPS
     def set_velocity(self, stage, velo, accl=None,
                     min_jerktime=None, max_jerktime=None):
         """
         set velocity for stage
         """
-        if self._sid is None:
-            self.connect()
         if stage not in self.stages:
             print("Stage '%s' not found" % stage)
             return
@@ -429,6 +447,7 @@ class NewportXPS:
         self._xps.PositionerSGammaParametersGet(self._sid, stage, vel, accl,
                                                 min_jerktime, max_jerktime)
 
+    @withConnectedXPS
     def abort_group(self, group=None):
         """abort group move"""
         if group is None or group not in self.groups:
@@ -438,6 +457,7 @@ class NewportXPS:
             return
         ret = self._xps.GroupMoveAbort(self._sid, group)
 
+    @withConnectedXPS
     def move_group(self, group=None, **kws):
         """move group to supplied position
         """
@@ -462,6 +482,7 @@ class NewportXPS:
 
         self._xps.GroupMoveAbsolute(self._sid, group, vals)
 
+    @withConnectedXPS
     def move_stage(self, stage, value, relative=False):
         """
         move stage to position, optionally relative
@@ -482,6 +503,7 @@ class NewportXPS:
         err, ret = move(self._sid, stage, [value])
         return ret
 
+    @withConnectedXPS
     def read_stage_position(self, stage):
         """
         return current stage position
@@ -496,7 +518,7 @@ class NewportXPS:
         err, val = self._xps.GroupPositionCurrentGet(self._sid, stage, 1)
         return val
 
-
+    @withConnectedXPS
     def reboot(self, reconnect=True, timeout=120.0):
         """
         reboot XPS, optionally waiting to reconnect
@@ -530,6 +552,7 @@ class NewportXPS:
                 print("Could not reconnect to XPS.")
 
 
+    @withConnectedXPS
     def define_line_trajectories(self, axis, group=None,
                                  start=0, stop=1, step=0.001, scantime=10.0,
                                  accel=None, upload=True):
@@ -615,6 +638,7 @@ class NewportXPS:
                 raise ValueError("error uploading trajectory")
         return ret
 
+    @withConnectedXPS
     def arm_trajectory(self, name):
         """
         set up the trajectory from previously defined, uploaded trajectory
@@ -648,6 +672,7 @@ class NewportXPS:
         self._xps.MultipleAxesPVTVerification(self._sid, self.traj_group, name)
         self.traj_state = ARMED
 
+    @withConnectedXPS
     def run_trajectory(self, name=None, save=True,
                        output_file='Gather.dat', verbose=False):
 
@@ -688,7 +713,7 @@ class NewportXPS:
         self.traj_state = IDLE
         return npulses
 
-
+    @withConnectedXPS
     def read_and_save(self, output_file):
         "read and save gathering file"
         self.ngathered = 0
@@ -698,6 +723,7 @@ class NewportXPS:
                                  set_idle_when_done=False)
         self.ngathered = npulses
 
+    @withConnectedXPS
     def read_gathering(self, set_idle_when_done=True, debug=False):
         """
         read gathering data from XPS
