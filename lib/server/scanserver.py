@@ -152,12 +152,17 @@ class ScanServer():
         elif command.lower().startswith('load_plugins'):
             pass
         elif command.lower().startswith('restart_scanserver'):
+            self.scandb.set_info('error_message',   '')
             self.scandb.set_info('request_shutdown', 1)
         elif (command.lower().startswith('load_modules') or
               command.lower().startswith('load_macro')):
+            self.scandb.set_info('error_message',   '')
             self.set_scan_message('Server Reloading Larch Macros...')
             if HAS_LARCH:
                 self.larch.load_modules()
+            else:
+                self.scandb.set_info('error_message',  'Macro system not available')
+
         else:
             if len(args) == 0:
                 larch_cmd = command
