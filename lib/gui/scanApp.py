@@ -270,7 +270,7 @@ class ScanFrame(wx.Frame):
 
     def restart_server(self):
         try:
-            self.scandb.add_command("restart_scansever")
+            self.scandb.add_command("restart_scanserver")
         except:
             pass
 
