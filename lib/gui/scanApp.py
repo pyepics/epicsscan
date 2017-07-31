@@ -159,7 +159,6 @@ class ScanFrame(wx.Frame):
         self.scandb = ScanDB(dbname=dbname, server=server, host=host,
                  user=user, password=password, port=port, create=create)
 
-
         self.Bind(wx.EVT_CLOSE, self.onClose)
 
         self.createMainPanel()
@@ -199,6 +198,9 @@ class ScanFrame(wx.Frame):
         self.onShowPlot()
         self.onEditMacro()
         self.connect_epics()
+
+        self.restart_server()
+
 
     def createMainPanel(self):
         self.SetTitle("Epics Scans")
@@ -266,8 +268,11 @@ class ScanFrame(wx.Frame):
         # print("PVs connected")
         self.statusbar.SetStatusText('Epics Ready')
 
-        # self.subframes['macro'] = MacroFrame(self, _larch=self._larch)
-        # self.subframes['plot'] = ScanViewerFrame(self, _larch=self._larch)
+    def restart_server(self):
+        try:
+            self.scandb.add_command("restart_scansever")
+        except:
+            pass
 
     def generate_scan(self, scanname=None, debug=False, force_save=False):
         """generate scan definition from current values on GUI
@@ -535,10 +540,6 @@ class ScanFrame(wx.Frame):
             os.chdir(fullpath)
         except:
             print("ScanApp: Could not set working directory to %s " % fullpath)
-        try:
-            self.subframes['macro'].reload_macros()
-        except KeyError:
-            pass
 
     def onFolderSelect(self, evt=None):
         style = wx.DD_DIR_MUST_EXIST|wx.DD_DEFAULT_STYLE
