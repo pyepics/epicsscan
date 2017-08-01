@@ -222,31 +222,32 @@ class Struck(Device):
             npts = self.NuseAll
         npts_req = npts
         avars = ('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H')
+        adat = {}
         for name in avars:
-            self.ast_interp.symtable[name] = numpy.zeros(npts)
+            self.ast_interp.symtable[name] = adat[name] = numpy.zeros(npts)
         scaler_config = self.read_scaler_config()
 
         icol = 0
+        time.sleep(0.1)
         hformat = "# Column.%i: %16s | %s"
         for nchan, name, calc in scaler_config:
             icol += 1
             dat = numpy.zeros(npts)
             ntries = 0
-            while ntries < 20:
+            while ntries < 10:
                 ntries += 1
-                time.sleep(0.003*ntries*ntries)
                 dat = self.readmca(nmca=nchan)
                 if (dat is None or
                     not isinstance(dat, numpy.ndarray) or
                     len(dat) < npts_req-1):
-                    time.sleep(0.003*ntries*ntries)
+                    time.sleep(0.010*ntries*ntries)
                 else:
                     break
             if ntries > 5:
                 print("Slow Read of SIS Data chan=%i, name=%s, ntries-%i" % (nchan, name, ntries))
 
             varname = avars[nchan-1]
-            self.ast_interp.symtable[varname] = dat
+            adat[varname] = dat
             label = "%s | %s" % ("%smca%i" % (self._prefix, nchan), varname)
             if icol == 1 or len(calc) > 1:
                 if icol == 1:
@@ -263,7 +264,10 @@ class Struck(Device):
             fmts.append(fmt)
             npts_chans.append(len(dat))
 
-        # print("READ SIS ", npts_chans)
+        # make sure all data is the same length for calcs
+        npts = min(npts, min(npts_chans))
+        for key, val in adat.items():
+            self.ast_interp.symtable[key] = val[:npts]
 
         for calc in calcs:
             result = self.ast_interp.eval(calc)
@@ -279,7 +283,7 @@ class Struck(Device):
             sdata.append(rdat)
             fmts.append(' {:10.0f} ')
 
-        npts = min(npts, min(npts_chans))
+
         if max(npts_chans) != min(npts_chans):
             print(" Struck warning, weird number of points!")
             print(" -- ", npts_chans)
