@@ -105,7 +105,7 @@ class Slew_Scan(StepScan):
 
         hfname= os.path.join(basedir, self.filename)
 
-        print("Opening H5 file ", hfname)
+        # print("Opening H5 file ", hfname)
 
         fhx  = open(hfname, 'w')
         fhx.write("%s\n"% mapdir)
