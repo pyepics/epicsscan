@@ -134,7 +134,7 @@ class LarchScanDBServer(object):
 
                 self.larch.error = []
                 if verbose:
-                    print 'importing module: ', modname
+                    print( 'importing module: ', modname)
                 if modname in self.loaded_modules:
                     self.larch.run('reload(%s)' % modname)
                 else:
@@ -142,7 +142,7 @@ class LarchScanDBServer(object):
                 if len(self.larch.error) > 0:
                     emsg = '\n'.join(self.larch.error[0].get_error())
                     self.scandb.set_info('error_message', emsg)
-                    print '==Import Error %s/%s' % (modname, emsg)
+                    print( '==Import Error %s/%s' % (modname, emsg))
                 else:
                     if modname not in _sys.searchGroups:
                         _sys.searchGroups.append(modname)
