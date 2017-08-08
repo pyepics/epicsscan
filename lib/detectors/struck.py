@@ -216,7 +216,6 @@ class Struck(Device):
         t0 = time.time()
         # print("SIS Save Array Data ", filename, os.getcwd())
         rdata, sdata, names, calcs, fmts = [], [], [], [], []
-        npts_chans = []
         headers = []
         if npts is None:
             npts = self.NuseAll
@@ -227,25 +226,36 @@ class Struck(Device):
             self.ast_interp.symtable[name] = adat[name] = numpy.zeros(npts)
         scaler_config = self.read_scaler_config()
 
+        # read MCAs until all data have a consistent length (up to ~2 seconds)
+        t0 = time.time()
+        time.sleep(0.025)
+        for _i in range(10):
+            npts_chan = []
+            for nchan, name, calc in scaler_config:
+                dat = self.readmca(nmca=nchan)
+                if (dat is None or not isinstance(dat, numpy.ndarray)):
+                    dat = []
+                npts_chan.append(len(dat))
+            if npts_req is None:
+                npts_req = npts_chan[0]
+            if (npts_chan[0] == npts_req) and (max(npts_chan) == min(npts_chan)):
+                break
+            time.sleep(0.025*(_i+1))
+
+        if max(npts_chan) != min(npts_chan):
+            print(" Struck warning, inconsistent number of points!")
+            print(" -- ", npts_chan)
+
+        # make sure all data is the same length for calcs
+        npts = min(npts, min(npts_chan))
+        #print(" Struck save_array: read %i in %.3f sec" % (npts, time.time()-t0))
+
+        # final read
         icol = 0
-        time.sleep(0.1)
         hformat = "# Column.%i: %16s | %s"
         for nchan, name, calc in scaler_config:
             icol += 1
-            dat = numpy.zeros(npts)
-            ntries = 0
-            while ntries < 10:
-                ntries += 1
-                dat = self.readmca(nmca=nchan)
-                if (dat is None or
-                    not isinstance(dat, numpy.ndarray) or
-                    len(dat) < npts_req-1):
-                    time.sleep(0.010*ntries*ntries)
-                else:
-                    break
-            if ntries > 5:
-                print("Slow Read of SIS Data chan=%i, name=%s, ntries-%i" % (nchan, name, ntries))
-
+            dat = self.readmca(nmca=nchan)
             varname = avars[nchan-1]
             adat[varname] = dat
             label = "%s | %s" % ("%smca%i" % (self._prefix, nchan), varname)
@@ -262,10 +272,7 @@ class Struck(Device):
             if icol == 1:
                 fmt = ' {:14.2f} '
             fmts.append(fmt)
-            npts_chans.append(len(dat))
 
-        # make sure all data is the same length for calcs
-        npts = min(npts, min(npts_chans))
         for key, val in adat.items():
             self.ast_interp.symtable[key] = val[:npts]
 
@@ -283,10 +290,6 @@ class Struck(Device):
             sdata.append(rdat)
             fmts.append(' {:10.0f} ')
 
-
-        if max(npts_chans) != min(npts_chans):
-            print(" Struck warning, weird number of points!")
-            print(" -- ", npts_chans)
         try:
             sdata = numpy.array([s[:npts] for s in sdata]).transpose()
             npts, nmcas = sdata.shape
