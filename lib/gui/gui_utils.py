@@ -122,6 +122,8 @@ class YesNo(wx.Choice):
 
 class check(wx.CheckBox):
     def __init__(self, parent, default=True, label=None, action=None, **kws):
+        if label is None:
+            label = ''
         wx.CheckBox.__init__(self, parent, -1, label=label, **kws)
         self.SetValue({True: 1, False:0}[default])
         if action is not None:
