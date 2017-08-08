@@ -569,10 +569,10 @@ class NewportXPS:
         axis =  axis.upper()
         stage = "%s.%s" % (self.traj_group, axis)
 
-        max_velo  = self.stages[stage]['max_velo']
-        max_accel = self.stages[stage]['max_accel']
+        max_velo  = 0.95*self.stages[stage]['max_velo']
+        max_accel = 0.95*self.stages[stage]['max_accel']
         if accel is None:
-            accel = max_accel/2.0
+            accel = max_accel
         accel = min(accel, max_accel)
 
         scandir  = 1.0
@@ -587,8 +587,8 @@ class NewportXPS:
         scantime = pixeltime*npulses
         distance = (abs(stop - start) + abs(step))*1.0
         velocity = min(distance/scantime, max_velo)
-        ramptime = 4.0 * abs(velocity/accel)
-        rampdist = 2.0 * velocity * ramptime * scandir
+        ramptime = 1.5 * abs(velocity/accel)
+        rampdist = velocity * ramptime * scandir
 
 
         self.trajectories['foreward'] = {'axes': [axis],
@@ -615,17 +615,18 @@ class NewportXPS:
                     val = base[attr]
                 fore["%s_%s" % (ax, attr)] = val
 
-
         back = fore.copy()
         back["%s_start" % axis] = fore["%s_stop" % axis]
         back["%s_stop" % axis]  = fore["%s_start" % axis]
         for attr in ('velo', 'ramp', 'dist'):
             back["%s_%s" % (axis, attr)] *= -1.0
 
+        # print("TRAJ Text Fore:")
+        # print(self.linear_template % fore)
+        # print("TRAJ Text Back:")
+        # print(self.linear_template % back)
+
         ret = True
-        # print("Foreward:", accel, velocity, max_velo)
-        # print("Traj: ", self.trajectories['foreward'])
-        # print (self.linear_template % fore)
         if upload:
             ret = False
             try:
