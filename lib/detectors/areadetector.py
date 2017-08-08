@@ -26,7 +26,13 @@ AD_CAM_ATTRS = ("Acquire", "AcquirePeriod", "AcquirePeriod_RBV",
                 "NumImagesCounter_RBV", "NumImages_RBV", "SizeX", "SizeX_RBV",
                 "SizeY", "SizeY_RBV", "TimeRemaining_RBV", "TriggerMode",
                 "TriggerMode_RBV", "TriggerSoftware", "Model_RBV",
-                "ShutterControl", "ShutterMode", "ShutterOpenDelay",
+                "ShutterControl",
+                "ShutterMode",
+                "ShutterOpenEPICS.OUT",
+                "ShutterCloseEPICS.OUT",
+                "ShutterOpenEPICS.OCAL",
+                "ShutterCloseEPICS.OCAL",
+                "ShutterOpenDelay",
                 "ShutterCloseDelay")
 
 AD_FILE_ATTRS = ('AutoIncrement', 'AutoSave', 'Capture', 'EnableCallbacks',
@@ -143,7 +149,7 @@ class ADFileMixin(object):
                 time.sleep(0.025)
             out = rbv
         return out
-    
+
     def FileCaptureOff(self):
         "turn Capture off"
         return self.filePut('Capture', 0)
@@ -185,7 +191,7 @@ class ADFileMixin(object):
         if with_path:
             path = self.getFilePath()
         return fmt % (path, name, num)
-    
+
 
 class AD_Base(Device, ADFileMixin):
     """Base area Detecor with File Mixin"""
@@ -201,7 +207,7 @@ class AD_Base(Device, ADFileMixin):
         self.filesaver = filesaver
         self.fileroot = fileroot
         self._prefix = prefix
-        
+
 class AD_Camera(Device):
     """area Detecor camera"""
     _nonpvs  = ('_prefix', '_pvs', '_delim', '_nonpvs')
@@ -226,15 +232,15 @@ class AD_ROIStat(Device):
     def start(self, erase=True):
         sval = 1 if erase else 0
         self.put('TSControl', sval)
-            
+
     def arm(self, numframes=None, blocking=False):
         self.put('ArrayCallbacks', 1)
         if numframes is not None:
-            self.put('TSNumPoints', numframes)            
+            self.put('TSNumPoints', numframes)
         if blocking:
             self.put('BlockingCallbacks', 1)
 
-        
+
 class AreaDetector(DetectorMixin):
     """very simple area detector interface...
     trigger / dwelltime, uses array counter as only counter
@@ -243,7 +249,7 @@ class AreaDetector(DetectorMixin):
                  roistat='ROIStat1:', fileroot='', label='ad', mode='scaler',
                  arm_delay=0.05, start_delay=0.05, **kws):
 
-        
+
         if not prefix.endswith(':'):
             prefix = "%s:" % prefix
 
@@ -255,7 +261,7 @@ class AreaDetector(DetectorMixin):
         self.arm_delay = arm_delay
         self.start_delay = start_delay
         self.trigger_suffix = cam + 'Acquire'
-        
+
         DetectorMixin.__init__(self, prefix, label=label, **kws)
 
         self.cam = AD_Camera(prefix, cam=cam)
@@ -300,10 +306,10 @@ class AreaDetector(DetectorMixin):
 
     def close_shutter(self):
         self.cam.put('ShutterControl', 0)
-        
+
     def get_next_filename(self):
         return self.ad.getNextFileName()
-        
+
     def pre_scan(self, row=0, mode=None, npulses=None,
                  dwelltime=None, filename=None, scan=None, **kws):
         "run just prior to scan"
@@ -357,8 +363,8 @@ class AreaDetector(DetectorMixin):
         if hasattr(self, 'custom_pre_scan'):
            self.custom_pre_scan(row=row, mode=mode, npulse=npulses,
                                 dwelltime=dwelltime, **kws)
-            
-            
+
+
 
     def post_scan(self, **kws):
         self.config_filesaver(enable=False)
@@ -376,7 +382,7 @@ class AreaDetector(DetectorMixin):
             self.cam.put('NumImages', numframes)
         if dwelltime is not None:
             self.set_dwelltime(dwelltime)
-        
+
         self.ad.FileCaptureOff()
         self.cam.put('ImageMode', 'Continuous')
         try:
@@ -428,7 +434,7 @@ class AreaDetector(DetectorMixin):
             self.cam.put('TriggerMode', 'External') # External
         except ValueError:
             pass
-        self.cam.put('ImageMode', 'Multiple')        
+        self.cam.put('ImageMode', 'Multiple')
         self.roistat.stop()
 
         if numframes is not None:
@@ -483,7 +489,7 @@ class AreaDetector(DetectorMixin):
         if fnum is not None:
             self.fnum = fnum
             self.ad.setFileNumber(fnum)
-            
+
         if self.mode == SCALER_MODE:
             numframes = 1
 
@@ -498,12 +504,12 @@ class AreaDetector(DetectorMixin):
         else:
             self.ad.FileCaptureOn(verify_rbv=True)
         time.sleep(self.arm_delay)
-            
+
     def disarm(self, mode=None, wait=False):
         if mode is not None:
             self.mode = mode
         time.sleep(.05)
-        self.roistat.stop()        
+        self.roistat.stop()
         self.ad.FileCaptureOff()
 
     def start(self, mode=None, arm=False, wait=False):
