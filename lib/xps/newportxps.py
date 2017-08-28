@@ -208,6 +208,9 @@ class NewportXPS:
         pvtgroups = []
         for line in lines:
             line = line[:-1].strip()
+            if line.startswith('#'):
+                continue
+
             if line.startswith('[GROUPS]'):
                 mode = 'GROUPS'
             elif line.startswith('['):
@@ -334,6 +337,20 @@ class NewportXPS:
         method = 'GroupKill'
         self._group_act(method, group=group, action='killing')
 
+    def initialize_allgroups(self, with_encoder=True, home=False):
+        """
+        initialize all groups, no homing
+        """
+        for g in self.groups:
+            self.initialize_group(group=g)
+
+    def home_allgroups(self, with_encoder=True, home=False):
+        """
+        home all groups
+        """
+        for g in self.groups:
+            self.home_group(group=g)
+
 
     def initialize_group(self, group=None, with_encoder=True, home=False):
         """
@@ -343,7 +360,6 @@ class NewportXPS:
             with_encoder (bool): whethter to initialize with encoder [True]
             home (bool): whether to home all groups [False]
         """
-
         method = 'GroupInitialize'
         if with_encoder:
             method  = 'GroupInitializeWithEncoderCalibration'
