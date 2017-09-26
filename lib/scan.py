@@ -158,7 +158,7 @@ class StepScan(object):
     """
     def __init__(self, filename=None, auto_increment=True, comments=None,
                  messenger=None, data_callback=None, scandb=None,
-                 prescan_func=None, larch=None, **kws):
+                 prescan_func=None, postscan_func=None, larch=None, **kws):
 
         self.pos_settle_time = MIN_POLL_TIME
         self.det_settle_time = MIN_POLL_TIME
@@ -174,6 +174,7 @@ class StepScan(object):
         self.scandb = scandb
         self.larch = larch
         self.prescan_func = prescan_func
+        self.postscan_func = postscan_func
         self.verified = False
         self.abort = False
         self.pause = False
@@ -340,9 +341,31 @@ class StepScan(object):
         # dtimer.show()
         return out
 
-    def post_scan(self):
+    def post_scan(self, row=0, filename=None, **kws):
+
+        self.set_info('scan_progress', 'running post_scan routines')
+        if filename is None:
+            filename = self.filename
+        kws['filename'] = filename
+        out = []
+        for meth in self.post_scan_methods:
+            out.append(meth(scan=self, row=row, **kws))
+            time.sleep(0.05)
+
+        if callable(self.postscan_func):
+            try:
+                ret = self.postscan_func(scan=self, row=row, **kws)
+            except:
+                ret = None
+            out.append(ret)
+
+        if self.larch is not None:
+            try:
+                self.larch.run("post_scan_command(row=%i)" % row)
+            except:
+                self.write("Failed to run post_scan_command()\n")
         self.set_info('scan_progress', 'finishing')
-        return [m() for m in self.post_scan_methods]
+        return out
 
     def verify_scan(self):
         """ this does some simple checks of Scans, checking that
