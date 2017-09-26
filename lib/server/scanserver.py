@@ -17,7 +17,6 @@ from ..utils import (strip_quotes, plain_ascii, tstamp,
 
 from ..larch_interface import LarchScanDBServer, HAS_LARCH
 
-from ..site_config import get_fileroot
 from .epics_scandb import EpicsScanDB
 from .abort_slewscan import abort_slewscan
 
@@ -25,9 +24,8 @@ DEBUG_TIMER = False
 ALWAYS_LOAD_MODULES = False
 
 class ScanServer():
-    def __init__(self, dbname=None, fileroot=None, _larch=None,  **kwargs):
+    def __init__(self, dbname=None, _larch=None,  **kwargs):
         self.epicsdb = None
-        self.fileroot = get_fileroot(fileroot)
         self.scandb = None
         self.abort = False
         self.larch = None
@@ -49,7 +47,7 @@ class ScanServer():
         self.set_path()
 
         if HAS_LARCH:
-            self.larch = LarchScanDBServer(self.scandb, fileroot=self.fileroot)
+            self.larch = LarchScanDBServer(self.scandb)
 
             self.set_scan_message('Server Loading Larch Plugins...')
             # self.larch.load_plugins()
@@ -101,7 +99,8 @@ class ScanServer():
             self.epicsdb.status = status.title()
 
     def set_path(self):
-        self.scandb.set_path(fileroot=self.fileroot)
+        self.scandb.set_path()
+        self.fileroot = self.scandb.get_info('server_fileroot')
 
     def do_command(self, req):
         self.set_path()

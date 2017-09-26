@@ -167,7 +167,9 @@ class ScanDB(object):
     def set_path(self, fileroot=None):
         workdir = self.get_info('user_folder')
         workdir = workdir.replace('\\', '/').replace('//', '/')
-        if workdir.startswith('/'): workdir = workdir[1:]
+        if workdir.startswith('/'):
+            workdir = workdir[1:]
+
         if fileroot is None:
             fileroot = self.get_info('server_fileroot')
             fileroot = fileroot.replace('\\', '/').replace('//', '/')
@@ -182,7 +184,7 @@ class ScanDB(object):
             logging.exception("ScanDB: Could not set working directory to %s " % fullpath)
         finally:
             self.set_info('server_fileroot',  fileroot)
-            self.set_info('user_folder',  workdir)
+            self.set_info('user_folder',      workdir)
         # print("ScanDB: Working directory %s " % os.getcwd())
         time.sleep(0.1)
 

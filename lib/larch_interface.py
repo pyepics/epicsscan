@@ -7,26 +7,21 @@ import glob
 from collections import OrderedDict
 
 from .file_utils import nativepath
-from .site_config import get_fileroot, LARCH_SCANDB, LARCH_INSTDB
 from .utils import plain_ascii
 from .scandb import InstrumentDB
 from . import scandb
 
 import epics
 
-# larch_site_config is not used here, but is imported from here
-class Empty:
-    pass
-larch_site_config = Empty()
-larch_site_config.larchdir = ''
+LARCH_SCANDB = '_scan._scandb'
+LARCH_INSTDB = '_scan._instdb'
 
 HAS_LARCH = False
 try:
     import larch
-    larch_site_config = larch.site_config
     HAS_LARCH = True
 except:
-    pass
+    larch = None
 
 class LarchScanDBWriter(object):
     """Writer for Larch Interface that writes to both Stdout
@@ -56,9 +51,9 @@ class LarchScanDBWriter(object):
 
 class LarchScanDBServer(object):
     """      """
-    def __init__(self, scandb, fileroot=None):
+    def __init__(self, scandb):
         self.scandb = scandb
-        self.fileroot = get_fileroot(fileroot)
+        self.fileroot = self.scandb.get_info('server_fileroot')
         self.writer = LarchScanDBWriter(scandb=scandb)
         self.macro_dir = self.scandb.get_info('macro_folder')
         self.loaded_modules = {}
@@ -152,7 +147,7 @@ class LarchScanDBServer(object):
             os.chdir(origdir)
         except OSError:
             pass
-        self.scandb.set_path(fileroot=self.fileroot)
+        self.scandb.set_path()
         return self.get_macros()
 
     def __call__(self, arg):

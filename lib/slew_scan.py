@@ -84,7 +84,7 @@ class Slew_Scan(StepScan):
         if not os.path.exists(basedir):
             os.mkdir(basedir)
 
-        caput('13XRM:map:basedir', basedir)
+        caput('13XRM:map:basedir', userdir)
         caput('13XRM:map:status', 'Starting')
         sname = os.path.join(basedir, currscan)
         oname = os.path.join(basedir, 'PreviousScan.ini')
@@ -110,7 +110,7 @@ class Slew_Scan(StepScan):
         fhx  = open(hfname, 'w')
         fhx.write("%s\n"% mapdir)
         fhx.close()
-        caput('13XRM:map:filename', hfname)
+        caput('13XRM:map:filename', self.filename)
 
         self.mapdir = mapdir
         self.fileroot = fileroot

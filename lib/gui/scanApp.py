@@ -64,9 +64,7 @@ from ..scandb import ScanDB
 from .scan_panels import (LinearScanPanel, MeshScanPanel,
                           SlewScanPanel,   XAFSScanPanel)
 
-from ..site_config import get_fileroot
-
-from ..larch_interface import LarchScanDBServer, larch_site_config
+from ..larch_interface import LarchScanDBServer, larch
 from ..positioner import Positioner
 from ..detectors import (SimpleDetector, ScalerDetector, McaDetector,
                          MultiMcaDetector, AreaDetector, get_detector)
@@ -180,7 +178,7 @@ class ScanFrame(wx.Frame):
         self.statusbar.SetStatusText('Larch Ready')
 
         try:
-            fico = os.path.join(larch_site_config.larchdir,
+            fico = os.path.join(larch.site_config.larchdir,
                                 'icons', ICON_FILE)
             self._icon = wx.Icon(fico, wx.BITMAP_TYPE_ICO)
             self.SetIcon(self._icon)
@@ -530,7 +528,11 @@ class ScanFrame(wx.Frame):
         if basedir is None:
             basedir = self.scandb.get_info('user_folder')
         basedir = str(basedir)
-        fileroot = str(get_fileroot())
+
+        fileroot = self.scandb.get_info('server_fileroot')
+        if os.name == 'nt':
+            fileroot = self.scandb.get_info('windows_fileroot')
+
         if basedir.startswith(fileroot):
             basedir = basedir[len(fileroot):]
         self.scandb.set_info('user_folder', basedir)
