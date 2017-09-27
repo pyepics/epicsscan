@@ -532,6 +532,8 @@ class ScanFrame(wx.Frame):
         fileroot = self.scandb.get_info('server_fileroot')
         if os.name == 'nt':
             fileroot = self.scandb.get_info('windows_fileroot')
+        if fileroot is None:
+            fileroot = ''
 
         if basedir.startswith(fileroot):
             basedir = basedir[len(fileroot):]
