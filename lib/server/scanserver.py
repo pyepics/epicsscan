@@ -48,12 +48,11 @@ class ScanServer():
 
         if HAS_LARCH:
             self.larch = LarchScanDBServer(self.scandb)
-
-            self.set_scan_message('Server Loading Larch Plugins...')
+            # self.set_scan_message('Server Loading Larch Plugins...')
             # self.larch.load_plugins()
 
-            self.set_scan_message('Server Loading Larch Macros...')
-            time.sleep(0.5)
+            self.set_scan_message('Server Loading Larch Macros')
+            time.sleep(0.05)
             self.larch.load_macros()
             self.set_scan_message('Server Connected.')
 
@@ -83,7 +82,7 @@ class ScanServer():
             self.abort = True
 
     def finish(self):
-        print( 'ScanServer: Shutting down')
+        self.set_scan_message('Server Shutting Down')
         self.scandb.set_info('request_pause',    0)
         time.sleep(0.1)
         self.scandb.set_info('request_abort',    1)
