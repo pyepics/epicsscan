@@ -196,8 +196,7 @@ class ScanFrame(wx.Frame):
         self.onShowPlot()
         self.onEditMacro()
         self.connect_epics()
-
-        self.restart_server()
+        # self.restart_server()
 
 
     def createMainPanel(self):
@@ -265,12 +264,6 @@ class ScanFrame(wx.Frame):
             time.sleep(0.01)
         # print("PVs connected")
         self.statusbar.SetStatusText('Epics Ready')
-
-    def restart_server(self):
-        try:
-            self.scandb.add_command("restart_scanserver")
-        except:
-            pass
 
     def generate_scan(self, scanname=None, debug=False, force_save=False):
         """generate scan definition from current values on GUI
@@ -426,7 +419,10 @@ class ScanFrame(wx.Frame):
                              ('Show Plot Window\tCtrl+P',
                               "Show Window for Plotting Scan", self.onShowPlot),
                              ("Show Macro/Command Window\tCtrl+M",
-                              "Edit Macros, Run Commands",  self.onEditMacro))
+                              "Edit Macros, Run Commands",  self.onEditMacro),
+                             ("Restart Scan Server",
+                              "Try to Restart Server",  self.onRestartServer),
+                             )
 
 
         menu_dat['Scans'] = (("Scan Definitions\tCtrl+D",
@@ -522,6 +518,12 @@ class ScanFrame(wx.Frame):
 
     def onEditMacro(self, evt=None):
         self.show_subframe('macro', MacroFrame)
+
+    def onRestartServer(self, evt=None):
+        try:
+            self.scandb.add_command("restart_scanserver")
+        except:
+            pass
 
     def set_workdir(self, basedir=None):
         """set working dir"""
