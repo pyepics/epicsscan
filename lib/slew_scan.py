@@ -304,23 +304,28 @@ class Slew_Scan(StepScan):
 
         master = open(master_file, 'w')
 
-        dim = 2
-        l_, pvs, start, stop, _npts = self.outer
-        if npts is None:
-            npts = _npts
-        npts = min(npts, len(self.positioners[0].array))
-        step = abs(start-stop)/(npts-1)
-        ypos = str(pvs[0])
-        if ypos.endswith('.VAL'):
-            ypos = ypos[:-4]
+        dim  = 1
+        npts = 1
+        if self.outer is not None:
+            dim = 2
+            l_, pvs, start, stop, _npts = self.outer
+
+            if npts is None:
+                npts = _npts
+            npts = min(npts, len(self.positioners[0].array))
+            step = abs(start-stop)/(npts-1)
+            ypos = str(pvs[0])
+            if ypos.endswith('.VAL'):
+                ypos = ypos[:-4]
         master.write("#Scan.version = 1.4\n")
         master.write('#SCAN.starttime = %s\n' % time.ctime())
         master.write('#SCAN.filename  = %s\n' % self.filename)
         master.write('#SCAN.dimension = %i\n' % dim)
         master.write('#SCAN.nrows_expected = %i\n' % npts)
         master.write('#SCAN.time_per_row_expected = %.2f\n' % self.rowtime)
-        master.write('#Y.positioner  = %s\n' %  ypos)
-        master.write('#Y.start_stop_step = %f, %f, %f \n' %  (start, stop, step))
+        if dim == 2:
+            master.write('#Y.positioner  = %s\n' %  ypos)
+            master.write('#Y.start_stop_step = %f, %f, %f \n' %  (start, stop, step))
         master.write('#------------------------------------\n')
         master.write('# yposition  xrf_file  struck_file  xps_file  xrd_file   time\n')
         master.flush()
@@ -409,10 +414,14 @@ class Slew_Scan(StepScan):
                         det.save_calibration(roi_file)
                 self.save_envdata(filename=env_file)
 
-            pos0 = self.positioners[0]
-            masterline = "%8.4f %s %s %s %s" % (pos0.array[irow-1],
-                                                xrffile, scafile,
-                                                posfile, xrdfile)
+            if dim == 2:
+                print(" SELF POSITIONERS " , self.positioners)
+                pos0 = "%8.4f" % self.positioners[0].array[irow-1]
+            else:
+                pos0 = "_unused_"
+
+            masterline = "%s %s %s %s %s" % (pos0, xrffile, scafile,
+                                             posfile, xrdfile)
 
             # wait for trajectory to finish
             dtimer.add('scan thread run join()')
