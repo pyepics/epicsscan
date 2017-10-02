@@ -2,6 +2,7 @@
 MCA and MultiMCA detectors
 """
 import time
+import numpy as np
 from epics import PV, get_pv, caget, caput, poll, Device
 from epics.devices import MCA,DXP
 from .areadetector import ADFileMixin
@@ -279,6 +280,8 @@ class MultiXMAP(Device, ADFileMixin):
             self.FileCaptureOff()
         return ok, pprun-cur
 
+    def getCurrentPixel(self):
+        return self.dxps[0].get('CurrentPixel')
 
     def readmca(self,n=1):
         "Read a Struck MCA"
@@ -368,7 +371,7 @@ class MultiMcaDetector(DetectorMixin):
     repr_fmt = ', nmcas=%i, nrois=%i, use_net=%s, use_full=%s'
 
     def __init__(self, prefix, label=None, nmcas=4, nrois=32, rois=None,
-                 search_all=False, use_net=False,
+                 mode='scalar', search_all=False, use_net=False,
                  use_unlabeled=False, use_full=False, **kws):
         DetectorMixin.__init__(self, prefix, label=label)
         nmcas, nrois = int(nmcas), int(nrois)
@@ -380,6 +383,7 @@ class MultiMcaDetector(DetectorMixin):
         self.dwelltime = None
         self.extra_pvs = None
         self._counter = None
+        self.mode = mode
         self._med = MultiXMAP(prefix=prefix)
         self._connect_args = dict(nmcas=nmcas, nrois=nrois, rois=rois,
                                   search_all=search_all, use_net=use_net,
@@ -410,6 +414,7 @@ class MultiMcaDetector(DetectorMixin):
     def ContinuousMode(self, dwelltime=0.0, numframes=0):
         """set to continuous mode: use for live reading
         """
+        self.mode = SCALER_MODE
         self._med.SpectraMode()
 
     def ScalerMode(self, dwelltime=None, numframes=1):
@@ -422,6 +427,7 @@ class MultiMcaDetector(DetectorMixin):
     Notes:
         1. numframes is ignored
         """
+        self.mode = SCALER_MODE
         self._med.SpectraMode()
         self._med.PresetMode = 1 # real time
         self._med.put('PresetReal', dwelltime)
@@ -440,8 +446,8 @@ class MultiMcaDetector(DetectorMixin):
         2. setting dwelltime or numframes to None is discouraged,
            as it can lead to inconsistent data arrays.
         """
-        print("MulitXMAP ROI Mode unsupported")
-        self._med.CollectMode = 2
+        print("MulitXMAP ROI Mode unsupported, using NDArrayMode")
+        self.NDArrayMode(dwelltime=dwelltime, numframes=numframes)
 
     def NDArrayMode(self, dwelltime=None, numframes=None):
         """ set to array mode: ready for slew scanning
@@ -451,6 +457,8 @@ class MultiMcaDetector(DetectorMixin):
         numframes (None int):   number of frames to collect [16384]
 
         """
+
+        self.mode = NDARRAY_MODE
         self._med.MCAMode(npulses=numframes)
 
     def set_dwelltime(self, dwelltime):
@@ -502,7 +510,6 @@ class MultiMcaDetector(DetectorMixin):
         self._med.put('StopAll', 0, wait=wait)
         if disarm:
             self.disarm()
-        self._med.FileCaptureOff()
 
     def save_arraydata(self, filename=None):
         pass
@@ -510,11 +517,16 @@ class MultiMcaDetector(DetectorMixin):
     def file_write_complete(self):
         return self._med.FileWriteComplete()
 
-    def pre_scan_x(self, mode=None, npulses=None, dwelltime=None, **kws):
+    def get_numcaptured(self):
+        return self._med.getCurrentPixel()
+
+    def finish_capture(self):
+        self._med.finish_pixels()
+
+    def pre_scan(self, mode=None, npulses=None, dwelltime=None, **kws):
         "run just prior to scan"
         if mode is not None:
             self.mode = mode
-        print(" Prescan for multimca MODE ", self.mode)
 
         caput("%sReadBaselineHistograms.SCAN" % (self.prefix), 0)
         caput("%sReadTraces.SCAN" % (self.prefix), 0)
@@ -528,7 +540,7 @@ class MultiMcaDetector(DetectorMixin):
         elif self.mode == ROI_MODE:
             self.ROIMode(dwelltime=dwelltime, numframes=npulses)
         elif self.mode == NDARRAY_MODE:
-            self._xsp3.FileCaptureOff()
+            self._med.FileCaptureOff()
             time.sleep(0.01)
             self.NDArrayMode(dwelltime=dwelltime, numframes=npulses)
 
@@ -543,7 +555,6 @@ class MultiMcaDetector(DetectorMixin):
 
         self.config_filesaver(number=1,
                               name='xmap',
-                              numcapture=npulses,
                               template="%s%s.%4.4d",
                               auto_increment=False,
                               auto_save=True)
@@ -551,6 +562,5 @@ class MultiMcaDetector(DetectorMixin):
         if self._counter is None:
             self.connect_counters()
 
-        self._counter._get_counters()
         self.counters = self._counter.counters
         self.extra_pvs = self._counter.extra_pvs
