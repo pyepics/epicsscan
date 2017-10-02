@@ -448,6 +448,12 @@ class Xspress3Detector(DetectorMixin):
     def get_next_filename(self):
         return self._xsp3.getNextFileName()
 
+    def get_numcaptured(self):
+        return self._xsp3.getNumCaptured_RBV()
+
+    def finish_capture(self):
+        time.sleep(0.05)
+
     def arm(self, mode=None, fnum=None, wait=False, numframes=None):
         if mode is not None:
             self.mode = mode

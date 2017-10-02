@@ -309,10 +309,7 @@ class Slew_Scan(StepScan):
         if self.outer is not None:
             dim = 2
             l_, pvs, start, stop, _npts = self.outer
-
-            if npts is None:
-                npts = _npts
-            npts = min(npts, len(self.positioners[0].array))
+            npts = min(_npts, len(self.positioners[0].array))
             step = abs(start-stop)/(npts-1)
             ypos = str(pvs[0])
             if ypos.endswith('.VAL'):
@@ -340,7 +337,7 @@ class Slew_Scan(StepScan):
         for det in self.detectors:
             if det.label.lower() == 'struck':
                 scadet = det
-            elif det.label.lower() == 'xspress3':
+            elif det.label.lower() in ('xspress3', 'multimca'):
                 xrfdet = det
             elif 'xrd' in det.label.lower():
                 xrddet = det
@@ -409,13 +406,11 @@ class Slew_Scan(StepScan):
                 xrdfile = xrddet.get_next_filename()
 
             if irow < 2:
-                for det in self.detectors:
-                    if det.label == 'xspress3':
-                        det.save_calibration(roi_file)
+                if xrfdet is not None:
+                    xrfdet.save_calibration(roi_file)
                 self.save_envdata(filename=env_file)
 
             if dim == 2:
-                print(" SELF POSITIONERS " , self.positioners)
                 pos0 = "%8.4f" % self.positioners[0].array[irow-1]
             else:
                 pos0 = "_unused_"
@@ -464,8 +459,11 @@ class Slew_Scan(StepScan):
                 while not xrfdet.file_write_complete() and (time.time()-t0 < 10.0):
                     time.sleep(0.1)
                 # print(" File write complete? ", xrfdet.file_write_complete())
-                nxrf = xrfdet._xsp3.getNumCaptured_RBV()
-                if (nxrf < npulses -2) or not xrfdet.file_write_complete():
+                nxrf = xrfdet.get_numcaptured()
+                if (nxrf < npulses-2) or not xrfdet.file_write_complete():
+                    xrfdet.finish_capture()
+                nxrf = xrfdet.get_numcaptured()
+                if (nxrf < npulses-2) or not xrfdet.file_write_complete():
                     rowdata_ok = False
                     xrfdet.stop()
                     time.sleep(0.25)
