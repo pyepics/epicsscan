@@ -430,7 +430,8 @@ class MultiMcaDetector(DetectorMixin):
         self.mode = SCALER_MODE
         self._med.SpectraMode()
         self._med.PresetMode = 1 # real time
-        self._med.put('PresetReal', dwelltime)
+        if dwelltime is not None:
+            self._med.put('PresetReal', dwelltime)
 
     def ROIMode(self, dwelltime=None, numframes=None):
         """ set to ROI mode: ready for slew scanning with ROI saving
