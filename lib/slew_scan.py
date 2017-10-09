@@ -372,11 +372,11 @@ class Slew_Scan(StepScan):
             dtimer.add('inner pos move started irow=%i' % irow)
             for det in self.detectors:
                 det.arm(mode='ndarray', numframes=npulses, fnum=irow)
-            time.sleep(0.1)
+            time.sleep(0.05)
             dtimer.add('detectors armed')
             for det in self.detectors:
                 det.start()
-            time.sleep(0.1)
+            time.sleep(0.05)
             dtimer.add('detectors started')
             self.xps.arm_trajectory(trajname)
             if irow < 2:
@@ -456,17 +456,24 @@ class Slew_Scan(StepScan):
             nxrf = nxrd = 0
             if xrfdet is not None:
                 t0 = time.time()
-                while not xrfdet.file_write_complete() and (time.time()-t0 < 10.0):
+                write_complete = xrfdet.file_write_complete()
+                ntry = 0
+                while not write_complete and (time.time()-t0 < 10.0):
+                    write_complete = xrfdet.file_write_complete()
                     time.sleep(0.1)
-                # print(" File write complete? ", xrfdet.file_write_complete())
+                    ntry = ntry + 1
                 nxrf = xrfdet.get_numcaptured()
-                if (nxrf < npulses-2) or not xrfdet.file_write_complete():
+                @ print("XRF file write complete? ", write_complete, nxrf, npulses, ntry)
+                if (nxrf < npulses-1) or not write_complete:
                     xrfdet.finish_capture()
-                nxrf = xrfdet.get_numcaptured()
-                if (nxrf < npulses-2) or not xrfdet.file_write_complete():
+                    nxrf = xrfdet.get_numcaptured()
+                    write_complete = xrfdet.file_write_complete()
+                if (nxrf < npulses-1) or not write_complete:
+                    print("XRF file write failed ", write_complete, nxrf, npulses)
                     rowdata_ok = False
                     xrfdet.stop()
                     time.sleep(0.25)
+
             dtimer.add('saved XRF data')
 
             if xrddet is not None:
