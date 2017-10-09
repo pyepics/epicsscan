@@ -463,7 +463,7 @@ class Slew_Scan(StepScan):
                     time.sleep(0.1)
                     ntry = ntry + 1
                 nxrf = xrfdet.get_numcaptured()
-                @ print("XRF file write complete? ", write_complete, nxrf, npulses, ntry)
+                # print("XRF file write complete? ", write_complete, nxrf, npulses, ntry)
                 if (nxrf < npulses-1) or not write_complete:
                     xrfdet.finish_capture()
                     nxrf = xrfdet.get_numcaptured()
