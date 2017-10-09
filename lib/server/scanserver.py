@@ -238,20 +238,29 @@ class ScanServer():
         # or interrupts, so does not need to go super fast.
         while True:
             epics.poll(0.025, 1.0)
-            time.sleep(0.250)
+            time.sleep(0.50)
+            now = time.time()
             self.look_for_interrupts()
+
+            # shutdown?
             if (self.req_shutdown or (self.epicsdb is not None
                                      and  self.epicsdb.Shutdown == 1)):
                 break
-            if time.time() > msgtime + 1:
-                msgtime = time.time()
+
+            # update server heartbeat / message
+            if now > msgtime + 1:
+                msgtime = now
                 self.scandb.set_info('heartbeat', tstamp())
                 if self.epicsdb is not None:
                     self.epicsdb.setTime()
+            # if pauses, continue loop
             if self.req_pause:
                 continue
-            # look for recently requested commands
+
+            # get ordered list of requested commands
             reqs = cmd_query.execute().fetchall()
+
+            # abort command?
             if (self.req_abort or (self.epicsdb is not None
                                    and  self.epicsdb.Abort == 1)):
                 if len(reqs) > 0:
@@ -263,6 +272,8 @@ class ScanServer():
                     self.epicsdb.Abort = 0
                 self.clear_interrupts()
                 time.sleep(1.0)
+
+            # do next command
             elif len(reqs) > 0:
                 self.do_command(reqs[0])
         # mainloop end
