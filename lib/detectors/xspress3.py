@@ -457,8 +457,10 @@ class Xspress3Detector(DetectorMixin):
     def arm(self, mode=None, fnum=None, wait=False, numframes=None):
         if mode is not None:
             self.mode = mode
-        self._xsp3.put('Acquire', 0)
+        # self._xsp3.put('Acquire', 0, wait=True)
         self._xsp3.put('ERASE',   1, wait=True)
+        time.sleep(0.05)
+
         if fnum is not None:
             self.fnum = fnum
             self._xsp3.setFileNumber(fnum)
@@ -468,7 +470,7 @@ class Xspress3Detector(DetectorMixin):
 
         if self.mode == NDARRAY_MODE:
             self._xsp3.FileCaptureOn()
-            time.sleep(0.05)
+            time.sleep(0.025)
         elif self.mode == SCALER_MODE:
             self._xsp3.FileCaptureOff()
         elif self.mode == ROI_MODE:
@@ -489,12 +491,13 @@ class Xspress3Detector(DetectorMixin):
         if arm:
             self.arm()
         self._xsp3.put('Acquire', 1, wait=wait)
+        time.sleep(0.10)
 
     def stop(self, mode=None, disarm=False, wait=False):
         self._xsp3.put('Acquire', 0, wait=wait)
         if disarm:
             self.disarm()
-        self._xsp3.FileCaptureOff()
+
     def save_arraydata(self, filename=None):
         pass
 
