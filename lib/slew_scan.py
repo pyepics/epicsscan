@@ -152,6 +152,9 @@ class Slew_Scan(StepScan):
         pospv = pvs[0]
         if pospv.endswith('.VAL'):
             pospv = pospv[:-4]
+        dirpv = pospv + '.DIR'
+        if caget(dirpv) == 1:
+            start, stop = stop, start
         step = abs(start-stop)/(npts-1)
         self.rowtime = dtime = self.dwelltime*(npts-1)
         caput('13XRM:map:npts', npts)
