@@ -372,11 +372,12 @@ class Slew_Scan(StepScan):
             dtimer.add('inner pos move started irow=%i' % irow)
             for det in self.detectors:
                 det.arm(mode='ndarray', numframes=npulses, fnum=irow)
-            time.sleep(0.05)
+
+            time.sleep(0.1)
             dtimer.add('detectors armed')
             for det in self.detectors:
                 det.start()
-            time.sleep(0.05)
+            time.sleep(0.1)
             dtimer.add('detectors started')
             self.xps.arm_trajectory(trajname)
             if irow < 2:
@@ -478,11 +479,17 @@ class Slew_Scan(StepScan):
 
             if xrddet is not None:
                 t0 = time.time()
-                while not xrddet.file_write_complete() and (time.time()-t0 < 10.0):
+                while not xrddet.file_write_complete() and (time.time()-t0 < 15.0):
                     time.sleep(0.1)
+                if not xrddet.file_write_complete():
+                    xrddet.ad.FileCaptureOff()
+                    time.sleep(0.25)
+                    while not xrddet.file_write_complete() and (time.time()-t0 < 15.0):
+                        time.sleep(0.1)
+
                 # print(" File write complete? ", xrfdet.file_write_complete())
                 nxrd = xrddet.ad.getNumCaptured_RBV()
-                if (nxrd < npulses-2) or not xrddet.file_write_complete():
+                if (nxrd < npulses-3): #  or not xrddet.file_write_complete():
                     rowdata_ok = False
                     xrddet.stop()
                     time.sleep(0.25)
