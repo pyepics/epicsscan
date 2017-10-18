@@ -335,11 +335,12 @@ class Slew_Scan(StepScan):
         scadet = xrfdet = xrddet = None
         scafile = xrffile = xrdfile = '_unused_'
         for det in self.detectors:
-            if det.label.lower() == 'struck':
+            dlabel = det.label.lower()
+            if dlabel == 'struck':
                 scadet = det
-            elif det.label.lower() in ('xspress3', 'multimca'):
+            elif dlabel in ('xspress3', 'multimca')  or 'mca' in dlabel:
                 xrfdet = det
-            elif 'xrd' in det.label.lower():
+            elif 'xrd' in dlabel:
                 xrddet = det
             det.NDArrayMode(numframes=npulses)
 
