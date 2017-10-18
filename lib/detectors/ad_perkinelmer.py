@@ -24,30 +24,36 @@ class AD_PerkinElmer(AreaDetector):
         self.cam.PV('PEAcquireOffsetFrames')
         self.cam.PV('PENumOffsetFrames')
         self.mode = mode
-        self.arm_delay = 0.25
-        self.start_delay = 0.50
+        self.arm_delay = 0.50
+        self.start_delay = 1.00
 
         o = self.cam.PV('ShutterOpenEPICS.OUT').get()
         open_pvname = o.split(' ')[0]
-        self.openshutter_pv = PV(open_pvname)
+        self.openshutter_pv = None
+        if open_pvname != '':
+            self.openshutter_pv = PV(open_pvname)
 
         o = self.cam.PV('ShutterCloseEPICS.OUT').get()
         close_pvname = o.split(' ')[0]
-        self.closeshutter_pv = PV(close_pvname)
+        self.closeshutter_pv = None
+        if close_pvname != '':
+            self.closeshutter_pv = PV(close_pvname)
 
     def custom_pre_scan(self, row=0, dwelltime=None, **kws):
         if row == 0:
             self.AcquireOffset(timeout=10, open_shutter=True)
 
     def open_shutter(self):
-        val = float(self.cam.PV('ShutterOpenEPICS.OCAL').get())
-        self.closeshutter_pv.put(val, wait=True)
-        time.sleep(0.1)
+        val = int(float(self.cam.PV('ShutterOpenEPICS.OCAL').get()))
+        if self.openshutter_pv is not None:
+            self.openshutter_pv.put(val, wait=True)
+        time.sleep(0.5)
 
     def close_shutter(self):
-        val = float(self.cam.PV('ShutterCloseEPICS.OCAL').get())
-        self.openshutter_pv.put(val, wait=True)
-        time.sleep(0.1)
+        val = int(float(self.cam.PV('ShutterCloseEPICS.OCAL').get()))
+        if self.closeshutter_pv is not None:
+            self.closeshutter_pv.put(val, wait=True)
+        time.sleep(0.5)
 
     def AcquireOffset(self, timeout=10, open_shutter=True):
         """Acquire Offset -- a slightly complex process
