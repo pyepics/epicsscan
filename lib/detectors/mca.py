@@ -171,7 +171,7 @@ class MultiXMAP(Device, ADFileMixin):
                 'pathattrs', '_nonpvs', 'nmca', 'dxps', 'mcas')
 
     def __init__(self, prefix, filesaver='netCDF1:',nmca=4,
-                 fileroot='T:/xas_user'):
+                 fileroot='/home'):
         self.filesaver = filesaver
         self.fileroot = fileroot
         self._prefix = prefix
@@ -487,8 +487,15 @@ class MultiMcaDetector(DetectorMixin):
             self._med.put('PixelsPerRun', numframes)
 
         if self.mode == NDARRAY_MODE:
-            self._med.FileCaptureOn()
+            self._med.FileCaptureOn(verify_rbv=True, timeout=10)
             time.sleep(0.05)
+            t0 = time.time()
+            while time.time()-t0 < 10.0:
+                rbv = self._med.fileGet('Capture_RBV')
+                if rbv:
+                    break
+                self._med.filePut('Capture', 1)
+                time.sleep(0.05)
         elif self.mode == SCALER_MODE:
             self._med.FileCaptureOff()
         elif self.mode == ROI_MODE:
@@ -516,6 +523,7 @@ class MultiMcaDetector(DetectorMixin):
         pass
 
     def file_write_complete(self):
+        time.sleep(0.25)
         return self._med.FileWriteComplete()
 
     def get_numcaptured(self):
@@ -542,7 +550,7 @@ class MultiMcaDetector(DetectorMixin):
             self.ROIMode(dwelltime=dwelltime, numframes=npulses)
         elif self.mode == NDARRAY_MODE:
             self._med.FileCaptureOff()
-            time.sleep(0.01)
+            time.sleep(0.1)
             self.NDArrayMode(dwelltime=dwelltime, numframes=npulses)
 
         if dwelltime is not None:
