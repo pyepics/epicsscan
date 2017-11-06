@@ -11,7 +11,7 @@ from wx.lib.editor import Editor
 from collections import OrderedDict
 from .gui_utils import (GUIColors, set_font_with_children, YesNo,
                         add_menu, add_button, add_choice, pack, SimpleText,
-                        FileOpen, FileSave, popup,
+                        FileOpen, FileSave, popup, FloatCtrl,
                         FRAMESTYLE, Font)
 
 from ..scandb import InstrumentDB
@@ -171,6 +171,105 @@ class PosScanMacroBuilder(wx.Frame):
             if self.wid_include[pname].IsChecked():
                 nscans = self.wid_nscans[pname].GetStringSelection()
                 buff.append( command % (pname, scanname, nscans))
+        buff.append("#end auto-generated macro")
+        buff.append("")
+        self.parent.editor.AppendText("\n".join(buff))
+
+    def onClose(self, event=None):
+        self.Destroy()
+
+class PosXRDMacroBuilder(wx.Frame):
+    """ transfer positions from offline microscope"""
+    def __init__(self, parent, scandb=None):
+        wx.Frame.__init__(self, None, -1,
+                          title="Build Macro for XRD at Saved Positions")
+        self.parent = parent
+        self.scandb = scandb
+        self.instdb = InstrumentDB(scandb)
+        self.build_dialog()
+
+    def build_dialog(self):
+        positions  = self.instdb.get_positionlist('IDE_SampleStage')
+        panel = scrolled.ScrolledPanel(self)
+        self.checkboxes = OrderedDict()
+        sizer = wx.GridBagSizer(len(positions)+5, 4)
+        sizer.SetVGap(4)
+        sizer.SetHGap(4)
+
+        _nscans = ['%i'  %(i+1) for i in range(10)]
+
+        self.dwelltime = FloatCtrl(panel, precision=1, value=10,
+                                   minval=0.5, maxval=10000, size=(75, -1))
+
+        self.pos_names = []
+        self.wid_include = {}
+        self.wid_nscans = {}
+
+        bkws = dict(size=(95, -1))
+        btn_insert = add_button(panel, "Insert Macro",  action=self.onInsert, **bkws)
+        btn_all    = add_button(panel, "Select All",    action=self.onSelAll, **bkws)
+        btn_none   = add_button(panel, "Select None",   action=self.onSelNone, **bkws)
+        btn_done   = add_button(panel, "Close",         action=self.onClose, **bkws)
+
+        brow = wx.BoxSizer(wx.HORIZONTAL)
+        brow.Add(btn_all ,  0, ALL_EXP|wx.ALIGN_LEFT, 1)
+        brow.Add(btn_none,  0, ALL_EXP|wx.ALIGN_LEFT, 1)
+        brow.Add(btn_insert, 0, ALL_EXP|wx.ALIGN_LEFT, 1)
+        brow.Add(btn_done, 0, ALL_EXP|wx.ALIGN_LEFT, 1)
+
+        sizer.Add(brow,   (0, 0), (1, 4),  LEFT_CEN, 2)
+
+        ir = 1
+        sizer.Add(SimpleText(panel, 'Dwell Time:'), (ir, 0), (1, 1),  LEFT_CEN, 2)
+        sizer.Add(self.dwelltime,                   (ir, 1), (1, 1),  LEFT_CEN, 2)
+
+        ir += 1
+        sizer.Add(SimpleText(panel, 'Position Name'), (ir, 0), (1, 2),  LEFT_CEN, 2)
+        sizer.Add(SimpleText(panel, 'Include?'),      (ir, 2), (1, 1),  LEFT_CEN, 2)
+
+        ir += 1
+        sizer.Add(wx.StaticLine(panel, size=(500, 2)),(ir, 0), (1, 4),  LEFT_CEN, 2)
+
+        ir += 1
+        for pname in positions:
+            self.pos_names.append(pname)
+            label = SimpleText(panel, "  %s  " % pname)
+            cbox = self.wid_include[pname] = wx.CheckBox(panel, -1, "")
+            cbox.SetValue(True)
+            sizer.Add(label,  (ir, 0), (1, 2),  LEFT_CEN, 2)
+            sizer.Add(cbox,   (ir, 2), (1, 1),  LEFT_CEN, 2)
+            ir += 1
+
+        sizer.Add(wx.StaticLine(panel, size=(500, 2)), (ir, 0), (1, 4),  LEFT_CEN, 2)
+
+        pack(panel, sizer)
+
+        panel.SetupScrolling()
+        mainsizer = wx.BoxSizer(wx.VERTICAL)
+        mainsizer.Add(panel, 1,  ALL_EXP|wx.GROW|wx.ALIGN_LEFT, 1)
+        pack(self, mainsizer)
+        self.SetMinSize((450, 550))
+        self.SetSize((525, 600))
+        self.Raise()
+        self.Show()
+
+    def onSelAll(self, event=None):
+        for cbox in self.wid_include.values():
+            cbox.SetValue(True)
+
+    def onSelNone(self, event=None):
+        for cbox in self.wid_include.values():
+            cbox.SetValue(False)
+
+    def onInsert(self, event=None):
+        if self.instdb is None:
+            return
+        dtime = self.dwelltime.GetValue()
+        command = "xrd_at('%s', t=%.1f)"
+        buff = ["#start auto-generated macro"]
+        for pname in self.pos_names:
+            if self.wid_include[pname].IsChecked():
+                buff.append( command % (pname, dtime))
         buff.append("#end auto-generated macro")
         buff.append("")
         self.parent.editor.AppendText("\n".join(buff))
@@ -356,6 +455,9 @@ class MacroFrame(wx.Frame) :
         pmenu = wx.Menu()
         add_menu(self, pmenu, "Position Scans\tCtrl+P",
                  "Position Scans", self.onBuildPosScan)
+        add_menu(self, pmenu, "XRD at Position\tCtrl+P",
+                 "XRD at Position", self.onBuildPosXRD)
+
 
         self.menubar.Append(fmenu, "&File")
         self.menubar.Append(pmenu, "Insert Commands")
@@ -417,6 +519,9 @@ class MacroFrame(wx.Frame) :
 
     def onBuildPosScan(self, event=None):
         self.show_subframe('buildposmacro', PosScanMacroBuilder)
+
+    def onBuildPosXRD(self, event=None):
+        self.show_subframe('buildxrdsmacro', PosXRDMacroBuilder)
 
     def onReadMacro(self, event=None):
         wcard = 'Scan files (*.lar)|*.lar|All files (*.*)|*.*'
