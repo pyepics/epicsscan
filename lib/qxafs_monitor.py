@@ -23,7 +23,7 @@ MIN_ID_ENERGY =   2.0
 MAX_ID_ENERGY = 200.0
 
 PIDFILE = '/home/xas_user/logs/qxafs_monitor.pid'
-HEARTBEAT_PVNAME = '13XRM:edb:info02'
+HEARTBEAT_PVNAME  = '13XRM:edb:info02'
 PULSECOUNT_PVNAME = '13XRM:edb:info03'
 
 class QXAFS_ScanWatcher(object):
@@ -35,7 +35,7 @@ class QXAFS_ScanWatcher(object):
         self.last_move_time = 0
         self.set_state(0)
         self.config = None
-        self.dead_time = 1.1
+        self.dead_time = 0.5
         self.id_lookahead = 2
         self.counters = []
         self.connect()
@@ -47,6 +47,13 @@ class QXAFS_ScanWatcher(object):
         self.idarray_pv = PV(self.config['id_array_pv'])
         self.iddrive_pv = PV(self.config['id_drive_pv'])
         self.idbusy_pv = PV(self.config['id_busy_pv'])
+        pvroot = self.config['id_busy_pv'].replace('Busy', '')
+
+        self.idstop_pv   = PV("%sSTOP" % pvroot)
+        self.idgapsym_pv = PV('%sGapSymmetry' % pvroot)
+        self.idtaper_pv  = PV('%sTaperEnergy' % pvroot)
+        self.idtaperset_pv  = PV('%sTaperEnergySet' % pvroot)
+
         self.pulsecount_pv = PV(PULSECOUNT_PVNAME)
         self.heartbeat_pv = PV(HEARTBEAT_PVNAME)
 
@@ -55,9 +62,7 @@ class QXAFS_ScanWatcher(object):
                               password=self.config['password'],
                               group=self.config['group'],
                               outputs=self.config['outputs'])
-
         time.sleep(0.25)
-        # print("Connected ", self.idarray_pv)
 
 
     def qxafs_connect_counters(self):
@@ -111,23 +116,38 @@ class QXAFS_ScanWatcher(object):
 
             time.sleep(0.05)
             now = time.time()
+            # look for and prevent out-of-ordinary values for Taper (50 eV)
+            # or for Gap Symmetry
+            gapsym = self.idgapsym_pv.get()
+            taper  = self.idtaper_pv.get()
+            if abs(gapsym) > 0.050 or abs(taper) > 0.050:
+                self.idtaperset_pv.put(0, wait=True)
+                time.sleep(1.00)
+                val = self.idarray[last_pulse + self.id_lookahead]
+                self.iddrive_pv.put(val, wait=True)
+                time.sleep(1.0)
+
             if self.pulse > last_pulse:
                 self.pulsecount_pv.put("%i" % self.pulse)
                 self.set_info('scan_current_point', self.pulse)
                 self.heartbeat_pv.put("%i" % int(time.time()))
                 if self.verbose and self.pulse % 5 == 0:
                     print("QXAFS Monitor " , self.pulse, len(self.counters))
+
                 val = self.idarray[self.pulse + self.id_lookahead]
-                if (True and # self.iddrive_pv.write_access and
-                    (self.idbusy_pv.get() == 0) and
+
+                if ((self.idbusy_pv.get() == 0) and
                     ((now- self.last_move_time) > self.dead_time) and
-                    (val > MIN_ID_ENERGY) and
-                    (val < MAX_ID_ENERGY)):
-                    try:
-                        self.iddrive_pv.put(val)
-                        self.last_move_time = time.time()
-                    except:
-                        pass
+                    (val > MIN_ID_ENERGY) and (val < MAX_ID_ENERGY)):
+
+                    self.iddrive_pv.put(val)
+                    time.sleep(0.25)
+                    self.last_move_time = time.time()
+
+                if self.idbusy_pv.get() == 1:
+                    self.idstop_pv.put(1)
+                    time.sleep(0.25)
+
                 last_pulse = self.pulse
                 cpt = int(self.pulse)
                 time_left = (npts-cpt)*self.dtime
