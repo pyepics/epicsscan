@@ -16,6 +16,7 @@ from ..utils import (strip_quotes, plain_ascii, tstamp,
                      ScanDBException, ScanDBAbort)
 
 from ..larch_interface import LarchScanDBServer, HAS_LARCH
+from larch.inputText import is_complete as command_complete
 
 from .epics_scandb import EpicsScanDB
 from .abort_slewscan import abort_slewscan
@@ -68,7 +69,6 @@ class ScanServer():
             self.epicsdb.basedir = plain_ascii(basedir)
             self.epicsdb.workdir = plain_ascii(workdir)
 
-
     def set_scan_message(self, msg, verbose=True):
         self.scandb.set_info('scan_message', msg)
         if self.epicsdb is not None:
@@ -105,7 +105,8 @@ class ScanServer():
         self.set_path()
         cmd_stat = self.scandb.get_command_status(req.id).lower()
         if not cmd_stat.startswith('request'):
-            self.set_scan_message("Warning: skipping command '%s'" % repr(req))
+            self.set_scan_message("Warning: skipping command <%s>" % repr(req))
+            self.scandb.set_command_status('canceled', cmdid=req.id)
             return
 
         workdir = self.scandb.get_info('user_folder')
@@ -114,6 +115,11 @@ class ScanServer():
 
         command = plain_ascii(req.command)
         if len(command) < 1 or command is 'None':
+            return
+
+        if not command_complete(command):
+            self.set_scan_message("Error:  command <%s> is incomplete (missing paren or quote?)." % repr(command))
+            self.scandb.set_command_status('canceled', cmdid=req.id)
             return
 
         if HAS_LARCH and ALWAYS_LOAD_MODULES:
