@@ -78,14 +78,15 @@ class Slew_Scan(StepScan):
                               outputs=conf['outputs'])
 
         currscan = 'CurrentScan.ini'
-        fileroot  = self.scandb.get_info('server_fileroot')
+        fileroot = self.scandb.get_info('server_fileroot')
         userdir = self.scandb.get_info('user_folder')
+        mappref = self.scandb.get_info('epics_map_prefix')
         basedir = os.path.join(fileroot, userdir, 'Maps')
         if not os.path.exists(basedir):
             os.mkdir(basedir)
 
-        caput('13XRM:map:basedir', userdir)
-        caput('13XRM:map:status', 'Starting')
+        caput('%sbasedir' % (mappref), userdir)
+        caput('%sstatus'  % (mappref), 'Starting')
         sname = os.path.join(basedir, currscan)
         oname = os.path.join(basedir, 'PreviousScan.ini')
         if not self.filename.endswith('.h5'):
@@ -110,7 +111,7 @@ class Slew_Scan(StepScan):
         fhx  = open(hfname, 'w')
         fhx.write("%s\n"% mapdir)
         fhx.close()
-        caput('13XRM:map:filename', self.filename)
+        caput('%sfilename' % (mappref), self.filename)
 
         self.mapdir = mapdir
         self.fileroot = fileroot
@@ -157,8 +158,8 @@ class Slew_Scan(StepScan):
             start, stop = stop, start
         step = abs(start-stop)/(npts-1)
         self.rowtime = dtime = self.dwelltime*(npts-1)
-        caput('13XRM:map:npts', npts)
-        caput('13XRM:map:nrow', 0)
+        caput('%snpts' % (mappref), npts)
+        caput('%snrow' % (mappref), 0)
         axis = None
         for ax, pvname in self.slewscan_config['motors'].items():
             if pvname == pospv:
@@ -195,7 +196,7 @@ class Slew_Scan(StepScan):
                         'start2 = %.4f' % start,
                         'stop2 = %.4f' % stop,
                         'step2 = %.4f' % step])
-            caput('13XRM:map:maxrow', npts)
+            caput('%smaxrow' % (mappref), npts)
 
         xrd_det = None
         xrf_det = None
@@ -351,16 +352,17 @@ class Slew_Scan(StepScan):
         self.clear_interrupts()
         self.set_info('scan_progress', 'starting')
         self.scandb.set_filename(self.filename)
+        mappref = self.scandb.get_info('epics_map_prefix')
 
         start_time = time.time()
         irow = 0
-        caput('13XRM:map:status', 'Collecting')
+        caput('%status' % (mappref), 'Collecting')
         dtimer =  debugtime()
         while irow < npts:
             irow += 1
             dtimer.add('=== row start %i ====' % irow)
             self.set_info('scan_progress', 'row %i of %i' % (irow, npts))
-            caput('13XRM:map:nrow', irow)
+            caput('%snrow' % (mappref), irow)
             trajname = ['foreward', 'backward'][(dir_off + irow) % 2]
             # print('row %i of %i, %s %s' % (irow, npts, trajname, self.larch is None))
             if self.larch is not None and irow > 1 and irow % 10 == 0:
@@ -428,7 +430,7 @@ class Slew_Scan(StepScan):
             scan_thread.join()
             dtimer.add('scan thread joined')
             if self.look_for_interrupts():
-                caput('13XRM:map:status', 'Aborting')
+                caput('%sstatus' % (mappref), 'Aborting')
                 break
             # dtimer.add("stopping detectors after delay")
             for det in self.detectors:
@@ -513,13 +515,13 @@ class Slew_Scan(StepScan):
                 irow -= 1
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
             if self.look_for_interrupts():
-                caput('13XRM:map:status', 'Aborting')
+                caput('%sstatus' % (mappref), 'Aborting')
                 break
             if debug:
                 dtimer.show()
-        caput('13XRM:map:status', 'Finishing')
+        caput('%sstatus' % (mappref), 'Finishing')
         self.post_scan()
-        caput('13XRM:map:status', 'IDLE')
+        caput('%sstatus' % (mappref), 'IDLE')
         print('Scan done.')
         return
 
