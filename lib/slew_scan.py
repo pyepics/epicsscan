@@ -365,11 +365,16 @@ class Slew_Scan(StepScan):
             caput('%snrow' % (mappref), irow)
             trajname = ['foreward', 'backward'][(dir_off + irow) % 2]
             # print('row %i of %i, %s %s' % (irow, npts, trajname, self.larch is None))
-            if self.larch is not None and irow > 1 and irow % 10 == 0:
-                try:
-                    self.larch.run("pre_scan_command(row=%i, npts=%i)" % (irow, npts))
-                except:
-                    print("Failed to run pre_scan_command(row=%i)" % irow)
+            if self.larch is not None:
+                now = time.time()
+                prescan_lasttime = float(self.get_info('map_prescan_lasttime'))
+                pressan_interval = float(self.get_info('map_prescan_interval'))
+                if now > prescan_lasttime + prescan_interval:
+                    try:
+                        self.larch.run("pre_scan_command(row=%i, npts=%i)" % (irow, npts))
+                    except:
+                        print("Failed to run pre_scan_command(row=%i)" % irow)
+                    self.set_info('map_prescan_lasttime', "%i" % int(now))
 
             for pv, v1, v2 in self.motor_vals.values():
                 val = v1
