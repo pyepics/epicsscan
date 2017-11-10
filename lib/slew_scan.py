@@ -356,7 +356,7 @@ class Slew_Scan(StepScan):
 
         start_time = time.time()
         irow = 0
-        caput('%status' % (mappref), 'Collecting')
+        caput('%sstatus' % (mappref), 'Collecting')
         dtimer =  debugtime()
         while irow < npts:
             irow += 1
@@ -367,8 +367,8 @@ class Slew_Scan(StepScan):
             # print('row %i of %i, %s %s' % (irow, npts, trajname, self.larch is None))
             if self.larch is not None:
                 now = time.time()
-                prescan_lasttime = float(self.get_info('map_prescan_lasttime'))
-                pressan_interval = float(self.get_info('map_prescan_interval'))
+                prescan_lasttime = float(self.scandb.get_info('map_prescan_lasttime'))
+                prescan_interval = float(self.scandb.get_info('map_prescan_interval'))
                 if now > prescan_lasttime + prescan_interval:
                     try:
                         self.larch.run("pre_scan_command(row=%i, npts=%i)" % (irow, npts))
