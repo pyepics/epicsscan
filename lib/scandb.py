@@ -29,11 +29,11 @@ from sqlalchemy.dialects import sqlite, postgresql
 import epics
 
 from .scandb_schema import get_dbengine, create_scandb, map_scandb
-from .scandb_schema import (Info, Status, PVs, MonitorValues, ExtraPVs,
+from .scandb_schema import (Info, Status, PV, MonitorValues, ExtraPVs,
                            Macros, Commands, ScanData, ScanPositioners,
                            ScanCounters, ScanDetectors, ScanDefs,
-                           SlewScanPositioners, Positions, Position_PV,
-                           Instruments, Instrument_PV,
+                           SlewScanPositioners, Position, Position_PV,
+                           Instrument, Instrument_PV,
                            Instrument_Precommands, Instrument_Postcommands)
 
 
@@ -99,7 +99,7 @@ def save_sqlite(filename, dbname=None, server='postgresql', **kws):
 
     tablenames = ('info', 'config', 'slewscanpositioners', 'scanpositioners',
                   'scancounters', 'scandetectors', 'scandefs', 'extrapvs',
-                  'macros', 'pvs', 'instruments', 'positions', 'instrument_pv',
+                  'macros', 'pv', 'instrument', 'position', 'instrument_pv',
                   'position_pv', 'commands')
 
     rows, cols = {}, {}
@@ -208,7 +208,7 @@ class ScanDB(object):
             #except:
             #   return False
 
-        _tables = ('info', 'status', 'commands', 'pvs', 'scandefs')
+        _tables = ('info', 'status', 'commands', 'pv', 'scandefs')
         engine = get_dbengine(dbname, server=server, create=False,
                               user=user, password=password,
                               host=host, port=port)
@@ -774,7 +774,7 @@ class ScanDB(object):
         if len(name) < 2:
             return
         name = pv_fullname(name)
-        cls, table = self.get_table('pvs')
+        cls, table = self.get_table('pv')
         vals  = self.query(table).filter(table.c.name == name).all()
         ismon = {False:0, True:1}[monitor]
         if len(vals) < 1:
@@ -791,7 +791,7 @@ class ScanDB(object):
         """return db row for a PV"""
         if len(name) < 2:
             return
-        cls, table = self.get_table('pvs')
+        cls, table = self.get_table('pv')
         out = table.select().where(table.c.name == name).execute().fetchall()
         return None_or_one(out, 'get_pvrow expected 1 or None PV')
 
@@ -805,7 +805,7 @@ class ScanDB(object):
     def connect_pvs(self, names=None):
         "connect all PVs in pvs table"
         if names is None:
-            cls, table = self.get_table('pvs')
+            cls, table = self.get_table('pv')
             names = [str(row.name) for row in self.query(table).all()]
 
         _connect = []
@@ -999,7 +999,7 @@ class ScanDB(object):
                       (time.time() - t0) < timeout)
 
 class InstrumentDB(object):
-    """Instruments/Positions class using a scandb instance"""
+    """Instrument / Position class using a scandb instance"""
 
     def __init__(self, scandb):
         self.scandb = scandb
@@ -1021,8 +1021,7 @@ class InstrumentDB(object):
 
 
     ### Instrument Functions
-    def add_instrument(self, name, pvs=None, notes=None,
-                       attributes=None, **kws):
+    def add_instrument(self, name, pvs=None, notes=None, attributes=None, **kws):
         """add instrument
         notes and attributes optional
         returns Instruments instance"""
@@ -1031,7 +1030,7 @@ class InstrumentDB(object):
         name = name.strip()
         inst = self.get_instrument(name)
         if inst is None:
-            out = self.__addRow(Instruments, ('name',), (name,), **kws)
+            out = self.__addRow(Instrument, ('name',), (name,), **kws)
             inst = self.get_instrument(name)
         cls, jointable = self.scandb.get_table('instrument_pv')
         if pvs is not None:
@@ -1042,8 +1041,8 @@ class InstrumentDB(object):
                     thispv = self.scandb.add_pv(pvname)
                 pvlist.append(thispv)
             for dorder, pv in enumerate(pvlist):
-                data = {'display_order': dorder, 'pvs_id': pv.id,
-                        'instruments_id': inst.id}
+                data = {'display_order': dorder, 'pv_id': pv.id,
+                        'instrument_id': inst.id}
                 jointable.insert().execute(**data)
 
         self.scandb.session.add(inst)
@@ -1053,15 +1052,15 @@ class InstrumentDB(object):
     def get_all_instruments(self):
         """return instrument list
         """
-        cls, table = self.scandb.get_table('instruments')
+        cls, table = self.scandb.get_table('instrument')
         return self.scandb.query(cls).order_by(cls.display_order).all()
 
     def get_instrument(self, name):
         """return instrument by name
         """
-        if isinstance(name, Instruments):
+        if isinstance(name, Instrument):
             return name
-        cls, table = self.scandb.get_table('instruments')
+        cls, table = self.scandb.get_table('instrument')
         out = self.scandb.query(cls).filter(cls.name==name).all()
         return None_or_one(out, 'get_instrument expected 1 or None Instruments')
 
@@ -1077,10 +1076,10 @@ class InstrumentDB(object):
                                         (posname, inst.name))
 
         cls, tab = self.scandb.get_table('position_pv')
-        self.scandb.conn.execute(tab.delete().where(tab.c.positions_id==pos.id))
-        self.scandb.conn.execute(tab.delete().where(tab.c.positions_id==None))
+        self.scandb.conn.execute(tab.delete().where(tab.c.position_id==pos.id))
+        self.scandb.conn.execute(tab.delete().where(tab.c.position_id==None))
 
-        cls, ptab = self.scandb.get_table('positions')
+        cls, ptab = self.scandb.get_table('position')
         self.scandb.conn.execute(ptab.delete().where(ptab.c.id==pos.id))
         self.scandb.commit()
 
@@ -1093,7 +1092,7 @@ class InstrumentDB(object):
         if inst is None:
             raise ScanDBException('Save Postion needs valid instrument')
 
-        tab = self.scandb.tables['instruments']
+        tab = self.scandb.tables['instrument']
         self.scandb.conn.execute(tab.delete().where(tab.c.id==inst.id))
 
         for tablename in ('position', 'instrument_pv', 'instrument_precommand',
@@ -1110,15 +1109,15 @@ class InstrumentDB(object):
 
         posname = posname.strip()
         pos  = self.get_position(instname, posname)
-        pos_cls, pos_table = self.scandb.get_table('positions')
+        pos_cls, pos_table = self.scandb.get_table('position')
         _, ppos_tab = self.scandb.get_table('position_pv')
-        _, pvs_tab  = self.scandb.get_table('pvs')
+        _, pvs_tab  = self.scandb.get_table('pv')
         _, ipv_tab  = self.scandb.get_table('instrument_pv')
 
         if pos is None:
             pos = pos_cls()
             pos.name = posname
-            pos.instruments_id = inst.id
+            pos.instrument_id = inst.id
 
         pos.modify_time = datetime.now()
         if image is not None:
@@ -1130,8 +1129,8 @@ class InstrumentDB(object):
         ## print("  Position: ", pos, pos.id)
 
         pvnames = []
-        for pvs in ipv_tab.select().where(ipv_tab.c.instruments_id==inst.id).execute().fetchall():
-            name = pvs_tab.select().where(pvs_tab.c.id==pvs.pvs_id).execute().fetchone().name
+        for pvs in ipv_tab.select().where(ipv_tab.c.instrument_id==inst.id).execute().fetchall():
+            name = pvs_tab.select().where(pvs_tab.c.id==pvs.pv_id).execute().fetchone().name
             pvnames.append(str(name))
 
         ## print("@ Save Position: ", posname, pvnames, values)
@@ -1146,14 +1145,14 @@ class InstrumentDB(object):
                                         missing_pvs)
 
         doexec = self.scandb.conn.execute
-        doexec(ppos_tab.delete().where(ppos_tab.c.positions_id == None))
-        doexec(ppos_tab.delete().where(ppos_tab.c.positions_id == pos.id))
+        doexec(ppos_tab.delete().where(ppos_tab.c.position_id == None))
+        doexec(ppos_tab.delete().where(ppos_tab.c.position_id == pos.id))
 
         pos_pvs = []
         for name in pvnames:
             thispv = self.scandb.get_pvrow(name)
             ppos_tab.insert().execute(pvs_id=thispv.id,
-                                      positions_id = pos.id,
+                                      position_id = pos.id,
                                       notes= "'%s' / '%s'" % (inst.name, posname),
                                       value = float(values[name]))
             ## print ( "   ", thispv, thispv.id, pos.id, float(values[name]))
@@ -1188,9 +1187,8 @@ class InstrumentDB(object):
         """return position from namea and instrument
         """
         inst = self.get_instrument(instname)
-        cls, table = self.scandb.get_table('positions')
-        filter = and_(cls.name==posname,
-                      cls.instruments_id==inst.id)
+        cls, table = self.scandb.get_table('position')
+        filter = and_(cls.name==posname, cls.instrument_id==inst.id)
         out = self.scandb.query(cls).filter(filter).all()
         return None_or_one(out, 'get_position expected 1 or None Position')
 
@@ -1199,20 +1197,20 @@ class InstrumentDB(object):
         pos = self.get_position(instname, posname)
         pv_vals = {}
         _c, ppos_tab = self.scandb.get_table('position_pv')
-        _c, pv_tab   = self.scandb.get_table('pvs')
+        _c, pv_tab   = self.scandb.get_table('pv')
         pvnames = dict([(pv.id, str(pv.name)) for pv in pv_tab.select().execute().fetchall()])
 
-        for pvval in ppos_tab.select().where(ppos_tab.c.positions_id == pos.id).execute().fetchall():
-            pv_vals[ pvnames[pvval.pvs_id]]= float(pvval.value)
+        for pvval in ppos_tab.select().where(ppos_tab.c.position_id == pos.id).execute().fetchall():
+            pv_vals[ pvnames[pvval.pv_id]]= float(pvval.value)
         return pv_vals
 
     def get_positionlist(self, instname):
         """return list of position names for an instrument
         """
         inst = self.get_instrument(instname)
-        cls, table = self.scandb.get_table('positions')
+        cls, table = self.scandb.get_table('position')
         q = self.scandb.query(cls)
-        q = q.filter(cls.instruments_id==inst.id)
+        q = q.filter(cls.instrument_id==inst.id)
         q = q.order_by(cls.modify_time)
         return [p.name for p in q.all()]
 
@@ -1237,12 +1235,12 @@ class InstrumentDB(object):
 
         pv_vals = []
         ppos_cls, ppos_tab = self.scandb.get_table('position_pv')
-        pv_cls, pv_tab     = self.scandb.get_table('pvs')
+        pv_cls, pv_tab     = self.scandb.get_table('pv')
         pvnames = dict([(pv.id, str(pv.name)) for pv in pv_tab.select().execute().fetchall()])
 
         pv_vals = []
-        for pvval in ppos_tab.select().where(ppos_tab.c.positions_id == pos.id).execute().fetchall():
-            pvname = pvnames[pvval.pvs_id]
+        for pvval in ppos_tab.select().where(ppos_tab.c.position_id == pos.id).execute().fetchall():
+            pvname = pvnames[pvval.pv_id]
             if pvname not in exclude_pvs:
                 pv_vals.append((epics.get_pv(pvname), float(pvval.value)))
 
