@@ -83,11 +83,12 @@ class AD_PerkinElmer(AreaDetector):
         time.sleep(offtime/3.0)
         while self.cam.PEAcquireOffset > 0 and time.time()-t0 < timeout+offtime:
             time.sleep(0.1)
-        time.sleep(1.00)
+        ##
+        time.sleep(1.50)
         self.cam.ImageMode = image_mode_save
         self.cam.TriggerMode = trigger_mode_save
-        time.sleep(1.00)
+        time.sleep(1.50)
         if open_shutter:
             self.open_shutter()
         self.cam.ShutterMode = 0
-        time.sleep(1.50)
+        time.sleep(3.00)
