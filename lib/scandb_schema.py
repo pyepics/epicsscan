@@ -13,7 +13,7 @@ import logging
 
 from sqlalchemy import (MetaData, and_, create_engine, text, func,
                         Table, Column, ColumnDefault, ForeignKey,
-                        Integer, Float, String, Text, DateTime, 
+                        Integer, Float, String, Text, DateTime,
                         UniqueConstraint)
 
 from sqlalchemy.orm import sessionmaker, mapper, relationship
@@ -163,11 +163,11 @@ class ScanDefs(_BaseTable):
     "scandefs table"
     name, notes, text, type, modify_time, last_used_time = [None]*6
 
-class PVs(_BaseTable):
+class PV(_BaseTable):
     "pv table"
     name, notes, is_monitor = None, None, None
 
-class PVTypes(_BaseTable):
+class PVType(_BaseTable):
     "pvtype table"
     name, notes = None, None
 
@@ -194,13 +194,13 @@ class Commands(_BaseTable):
 class ScanData(_BaseTable):
     notes, pvname, data, units, breakpoints, modify_time = [None]*6
 
-class Instruments(_BaseTable):
+class Instrument(_BaseTable):
     "instrument table"
     name, notes = None, None
 
-class Positions(_BaseTable):
+class Position(_BaseTable):
     "position table"
-    pvs, date, name, notes, image = None, None, None, None, None
+    pv, date, name, notes, image = None, None, None, None, None
     instrument, instrument_id = None, None
 
 class Position_PV(_BaseTable):
@@ -208,7 +208,7 @@ class Position_PV(_BaseTable):
     name, notes, pv, value = None, None, None, None
     def __repr__(self):
         name = self.__class__.__name__
-        fields = ['%s=%s' % (getattr(self, 'pvs_id', '?'),
+        fields = ['%s=%s' % (getattr(self, 'pv_id', '?'),
                              getattr(self, 'value', '?'))]
         return "<%s(%s)>" % (name, ', '.join(fields))
 
@@ -302,14 +302,14 @@ def create_scandb(dbname, server='sqlite', create=True, **kws):
                             StrCol('output_value'),
                             StrCol('output_file')])
 
-    pvtypes = NamedTable('pvtypes', metadata)
-    pv      = NamedTable('pvs', metadata,
-                         cols=[PointerCol('pvtypes'),
-                               IntCol('is_monitor', default=0)])
+    pvtype = NamedTable('pvtype', metadata)
+    pv     = NamedTable('pv', metadata,
+                        cols=[PointerCol('pvtype'),
+                              IntCol('is_monitor', default=0)])
 
     monvals = Table('monitorvalues', metadata,
                     IntCol('id', primary_key=True),
-                    PointerCol('pvs'),
+                    PointerCol('pv'),
                     StrCol('value'),
                     Column('modify_time', DateTime))
 
@@ -320,39 +320,39 @@ def create_scandb(dbname, server='sqlite', create=True, **kws):
                                  StrCol('breakpoints', default=''),
                                  Column('modify_time', DateTime)])
 
-    instrument = NamedTable('instruments', metadata, name_unique=True,
+    instrument = NamedTable('instrument', metadata, name_unique=True,
                             cols=[IntCol('show', default=1),
                                   IntCol('display_order', default=0)])
 
-    position  = NamedTable('positions', metadata, name_unique=False,
+    position  = NamedTable('position', metadata, name_unique=False,
                            cols=[Column('modify_time', DateTime),
                                  StrCol('image'),
-                                 PointerCol('instruments'),
-                                 UniqueConstraint('name', 'instruments_id', name='pos_inst_name')])
+                                 PointerCol('instrument'),
+                                 UniqueConstraint('name', 'instrument_id', name='pos_inst_name')])
 
 
     instrument_precommand = NamedTable('instrument_precommands', metadata,
                                        cols=[IntCol('exec_order'),
                                              PointerCol('commands'),
-                                             PointerCol('instruments')])
+                                             PointerCol('instrument')])
 
     instrument_postcommand = NamedTable('instrument_postcommands', metadata,
                                         cols=[IntCol('exec_order'),
                                               PointerCol('commands'),
-                                              PointerCol('instruments')])
+                                              PointerCol('instrument')])
 
     instrument_pv = Table('instrument_pv', metadata,
                           IntCol('id', primary_key=True),
-                          PointerCol('instruments'),
-                          PointerCol('pvs'),
+                          PointerCol('instrument'),
+                          PointerCol('pv'),
                           IntCol('display_order', default=0))
 
 
     position_pv = Table('position_pv', metadata,
                         IntCol('id', primary_key=True),
                         StrCol('notes'),
-                        PointerCol('positions'),
-                        PointerCol('pvs'),
+                        PointerCol('position'),
+                        PointerCol('pv'),
                         StrCol('value'))
 
     metadata.create_all()
@@ -365,9 +365,9 @@ def create_scandb(dbname, server='sqlite', create=True, **kws):
         status.insert().execute(name=name)
 
     for name, notes in PV_TYPES:
-        pvtypes.insert().execute(name=name, notes=notes)
+        pvtype.insert().execute(name=name, notes=notes)
 
-    for keyname, value in (("version", "1.0"),
+    for keyname, value in (("version", "2.0"),
                            ("user_name", ""),
                            ("experiment_id",  ""),
                            ("user_folder",    ""),
@@ -392,10 +392,10 @@ def map_scandb(metadata):
     classes = {}
     map_props = {}
     keyattrs = {}
-    for cls in (Info, Messages, Config, Status, PVs, PVTypes, MonitorValues,
+    for cls in (Info, Messages, Config, Status, PV, PVType, MonitorValues,
                 Macros, ExtraPVs, Commands, ScanData, ScanPositioners,
                 ScanCounters, ScanDetectors, ScanDefs, SlewScanPositioners,
-                Positions, Position_PV, Instruments, Instrument_PV,
+                Position, Position_PV, Instrument, Instrument_PV,
                 Instrument_Precommands, Instrument_Postcommands):
 
         name = cls.__name__.lower()
@@ -405,28 +405,28 @@ def map_scandb(metadata):
         elif name == 'scandata':
             props = {'commands': relationship(Commands)}
         elif name == 'monitorvalues':
-            props = {'pv': relationship(PVs)}
-        elif name == 'pvtypes':
-            props = {'pv': relationship(PVs, backref='pvtypes')}
-        elif name == 'instruments':
-            props = {'pvs': relationship(PVs,
-                                         backref='instruments',
+            props = {'pv': relationship(PV)}
+        elif name == 'pvtype':
+            props = {'pv': relationship(PV, backref='pvtype')}
+        elif name == 'instrument':
+            props = {'pv': relationship(PV,
+                                         backref='instrument',
                                          secondary=tables['instrument_pv'])}
-        elif name == 'positions':
-            props = {'instrument': relationship(Instruments,
-                                                backref='positions'),
-                     'pvs': relationship(Position_PV)}
+        elif name == 'position':
+            props = {'instrument': relationship(Instrument,
+                                                backref='position'),
+                     'pv': relationship(Position_PV)}
         elif name == 'instrument_pv':
-            props = {'pv': relationship(PVs),
-                     'instrument': relationship(Instruments)}
+            props = {'pv': relationship(PV),
+                     'instrument': relationship(Instrument)}
         elif name == 'position_pv':
-            props = {'pv': relationship(PVs)}
+            props = {'pv': relationship(PV)}
         elif name == 'instrument_precommands':
-            props = {'instrument': relationship(Instruments,
+            props = {'instrument': relationship(Instrument,
                                                 backref='precommands'),
                      'command': relationship(Commands)}
         elif name == 'instrument_postcommands':
-            props = {'instrument': relationship(Instruments,
+            props = {'instrument': relationship(Instrument,
                                                 backref='postcommands'),
                      'command': relationship(Commands)}
         mapper(cls, tables[name], properties=props)
@@ -445,7 +445,7 @@ def map_scandb(metadata):
     # note use of ColumnDefault to wrap onpudate/default func
     fnow = ColumnDefault(datetime.now)
 
-    for tname in ('info', 'messages', 'commands', 'positions','scandefs',
+    for tname in ('info', 'messages', 'commands', 'position','scandefs',
                   'scandata', 'monitorvalues', 'commands'):
         tables[tname].columns['modify_time'].onupdate =  fnow
         tables[tname].columns['modify_time'].default =  fnow
