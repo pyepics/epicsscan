@@ -1151,11 +1151,16 @@ class InstrumentDB(object):
         pos_pvs = []
         for name in pvnames:
             thispv = self.scandb.get_pvrow(name)
-            ppos_tab.insert().execute(pvs_id=thispv.id,
+            val = values[name]
+            try:
+                val = float(val)
+            except ValueError:
+                pass
+            ppos_tab.insert().execute(pv_id=thispv.id,
                                       position_id = pos.id,
                                       notes= "'%s' / '%s'" % (inst.name, posname),
-                                      value = float(values[name]))
-            ## print ( "   ", thispv, thispv.id, pos.id, float(values[name]))
+                                      value = val)
+            # print ( "  ... ", thispv.id, pos.id, val)
         self.scandb.commit()
 
 
