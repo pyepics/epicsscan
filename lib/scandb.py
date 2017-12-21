@@ -221,7 +221,7 @@ class ScanDB(object):
 
         allfound = False
         if all([t in meta.tables for t in _tables]):
-            keys = [row.keyname for row in
+            keys = [row.key for row in
                     meta.tables['info'].select().execute().fetchall()]
             allfound = 'version' in keys and 'experiment_id' in keys
         if allfound:
@@ -343,11 +343,11 @@ class ScanDB(object):
         if key is None:
             return self.query(table).all()
 
-        vals = self.query(cls).filter(cls.keyname==key).all()
+        vals = self.query(cls).filter(cls.key==key).all()
         thisrow = None_or_one(vals, errmsg % key)
         if thisrow is None:
             out = default
-            data = {'keyname': key, 'value': default}
+            data = {'key': key, 'value': default}
             table.insert().execute(**data)
         else:
             out = thisrow.value
@@ -387,14 +387,14 @@ class ScanDB(object):
     def set_info(self, key, value, notes=None):
         """set key / value in the info table"""
         cls, table = self.get_table('info')
-        vals  = self.query(table).filter(cls.keyname==key).all()
-        data = {'keyname': key, 'value': value}
+        vals  = self.query(table).filter(cls.key==key).all()
+        data = {'key': key, 'value': value}
         if notes is not None:
             data['notes'] = notes
         if len(vals) < 1:
             table = table.insert()
         else:
-            table = table.update(whereclause="keyname='%s'" % key)
+            table = table.update(whereclause="key='%s'" % key)
         table.execute(**data)
         self.commit()
 
@@ -403,7 +403,7 @@ class ScanDB(object):
         can leave a DB completely broken and unusable
         useful when going to repopulate db anyway"""
         cls, table = self.get_table('info')
-        self.session.execute(table.delete().where(table.c.keyname!=''))
+        self.session.execute(table.delete().where(table.c.key!=''))
 
     def set_hostpid(self, clear=False):
         """set hostname and process ID, as on intial set up"""

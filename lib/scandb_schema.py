@@ -121,11 +121,11 @@ class _BaseTable(object):
 
 class Info(_BaseTable):
     "general information table (versions, etc)"
-    keyname, value, notes, modify_time = [None]*4
+    key, value, notes, modify_time = [None]*4
 
     def __repr__(self):
         name = self.__class__.__name__
-        return "<%s(%s='%s')>" % (name, self.keyname, str(self.value))
+        return "<%s(%s='%s')>" % (name, self.key, str(self.value))
 
 class Messages(_BaseTable):
     "messages table"
@@ -248,7 +248,7 @@ def create_scandb(dbname, server='sqlite', create=True, **kws):
     engine  = get_dbengine(dbname, server=server, create=create, **kws)
     metadata =  MetaData(engine)
     info = Table('info', metadata,
-                 Column('keyname', Text, primary_key=True, unique=True),
+                 Column('key', Text, primary_key=True, unique=True),
                  StrCol('notes'),
                  StrCol('value'),
                  Column('modify_time', DateTime, default=datetime.now),
@@ -367,16 +367,16 @@ def create_scandb(dbname, server='sqlite', create=True, **kws):
     for name, notes in PV_TYPES:
         pvtype.insert().execute(name=name, notes=notes)
 
-    for keyname, value in (("version", "2.0"),
-                           ("user_name", ""),
-                           ("experiment_id",  ""),
-                           ("user_folder",    ""),
-                           ("request_abort", "0"),
-                           ("request_pause", "0"),
-                           ("request_resume", "0"),
-                           ("request_killall", "0"),
-                           ("request_shutdown", "0") ):
-        info.insert().execute(keyname=keyname, value=value)
+    for key, value in (("version", "2.0"),
+                       ("user_name", ""),
+                       ("experiment_id",  ""),
+                       ("user_folder",    ""),
+                       ("request_abort", "0"),
+                       ("request_pause", "0"),
+                       ("request_resume", "0"),
+                       ("request_killall", "0"),
+                       ("request_shutdown", "0") ):
+        info.insert().execute(key=key, value=value)
     session.commit()
     return engine, metadata
 
@@ -434,7 +434,7 @@ def map_scandb(metadata):
         map_props[name] = props
         keyattrs[name] = 'name'
 
-    keyattrs['info'] = 'keyname'
+    keyattrs['info'] = 'key'
     keyattrs['commands'] = 'command'
     keyattrs['position_pv'] = 'id'
     keyattrs['instrument_pv'] = 'id'
