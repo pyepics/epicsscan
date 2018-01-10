@@ -1247,7 +1247,12 @@ class InstrumentDB(object):
         for pvval in ppos_tab.select().where(ppos_tab.c.position_id == pos.id).execute().fetchall():
             pvname = pvnames[pvval.pv_id]
             if pvname not in exclude_pvs:
-                pv_vals.append((epics.get_pv(pvname), float(pvval.value)))
+                val = pvval.value
+                try:
+                    val = float(pvval.value)
+                except ValueError:
+                    pass
+                pv_vals.append((epics.get_pv(pvname), val))
 
         epics.ca.poll()
         # put values without waiting
