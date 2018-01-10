@@ -300,6 +300,7 @@ class QXAFS_Scan(XAFS_Scan):
         """this method builds the text of a Trajectory script for
         a Newport XPS Controller based on the energies and dwelltimes"""
 
+
         if self.config is None:
             self.connect_qxafs()
 
@@ -312,19 +313,21 @@ class QXAFS_Scan(XAFS_Scan):
         th_off = caget(qconf['theta_motor'] + '.OFF')
         wd_off = caget(qconf['width_motor'] + '.OFF')
 
-        en0 = (3*self.energies[0]  - self.energies[1])/2.
-        enx = (3*self.energies[-1] - self.energies[-2])/2.
-        energy = [en0]
-        energy.extend(list(self.energies))
-        energy.append(enx)
+        # want energy trajectory points to be at or near
+        # midpoints of desired energy values
+        enx = [2*self.energies[0]  - self.energies[1]]
+        enx.extend(list(self.energies))
+        enx.append(2*self.energies[-1]  - self.energies[-2])
+        enx = np.array(enx)
+        energy = (enx[1:] + enx[:-1])/2.0
 
-        energy = np.array(energy)
         times  = np.array(len(energy)*[self.dwelltime[0]])
 
         if reverse:
             energy = energy[::-1]
             times  = times[::-1]
 
+        # print("QXAFS Traj: energy = ", energy)
         traw    = energy2angle(energy, dspace=dspace)
         theta  = 1.0*traw
         theta[1:-1] = traw[1:-1]/2.0 + traw[:-2]/4.0 + traw[2:]/4.0
@@ -426,8 +429,9 @@ class QXAFS_Scan(XAFS_Scan):
         self.connect_qxafs()
         qconf = self.config
 
-
         traj = self.make_trajectory()
+
+
         energy_orig = caget(qconf['energy_pv'])
         id_offset = 1000.0*caget(qconf['id_offset_pv'])
         idarray = 1.e-3*(1.0+id_offset/energy_orig)*traj['energy']
