@@ -255,9 +255,7 @@ class ScanFrame(wx.Frame):
 
     @EpicsFunction
     def connect_epics(self):
-        pvs = self.scandb.getall('pvs')
-
-        for pv in self.scandb.getall('pvs'):
+        for pv in self.scandb.getall('pv'):
             name = normalize_pvname(pv.name)
             if len(name)>0:
                 self.pvlist[name] = epics.PV(name)
