@@ -49,7 +49,7 @@ class QXAFS_ScanWatcher(object):
         self.idbusy_pv = PV(self.config['id_busy_pv'])
         pvroot = self.config['id_busy_pv'].replace('Busy', '')
 
-        self.idstop_pv   = PV("%sSTOP" % pvroot)
+        self.idstop_pv   = PV("%sStop" % pvroot)
         self.idgapsym_pv = PV('%sGapSymmetry' % pvroot)
         self.idtaper_pv  = PV('%sTaperEnergy' % pvroot)
         self.idtaperset_pv  = PV('%sTaperEnergySet' % pvroot)
@@ -122,31 +122,33 @@ class QXAFS_ScanWatcher(object):
             taper  = self.idtaper_pv.get()
             if abs(gapsym) > 0.050 or abs(taper) > 0.050:
                 self.idtaperset_pv.put(0, wait=True)
-                time.sleep(1.00)
+                time.sleep(0.250)
                 val = self.idarray[last_pulse + self.id_lookahead]
                 self.iddrive_pv.put(val, wait=True)
-                time.sleep(1.0)
+                time.sleep(0.250)
 
             if self.pulse > last_pulse:
                 self.pulsecount_pv.put("%i" % self.pulse)
                 self.set_info('scan_current_point', self.pulse)
                 self.heartbeat_pv.put("%i" % int(time.time()))
-                if self.verbose and self.pulse % 5 == 0:
+                if self.verbose and self.pulse % 10 == 0:
                     print("QXAFS Monitor " , self.pulse, len(self.counters))
+
+                # if the ID has been moving for more than 0.75 sec, stop it
+                if ((self.pulse > 2) and
+                    (self.idbusy_pv.get() == 1) and
+                    (now >  self.last_move_time + 0.75)):
+                    self.idstop_pv.put(1)
+                    time.sleep(0.1)
 
                 val = self.idarray[self.pulse + self.id_lookahead]
 
                 if ((self.idbusy_pv.get() == 0) and
-                    ((now- self.last_move_time) > self.dead_time) and
+                    (now > self.last_move_time + self.dead_time) and
                     (val > MIN_ID_ENERGY) and (val < MAX_ID_ENERGY)):
-
                     self.iddrive_pv.put(val)
-                    time.sleep(0.25)
+                    time.sleep(0.1)
                     self.last_move_time = time.time()
-
-                if self.idbusy_pv.get() == 1:
-                    self.idstop_pv.put(1)
-                    time.sleep(0.25)
 
                 last_pulse = self.pulse
                 cpt = int(self.pulse)
@@ -158,6 +160,7 @@ class QXAFS_ScanWatcher(object):
                     self.scandb.set_info('scan_progress',  msg)
                     self.scandb.set_info('heartbeat', tstamp())
                     msg_counter += 1
+                # print("-> publish scan data ", last_pulse, len(self.counters))
                 for name, pv in self.counters:
                     try:
                         value = pv.get()
@@ -170,7 +173,7 @@ class QXAFS_ScanWatcher(object):
                 self.scandb.commit()
         self.pulsecount_pv.put("%i" % self.pulse)
         self.set_info('scan_current_point', self.pulse)
-        print("Monitor QXAFS done")
+        # print("Monitor QXAFS done")
         last_pulse = self.pulse = 0
         self.qxafs_finish()
 
