@@ -378,6 +378,12 @@ class ScanDB(object):
         """get configuration, general purpose table"""
         return self.getrow('config', name, one_or_none=True)
 
+    def get_config_id(self, idnum):
+        """get configuration by ID"""
+        cls, table = self.get_table('config')
+        return self.query(table).filter(cls.id==idnum).one()
+
+
     def set_message(self, text):
         """add message to messages table"""
         cls, table = self.get_table('messages')
