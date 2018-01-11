@@ -599,7 +599,7 @@ class StepScan(object):
             self.scandb.set_filename(self.filename)
 
         self.dtimer.add('PRE: wrote data 0')
-        self.set_info('scan_progress', 'starting scan')
+        # self.set_info('scan_progress', 'starting scan')
 
         self.publish_thread = ScanPublisher(func=self.publish_data,
                                             scan=self, npts=npts, cpt=0)
