@@ -370,7 +370,6 @@ class ScanFrame(wx.Frame):
         try:
             prog =self.scandb.get_info('scan_progress')
             self.statusbar.SetStatusText(prog, 0)
-            print("Scan Timer set progress: ", prog)
         except:
             print("no scan info scan_progress")
             pass
