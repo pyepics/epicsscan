@@ -321,10 +321,11 @@ class ScanFrame(wx.Frame):
         fname  = scan.get('filename', 'scan.001')
         nscans = int(scan.get('nscans', 1))
         comments = scan.get('comments', '')
-
+        self.scandb.set_info('scan_progress', 'preparing scan')
         self.scandb.set_info('request_abort', 0)
         self.scandb.set_info('request_pause', 0)
         self.scandb.set_info('nscans', nscans)
+
 
         fmt = "do_%s('%s', filename='%s', nscans=%i, comments='''%s''')"
 
@@ -369,6 +370,7 @@ class ScanFrame(wx.Frame):
         try:
             prog =self.scandb.get_info('scan_progress')
             self.statusbar.SetStatusText(prog, 0)
+            print("Scan Timer set progress: ", prog)
         except:
             print("no scan info scan_progress")
             pass
