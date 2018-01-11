@@ -69,13 +69,14 @@ class Slew_Scan(StepScan):
             pvs['finey'].put(0, wait=True)
             time.sleep(0.1)
 
-        conf = self.scandb.get_config(self.scantype)
-        conf = self.slewscan_config = json.loads(conf.notes)
-        self.xps = NewportXPS(conf['host'],
-                              username=conf['username'],
-                              password=conf['password'],
-                              group=conf['group'],
-                              outputs=conf['outputs'])
+        inner_pos = self.scandb.get_slewpositioner(self.inner[0])
+        conf = self.scandb.get_config_id(inner_pos.config_id)
+        scnf = self.slewscan_config = json.loads(conf.notes)
+        self.xps = NewportXPS(scnf['host'],
+                              username=scnf['username'],
+                              password=scnf['password'],
+                              group=scnf['group'],
+                              outputs=scnf['outputs'])
 
         currscan = 'CurrentScan.ini'
         fileroot = self.scandb.get_info('server_fileroot')
@@ -124,7 +125,6 @@ class Slew_Scan(StepScan):
                'basedir = %s' % userdir,
                '[xps]']
 
-        scnf = json.loads(self.scandb.get_config('slew').notes)
         posnames = ', '.join(scnf['motors'].keys())
         txt.extend(['host = %s' % scnf['host'],
                     'user = %s' % scnf['username'],
