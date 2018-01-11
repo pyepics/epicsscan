@@ -313,13 +313,17 @@ class QXAFS_Scan(XAFS_Scan):
         th_off = caget(qconf['theta_motor'] + '.OFF')
         wd_off = caget(qconf['width_motor'] + '.OFF')
 
-        # want energy trajectory points to be at or near
+        # we want energy trajectory points to be at or near
         # midpoints of desired energy values
         enx = [2*self.energies[0]  - self.energies[1]]
         enx.extend(list(self.energies))
         enx.append(2*self.energies[-1]  - self.energies[-2])
         enx = np.array(enx)
         energy = (enx[1:] + enx[:-1])/2.0
+
+        # but now update self.energies to better reflect what will
+        # be the result of this trajectory:
+        self.energy_pos.array = (energy[1:] + energy[:-1])/2.0
 
         times  = np.array(len(energy)*[self.dwelltime[0]])
 
@@ -482,7 +486,6 @@ class QXAFS_Scan(XAFS_Scan):
         for det in self.detectors:
             det_prefixes.append(det.prefix)
             det.arm(mode='roi')
-
 
         ## need to use self.rois to re-load ROI arrays
         ## names like  MCA1ROI:N:TSTotal
