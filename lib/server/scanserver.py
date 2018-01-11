@@ -189,7 +189,7 @@ class ScanServer():
                     out = self.larch.run(larch_cmd)
                 except:
                     pass
-                status, msg = 'finished', 'scan complete (server)'
+                status, msg = 'finished', 'scan complete'
                 err = self.larch.get_error()
                 if len(err) > 0:
                     err = err[0]
