@@ -172,6 +172,7 @@ class ScanServer():
                 larch_cmd = command
             else:
                 larch_cmd = "%s(%s)" % (command, args)
+            self.scandb.set_info('scan_progress', 'running')
             self.scandb.set_info('error_message',   '')
             self.scandb.set_info('current_command', larch_cmd)
             self.scandb.set_info('current_command_id', req.id)
@@ -181,13 +182,14 @@ class ScanServer():
                 self.epicsdb.cmd_id = req.id
                 self.epicsdb.command = larch_cmd
 
+            msg = 'done'
             if HAS_LARCH:
                 try:
                     print("<%s>%s" % (tstamp(), larch_cmd))
                     out = self.larch.run(larch_cmd)
                 except:
                     pass
-                status, msg = 'finished', 'scan complete'
+                status, msg = 'finished', 'scan complete (server)'
                 err = self.larch.get_error()
                 if len(err) > 0:
                     err = err[0]
