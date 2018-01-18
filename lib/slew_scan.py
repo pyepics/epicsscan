@@ -81,13 +81,14 @@ class Slew_Scan(StepScan):
         currscan = 'CurrentScan.ini'
         fileroot = self.scandb.get_info('server_fileroot')
         userdir = self.scandb.get_info('user_folder')
-        mappref = self.scandb.get_info('epics_map_prefix')
         basedir = os.path.join(fileroot, userdir, 'Maps')
         if not os.path.exists(basedir):
             os.mkdir(basedir)
 
-        caput('%sbasedir' % (mappref), userdir)
-        caput('%sstatus'  % (mappref), 'Starting')
+        mappref = self.scandb.get_info('epics_map_prefix')
+        if mappref is not None:
+            caput('%sbasedir' % (mappref), userdir)
+            caput('%sstatus'  % (mappref), 'Starting')
         sname = os.path.join(basedir, currscan)
         oname = os.path.join(basedir, 'PreviousScan.ini')
         if not self.filename.endswith('.h5'):
@@ -112,7 +113,8 @@ class Slew_Scan(StepScan):
         fhx  = open(hfname, 'w')
         fhx.write("%s\n"% mapdir)
         fhx.close()
-        caput('%sfilename' % (mappref), self.filename)
+        if mappref is not None:
+            caput('%sfilename' % (mappref), self.filename)
 
         self.mapdir = mapdir
         self.fileroot = fileroot
@@ -158,8 +160,9 @@ class Slew_Scan(StepScan):
             start, stop = stop, start
         step = abs(start-stop)/(npts-1)
         self.rowtime = dtime = self.dwelltime*(npts-1)
-        caput('%snpts' % (mappref), npts)
-        caput('%snrow' % (mappref), 0)
+        if mappref is not None:
+            caput('%snpts' % (mappref), npts)
+            caput('%snrow' % (mappref), 0)
         axis = None
         for ax, pvname in self.slewscan_config['motors'].items():
             if pvname == pospv:
@@ -196,7 +199,8 @@ class Slew_Scan(StepScan):
                         'start2 = %.4f' % start,
                         'stop2 = %.4f' % stop,
                         'step2 = %.4f' % step])
-            caput('%smaxrow' % (mappref), npts)
+            if mappref is not None:
+                caput('%smaxrow' % (mappref), npts)
 
         xrd_det = None
         xrf_det = None
@@ -356,13 +360,15 @@ class Slew_Scan(StepScan):
 
         start_time = time.time()
         irow = 0
-        caput('%sstatus' % (mappref), 'Collecting')
+        if mappref is not None:
+            caput('%sstatus' % (mappref), 'Collecting')
         dtimer =  debugtime()
         while irow < npts:
             irow += 1
             dtimer.add('=== row start %i ====' % irow)
             self.set_info('scan_progress', 'row %i of %i' % (irow, npts))
-            caput('%snrow' % (mappref), irow)
+            if mappref is not None:
+                caput('%snrow' % (mappref), irow)
             trajname = ['foreward', 'backward'][(dir_off + irow) % 2]
             # print('row %i of %i, %s %s' % (irow, npts, trajname, self.larch is None))
             if self.larch is not None:
@@ -435,7 +441,8 @@ class Slew_Scan(StepScan):
             scan_thread.join()
             dtimer.add('scan thread joined')
             if self.look_for_interrupts():
-                caput('%sstatus' % (mappref), 'Aborting')
+                if mappref is not None:
+                    caput('%sstatus' % (mappref), 'Aborting')
                 break
             # dtimer.add("stopping detectors after delay")
             for det in self.detectors:
@@ -520,13 +527,16 @@ class Slew_Scan(StepScan):
                 irow -= 1
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
             if self.look_for_interrupts():
-                caput('%sstatus' % (mappref), 'Aborting')
+                if mappref is not None:
+                    caput('%sstatus' % (mappref), 'Aborting')
                 break
             if debug:
                 dtimer.show()
-        caput('%sstatus' % (mappref), 'Finishing')
+        if mappref is not None:
+            caput('%sstatus' % (mappref), 'Finishing')
         self.post_scan()
-        caput('%sstatus' % (mappref), 'IDLE')
+        if mappref is not None:
+            caput('%sstatus' % (mappref), 'IDLE')
         print('Scan done.')
         return
 
