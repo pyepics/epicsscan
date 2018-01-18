@@ -32,8 +32,6 @@ class Xspress3(Device, ADFileMixin):
     def __init__(self, prefix, nmcas=4, filesaver='HDF1:',
                  fileroot='/T/xas_user'):
         dt = debugtime()
-        if not prefix.endswith(':'):
-            prefix = "%s:" % prefix
         self.nmcas = nmcas
         attrs = []
         attrs.extend(['%s%s' % (filesaver, p) for p in self.pathattrs])
@@ -119,9 +117,6 @@ class Xspress3Counter(DeviceCounter):
     def __init__(self, prefix, outpvs=None, nmcas=4,
                  nrois=32, rois=None, nscas=1, use_unlabeled=False,
                  use_full=False, mode=None):
-
-        if not prefix.endswith(':'):
-            prefix = "%s:" % prefix
 
         # ROI #8 for DTFactor is a recent addition,
         # here we get ready to test if it is connected.
@@ -222,9 +217,6 @@ class Xspress3Detector(DetectorMixin):
                  rois=None, nrois=32, pixeltime=0.1, use_dtc=False,
                  use=True, use_unlabeled=False, use_full=False,
                  filesaver='HDF1:', fileroot='/T/xas_user', **kws):
-
-        if not prefix.endswith(':'):
-            prefix = "%s:" % prefix
 
         self.nmcas = nmcas = int(nmcas)
         self._chans = range(1, nmcas+1)

@@ -37,8 +37,7 @@ class TetrAMM(Device):
     _nonpvs = ('_prefix', '_pvs', '_delim', '_chans', '_mode', '_sis')
 
     def __init__(self, prefix, nchan=4, sis_prefix=None):
-        if not prefix.endswith(':'):
-            prefix = "%s:" % prefix
+
         self._mode = SCALER_MODE
         self.ROIMode = self.NDArrayMode
         self._chans = range(1, nchan+1)
@@ -355,8 +354,7 @@ class TetrAMMCounter(DeviceCounter):
     invalid_device_msg = 'TetrAMM epics device invalid'
     def __init__(self, prefix, outpvs=None, nchan=4,
                  use_calc=False, use_unlabeled=False):
-        if not prefix.endswith(':'):
-            prefix  += ':'
+
         DeviceCounter.__init__(self, prefix, outpvs=outpvs)
         fields = [('AveragingTime_RBV', 'CountTime')]
         extra_pvs = []
@@ -380,8 +378,7 @@ class TetrAMMDetector(DetectorMixin):
     trigger_suffix = 'Acquire'
     def __init__(self, prefix, nchan=4,
                  mode='scaler', rois=None, sis_prefix=None, **kws):
-        if not prefix.endswith(':'):
-            prefix = "%s:" % prefix
+
         DetectorMixin.__init__(self, prefix, **kws)
         nchan = int(nchan)
         self.tetramm  = TetrAMM(prefix, sis_prefix=sis_prefix)

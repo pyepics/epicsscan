@@ -31,8 +31,6 @@ class Struck(Device):
                'clockrate', 'scaler', 'mcas', 'ast_interp')
 
     def __init__(self, prefix, scaler=None, nchan=8, clockrate=50.0):
-        if not prefix.endswith(':'):
-            prefix = "%s:" % prefix
         self._nchan = nchan
         self.scaler = None
         self.clockrate = clockrate # clock rate in MHz

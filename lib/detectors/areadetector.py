@@ -199,8 +199,6 @@ class AD_Base(Device, ADFileMixin):
     _nonpvs  = ('_prefix', '_pvs', '_delim', 'filesaver', 'fileroot',
                  'pathattrs', '_nonpvs')
     def __init__(self, prefix, filesaver='TIFF1:', fileroot='T:/xas_user'):
-        if not prefix.endswith(':'):
-            prefix = "%s:" % prefix
 
         attrs = ['%s%s' % (filesaver, p) for p in AD_FILE_ATTRS]
         Device.__init__(self, prefix, delim='', mutable=False, attrs=attrs)
@@ -212,8 +210,6 @@ class AD_Camera(Device):
     """area Detecor camera"""
     _nonpvs  = ('_prefix', '_pvs', '_delim', '_nonpvs')
     def __init__(self, prefix, cam="cam1:"):
-        if not prefix.endswith(':'):
-            prefix = "%s:" % prefix
         Device.__init__(self, '%s%s' % (prefix, cam),
                         delim='', attrs=AD_CAM_ATTRS)
 
@@ -221,8 +217,6 @@ class AD_ROIStat(Device):
     """area Detecor ROI Statistics"""
     _nonpvs  = ('_prefix', '_pvs', '_delim', '_nonpvs')
     def __init__(self, prefix, roistat="ROIStat1:"):
-        if not prefix.endswith(':'):
-            prefix = "%s:" % prefix
         Device.__init__(self, '%s%s' % (prefix, roistat),
                         delim='', attrs=AD_ROISTAT_ATTRS)
 
@@ -248,10 +242,6 @@ class AreaDetector(DetectorMixin):
     def __init__(self, prefix, cam='cam1:', filesaver='TIFF1:',
                  roistat='ROIStat1:', fileroot='', label='ad', mode='scaler',
                  arm_delay=0.05, start_delay=0.05, **kws):
-
-
-        if not prefix.endswith(':'):
-            prefix = "%s:" % prefix
 
         self.dwelltime = None
         self.filesaver = filesaver

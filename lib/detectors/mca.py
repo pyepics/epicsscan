@@ -58,8 +58,7 @@ class MultiMcaCounter(DeviceCounter):
     def __init__(self, prefix, outpvs=None, nmcas=4, nrois=32,
                  rois=None, search_all=False, use_net=False,
                  use_unlabeled=False, use_full=False):
-        if not prefix.endswith(':'):
-            prefix = "%s:" % prefix
+
         nmcas, nrois = int(nmcas), int(nrois)
         DeviceCounter.__init__(self, prefix, rtype=None, outpvs=outpvs)
 
@@ -375,8 +374,7 @@ class MultiMcaDetector(DetectorMixin):
                  use_unlabeled=False, use_full=False, **kws):
         DetectorMixin.__init__(self, prefix, label=label)
         nmcas, nrois = int(nmcas), int(nrois)
-        if not prefix.endswith(':'):
-            prefix = "%s:" % prefix
+
         self.prefix = prefix
         self.dwelltime_pv = get_pv('%sPresetReal' % prefix)
         self.trigger = Trigger("%sEraseStart" % prefix)
