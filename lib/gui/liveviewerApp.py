@@ -165,7 +165,10 @@ class ScanViewerFrame(wx.Frame):
             dat = row.data
             if self.scandb_server == 'sqlite':
                 dat = json.loads(dat.replace('{', '[').replace('}', ']'))
-            setattr(self.lgroup, fix_varname(row.name), np.array(dat))
+            dat = np.array(dat)
+            if len(dat) > npts:
+                dat = dat[:npts]
+            setattr(self.lgroup, fix_varname(row.name), dat)
 
         if ((npts > 1 and npts != self.live_cpt)  or
             (time.time() - self.last_plot_update) > 15.0):
@@ -378,7 +381,8 @@ class ScanViewerFrame(wx.Frame):
             return
         self.larch.run("%s.arr_x = %s.%s" % (gname, gname, x))
         self.larch.run("%s.arr_y1 = %s"   % (gname, yexpr))
-
+        # print(" on Plot ", "%s.arr_y1 = %s"   % (gname, yexpr))
+        # print(" on Plot ", len(lgroup.arr_x), len(lgroup.arr_y1))
         try:
             npts = min(len(lgroup.arr_x), len(lgroup.arr_y1))
         except AttributeError:
