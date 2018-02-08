@@ -11,8 +11,8 @@ the Extra PVs to be cached, and file directory names.
 
 import os
 import time
-from ConfigParser import  ConfigParser
-from cStringIO import StringIO
+from six.moves.configparser import  ConfigParser
+from six.moves import StringIO
 from collections import OrderedDict
 from .file_utils import get_homedir, get_timestamp
 
