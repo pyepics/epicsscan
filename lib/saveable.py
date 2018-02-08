@@ -64,14 +64,14 @@ class TestCase(Saveable):
 
 if __name__ == '__main__':
     a = TestCase('foo', label='a label')
-    print a._saved_class()
-    print a._saved_args()
-    print a._saved_kws()
+    print( a._saved_class())
+    print( a._saved_args())
+    print( a._saved_kws())
 
-    print a
+    print( a)
 
     if a._saved_class()=='TestCase':
         args, kws = unpack_args(a._saved_args(), a._saved_kws())
         b = TestCase(*args, **kws) #@ *args, **kws)
-        print b
-        print a == b, a is b
+        print( b)
+        print( a == b, a is b)

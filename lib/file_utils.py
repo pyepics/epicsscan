@@ -214,9 +214,9 @@ if (__name__ == '__main__'):
     for inp,out in test:
         tval = increment_filename(inp)
         if tval != out:
-            print "Error converting " , inp
-            print "Got '%s'  expected '%s'" % (tval, out)
+            print( "Error converting " , inp)
+            print( "Got '%s'  expected '%s'" % (tval, out))
             nfail = nfail + 1
         else:
             npass = npass + 1
-    print 'Passed %i of %i tests' % (npass, npass+nfail)
+    print('Passed %i of %i tests' % (npass, npass+nfail))

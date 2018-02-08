@@ -331,7 +331,7 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         pass
 
     def generate_scan_positions(self):
-        print 'Def generate scan ', self.__name__
+        print('Def generate scan ', self.__name__)
 
 class LinearScanPanel(GenericScanPanel):
     """ linear scan """

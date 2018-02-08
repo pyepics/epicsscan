@@ -97,7 +97,7 @@ class SpecConfig(object):
             fname = self.filename = DEF_CONFFILE
             path, fn = os.path.split(fname)
             if not os.path.exists(path):
-                os.makedirs(path, mode=0755)
+                os.makedirs(path, mode=0o755)
 
         out = ['###PyScan Spec Configuration: %s'  % (get_timestamp())]
         for sect, ordered in self.__sects.items():
@@ -107,7 +107,7 @@ class SpecConfig(object):
                     out.append("%s = %s" % (name, val))
             elif sect == 'detectors':
                 out.append(DET_LEGEND)
-                print 'sect = det'
+                print( 'sect = det')
                 idx = 0
                 for key, val in getattr(self, sect).items():
                     idx = idx + 1

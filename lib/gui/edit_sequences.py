@@ -123,12 +123,8 @@ class SequencesFrame(wx.Frame) :
             self.cmdlist.AppendItem((cmdid, status, cmdstr, rtime, mtime))
 
     def onCancel(self, event=None):
-        print 'onCancel '
         if self.cmdlist.HasSelection():
             row  = self.cmdlist.GetSelectedRow()
-            print 'selection ', row
-            print 'cmd id ', self.cmdlist.GetStore().GetValueByRow(row, 0)
-
 
     def onAbort(self, event=None):
         self.scandb.set_info('request_abort', 1)
@@ -140,26 +136,16 @@ class SequencesFrame(wx.Frame) :
         self.onAbort()
 
     def onAbortOLD(self, event=None):
-        print 'onAbort '
         if self.cmdlist.HasSelection():
             row  = self.cmdlist.GetSelectedRow()
-            print 'selection ', row
-            print 'cmd id ', self.cmdlist.GetStore().GetValueByRow(row, 0)
 
     def onAbortAll(self, event=None):
-        print 'onAbort All '
         if self.cmdlist.HasSelection():
             row  = self.cmdlist.GetSelectedRow()
-            print 'selection ', row
-            print 'cmd id ', self.cmdlist.GetStore().GetValueByRow(row, 0)
 
     def onShow(self, event=None):
-        print 'onshow '
         if self.cmdlist.HasSelection():
             row  = self.cmdlist.GetSelectedRow()
-            print 'selection ', row
-            print 'cmd id ', self.cmdlist.GetStore().GetValueByRow(row, 0)
-
 
     def onDone(self, event=None):
         self.parent.Destroy()

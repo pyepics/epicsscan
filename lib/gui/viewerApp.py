@@ -328,7 +328,7 @@ class PlotterFrame(wx.Frame):
     def onFitPeak(self, evt=None):
         gname = self.groupname
         if self.dtcorr.IsChecked():
-            print 'fit needs to dt correct!'
+            print('fit needs to dt correct!')
 
         dtext = []
         model = self.fit_model.GetStringSelection().lower()
@@ -369,7 +369,6 @@ class PlotterFrame(wx.Frame):
         """ process (pre-edge/normalize) XAS data from XAS form, overwriting
         larch group '_y1_' attribute to be plotted
         """
-        print 'Process XAS ', gname
         out = self.xas_op.GetStringSelection().lower() # raw, pre, norm, flat
         if out.startswith('raw'):
             return plotopts
@@ -379,7 +378,7 @@ class PlotterFrame(wx.Frame):
         lgroup = getattr(self.larch.symtable, gname)
 
         if self.dtcorr.IsChecked():
-            print 'need to dt correct!'
+            print( 'need to dt correct!')
 
         if not self.xas_autoe0.IsChecked():
             xmin, xmax = min(lgroup._x1_),  max(lgroup._x1_)
@@ -454,7 +453,6 @@ class PlotterFrame(wx.Frame):
         return pframe
 
     def onYchoice(self, evt=None, side='left'):
-        print 'onYchoice '
         self.onPlot()
 
     def onPlot(self, evt=None, opt='new old', npts=None):
@@ -541,14 +539,9 @@ class PlotterFrame(wx.Frame):
         if yl3 not in ('0', '1'): yl3 = "%s.%s" % (gname, yl3)
         if x  not in ('0', '1'):  x = "%s.%s" % (gname,  x)
 
-        # print 'Group X ... ', xfmt % (gname, xop, x)
-        # print 'Group Y ... ', yfmt % (gname, op1, y1, op2, y2, op3, y3)
 
         self.larch(xfmt % (gname, xop, x))
         self.larch(yfmt % (gname, opl1, yl1, opl2, yl2, opl3, yl3))
-
-        # print 'Group X ... ', len(lgroup._x1_), lgroup._x1_
-        # print 'Group Y ... ', len(lgroup._y1_), lgroup._y1_
 
         try:
             npts = min(len(lgroup._x1_), len(lgroup._y1_))
@@ -595,7 +588,6 @@ class PlotterFrame(wx.Frame):
         if filename in self.filemap:
             key = self.filemap[filename]
 
-        print 'SHOW FILE ', filename, key, self.scandb
         if key == SCANGROUP:
             array_labels = [fix_filename(s.name) for s in self.scandb.get_scandata()]
             title = filename
@@ -610,7 +602,6 @@ class PlotterFrame(wx.Frame):
         y2cols = array_labels[:] + ['1.0', '0.0', '']
         ncols  = len(xcols)
         self.title.SetLabel(title)
-        print xcols
         self.xarr.SetItems(xcols)
         self.xarr.SetSelection(0)
         self.xop.SetSelection(0)
@@ -702,7 +693,7 @@ class PlotterFrame(wx.Frame):
             self.larch("%s.path  = '%s'"     % (gname, path))
             self.filelist.Append(fname)
             self.filemap[fname] = gname
-            print 'Larch:: ', gname, path, fname
+            print( 'Larch:: ', gname, path, fname)
             self.ShowFile(filename=fname)
 
         dlg.Destroy()

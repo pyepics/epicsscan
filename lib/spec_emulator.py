@@ -204,7 +204,7 @@ class SpecScan(object):
 
         # add print statement at end of each row
         def show_meshstatus(breakpoint=None):
-            print 'finished row  %i of %i' % (1+(breakpoint/npts1), npts2)
+            print( 'finished row  %i of %i' % (1+(breakpoint/npts1), npts2))
             sleep(0.25)
         self._scan.at_break_methods.append(show_meshstatus)
         self._run(dtime)

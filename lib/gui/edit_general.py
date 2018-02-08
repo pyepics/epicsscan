@@ -46,12 +46,12 @@ class SettingsFrame(wx.Frame) :
                              ('scangui_verify_quit', True))
                             ),
                            ('Scan Definitions',
-                            (('scandefs_verify_overwrite', True), 
+                            (('scandefs_verify_overwrite', True),
                              ('scandefs_load_showalltypes', True),
                              ('scandefs_load_showauto', True))
                             )
                            ):
-            
+
             ir += 1
             sizer.Add(add_subtitle(panel, '%s:' % sect),  (ir, 0),  (1, 4), LCEN, 1)
             # print("Section ", sect)
@@ -61,8 +61,8 @@ class SettingsFrame(wx.Frame) :
                 val = row.value
                 try:
                     val = bool(int(row.value))
-                except: 
-                    print 'Could not convert value to bool ', val
+                except:
+                    print('Could not convert value to bool ', val)
 
                 desc = wx.StaticText(panel, -1, label="  %s: " % row.notes, size=(300, -1))
                 if as_bool:
@@ -104,4 +104,3 @@ class SettingsFrame(wx.Frame) :
 
     def onClose(self, event=None):
         self.Destroy()
-

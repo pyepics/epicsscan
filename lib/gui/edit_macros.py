@@ -566,7 +566,7 @@ class MacroFrame(wx.Frame) :
     def onStart(self, event=None):
         now = time.time()
         if (now - self.last_start_request) < 5.0:
-            print "double clicked start?"
+            print( "double clicked start?")
             return
         self.last_start_request = now
         self.start_btn.Disable()

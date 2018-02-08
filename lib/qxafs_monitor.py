@@ -169,7 +169,7 @@ class QXAFS_ScanWatcher(object):
                         else:
                             self.scandb.append_scandata(name, value)
                     except:
-                        print "Could not set scandata for %s: %i, %s" % (name, pv)
+                        print( "Could not set scandata for %s: %i, %s" % (name, pv))
                 self.scandb.commit()
         self.pulsecount_pv.put("%i" % self.pulse)
         self.set_info('scan_current_point', self.pulse)
@@ -225,7 +225,7 @@ def kill_old_process():
         finp.close()
         cmd = "kill -9 %d" % pid
         os.system(cmd)
-        print ' killing pid=', pid, ' at ', time.ctime()
+        print( ' killing pid=', pid, ' at ', time.ctime())
     except:
         pass
 
@@ -249,7 +249,7 @@ def run_qxafs_monitor():
         time.sleep(1.0)
         start(verbose=options.verbose)
     else:
-        print 'QXAFS Monitor running OK at ', time.ctime()
+        print( 'QXAFS Monitor running OK at ', time.ctime())
 
 if __name__ == '__main__':
     run_qxafs_monitor()

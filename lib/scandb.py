@@ -440,7 +440,7 @@ class ScanDB(object):
             setattr(table, key, val)
         try:
             self.session.add(table)
-        except IntegrityError, msg:
+        except IntegrityError(msg):
             self.session.rollback()
             raise Warning('Could not add data to table %s\n%s' % (table, msg))
 
@@ -1021,7 +1021,7 @@ class InstrumentDB(object):
             setattr(table, key, val)
         try:
             self.scandb.session.add(table)
-        except IntegrityError, msg:
+        except IntegrityError(msg):
             self.scandb.session.rollback()
             raise Warning('Could not add data to table %s\n%s' % (table, msg))
 

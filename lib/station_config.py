@@ -219,7 +219,7 @@ class StationConfig(object):
             fname = self.filename = DEF_CONFFILE
             path, fn = os.path.split(fname)
             if not os.path.exists(path):
-                os.makedirs(path, mode=0755)
+                os.makedirs(path, mode=0o755)
 
         out = ['### %s: %s' % (TITLE, get_timestamp())]
         for sect, ordered in self.__sects.items():

@@ -76,7 +76,7 @@ class StepScanData(object):
             icol = self.__arraymap.get(key.lower(), None)
 
         if icol is None:
-            print 'cannot find column %s' % repr(key)
+            print( 'cannot find column %s' % repr(key))
             return None
         return self.data[icol]
 
@@ -90,7 +90,7 @@ class StepScanData(object):
         lines = fh.readlines()
         line0 = lines.pop(0)
         if not line0.startswith(FILETOP):
-            print '%s is not a valid Epics Scan file' % self.filename
+            print( '%s is not a valid Epics Scan file' % self.filename)
             return
 
         def split_header(line):
@@ -361,7 +361,7 @@ class ASCIIScanFile(ScanFile):
         if close_file:
             self.close()
             if verbose:
-                print "Wrote and closed %s" % self.filename
+                print( "Wrote and closed %s" % self.filename)
 
     def read(self, filename=None):
         return StepScanData(filename)

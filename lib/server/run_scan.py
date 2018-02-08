@@ -25,7 +25,7 @@ def run_scanfile(scanfile):
 
 def messenger(cpt=0, npts=1, scan=None, **kws):
     if cpt == 1:
-        pass # print dir(scan)
+        pass
     msg = '%i,' % cpt
     if cpt % 15 == 0:
         msg = "%s\n" % msg
@@ -33,8 +33,7 @@ def messenger(cpt=0, npts=1, scan=None, **kws):
     sys.stdout.flush()
 
 def debug_scan(**conf):
-    print 'debug scan !'
-    print conf
+    print( conf)
 
 def run_scan(conf):
     """runs a scan as specified in a scan configuration dictionary"""
@@ -122,9 +121,9 @@ def run_scan(conf):
     scan.det_settle_time = conf.get('det_settle_time', 0.01)
     scan.messenger = messenger
 
-    print 'READY TO RUN SCAN '
+    print( 'READY TO RUN SCAN ')
     return scan
-    # print 'Scan:: ', conf['filename'], conf['nscans']
+    # print( 'Scan:: ', conf['filename'], conf['nscans'])
     #for i in range(conf['nscans']):
     #    outfile = scan.run(conf['filename'], comments=conf['user_comments'])
-    #    print 'wrote %s' % outfile
+    #    print( 'wrote %s' % outfile)
