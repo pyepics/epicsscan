@@ -93,7 +93,7 @@ import numpy as np
 import random
 import six
 
-from file_utils import fix_varname, fix_filename, increment_filename
+from .file_utils import fix_varname, fix_filename, increment_filename
 
 from epics import PV, poll, get_pv, caget, caput
 

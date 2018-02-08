@@ -20,7 +20,7 @@ from .saveable import Saveable
 from .utils import ScanDBAbort
 from .detectors import Struck, TetrAMM, Xspress3
 from .detectors import (Counter, Trigger, AreaDetector)
-from file_utils import fix_varname, fix_filename, increment_filename
+from .file_utils import fix_varname, fix_filename, increment_filename
 
 from epics import PV, poll, get_pv, caget, caput
 from .xps import NewportXPS
