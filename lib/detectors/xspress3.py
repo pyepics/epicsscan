@@ -2,7 +2,7 @@
 Quantum Xspress3 detector
 """
 import time
-from ConfigParser import ConfigParser
+from six.moves.configparser import ConfigParser
 
 from epics import get_pv, caput, caget, Device, poll
 from epics.devices.ad_mca import ADMCA

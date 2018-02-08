@@ -1,8 +1,28 @@
 #!/usr/bin/python
 import time
 import os
-from string import printable, maketrans
-from random import seed, randrange
+import sys
+from string import printable
+from random import seed, randint
+
+if sys.version[0] == '3':
+    maketrans = str.maketrans
+    def bytes2str(s):
+        if isinstance(s, str):
+            return s
+        elif isinstance(s, bytes):
+            return s.decode(sys.stdout.encoding)
+        return str(s, sys.stdout.encoding)
+    def str2bytes(s):
+        'string to byte conversion'
+        if isinstance(s, bytes):
+            return s
+        return bytes(s, sys.stdout.encoding)
+
+else:
+    from string import maketrans
+    bytes2str = str2bytes = str
+
 
 BAD_FILECHARS = ';~,`!%$@?*#:"/|\'\\\t\r\n (){}[]<>'
 BAD_FILETABLE = maketrans(BAD_FILECHARS, '_'*len(BAD_FILECHARS))
@@ -71,12 +91,9 @@ def basepath(d):
 def random_string(n):
     """  random_string(n)
     generates a random string of length n, that will match this pattern:
-       [a-z][a-z0-9](n-1)
+       [a-z](n)
     """
-    seed(time.time())
-    s = [printable[randrange(0,36)] for i in range(n-1)]
-    s.insert(0, printable[randrange(10,36)])
-    return ''.join(s)
+    return ''.join([chr(randint(97, 122)) for i in range(n)])
 
 def pathOf(dir, base, ext, delim='.'):
     p = os.path
