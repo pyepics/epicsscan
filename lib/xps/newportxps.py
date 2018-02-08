@@ -3,10 +3,10 @@ import time
 import ftplib
 import socket
 
-from cStringIO import StringIO
-from ConfigParser import  ConfigParser
+from six.moves import StringIO
+from six.moves.configparser import  ConfigParser
 
-from XPS_C8_drivers import XPS
+from .XPS_C8_drivers import XPS
 
 from collections import OrderedDict
 
