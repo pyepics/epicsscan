@@ -4,6 +4,8 @@ xafs scan
 based on EpicsApps.StepScan.
 
 """
+from __future__ import print_function
+
 import os
 import time
 import json
@@ -31,10 +33,11 @@ class QXAFS_ScanWatcher(object):
                  **conn_kws):
         self.verbose = verbose
         self.scandb = ScanDB(**conn_kws)
+        self.set_state(0)
+
         self.state = 0
         self.last = self.pulse = -1
         self.last_move_time = 0
-        self.set_state(0)
         self.config = None
         self.dead_time = 0.5
         self.id_lookahead = 2
@@ -46,7 +49,6 @@ class QXAFS_ScanWatcher(object):
             self.pulsecount_pv = PV(pulsecount_pvname)
         if heartbeat_pvname is not None:
             self.heartbeat_pv = PV(heartbeat_pvname)
-
         self.connected = False
         self.connect()
 
@@ -64,16 +66,13 @@ class QXAFS_ScanWatcher(object):
         self.idtaper_pv  = PV('%sTaperEnergy' % pvroot)
         self.idtaperset_pv  = PV('%sTaperEnergySet' % pvroot)
 
-
-
         self.xps = NewportXPS(self.config['host'],
                               username=self.config['username'],
                               password=self.config['password'],
                               group=self.config['group'],
                               outputs=self.config['outputs'])
-        time.sleep(0.25)
+        time.sleep(0.1)
         self.connected = True
-
 
     def qxafs_connect_counters(self):
         self.counters = []
@@ -203,20 +202,22 @@ class QXAFS_ScanWatcher(object):
         val  = self.scandb.get_info(key='qxafs_running', default=0)
         return int(val)
 
-    def get_lastupdate():
+    def get_lastupdate(self):
         if self.heartbeat_pv is not None:
             return int(self.heartbeat_pv.get(as_string=True))
         return -1
 
-    def kill_old_process():
+    def kill_old_process(self):
+        print("kill old ", self.heartbeat_pv)
         if self.heartbeat_pv is not None:
-            self.heartbeat_pv.put(-1)
+            self.heartbeat_pv.put("-1")
 
         pid = None
         with open(self.pidfile) as fh:
             pid = int(fh.readlines()[0][:-1])
+
         if pid is not None:
-            print(' killing pid=', pid, ' at ', time.ctime())
+            print('killing pid=', pid, ' at ', time.ctime())
             os.system("kill -9 %d" % pid)
             time.sleep(1.0)
 
@@ -238,57 +239,4 @@ class QXAFS_ScanWatcher(object):
             time.sleep(1.0)
             if self.heartbeat_pv is not None:
                 self.heartbeat_pv.put("%i"%int(time.time()))
-            # self.set_state(0)
-
-
-def start(verbose=False):
-    """save pid for later killing, start process"""
-    fpid = open(PIDFILE, 'w')
-    fpid.write("%d\n" % os.getpid() )
-    fpid.close()
-
-    watcher = QXAFS_ScanWatcher(verbose=verbose, **conn)
-    watcher.mainloop()
-
-def get_lastupdate():
-    try:
-        return int(caget(HEARTBEAT_PVNAME, as_string=True))
-    except:
-        return -1
-
-def kill_old_process():
-    try:
-        caput(HEARTBEAT_PVNAME, '1')
-        finp = open(PIDFILE)
-        pid = int(finp.readlines()[0][:-1])
-        finp.close()
-        cmd = "kill -9 %d" % pid
-        os.system(cmd)
-        print( ' killing pid=', pid, ' at ', time.ctime())
-    except:
-        pass
-
-
-def run_qxafs_monitor():
-    usage = "usage: %prog [options] file(s)"
-
-    parser = OptionParser(usage=usage, prog="qxafs_monitor",  version="1")
-
-    parser.add_option("-f", "--force", dest="force", action="store_true",
-                      default=False, help="force restart, default = False")
-    parser.add_option("-v", "--verbose", dest="verbose", action="store_true",
-                      default=False, help="verbose messages, default = False")
-
-
-    (options, args) = parser.parse_args()
-
-    oldtime = get_lastupdate()
-    if (options.force or (abs(time.time() - oldtime) > 120.0)):
-        kill_old_process()
-        time.sleep(1.0)
-        start(verbose=options.verbose)
-    else:
-        print( 'QXAFS Monitor running OK at ', time.ctime())
-
-if __name__ == '__main__':
-    run_qxafs_monitor()
+#
