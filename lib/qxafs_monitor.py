@@ -22,12 +22,13 @@ from optparse import OptionParser
 MIN_ID_ENERGY =   2.0
 MAX_ID_ENERGY = 200.0
 
-PIDFILE = '/home/xas_user/logs/qxafs_monitor.pid'
-HEARTBEAT_PVNAME  = '13XRM:edb:info02'
-PULSECOUNT_PVNAME = '13XRM:edb:info03'
+DEFAULT_PIDFILE = os.path.join(os.path.expanduser('~'), 'qxafs_monitor.pid')
 
 class QXAFS_ScanWatcher(object):
-    def __init__(self, verbose=False, **conn_kws):
+    def __init__(self, verbose=False, pidfile=None,
+                 heartbeat_pvname=None,
+                 pulsecount_pvname=None,
+                 **conn_kws):
         self.verbose = verbose
         self.scandb = ScanDB(**conn_kws)
         self.state = 0
@@ -38,6 +39,15 @@ class QXAFS_ScanWatcher(object):
         self.dead_time = 0.5
         self.id_lookahead = 2
         self.counters = []
+        self.pidfile = pidfile or DEFAULT_PIDFILE
+        self.pulsecount_pv = None
+        self.heartbeat_pv = None
+        if pulsecount_pvname is not None:
+            self.pulsecount_pv = PV(pulsecount_pvname)
+        if heartbeat_pvname is not None:
+            self.heartbeat_pv = PV(heartbeat_pvname)
+
+        self.connected = False
         self.connect()
 
     def connect(self):
@@ -54,8 +64,7 @@ class QXAFS_ScanWatcher(object):
         self.idtaper_pv  = PV('%sTaperEnergy' % pvroot)
         self.idtaperset_pv  = PV('%sTaperEnergySet' % pvroot)
 
-        self.pulsecount_pv = PV(PULSECOUNT_PVNAME)
-        self.heartbeat_pv = PV(HEARTBEAT_PVNAME)
+
 
         self.xps = NewportXPS(self.config['host'],
                               username=self.config['username'],
@@ -63,6 +72,7 @@ class QXAFS_ScanWatcher(object):
                               group=self.config['group'],
                               outputs=self.config['outputs'])
         time.sleep(0.25)
+        self.connected = True
 
 
     def qxafs_connect_counters(self):
@@ -128,9 +138,11 @@ class QXAFS_ScanWatcher(object):
                 time.sleep(0.250)
 
             if self.pulse > last_pulse:
-                self.pulsecount_pv.put("%i" % self.pulse)
+                if self.pulsecount_pv is not None:
+                    self.pulsecount_pv.put("%i" % self.pulse)
                 self.set_info('scan_current_point', self.pulse)
-                self.heartbeat_pv.put("%i" % int(time.time()))
+                if self.heartbeat_pv is not None:
+                    self.heartbeat_pv.put("%i" % int(time.time()))
                 if self.verbose and self.pulse % 10 == 0:
                     print("QXAFS Monitor " , self.pulse, len(self.counters))
 
@@ -171,7 +183,8 @@ class QXAFS_ScanWatcher(object):
                     except:
                         print( "Could not set scandata for %s: %i, %s" % (name, pv))
                 self.scandb.commit()
-        self.pulsecount_pv.put("%i" % self.pulse)
+        if self.pulsecount_pv is not None:
+            self.pulsecount_pv.put("%i" % self.pulse)
         self.set_info('scan_current_point', self.pulse)
         # print("Monitor QXAFS done")
         last_pulse = self.pulse = 0
@@ -190,7 +203,32 @@ class QXAFS_ScanWatcher(object):
         val  = self.scandb.get_info(key='qxafs_running', default=0)
         return int(val)
 
+    def get_lastupdate():
+        if self.heartbeat_pv is not None:
+            return int(self.heartbeat_pv.get(as_string=True))
+        return -1
+
+    def kill_old_process():
+        if self.heartbeat_pv is not None:
+            self.heartbeat_pv.put(-1)
+
+        pid = None
+        with open(self.pidfile) as fh:
+            pid = int(fh.readlines()[0][:-1])
+        if pid is not None:
+            print(' killing pid=', pid, ' at ', time.ctime())
+            os.system("kill -9 %d" % pid)
+            time.sleep(1.0)
+
+    def save_pid(self):
+        with  open(self.pidfile, 'w') as fh:
+            fh.write("%d\n" % os.getpid() )
+            fh.close()
+
     def mainloop(self):
+        if not self.connected:
+            self.connect()
+        self.save_pid()
         self.qxafs_connect_counters()
         while True:
             state = self.get_state()
@@ -198,7 +236,8 @@ class QXAFS_ScanWatcher(object):
             if 2 == int(state):
                 self.monitor_qxafs()
             time.sleep(1.0)
-            self.heartbeat_pv.put("%i"%int(time.time()))
+            if self.heartbeat_pv is not None:
+                self.heartbeat_pv.put("%i"%int(time.time()))
             # self.set_state(0)
 
 
