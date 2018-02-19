@@ -3,7 +3,6 @@
 from __future__ import print_function
 
 import time, sys, os
-import threading
 import json
 import numpy as np
 import glob
