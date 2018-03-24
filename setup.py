@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 
-from distutils.core import setup, setup_keywords
+from setuptools import setup
 
-deps = ('wx', 'epics', 'numpy', 'matplotlib')
+deps = ('wx', 'epics', 'numpy', 'matplotlib', 'psycopg2')
 
 setup(name = 'epicsscan',
-      version = '0.4',
+      version = '0.5',
       author = 'Matthew Newville',
       author_email = 'newville@cars.uchicago.edu',
       license = 'BSD',
-      description = 'Epics Step Scanning library and applications',
+      description = 'Epics Scanning library and applications',
       package_dir = {'epicsscan': 'lib'},
       packages = ['epicsscan', 'epicsscan.server', 'epicsscan.gui',
                   'epicsscan.detectors', 'epicsscan.xps'],

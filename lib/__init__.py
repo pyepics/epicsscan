@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 
-__version__ = '0.3'
-
-#from . import file_utils
+__version__ = '0.5'
 
 from .station_config import StationConfig
 from .spec_emulator import SpecScan
