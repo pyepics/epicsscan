@@ -15,7 +15,12 @@ from ..utils import (strip_quotes, plain_ascii, tstamp,
                      ScanDBException, ScanDBAbort)
 
 from ..larch_interface import LarchScanDBServer, HAS_LARCH
-from larch.inputText import is_complete as command_complete
+
+def command_complete(s, *args, **kws):
+    return True
+
+if HAS_LARCH:
+    from larch.inputText import is_complete as command_complete
 
 from .epics_scandb import EpicsScanDB
 from .abort_slewscan import abort_slewscan
