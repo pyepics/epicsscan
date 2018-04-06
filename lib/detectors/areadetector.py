@@ -25,22 +25,18 @@ AD_CAM_ATTRS = ("Acquire", "AcquirePeriod", "AcquirePeriod_RBV",
                 "MinX_RBV", "MinY", "MinY_RBV", "NumImages",
                 "NumImagesCounter_RBV", "NumImages_RBV", "SizeX", "SizeX_RBV",
                 "SizeY", "SizeY_RBV", "TimeRemaining_RBV", "TriggerMode",
-                "TriggerMode_RBV", "TriggerSoftware", "Model_RBV",
-                "ShutterControl",
-                "ShutterMode",
-                "ShutterOpenEPICS.OUT",
-                "ShutterCloseEPICS.OUT",
-                "ShutterOpenEPICS.OCAL",
-                "ShutterCloseEPICS.OCAL",
-                "ShutterOpenDelay",
+                "TriggerMode_RBV", "Model_RBV", "ShutterControl",
+                "ShutterMode", "ShutterOpenEPICS.OUT",
+                "ShutterCloseEPICS.OUT", "ShutterOpenEPICS.OCAL",
+                "ShutterCloseEPICS.OCAL", "ShutterOpenDelay",
                 "ShutterCloseDelay")
 
 AD_FILE_ATTRS = ('AutoIncrement', 'AutoSave', 'Capture', 'EnableCallbacks',
-                 'BlockingCallbacks', 'FileName', 'FileName_RBV',
-                 'FileNumber', 'FileNumber', 'FileNumber_RBV', 'FilePath',
-                 'FilePath_RBV', 'FileTemplate', 'FileTemplate_RBV',
-                 'FileWriteMode', 'FileWriteMode', 'FullFileName_RBV',
-                 'NumCapture', 'NumCaptured_RBV', 'WriteFile_RBV')
+                 'FileName', 'FileName_RBV', 'FileNumber', 'FileNumber',
+                 'FileNumber_RBV', 'FilePath', 'FilePath_RBV',
+                 'FileTemplate', 'FileTemplate_RBV', 'FileWriteMode',
+                 'FileWriteMode', 'FullFileName_RBV', 'NumCapture',
+                 'NumCaptured_RBV', 'WriteFile_RBV')
 
 AD_ROISTAT_ATTRS = ('TSNumPoints', 'TSControl', 'EnableCallbacks',
                     'ArrayCallbacks', 'BlockingCallbacks')
