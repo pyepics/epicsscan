@@ -25,6 +25,7 @@ from .struck import Struck, StruckDetector
 from .areadetector import AreaDetector
 from .quadem import TetrAMM, TetrAMMDetector
 from .ad_perkinelmer import AD_PerkinElmer
+from .ad_pilatus import AD_Pilatus
 
 DET_DEFAULT_OPTS = {'scaler': {'use_calc': True, 'nchans': 8},
                     'tetramm': {'nchans': 4},
@@ -83,6 +84,7 @@ def get_detector(prefix, kind=None, mode='scaler', rois=None, label=None, **kws)
               'struck': StruckDetector,
               'tetramm': TetrAMMDetector,
               'perkinelmer': AD_PerkinElmer,
+              'pilatus': AD_Pilatus,
               None: SimpleDetector}
 
     if kind is None:
@@ -99,7 +101,6 @@ def get_detector(prefix, kind=None, mode='scaler', rois=None, label=None, **kws)
         kind = kind.lower()
     if kind.startswith('area') and 'type' in kws:
         kind = kws['type'].lower()
-        
     builder = dtypes.get(kind, SimpleDetector)
 
     return builder(prefix, label=label, mode=mode, rois=rois, **kws)
