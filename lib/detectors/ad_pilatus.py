@@ -7,6 +7,7 @@ import os
 from epics import get_pv, caput, caget, Device, poll, PV
 
 from .base import DetectorMixin, SCALER_MODE, NDARRAY_MODE, ROI_MODE
+from .counter import Counter
 from .areadetector import AreaDetector
 from ..debugtime import debugtime
 
@@ -36,7 +37,13 @@ class AD_Pilatus(AreaDetector):
         fpath = os.path.join(fpath, 'work')
 
         self.config_filesaver(template="%s%s_%4.4d.h5")
-
+        for iroi in range(1, 9):
+            pref = '%s%d:' % (self.roistat._prefix, iroi)
+            if caget(pref + 'Use') == 1:
+                label = caget(pref + 'Name', as_string=True).strip()
+                if len(label) > 0:
+                    pvname = pref + 'Total_RBV'
+                    self.counters.append(Counter(pvname, label=label))
         self.set_dwelltime(self.dwelltime)
         self.cam.put('FilePath', fpath)
         self.cam.put('FileNumber', 1)
