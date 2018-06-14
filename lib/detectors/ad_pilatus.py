@@ -24,9 +24,9 @@ class AD_Pilatus(AreaDetector):
         AreaDetector.__init__(self, prefix, label=label, mode=mode,
                              filesaver=filesaver, fileroot=fileroot, **kws)
         self.mode = mode
-        self.arm_delay = 0.250
-        self.start_delay = 0.250
-        self.readout_time = 0.003
+        self.arm_delay    = 0.25
+        self.start_delay  = 0.10
+        self.readout_time = 0.01
         self.cam.ShutterMode =  0    # None
         self.dwelltime = None
         self.ad.FileCaptureOff()
@@ -37,7 +37,7 @@ class AD_Pilatus(AreaDetector):
         fpath = os.path.join(fpath, 'work')
 
         self.config_filesaver(template="%s%s_%4.4d.h5")
-        for iroi in range(1, 9):
+        for iroi in range(1, 5):
             pref = '%s%d:' % (self.roistat._prefix, iroi)
             if caget(pref + 'Use') == 1:
                 label = caget(pref + 'Name', as_string=True).strip()
@@ -69,8 +69,8 @@ class AD_Pilatus(AreaDetector):
             return
 
         self.dwelltime = dwelltime
-        self.cam.put('AcquireTime', dwelltime-self.readout_time)
-        self.cam.put('AcquirePeriod', dwelltime-self.readout_time)
+        self.cam.put('AcquireTime',   dwelltime-self.readout_time)
+        self.cam.put('AcquirePeriod', dwelltime)
 
     def ContinuousMode(self, dwelltime=None, numframes=300200100):
         self.ScalerMode(dwelltime=dwelltime)
