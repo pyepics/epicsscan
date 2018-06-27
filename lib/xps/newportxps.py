@@ -683,7 +683,7 @@ class NewportXPS:
         self._xps.GatheringReset(self._sid)
         self._xps.GatheringConfigurationSet(self._sid, outputs)
         self._xps.MultipleAxesPVTPulseOutputSet(self._sid, self.traj_group,
-                                                2, traj['nsegments'],
+                                                2, traj['nsegments']-1,
                                                 traj['pixeltime'])
 
         self._xps.MultipleAxesPVTVerification(self._sid, self.traj_group, name)
