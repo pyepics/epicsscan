@@ -25,6 +25,7 @@ class AD_Pilatus(AreaDetector):
                              filesaver=filesaver, fileroot=fileroot, **kws)
         self.mode = mode
         self.arm_delay    = 0.25
+        self.stop_delay   = 0.25
         self.start_delay  = 0.10
         self.readout_time = 0.01
         self.cam.ShutterMode =  0    # None
@@ -45,6 +46,8 @@ class AD_Pilatus(AreaDetector):
                     pvname = pref + 'Total_RBV'
                     self.counters.append(Counter(pvname, label=label))
         self.set_dwelltime(self.dwelltime)
+        self.stop_delay = 2.0*self.dwelltime
+
         self.cam.put('FilePath', fpath)
         self.cam.put('FileNumber', 1)
         self.cam.put('FileName', 'pil')
@@ -59,6 +62,18 @@ class AD_Pilatus(AreaDetector):
 
     def AcquireOffset(self, timeout=10, open_shutter=True):
         pass
+
+    def stop(self, mode=None, disarm=False, wait=False):
+        time.sleep(self.stop_delay)
+        # wait for a while (up to 10x stop_delay) for acquire to be done
+        for i in range(20):
+            if self.cam.get('Acquire') == 1:
+                 time.sleep(self.stop_delay/2.) 
+        self.cam.put('Acquire', 0, wait=wait)
+        if disarm:
+            self.disarm()
+        self.ad.FileCaptureOff()
+
 
     def set_dwelltime(self, dwelltime=None):
         """set dwell time in seconds
