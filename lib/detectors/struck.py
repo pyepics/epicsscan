@@ -272,7 +272,10 @@ class Struck(Device):
             fmts.append(fmt)
 
         for key, val in adat.items():
-            self.ast_interp.symtable[key] = val[:npts]
+            try:
+                self.ast_interp.symtable[key] = val[:npts]
+            except TypeError:
+                self.ast_interp.symtable[key] = val
 
         for calc in calcs:
             result = self.ast_interp.eval(calc)
