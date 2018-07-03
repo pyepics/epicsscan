@@ -39,7 +39,7 @@ class NewportXPS:
     gather_header = '# XPS Gathering Data\n#--------------'
     def __init__(self, host, group=None,
                  username='Administrator', password='Administrator',
-                 port=5001, timeout=10,
+                 port=5001, timeout=10, extra_triggers=0,
                  outputs=('CurrentPosition', 'SetpointPosition')):
 
         socket.setdefaulttimeout(5.0)
@@ -52,9 +52,10 @@ class NewportXPS:
         self.username = username
         self.password = password
         self.timeout = timeout
+        self.extra_triggers = extra_triggers
+
         self.errcodes = OrderedDict()
         self.gather_outputs = tuple(outputs)
-
         self.trajectories = {}
         self.traj_state = IDLE
         self.traj_group = None
@@ -678,12 +679,14 @@ class NewportXPS:
                 outputs.append('%s.%s.%s' % (self.traj_group, ax, out))
                 # move_kws[ax] = float(traj['start'][i])
 
+
+        end_segment = traj['nsegments'] - 1 + self.extra_triggers
         # self.move_group(self.traj_group, **move_kws)
         self.gather_titles = "%s\n#%s\n" % (self.gather_header, " ".join(outputs))
         self._xps.GatheringReset(self._sid)
         self._xps.GatheringConfigurationSet(self._sid, outputs)
         self._xps.MultipleAxesPVTPulseOutputSet(self._sid, self.traj_group,
-                                                2, traj['nsegments']-1,
+                                                2, end_segment,
                                                 traj['pixeltime'])
 
         self._xps.MultipleAxesPVTVerification(self._sid, self.traj_group, name)
