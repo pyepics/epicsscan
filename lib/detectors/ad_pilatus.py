@@ -63,9 +63,9 @@ class AD_Pilatus(AreaDetector):
             datdir = self.data_dir[:]
         else:
             datdir = self.ad.getFilePath()
+        if datdir is not None:
             if datdir.endswith('/'):
                 datdir = datdir[:-1]
-        if datdir is not None:
             fpath, xpath = os.path.split(datdir)
             fpath, xpath = os.path.split(fpath)
             self.cam.put('FilePath', os.path.join(fpath, 'XRD'))
