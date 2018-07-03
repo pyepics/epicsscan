@@ -252,11 +252,11 @@ class Slew_Scan(StepScan):
         for p in self.positioners:
             self.orig_positions[p.pv] = p.current()
 
-
         detpath = self.mapdir[len(self.fileroot):]
         if detpath.startswith('/'):
             detpath = detpath[1:]
         for det in self.detectors:
+            det.data_dir = mapdir
             det.config_filesaver(path=detpath)
         return sname
 
