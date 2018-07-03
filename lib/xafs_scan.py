@@ -287,7 +287,8 @@ class QXAFS_Scan(XAFS_Scan):
                                   username=conf['username'],
                                   password=conf['password'],
                                   group=conf['group'],
-                                  outputs=conf['outputs'])
+                                  outputs=conf['outputs'],
+                                  extra_triggers=conf.get('extra_triggers', 0))
 
         qconf = self.config
         caput(qconf['id_track_pv'], 1)

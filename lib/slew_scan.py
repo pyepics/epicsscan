@@ -76,7 +76,8 @@ class Slew_Scan(StepScan):
                               username=scnf['username'],
                               password=scnf['password'],
                               group=scnf['group'],
-                              outputs=scnf['outputs'])
+                              outputs=scnf['outputs'],
+                              extra_triggers=scnf.get('extra_triggers', 0))
 
         currscan = 'CurrentScan.ini'
         fileroot = self.scandb.get_info('server_fileroot')
