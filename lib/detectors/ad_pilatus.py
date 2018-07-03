@@ -4,6 +4,7 @@ Quantum Xspress3 detector
 import time
 import glob
 import os
+
 from epics import get_pv, caput, caget, Device, poll, PV
 
 from .base import DetectorMixin, SCALER_MODE, NDARRAY_MODE, ROI_MODE
@@ -36,6 +37,8 @@ class AD_Pilatus(AreaDetector):
         fpath, xpath = os.path.split(self.ad.getFilePath())
         fpath, xpath = os.path.split(fpath)
         fpath = os.path.join(fpath, 'work')
+        print("Custom Prescan AD getFilePath ", self.ad.getFilePath())
+        fpath = os.path.join(self.ad.getFilePath(), 'tiffs')
 
         self.config_filesaver(template="%s%s_%4.4d.h5")
         for iroi in range(1, 5):
@@ -54,6 +57,21 @@ class AD_Pilatus(AreaDetector):
         self.cam.put('AutoIncrement', 1)
         self.cam.put('FileTemplate', '%s%s_%4.4d_.tif')
 
+    def post_scan(self, **kws):
+        datdir = None
+        if self.data_dir is not None:
+            datdir = self.data_dir[:]
+        else:
+            datdir = self.ad.getFilePath()
+            if datdir.endswith('/'):
+                datdir = datdir[:-1]
+        if datdir is not None:
+            fpath, xpath = os.path.split(datdir)
+            fpath, xpath = os.path.split(fpath)
+            self.cam.put('FilePath', os.path.join(fpath, 'XRD'))
+        self.config_filesaver(enable=False)
+        self.ContinuousMode()
+
     def open_shutter(self):
         pass
 
@@ -65,10 +83,10 @@ class AD_Pilatus(AreaDetector):
 
     def stop(self, mode=None, disarm=False, wait=False):
         time.sleep(self.stop_delay)
-        # wait for a while (up to 10x stop_delay) for acquire to be done
-        for i in range(20):
+        # wait for a while (up to 40x stop_delay) for acquire to be done
+        for i in range(40):
             if self.cam.get('Acquire') == 1:
-                 time.sleep(self.stop_delay/2.) 
+                 time.sleep(self.stop_delay/2.)
         self.cam.put('Acquire', 0, wait=wait)
         if disarm:
             self.disarm()
