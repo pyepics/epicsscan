@@ -153,8 +153,6 @@ class ScanPublisher(Thread):
 class StepScan(object):
     """
     General Step Scanning for Epics
-
-
     """
     def __init__(self, filename=None, auto_increment=True, comments=None,
                  messenger=None, data_callback=None, scandb=None,
@@ -427,7 +425,7 @@ class StepScan(object):
         self.set_info('scan_time_estimate', time_left)
         time_est  = hms(time_left)
 
-        if cpt < 4:
+        if cpt < 4 and self.scandb is not None:
             self.scandb.set_filename(self.filename)
 
         msg = 'Point %i/%i,  time left: %s' % (cpt, npts, time_est)
@@ -442,12 +440,13 @@ class StepScan(object):
 
     def set_all_scandata(self):
         self.publishing_scandata = True
-        for c in self.counters:
-            name = getattr(c, 'db_label', None)
-            if name is None:
-                name = c.label
-            c.db_label = fix_varname(name)
-            self.scandb.set_scandata(c.db_label, c.buff)
+        if self.scandb is not None:
+            for c in self.counters:
+                name = getattr(c, 'db_label', None)
+                if name is None:
+                    name = c.label
+                c.db_label = fix_varname(name)
+                self.scandb.set_scandata(c.db_label, c.buff)
         self.publishing_scandata = False
 
     def init_scandata(self):
