@@ -1158,15 +1158,15 @@ class InstrumentDB(object):
         for name in pvnames:
             thispv = self.scandb.get_pvrow(name)
             val = values[name]
-            try:
-                val = float(val)
-            except ValueError:
-                pass
-            ppos_tab.insert().execute(pv_id=thispv.id,
-                                      position_id = pos.id,
-                                      notes= "'%s' / '%s'" % (inst.name, posname),
-                                      value = val)
-            # print ( "  ... ", thispv.id, pos.id, val)
+            if val is not None:
+                try:
+                    val = float(val)
+                except:
+                    pass
+                ppos_tab.insert().execute(pv_id=thispv.id,
+                                          position_id = pos.id,
+                                          notes= "'%s' / '%s'" % (inst.name, posname),
+                                          value = val)
         self.scandb.commit()
 
 
