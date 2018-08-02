@@ -447,6 +447,9 @@ class QXAFS_Scan(XAFS_Scan):
         caput(qconf['theta_motor'] + '.DVAL', traj['start'][0])
         caput(qconf['width_motor'] + '.DVAL', traj['start'][1])
 
+        orig_positions = [p.current() for p in self.positioners]
+        # print("Original Positions: ", orig_positions)
+
         try:
             caput(qconf['id_drive_pv'], idarray[0], wait=False)
         except:
@@ -454,7 +457,6 @@ class QXAFS_Scan(XAFS_Scan):
         caput(qconf['energy_pv'],  traj['energy'][0], wait=False)
 
         self.clear_interrupts()
-        orig_positions = [p.current() for p in self.positioners]
 
         sis_prefix = qconf['mcs_prefix']
 
@@ -572,13 +574,15 @@ class QXAFS_Scan(XAFS_Scan):
             pos.move_to(val, wait=False)
 
         self.datafile.write_data(breakpoint=-1, close_file=True, clear=False)
+
+        caput(qconf['energy_pv'], energy_orig, wait=True)
+
         if self.look_for_interrupts():
             self.write("scan aborted at point %i of %i." % (self.cpt, self.npts))
             raise ScanDBAbort("scan aborted")
 
         # run post_scan methods
         self.set_info('scan_progress', 'finishing')
-        caput(qconf['energy_pv'], energy_orig, wait=True)
         out = self.post_scan()
         self.check_outputs(out, msg='post scan')
         self.complete = True
