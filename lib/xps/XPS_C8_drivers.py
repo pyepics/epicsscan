@@ -224,7 +224,7 @@ class XPS:
 
     # Login :  Log in
     def Login (self, socketId, Name, Password):
-        return self.Send(socketId, 'Login(%s, %s)' % ( Name,  Password) )
+        return self.Send(socketId, 'Login(%s,%s)' % ( Name,  Password) )
 
     # CloseAllOtherSockets :  Close all socket beside the one used to send this command
     def CloseAllOtherSockets (self, socketId):
