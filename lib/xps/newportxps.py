@@ -1,4 +1,7 @@
+#!/usr/bin/env python
+
 from __future__ import print_function
+import os
 import time
 import ftplib
 import socket
@@ -6,11 +9,18 @@ import socket
 from six.moves import StringIO
 from six.moves.configparser import  ConfigParser
 
-from .XPS_C8_drivers import XPS
+from XPS_C8_drivers import XPS
 
 from collections import OrderedDict
 
-from ..debugtime import debugtime
+from debugtime import debugtime
+
+HAS_PYSFTP = False
+try:
+    import pysftp
+    HAS_PYSFTP = True
+except ImportError:
+    pass
 
 class XPSError(Exception):
     """XPS Controller Exception"""
@@ -22,6 +32,76 @@ class XPSError(Exception):
 IDLE, ARMING, ARMED, RUNNING, COMPLETE, WRITING, READING = \
       'IDLE', 'ARMING', 'ARMED', 'RUNNING', 'COMPLETE', 'WRITING', 'READING'
 
+class FTPWrapper(object):
+    def __init__(self, host,
+                 username='Administrator',
+                 password='Administrator',
+                 use_sftp=False):
+
+        self.host = host
+        self.username = username
+        self.password = password
+        self.use_sftp = use_sftp
+        self._conn = None
+
+    def connect(self, host=None, username=None,
+                password=None, use_sftp=False):
+        if host is not None:
+            self.host = host
+        if username is not None:
+            self.username = username
+        if password is not None:
+            self.password = password
+        if use_sftp is not None:
+            self.use_sftp = use_sftp
+
+        if self.use_sftp and not HAS_PYSFTP:
+            raise ValueError("pysftp not installed... SFTP will not work")
+
+        if self.use_sftp:
+            self._conn = pysftp.Connection(self.host,
+                                           username=self.username,
+                                           password=self.username)
+        else:
+            self._conn = ftplib.FTP()
+            self._conn.connect(self.host)
+            self._conn.login(self.username, self.password)
+
+    def close(self):
+        self._conn.close()
+        self._conn = None
+
+    def cwd(self, remotedir):
+        self._conn.cwd(remotedir)
+
+    def save(self, remotefile, localfile):
+        "save remote file to local file"
+        if self.use_sftp:
+            self._conn.get(remotefile, remotefile)
+        else:
+            output = []
+            x = self._conn.retrbinary('RETR %s' % remotefile, output.append)
+            fout = open(localfile, 'w')
+            fout.write(''.join(output))
+            fout.close()
+
+    def getlines(self, remotefile):
+        "read text of remote file"
+        txt = StringIO()
+        if self.use_sftp:
+            self._conn.getfo(remotefile, txt)
+        else:
+            self._conn.retrbinary('RETR %s' % remotefile, txt.write)
+
+        txt.seek(0)
+        return txt.readlines()
+
+    def put(self, text, remotefile):
+        txtfile = StringIO(text)
+        if self.use_sftp:
+            self._conn.putfo(txtfile, remotefile)
+        else:
+            self._conn.storbinary('STOR %s' % remotefile, txtfile)
 
 def withConnectedXPS(fcn):
     """decorator to ensure a NewportXPS is connected before a method is called"""
@@ -64,8 +144,9 @@ class NewportXPS:
 
         self.stages = OrderedDict()
         self.groups = OrderedDict()
+        self.firmware_version = None
 
-        self.ftpconn = ftplib.FTP()
+        self.ftpconn = FTPWrapper(host, username=username, password=password)
         self._sid = None
         self._xps = XPS()
         self.connect()
@@ -77,10 +158,11 @@ class NewportXPS:
         """return printable status report"""
         err, uptime = self._xps.ElapsedTimeGet(self._sid)
         boottime = time.time() - uptime
-        out = ["# XPS host:     %s (%s)" % (self.host, socket.getfqdn(self.host)),
-               "# Firmware:     %s" % self.firmware_version,
-               "# Current Time: %s " % time.ctime(),
-               "# Last Reboot:  %s" % time.ctime(boottime),
+        out = ["# XPS host:         %s (%s)" % (self.host, socket.getfqdn(self.host)),
+               "# Firmware:         %s" % self.firmware_version,
+               "# Current Time:     %s" % time.ctime(),
+               "# Last Reboot:      %s" % time.ctime(boottime),
+               "# Trajectory Group: %s" % self.traj_group,
                ]
 
         out.append("# Groups and Stages")
@@ -101,8 +183,8 @@ class NewportXPS:
 
     def ftp_connect(self):
         """open ftp connection"""
-        self.ftpconn.connect(self.host)
-        self.ftpconn.login(self.username, self.password)
+        self.ftpconn.connect(self.host, username=self.username,
+                             password=self.password, use_sftp=self.use_sftp)
 
     def ftp_disconnect(self):
         "close ftp connnection"
@@ -118,17 +200,17 @@ class NewportXPS:
 
         err, val = self._xps.FirmwareVersionGet(self._sid)
         self.firmware_version = val
+        self.use_sftp = False
+        self.ftphome = ''
 
-        if 'Q8' in self.firmware_version:
-            self.ftphome = ''
-        else:
+        if 'XPS-D' in self.firmware_version:
+            err, val = self._xps.Send(self._sid, 'InstallerVersionGet(char *)')
+            self.firmware_version = val
+            self.use_sftp = True
+        elif 'XPS-C' in self.firmware_version:
             self.ftphome = '/Admin'
 
-        try:
-            self.read_systemini()
-        except:
-            print("Could not read system.ini")
-
+        self.read_systemini()
         self.read_errorcodes()
 
     def read_errorcodes(self):
@@ -158,12 +240,8 @@ class NewportXPS:
         fname  (string): name of file to save to ['system.ini']
         """
         self.ftp_connect()
-        self.ftpconn.cwd('%s/Config' % self.ftphome)
-        output = []
-        x = self.ftpconn.retrbinary('RETR system.ini', output.append)
-        fout = open(fname, 'w')
-        fout.write(''.join(output))
-        fout.close()
+        self.ftpconn.cwd(os.path.join(self.ftphome, 'Config'))
+        self.ftpconn.save('system.ini', fname)
         self.ftp_disconnect()
 
     def save_stagesini(self, fname='stages.ini'):
@@ -173,12 +251,8 @@ class NewportXPS:
            fname  (string): name of file to save to ['stages.ini']
         """
         self.ftp_connect()
-        self.ftpconn.cwd('%s/Config' % self.ftphome)
-        output = []
-        x = self.ftpconn.retrbinary('RETR stages.ini', output.append)
-        fout = open(fname, 'w')
-        fout.write(''.join(output))
-        fout.close()
+        self.ftpconn.cwd(os.path.join(self.ftphome, 'Config'))
+        self.ftpconn.save('stages.ini', fname)
         self.ftp_disconnect()
 
     def read_systemini(self):
@@ -186,20 +260,16 @@ class NewportXPS:
         this is part of the connection process
         """
         self.ftp_connect()
-        self.ftpconn.cwd('%s/Config' % self.ftphome)
-
-        txt = StringIO()
-        self.ftpconn.retrbinary("RETR system.ini", txt.write)
+        self.ftpconn.cwd(os.path.join(self.ftphome, 'Config'))
+        lines = self.ftpconn.getlines('system.ini')
         self.ftp_disconnect()
-        txt.seek(0)
-        lines = txt.readlines()
+
         self.sysconf = ''.join(lines)
 
         sconf = ConfigParser()
         sconf.readfp(StringIO(self.sysconf))
 
         self.stages= OrderedDict()
-
         for sect in sconf.sections():
             if 'plugnumber' in sconf.options(sect):
                 self.stages[sect] = {'type': sconf.get(sect, 'stagename')}
@@ -209,7 +279,7 @@ class NewportXPS:
         pvtgroups = []
         for line in lines:
             line = line[:-1].strip()
-            if line.startswith('#'):
+            if line.startswith('#') or line.startswith(';'):
                 continue
 
             if line.startswith('[GROUPS]'):
@@ -251,8 +321,8 @@ class NewportXPS:
            text  (str):   full text of trajectory file
         """
         self.ftp_connect()
-        self.ftpconn.cwd('%s/Public/Trajectories' % self.ftphome)
-        self.ftpconn.storbinary('STOR %s' % filename, StringIO(text))
+        self.ftpconn.cwd(os.path.join(self.ftphome, 'Public', 'Trajectories'))
+        self.ftpconn.put(text, filename)
         self.ftp_disconnect()
 
     @withConnectedXPS
@@ -302,10 +372,11 @@ class NewportXPS:
             trajline2.append('%%(%s_velo)f' % p)
             trajline3.append('%%(%s_ramp)f' % p)
             trajline3.append('%8.6f' % 0.0)
-        trajline1 = (', '.join(trajline1)).strip()
-        trajline2 = (', '.join(trajline2)).strip()
-        trajline3 = (', '.join(trajline3)).strip()
+        trajline1 = (','.join(trajline1)).strip()
+        trajline2 = (','.join(trajline2)).strip()
+        trajline3 = (','.join(trajline3)).strip()
         self.linear_template = '\n'.join(['', trajline1, trajline2, trajline3])
+        self.linear_template = '\n'.join(['', trajline1, trajline2, trajline3,''])
 
 
     @withConnectedXPS
@@ -412,7 +483,7 @@ class NewportXPS:
         for group in self.groups:
             err, stat = self._xps.GroupStatusGet(self._sid, group)
             e1, val = self._xps.GroupStatusStringGet(self._sid, stat)
-            print("GROUP ", group, err, stat, e1, val)
+            # print("GROUP ", group, err, stat, e1, val)
             out[group] = val
         return out
 
@@ -529,7 +600,7 @@ class NewportXPS:
            stage (string): name of stage -- must be in self.stages
         """
         if stage not in self.stages:
-            print("Stage '%s' not found0" % stage)
+            print("Stage '%s' not found: " % stage)
             return
 
         err, val = self._xps.GroupPositionCurrentGet(self._sid, stage, 1)
@@ -572,7 +643,7 @@ class NewportXPS:
     @withConnectedXPS
     def define_line_trajectories(self, axis, group=None,
                                  start=0, stop=1, step=0.001, scantime=10.0,
-                                 accel=None, upload=True):
+                                 accel=None, upload=True, verbose=False):
         """defines 'forward' and 'backward' trajectories for a simple
         single element line scan in PVT Mode
         """
@@ -586,8 +657,8 @@ class NewportXPS:
         axis =  axis.upper()
         stage = "%s.%s" % (self.traj_group, axis)
 
-        max_velo  = 0.95*self.stages[stage]['max_velo']
-        max_accel = 0.95*self.stages[stage]['max_accel']
+        max_velo  = 0.75*self.stages[stage]['max_velo']
+        max_accel = 0.50*self.stages[stage]['max_accel']
         if accel is None:
             accel = max_accel
         accel = min(accel, max_accel)
@@ -638,12 +709,14 @@ class NewportXPS:
         for attr in ('velo', 'ramp', 'dist'):
             back["%s_%s" % (axis, attr)] *= -1.0
 
-        # print("TRAJ Text Fore:")
-        # print(self.linear_template % fore)
-        # print("TRAJ Text Back:")
-        # print(self.linear_template % back)
+        if verbose:
+            print("TRAJ Text Fore:")
+            print(self.linear_template % fore)
+            print("TRAJ Text Back:")
+            print(self.linear_template % back)
 
         ret = True
+
         if upload:
             ret = False
             try:
@@ -657,7 +730,7 @@ class NewportXPS:
         return ret
 
     @withConnectedXPS
-    def arm_trajectory(self, name):
+    def arm_trajectory(self, name, verbose=False):
         """
         set up the trajectory from previously defined, uploaded trajectory
         """
@@ -665,7 +738,6 @@ class NewportXPS:
             print("Must set group name!")
 
         traj = self.trajectories.get(name, None)
-
         if traj is None:
             raise XPSError("Cannot find trajectory named '%s'" %  name)
 
@@ -683,13 +755,28 @@ class NewportXPS:
         end_segment = traj['nsegments'] - 1 + self.extra_triggers
         # self.move_group(self.traj_group, **move_kws)
         self.gather_titles = "%s\n#%s\n" % (self.gather_header, " ".join(outputs))
-        self._xps.GatheringReset(self._sid)
-        self._xps.GatheringConfigurationSet(self._sid, outputs)
-        self._xps.MultipleAxesPVTPulseOutputSet(self._sid, self.traj_group,
-                                                2, end_segment,
-                                                traj['pixeltime'])
 
-        self._xps.MultipleAxesPVTVerification(self._sid, self.traj_group, name)
+        o = self._xps.GatheringReset(self._sid)
+        if verbose:
+            print(" GatheringReset returned ", o)
+
+        o = self._xps.GatheringConfigurationSet(self._sid, outputs)
+
+        if verbose:
+            print(" GatheringConfigurationSet outputs ", outputs)
+            print(" GatheringConfigurationSet returned ", o)
+            print( end_segment, traj['pixeltime'])
+
+        o = self._xps.MultipleAxesPVTPulseOutputSet(self._sid, self.traj_group,
+                                                    2, end_segment,
+                                                    traj['pixeltime'])
+
+        if verbose:
+            print(" PVTPulse  ", o)
+        o = self._xps.MultipleAxesPVTVerification(self._sid,
+                                                  self.traj_group, self.traj_file)
+        if verbose:
+            print(" PVTVerify  ", o)
         self.traj_state = ARMED
 
     @withConnectedXPS
@@ -712,16 +799,28 @@ class NewportXPS:
                                                           ('0','0'), ('0','0'),
                                                           ('0','0'), ('0','0'))
 
+        if verbose:
+            print( " EventExtended Trigger Set ", ret)
+
         ret = self._xps.EventExtendedConfigurationActionSet(self._sid,
                                                             ('GatheringOneData',),
                                                             ('',), ('',),('',),('',))
 
+        if verbose:
+            print( " EventExtended Action  Set ", ret)
+
         eventID, m = self._xps.EventExtendedStart(self._sid)
         self.traj_state = RUNNING
+
+        if verbose:
+            print( " EventExtended ExtendedStart ", eventID, m)
 
         ret = self._xps.MultipleAxesPVTExecution(self._sid,
                                                  self.traj_group,
                                                  self.traj_file, 1)
+
+        if verbose:
+            print( " PVT Execute  ", ret)
 
         ret = self._xps.EventExtendedRemove(self._sid, eventID)
         ret = self._xps.GatheringStop(self._sid)
@@ -744,7 +843,7 @@ class NewportXPS:
         self.ngathered = npulses
 
     @withConnectedXPS
-    def read_gathering(self, set_idle_when_done=True, debug=False):
+    def read_gathering(self, set_idle_when_done=True, debug_time=False):
         """
         read gathering data from XPS
         """
@@ -791,7 +890,7 @@ class NewportXPS:
         # dt.add(' buffer cleaned')
         if set_idle_when_done:
             self.traj_state = IDLE
-        if debug:
+        if debug_time:
             dt.show()
         return npulses, obuff
 
@@ -809,6 +908,8 @@ class NewportXPS:
             self.traj_state = IDLE
 
 if __name__ == '__main__':
-    x = NewportXPS('164.54.160.180')
+    import sys
+    ipaddr = sys.argv[1]
+    x = NewportXPS(ipaddr)
     x.read_systemini()
     print(x.status_report())
