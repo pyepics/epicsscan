@@ -206,7 +206,7 @@ class Slew_Scan(StepScan):
         xrd_det = None
         xrf_det = None
         for det in self.detectors:
-            print("prepare detector ", det)
+            # print("prepare detector ", det)
             if isinstance(det, AreaDetector):
                 xrd_det = det
             if 'xspress3' in det.label.lower():
@@ -372,7 +372,10 @@ class Slew_Scan(StepScan):
             if mappref is not None:
                 caput('%snrow' % (mappref), irow)
             trajname = ['foreward', 'backward'][(dir_off + irow) % 2]
-            # print('row %i of %i, %s %s' % (irow, npts, trajname, self.larch is None))
+
+            if debug:
+                print('row %i of %i, %s %s' % (irow, npts, trajname, self.larch is None))
+
             if self.larch is not None:
                 now = time.time()
                 prescan_lasttime = float(self.scandb.get_info('map_prescan_lasttime'))
@@ -395,13 +398,12 @@ class Slew_Scan(StepScan):
             dtimer.add('inner pos move started irow=%i' % irow)
             for det in self.detectors:
                 det.arm(mode='ndarray', numframes=npulses, fnum=irow)
-            time.sleep(0.025)
+
             dtimer.add('detectors armed')
             # note that we **start** detectors in reverse order
             # as we expect the first detector to be the "clock master"
             for det in reversed(self.detectors):
-                print("Start detector ",  det)
-                det.start()
+                det.start(arm=False, wait=False)
 
             dtimer.add('detectors started')
             self.xps.arm_trajectory(trajname)
@@ -472,6 +474,7 @@ class Slew_Scan(StepScan):
             xps_saver_thread.start()
 
             npts_sca = npulses
+            nsca = -1
             if scadet is not None:
                 sisfile = os.path.abspath(os.path.join(self.mapdir, scafile))
                 ncsa, npts_sca = scadet.save_arraydata(filename=sisfile, npts=npulses)
@@ -485,7 +488,7 @@ class Slew_Scan(StepScan):
                 t0 = time.time()
                 write_complete = xrfdet.file_write_complete()
                 ntry = 0
-                while not write_complete and (time.time()-t0 < 3.0):
+                while not write_complete and (time.time()-t0 < 1.0):
                     write_complete = xrfdet.file_write_complete()
                     time.sleep(0.1)
                     ntry = ntry + 1
@@ -496,7 +499,7 @@ class Slew_Scan(StepScan):
                     nxrf = xrfdet.get_numcaptured()
                     write_complete = xrfdet.file_write_complete()
                 if (nxrf < npulses-1) or not write_complete:
-                    print("XRF file write failed ", write_complete, nxrf, npulses)
+                    print("XRF file write failed ", write_complete, nxrf, npulses, ntry)
                     rowdata_ok = False
                     xrfdet.stop()
                     time.sleep(0.5)
@@ -540,7 +543,8 @@ class Slew_Scan(StepScan):
                     caput('%sstatus' % (mappref), 'Aborting')
                 break
             if debug:
-                dtimer.show(brief=True)
+                dtimer.show()
+
         if mappref is not None:
             caput('%sstatus' % (mappref), 'Finishing')
         self.post_scan()
