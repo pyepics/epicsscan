@@ -206,6 +206,7 @@ class Slew_Scan(StepScan):
         xrd_det = None
         xrf_det = None
         for det in self.detectors:
+            print("prepare detector ", det)
             if isinstance(det, AreaDetector):
                 xrd_det = det
             if 'xspress3' in det.label.lower():
@@ -358,7 +359,7 @@ class Slew_Scan(StepScan):
         self.set_info('scan_progress', 'starting')
         self.scandb.set_filename(self.filename)
         mappref = self.scandb.get_info('epics_map_prefix')
-
+        rowdata_ok = True
         start_time = time.time()
         irow = 0
         if mappref is not None:
@@ -387,19 +388,25 @@ class Slew_Scan(StepScan):
                 val = v1
                 if trajname == 'backward': val = v2
                 pv.put(val, wait=False)
+
+            lastrow_ok = rowdata_ok
+            rowdata_ok = True
+
             dtimer.add('inner pos move started irow=%i' % irow)
             for det in self.detectors:
                 det.arm(mode='ndarray', numframes=npulses, fnum=irow)
-
-            time.sleep(0.1)
+            time.sleep(0.025)
             dtimer.add('detectors armed')
-            for det in self.detectors:
+            # note that we **start** detectors in reverse order
+            # as we expect the first detector to be the "clock master"
+            for det in reversed(self.detectors):
+                print("Start detector ",  det)
                 det.start()
-            time.sleep(0.1)
+
             dtimer.add('detectors started')
             self.xps.arm_trajectory(trajname)
-            if irow < 2:
-                time.sleep(0.25)
+            if irow < 2 or not lastrow_ok:
+                time.sleep(1.0)
             # dtimer.add('outer pos move')
             dtimer.add('trajectory armed')
 
@@ -457,7 +464,7 @@ class Slew_Scan(StepScan):
             if irow < npts-1:
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
             dtimer.add('start read')
-            rowdata_ok = True
+
             xpsfile = os.path.abspath(os.path.join(self.mapdir, posfile))
 
             xps_saver_thread = Thread(target=self.xps.read_and_save,
@@ -478,7 +485,7 @@ class Slew_Scan(StepScan):
                 t0 = time.time()
                 write_complete = xrfdet.file_write_complete()
                 ntry = 0
-                while not write_complete and (time.time()-t0 < 10.0):
+                while not write_complete and (time.time()-t0 < 3.0):
                     write_complete = xrfdet.file_write_complete()
                     time.sleep(0.1)
                     ntry = ntry + 1
@@ -492,7 +499,7 @@ class Slew_Scan(StepScan):
                     print("XRF file write failed ", write_complete, nxrf, npulses)
                     rowdata_ok = False
                     xrfdet.stop()
-                    time.sleep(0.25)
+                    time.sleep(0.5)
 
             dtimer.add('saved XRF data')
 
@@ -513,26 +520,27 @@ class Slew_Scan(StepScan):
                     xrddet.stop()
                     time.sleep(0.25)
             dtimer.add('saved XRD data')
-
             rowdata_ok = (rowdata_ok and
                           (npts_sca > npulses-2) and
                           (self.xps.ngathered > npulses-2))
 
-            if debug:
+            if debug and False:
                 print("Row OK ? nXPS, nSIS, xNXRF, nXRD=", rowdata_ok,
                       self.xps.ngathered, npts_sca, nxrf, nxrd)
             if not rowdata_ok:
-                fmt=  '#BAD Row nXPS=%i, nSIS=%i, nXRF=%i, nXRD=%i: (npulses=%i) redo!\n'
-                self.write(fmt % (self.xps.ngathered, npts_sca, nxrf, nxrd, npulses))
-                self.write(" bad row xrfdet file write complete: %s "% repr(xrfdet.file_write_complete()))
+                fmt=  '#BAD Row %d nXPS=%d, nSIS=%d, nXRF=%d, nXRD=%d: (npulses=%d) redo!\n'
+                self.write(fmt % (irow, self.xps.ngathered, npts_sca, nxrf, nxrd, npulses))
+                # self.write(" bad row xrfdet file write complete: %s "% repr(xrfdet.file_write_complete()))
                 irow -= 1
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
+                time.sleep(0.25)
+
             if self.look_for_interrupts():
                 if mappref is not None:
                     caput('%sstatus' % (mappref), 'Aborting')
                 break
             if debug:
-                dtimer.show()
+                dtimer.show(brief=True)
         if mappref is not None:
             caput('%sstatus' % (mappref), 'Finishing')
         self.post_scan()
