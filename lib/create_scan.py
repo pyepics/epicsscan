@@ -161,7 +161,6 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
     scandet_master = None
     scandet_others = []
     for dpars in detectors:
-        print("XX: det = ", dpars)
         dpars['rois'] = scan.rois
         dpars['mode'] = scan.detmode
         if dpars['kind'] == 'scaler' and scaler_shim is not None:
