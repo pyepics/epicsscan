@@ -34,8 +34,16 @@ class debugtime(object):
             tlast = t
         return "\n".join(out)
 
-    def show(self, clear=True):
-        print(self.get_report())
+    def get_brief(self):
+        msg0, dt0 = self.times[0]
+        msgx, dtx = self.times[-1]
+        return '%s -> %s : %.4f sec' % (msg0, msgx, dtx-dt0)
+
+    def show(self, brief=False, clear=True):
+        if brief:
+            print(self.get_brief())
+        else:
+            print(self.get_report())
         if clear:
             self.clear()
         
