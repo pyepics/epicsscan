@@ -12,7 +12,12 @@
 #       if there is not a valid socket.
 # made many return values "consistent".
 
+import sys
 import socket
+import six
+from collections import OrderedDict
+
+from .utils import bytes2str
 
 class XPSException(Exception):
     """XPS Controller Exception"""
@@ -35,6 +40,7 @@ class XPS:
         XPS.__nbSockets = 0
         for socketId in range(self.MAX_NB_SOCKETS):
             XPS.__usedSockets[socketId] = 0
+        self.errorcodes = OrderedDict()
 
     def withValidSocket(fcn):
         """ decorator to ensure that a valid socket is passed as the
@@ -56,10 +62,10 @@ class XPS:
     @withValidSocket
     def __sendAndReceive (self, socketId, command):
         try:
-            XPS.__sockets[socketId].send(command)
-            ret = XPS.__sockets[socketId].recv(1024)
+            XPS.__sockets[socketId].send(six.b(command))
+            ret = bytes2str(XPS.__sockets[socketId].recv(1024))
             while (ret.find(',EndOfAPI') == -1):
-                ret += XPS.__sockets[socketId].recv(1024)
+                ret += bytes2str(XPS.__sockets[socketId].recv(1024))
         except socket.timeout:
             return [-2, '']
         except socket.error as err: #  (errNb, errString):
@@ -104,6 +110,15 @@ class XPS:
             XPS.__sockets[socketId].setblocking(1)
         except socket.error:
             return -1
+
+        err, ret = self.ErrorListGet(socketId)
+        self.errorcodes = OrderedDict()
+        for cline in ret.split(';'):
+            if ':' in cline:
+                ecode, message = cline.split(':', 1)
+                ecode = ecode.replace('Error', '').strip()
+                message = message.strip()
+                self.errorcodes[ecode] = message
 
         return socketId
 
