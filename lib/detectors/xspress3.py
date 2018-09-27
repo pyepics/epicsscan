@@ -30,7 +30,7 @@ class Xspress3(Device, ADFileMixin):
                  'Capture', 'NumCapture', 'AutoIncrement', 'AutoSave')
 
     def __init__(self, prefix, nmcas=4, filesaver='HDF1:',
-                 fileroot='/T/xas_user'):
+                 fileroot='/cars4/xas_user'):
         dt = debugtime()
         self.nmcas = nmcas
         attrs = []
@@ -447,11 +447,11 @@ class Xspress3Detector(DetectorMixin):
         time.sleep(0.05)
 
     def arm(self, mode=None, fnum=None, wait=False, numframes=None):
+        t0 = time.time()
         if mode is not None:
             self.mode = mode
         self._xsp3.put('Acquire', 0, wait=True)
-        self._xsp3.put('ERASE',   1, wait=True)
-        time.sleep(0.05)
+        # self._xsp3.put('ERASE',   1, wait=True)
 
         if fnum is not None:
             self.fnum = fnum
@@ -461,8 +461,7 @@ class Xspress3Detector(DetectorMixin):
             self._xsp3.put('NumImages', numframes)
 
         if self.mode == NDARRAY_MODE:
-            self._xsp3.FileCaptureOn()
-            time.sleep(0.025)
+            self._xsp3.FileCaptureOn(verify_rbv=True)
         elif self.mode == SCALER_MODE:
             self._xsp3.FileCaptureOff()
         elif self.mode == ROI_MODE:
@@ -470,6 +469,7 @@ class Xspress3Detector(DetectorMixin):
             for i in self._chans:
                 self._xsp3.put('MCA%iROI:TSControl' % i, 0) # 'Erase/Start'
                 self._xsp3.put('C%iSCA:TSControl' % i, 0)
+        time.sleep(0.05)
 
     def disarm(self, mode=None, wait=False):
         if mode is not None:
@@ -483,7 +483,8 @@ class Xspress3Detector(DetectorMixin):
         if arm:
             self.arm()
         self._xsp3.put('Acquire', 1, wait=wait)
-        time.sleep(0.10)
+        # Note that this delay is carefully tuned:
+        time.sleep(0.40)
 
     def stop(self, mode=None, disarm=False, wait=False):
         self._xsp3.put('Acquire', 0, wait=wait)
