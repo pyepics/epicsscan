@@ -231,13 +231,13 @@ class NewportXPS:
         """set group name for upcoming trajectories"""
         valid = False
         if group in self.groups:
-            if self.groups[group]['category'].startswith('Multiple'):
+            if self.groups[group]['category'].lower().startswith('multiple'):
                 valid = True
 
         if not valid:
             pvtgroups = []
             for gname, group in self.groups.items():
-                if group['category'].startswith('Multiple'):
+                if group['category'].lower().startswith('multiple'):
                     pvtgroups.append(gname)
             pvtgroups = ', '.join(pvtgroups)
             msg = "'%s' cannot be a trajectory group, must be one of %s"
@@ -558,6 +558,8 @@ class NewportXPS:
         """defines 'forward' and 'backward' trajectories for a simple
         single element line scan in PVT Mode
         """
+        verbose = True
+
         if group is not None:
             self.set_trajectory_group(group)
 
@@ -568,8 +570,8 @@ class NewportXPS:
         axis =  axis.upper()
         stage = "%s.%s" % (self.traj_group, axis)
 
-        max_velo  = 0.75*self.stages[stage]['max_velo']
-        max_accel = 0.50*self.stages[stage]['max_accel']
+        max_velo  = 0.5*self.stages[stage]['max_velo']
+        max_accel = 0.5*self.stages[stage]['max_accel']
         if accel is None:
             accel = max_accel
         accel = min(accel, max_accel)
@@ -586,7 +588,7 @@ class NewportXPS:
         scantime = pixeltime*npulses
         distance = (abs(stop - start) + abs(step))*1.0
         velocity = min(distance/scantime, max_velo)
-        ramptime = 1.5 * abs(velocity/accel)
+        ramptime = 2.0 * abs(velocity/accel)
         rampdist = velocity * ramptime * scandir
 
 
@@ -649,6 +651,7 @@ class NewportXPS:
             print("Must set group name!")
 
         traj = self.trajectories.get(name, None)
+        print(" Arm trajectory ", name, traj)
         if traj is None:
             raise XPSException("Cannot find trajectory named '%s'" %  name)
 
