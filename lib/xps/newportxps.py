@@ -558,8 +558,6 @@ class NewportXPS:
         """defines 'forward' and 'backward' trajectories for a simple
         single element line scan in PVT Mode
         """
-        verbose = True
-
         if group is not None:
             self.set_trajectory_group(group)
 
@@ -590,7 +588,6 @@ class NewportXPS:
         velocity = min(distance/scantime, max_velo)
         ramptime = 2.0 * abs(velocity/accel)
         rampdist = velocity * ramptime * scandir
-
 
         self.trajectories['foreward'] = {'axes': [axis],
                                          'start': [start-step/2.0-rampdist],
@@ -651,7 +648,7 @@ class NewportXPS:
             print("Must set group name!")
 
         traj = self.trajectories.get(name, None)
-        print(" Arm trajectory ", name, traj)
+        # print(" Arm trajectory ", name, traj)
         if traj is None:
             raise XPSException("Cannot find trajectory named '%s'" %  name)
 
