@@ -30,7 +30,7 @@ class Xspress3(Device, ADFileMixin):
                  'Capture', 'NumCapture', 'AutoIncrement', 'AutoSave')
 
     def __init__(self, prefix, nmcas=4, filesaver='HDF1:',
-                 fileroot='/cars4/xas_user'):
+                 fileroot='/home/xspress3'):
         dt = debugtime()
         self.nmcas = nmcas
         attrs = []
@@ -216,7 +216,7 @@ class Xspress3Detector(DetectorMixin):
     def __init__(self, prefix, label=None, nmcas=4, mode='scaler',
                  rois=None, nrois=32, pixeltime=0.1, use_dtc=False,
                  use=True, use_unlabeled=False, use_full=False,
-                 filesaver='HDF1:', fileroot='/T/xas_user', **kws):
+                 filesaver='HDF1:', fileroot='/home/xspress3/data', **kws):
 
         self.nmcas = nmcas = int(nmcas)
         self._chans = range(1, nmcas+1)
@@ -224,6 +224,7 @@ class Xspress3Detector(DetectorMixin):
         self.fileroot = fileroot
         self.filesaver = filesaver
         self.trigger_suffix = 'det1:Acquire'
+
         DetectorMixin.__init__(self, prefix, label=label)
         self._xsp3 = Xspress3(prefix, nmcas=nmcas,
                               fileroot=fileroot,
@@ -444,14 +445,15 @@ class Xspress3Detector(DetectorMixin):
         return self._xsp3.getNumCaptured_RBV()
 
     def finish_capture(self):
-        time.sleep(0.05)
+        self._xsp3.FileCaptureOff()
+        time.sleep(0.1)
 
     def arm(self, mode=None, fnum=None, wait=False, numframes=None):
         t0 = time.time()
         if mode is not None:
             self.mode = mode
-        self._xsp3.put('Acquire', 0, wait=True)
-        # self._xsp3.put('ERASE',   1, wait=True)
+        if self._xsp3.DetectorState_RBV > 0:
+            self._xsp3.put('Acquire', 0)
 
         if fnum is not None:
             self.fnum = fnum
@@ -469,7 +471,9 @@ class Xspress3Detector(DetectorMixin):
             for i in self._chans:
                 self._xsp3.put('MCA%iROI:TSControl' % i, 0) # 'Erase/Start'
                 self._xsp3.put('C%iSCA:TSControl' % i, 0)
-        time.sleep(0.05)
+        if self._xsp3.DetectorState_RBV > 0:
+            self._xsp3.put('Acquire', 0, wait=True)
+        time.sleep(0.025)
 
     def disarm(self, mode=None, wait=False):
         if mode is not None:
@@ -483,8 +487,8 @@ class Xspress3Detector(DetectorMixin):
         if arm:
             self.arm()
         self._xsp3.put('Acquire', 1, wait=wait)
-        # Note that this delay is carefully tuned:
-        time.sleep(0.40)
+        time.sleep(0.5)  # Note that this delay is carefully tuned
+
 
     def stop(self, mode=None, disarm=False, wait=False):
         self._xsp3.put('Acquire', 0, wait=wait)
