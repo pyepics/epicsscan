@@ -11,11 +11,12 @@ from six.moves.configparser import  ConfigParser
 
 from .XPS_C8_drivers import XPS, XPSException
 
-from ..debugtime import debugtime
+from .debugtime import debugtime
 from .ftp_wrapper import SFTPWrapper, FTPWrapper
 
 IDLE, ARMING, ARMED, RUNNING, COMPLETE, WRITING, READING = \
       'IDLE', 'ARMING', 'ARMED', 'RUNNING', 'COMPLETE', 'WRITING', 'READING'
+
 
 def withConnectedXPS(fcn):
     """decorator to ensure a NewportXPS is connected before a method is called"""
@@ -165,8 +166,7 @@ class NewportXPS:
         sconf.readfp(StringIO('\n'.join(lines)))
 
         # read and populate lists of groups first
-        for gtype in sconf.items('GROUPS'):
-            glist =  sconf.get('GROUPS', gtype)
+        for gtype, glist in sconf.items('GROUPS'): # ].items():
             if len(glist) > 0:
                 for gname in glist.split(','):
                     gname = gname.strip()
@@ -176,14 +176,16 @@ class NewportXPS:
                     if gtype.startswith('Multiple'):
                         pvtgroups.append(gname)
 
-        for section, data in sconf.items():
+        for section in sconf.sections():
             if section in ('DEFAULT', 'GENERAL', 'GROUPS'):
                 continue
-            elif section in self.groups:  # this is a Group Section!
-                posnames = [a.strip() for a in data['positionerinuse'].split(',')]
+            items = sconf.options(section)
+            if section in self.groups:  # this is a Group Section!
+                poslist = sconf.get(section, 'positionerinuse')
+                posnames = [a.strip() for a in poslist.split(',')]
                 self.groups[section]['positioners'] = posnames
-            elif 'plugnumber' in data: # this is a stage
-                self.stages[section] = {'stagetype': data['stagename']}
+            elif 'plugnumber' in items: # this is a stage
+                self.stages[section] = {'stagetype': sconf.get(section, 'stagename')}
 
         if len(pvtgroups) == 1:
             self.set_trajectory_group(pvtgroups[0])
@@ -210,6 +212,18 @@ class NewportXPS:
         self.ftpconn.connect(**self.ftpargs)
         self.ftpconn.cwd(os.path.join(self.ftphome, 'Public', 'Trajectories'))
         self.ftpconn.put(text, filename)
+        self.ftpconn.close()
+
+    def upload_systemini(self, text):
+        """upload text of system.ini
+
+        Arguments:
+        ----------
+           text  (str):   full text of system.ini
+        """
+        self.ftpconn.connect(**self.ftpargs)
+        self.ftpconn.cwd(os.path.join(self.ftphome, 'Config'))
+        self.ftpconn.put(text, 'system.ini')
         self.ftpconn.close()
 
     @withConnectedXPS
