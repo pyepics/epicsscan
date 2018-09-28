@@ -1,5 +1,5 @@
 """
-Quantum Xspress3 detector
+Pilatus detector
 """
 import time
 import glob
