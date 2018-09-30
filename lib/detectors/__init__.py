@@ -26,6 +26,7 @@ from .areadetector import AreaDetector
 from .quadem import TetrAMM, TetrAMMDetector
 from .ad_perkinelmer import AD_PerkinElmer
 from .ad_pilatus import AD_Pilatus
+from .ad_eiger import AD_Eiger
 
 DET_DEFAULT_OPTS = {'scaler': {'use_calc': True, 'nchans': 8},
                     'tetramm': {'nchans': 4},
