@@ -297,10 +297,9 @@ class QXAFS_Scan(XAFS_Scan):
         caput(qconf['id_array_pv'], np.zeros(2000))
 
     def make_trajectory(self, reverse=False,
-                        theta_accel=25, width_accel=0.25, **kws):
+                        theta_accel=5, width_accel=0.050, **kws):
         """this method builds the text of a Trajectory script for
         a Newport XPS Controller based on the energies and dwelltimes"""
-
 
         if self.config is None:
             self.connect_qxafs()
