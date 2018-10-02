@@ -11,6 +11,126 @@ from .base import DetectorMixin, SCALER_MODE, NDARRAY_MODE, ROI_MODE
 from .areadetector import AreaDetector
 from ..debugtime import debugtime
 
+import requests
+import json
+from telnetlib import Telnet
+
+
+def restart_procserv_ioc(ioc_port=29200):
+    """
+    send a Ctrl-C to a procServ ioc running on localhost
+    """
+    tn = Telnet('localhost', ioc_port)
+    tn.write('\x03')
+    tn.write('\n')
+    time.sleep(3)
+
+class EigerSimplon:
+    """
+    Connect to Eiger Simplon API
+    useful for restarting data acquistion and
+    setting simple parameters
+
+    eiger = EigerSimpplon'164.54.160.234', procserv_iocport=8045)
+
+    print(eiger._get(module='detector', task='status', parameter='state'))
+    print(eiger._get(module='detector', task='config', parameter='photon_energy'))
+
+
+    """
+    def __init__(self, url, procserv_iocport=None):
+        self.conf = {'api': '1.6.6', 'url': url}
+        self.procserv_iocport = procserv_iocport
+        self.last_status = 200
+        self.message = ''
+
+    def _exec(self, request='get', module='detector', task='status',
+              parameter='state', value=None):
+
+        cmd = "http://{url:s}/{module:s}/api/{api:s}/{task:s}/{parameter:s}"
+        kws = {}
+        kws.update(self.conf)
+        kws.update(module=module, task=task, parameter=parameter)
+        command = cmd.format(**kws)
+
+        if request == 'put':
+            jsondata = None
+            if value is not None:
+                jsondata = json.dumps({'value': value})
+            ret = requests.put(command, data=jsondata)
+        else:
+            ret = requests.get(command)
+
+        self.last_status = ret.status_code
+        out = ["# %s" % command,
+               "# response: %s: %s" % (ret.status_code, ret.reason)]
+        dat = None
+        try:
+            dat = json.loads(ret.text)
+        except ValueError:
+            out.append('no valid json data')
+        if dat is not None:
+            if isinstance(dat, (list, tuple)):
+                out.append(" %s" % (dat))
+            elif isinstance(dat, dict):
+                for key, val in dat.items():
+                    out.append("  %s: %s" % (key, val))
+        self.message = '\n'.join(out)
+
+    def _put(self, module='detector', task='status',
+             parameter='state', value=''):
+        self._exec(request='put', module=module, task=task,
+                   parameter=parameter, value=value)
+
+    def _get(self, module='detector', task='status',
+             parameter='state', value=''):
+        self._exec(request='get', module=module, task=task,
+                   parameter=parameter, value=value)
+        return self.message
+
+    def set_energy(self, energy=15000):
+        self._put(module='detector', task='config',
+                  parameter='photon_energy', value=energy)
+
+    def get_energy(self, energy=15000):
+        self._get(module='detector', task='config',
+                  parameter='photon_energy')
+        return self.message
+
+    def clear_disk(self):
+        self._put(module='filewriter', task='command',
+                  parameter='clear')
+        return self.message
+
+    def show_diskspace(self):
+        self._get(module='filewriter', task='status',
+                parameter='buffer_free')
+        return self.message
+
+    def restart_daq(self):
+        """
+        restart DAQ and then
+        send Ctrl-C to procServ to restart IOC
+        """
+        self._put(module='system', task='command', parameter='restart')
+        time.sleep(3.0)
+        for i in range(20):
+            self._put(module='detector', task='command', parameter='initialize')
+            if self.last_status != 200:
+                time.sleep(1.0)
+            else:
+                break
+        if self.last_status != 200:
+            raise ValueError('eiger detector initialize failed')
+
+        if self.procserv_iocport is not None:
+            restart_procserv_ioc(self.procserv_iocport)
+            time.sleep(5.0)
+        else:
+            print("Warning -- you will need to restart Epics IOC")
+
+
+
 class AD_Eiger(AreaDetector):
     """
     Eiger areaDetector
@@ -110,12 +230,12 @@ class AD_Eiger(AreaDetector):
         2. Files will be saved by the file saver
         """
         try:
-            self.cam.put('TriggerMode', 'Internal Enable') # Internal
+            self.cam.put('TriggerMode', 'Internal Series') # Internal Mode
         except ValueError:
             pass
         if numframes is not None:
-            self.cam.put('NumImages', 1)
-            self.cam.put('NumTriggers', numframes)
+            self.cam.put('NumImages', numframes)
+            self.cam.put('NumTriggers', 1)
         if dwelltime is not None:
             self.set_dwelltime(dwelltime)
         self.mode = SCALER_MODE
