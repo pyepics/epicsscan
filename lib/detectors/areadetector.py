@@ -238,7 +238,6 @@ class AreaDetector(DetectorMixin):
     def __init__(self, prefix, cam='cam1:', filesaver='TIFF1:',
                  roistat='ROIStat1:', fileroot='', label='ad', mode='scaler',
                  arm_delay=0.05, start_delay=0.05, **kws):
-
         self.dwelltime = None
         self.filesaver = filesaver
         self.fileroot = fileroot
@@ -247,7 +246,6 @@ class AreaDetector(DetectorMixin):
         self.arm_delay = arm_delay
         self.start_delay = start_delay
         self.trigger_suffix = cam + 'Acquire'
-
         DetectorMixin.__init__(self, prefix, label=label, **kws)
 
         self.cam = AD_Camera(prefix, cam=cam)
@@ -305,7 +303,8 @@ class AreaDetector(DetectorMixin):
         self.cam.put('Acquire', 0, wait=True)
         poll(0.05, 0.5)
 
-        fileopts = dict(number=1, name=self.label,
+        fileopts = dict(number=1,
+                        name=self.label,
                         numcapture=npulses,
                         template="%s%s.%4.4d",
                         auto_increment=False,
@@ -344,6 +343,7 @@ class AreaDetector(DetectorMixin):
         if npulses is not None:
             self.cam.put('NumImages', npulses)
 
+        print("ad pre_scan -> config_filesaver ", fileopts)
         self.config_filesaver(**fileopts)
 
         if hasattr(self, 'custom_pre_scan'):

@@ -12,10 +12,11 @@ class DetectorMixin(Saveable):
     Base detector mixin class
     """
     trigger_suffix = None
-    def __init__(self, prefix, label=None, **kws):
+    def __init__(self, prefix, label=None, scandb=None, **kws):
         Saveable.__init__(self, prefix, label=label, **kws)
         self.prefix = prefix
         self.label = label
+        self.scandb = scandb
         self.fnum = 1
         if self.label is None:
             self.label = self.prefix
@@ -101,6 +102,9 @@ class DetectorMixin(Saveable):
 
     def at_break(self, breakpoint=None, **kws):
         "run at breakpoint"
+        pass
+
+    def config_filesaver(self, **kws):
         pass
 
 class SimpleDetector(DetectorMixin):
