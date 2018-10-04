@@ -30,7 +30,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
     filename (string): name for datafile ['scan.dat']
     type (string):  type of scan, for building positions ('linear',
                    'xafs', 'mesh', 'slew',  ...)  ['linear']
-    scanmode (string or None): scan-specific mode info, 
+    scanmode (string or None): scan-specific mode info,
          typically 'step' or 'slew', as for step/continuous XAFS scans
     detmode (string):  detector mode, for configuring detector and counters,
                    one of 'scaler', 'roi', 'ndarray' [None: guess from scan type]
@@ -155,14 +155,16 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
 
     scan.rois = rois
     # print  "Made Detectors: shim=",  scaler_shim, scandb, scantype, scan.scantype
-    # scandet_master / others are used to make sure that the 
+    # scandet_master / others are used to make sure that the
     # first scaler detector found is used first -- typically this
     # is the "clock master", and may need to be started **last**
     scandet_master = None
     scandet_others = []
+
     for dpars in detectors:
         dpars['rois'] = scan.rois
         dpars['mode'] = scan.detmode
+        dpars['scandb'] = scandb
         if dpars['kind'] == 'scaler' and scaler_shim is not None:
             dpars.update(scaler_shim)
         thisdet = get_detector(**dpars)
