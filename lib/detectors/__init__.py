@@ -84,6 +84,7 @@ def get_detector(prefix, kind=None, mode='scaler', rois=None, label=None, **kws)
               'xspress3': Xspress3Detector,
               'struck': StruckDetector,
               'tetramm': TetrAMMDetector,
+              'eiger': AD_Eiger,
               'perkinelmer': AD_PerkinElmer,
               'pilatus': AD_Pilatus,
               None: SimpleDetector}
