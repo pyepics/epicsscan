@@ -108,8 +108,8 @@ class Slew_Scan(StepScan):
         os.mkdir(mapdir)
 
         hfname= os.path.join(basedir, self.filename)
-
-        # print("Opening H5 file ", hfname)
+        self.set_info('filename', fname)
+        self.set_info('map_folder', mapdir)
 
         fhx  = open(hfname, 'w')
         fhx.write("%s\n"% mapdir)
@@ -189,7 +189,6 @@ class Slew_Scan(StepScan):
                     'time1 = %.4f'  % dtime])
 
 
-
         if dim == 2:
             l_, pvs, start, stop, npts = self.outer
             pospv = pvs[0]
@@ -259,7 +258,10 @@ class Slew_Scan(StepScan):
             detpath = detpath[1:]
         for det in self.detectors:
             det.data_dir = mapdir
-            det.config_filesaver(path=detpath)
+            try:
+                det.config_filesaver(path=detpath)
+            except AttributeError:
+                pass
         return sname
 
     def post_scan(self):
@@ -269,6 +271,7 @@ class Slew_Scan(StepScan):
 
         for m in self.post_scan_methods:
             m()
+            # print("Ran Post Scan Method:  ", m)
 
         for det in self.detectors:
             det.disarm(mode=self.detmode)
@@ -346,14 +349,14 @@ class Slew_Scan(StepScan):
         scafile = xrffile = xrdfile = '_unused_'
         for det in self.detectors:
             dlabel = det.label.lower()
+            # print('detector ', det, dlabel)
             if dlabel == 'struck':
                 scadet = det
             elif dlabel in ('xspress3', 'multimca')  or 'mca' in dlabel:
                 xrfdet = det
-            elif 'xrd' in dlabel:
+            elif dlabel in ('xrd', 'eiger'):
                 xrddet = det
             det.NDArrayMode(numframes=npulses)
-
 
         self.clear_interrupts()
         self.set_info('scan_progress', 'starting')
@@ -365,7 +368,14 @@ class Slew_Scan(StepScan):
         if mappref is not None:
             caput('%sstatus' % (mappref), 'Collecting')
         dtimer =  debugtime()
+        self.scandb.set_info('repeated_map_rows', '')
+        repeat_rows = []
         while irow < npts:
+            if self.look_for_interrupts():
+                if mappref is not None:
+                    caput('%sstatus' % (mappref), 'Aborting')
+                break
+
             irow += 1
             dtimer.add('=== row start %i ====' % irow)
             self.set_info('scan_progress', 'row %i of %i' % (irow, npts))
@@ -445,6 +455,11 @@ class Slew_Scan(StepScan):
 
             masterline = "%s %s %s %s %s" % (pos0, xrffile, scafile,
                                              posfile, xrdfile)
+            if xrddet is not None:
+                time.sleep(1.0)
+                if xrddet.cam.Acquire != 1:
+                    rowdata_ok = False
+                    print("XRD not Acquiring ", irow, xrddet, xrddet.cam.Acquire)
 
             # wait for trajectory to finish
             dtimer.add('scan thread run join()')
@@ -507,21 +522,11 @@ class Slew_Scan(StepScan):
             dtimer.add('saved XRF data')
 
             if xrddet is not None:
+                nxrd = xrddet.get_numcaptured()
                 t0 = time.time()
                 while not xrddet.file_write_complete() and (time.time()-t0 < 15.0):
                     time.sleep(0.1)
-                if not xrddet.file_write_complete():
-                    xrddet.ad.FileCaptureOff()
-                    time.sleep(0.25)
-                    while not xrddet.file_write_complete() and (time.time()-t0 < 15.0):
-                        time.sleep(0.1)
 
-                # print(" File write complete? ", xrfdet.file_write_complete())
-                nxrd = xrddet.ad.getNumCaptured_RBV()
-                if (nxrd < npulses-3): #  or not xrddet.file_write_complete():
-                    rowdata_ok = False
-                    xrddet.stop()
-                    time.sleep(0.25)
             dtimer.add('saved XRD data')
             rowdata_ok = (rowdata_ok and
                           (npts_sca > npulses-2) and
@@ -533,7 +538,9 @@ class Slew_Scan(StepScan):
             if not rowdata_ok:
                 fmt=  '#BAD Row %d nXPS=%d, nSIS=%d, nXRF=%d, nXRD=%d: (npulses=%d) redo!\n'
                 self.write(fmt % (irow, self.xps.ngathered, npts_sca, nxrf, nxrd, npulses))
-                # self.write(" bad row xrfdet file write complete: %s "% repr(xrfdet.file_write_complete()))
+
+                repeat_rows.append(irow)
+                self.scandb.set_info('repeated_map_rows', repr(repeat_rows))
                 irow -= 1
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
                 time.sleep(0.25)
@@ -551,6 +558,7 @@ class Slew_Scan(StepScan):
         if mappref is not None:
             caput('%sstatus' % (mappref), 'IDLE')
         print('Scan done.')
+        self.set_info('scan_progress', 'done')
         return
 
     def check_beam_ok(self):
