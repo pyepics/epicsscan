@@ -34,7 +34,7 @@ class EigerSimplon:
     useful for restarting data acquistion and
     setting simple parameters
 
-    eiger = EigerSimpplon'164.54.160.234', procserv_iocport=8045)
+    eiger = EigerSimplon('164.54.160.234', procserv_iocport=8045)
 
     print(eiger._get(module='detector', task='status', parameter='state'))
     print(eiger._get(module='detector', task='config', parameter='photon_energy'))
@@ -156,26 +156,6 @@ class EigerSimplon:
         print("Restart Done.")
 
 
-class RsyncSaver():
-    def __init__(self, dest=None, source='/eiger1', pattern='e*.h5'):
-        self.dest = dest
-        self.source = source
-        self.pattern = pattern
-        self.active = False
-
-    def start(self):
-        self.active = True
-        if self.dest is not None:
-            cmds = ['rsync', '%s/%s' % (self.source, self.pattern), self.dest]
-            # while self.active:
-            #     time.sleep(1.0)
-            print(" rsyncer run commands ", cmds)
-
-    def stop(self):
-        print(" rsyncer stop")
-        self.active = False
-
-
 
 class AD_Eiger(AreaDetector):
     """
@@ -184,11 +164,17 @@ class AD_Eiger(AreaDetector):
     a pretty generic areaDetector, but overwriting
     pre_scan() to collect offset frames
     """
-    def __init__(self, prefix, label='eigxrd', mode='scaler',
-                 filesaver='TIFF1:', fileroot='/home/xas_user', **kws):
+    def __init__(self, prefix, label='eigxrd', mode='scaler', url=None,
+                 filesaver='TIFF1:', fileroot='/home/xas_user', scandb=None, **kws):
 
         AreaDetector.__init__(self, prefix, label=label, mode=mode,
-                             filesaver=filesaver, fileroot=fileroot, **kws)
+                             filesaver=filesaver, fileroot=fileroot,
+                              scandb=scandb, **kws)
+
+        self.simplon = None
+        if url is not None:
+            self.simplon = EigerSimplon(url, prefix)
+        print(" EIGER scandb ", self.scandb)
         self.cam.PV('FWEnable')
         self.cam.PV('FWClear')
         self.cam.PV('FWNImagesPerFile')
@@ -196,27 +182,31 @@ class AD_Eiger(AreaDetector):
         self.cam.PV('FWNamePattern')
         self.cam.PV('FilePath')
         self.cam.PV('SaveFiles')
+        self.cam.PV('SequenceId')
         self.mode = mode
-        self.arm_delay = self.stop_delay = self.readout_time = 5.0e-5
+
+        self.stop_delay = self.readout_time = 5.0e-5
+        self.arm_delay = 0.25
         self.start_delay = 0.05
         self.dwelltime = None
-        self.rsyncer = RsyncSaver(None)
         self.datadir = ''
         self.ad.FileCaptureOff()
 
     def custom_pre_scan(self, row=0, dwelltime=None, **kws):
         print("Custom Prescan AD getFilePath ", self.datadir)
+        time.sleep(1.0)
+        # self.cam.put('FilePath', os.path.join(self.fileroot, self.datadir))
+        if self.scandb is not None:
+            self.scandb.set_info('eiger_starting_seqid',
+                                 self.cam.get('SequenceId', as_string=True))
+            self.scandb.set_info('eiger_needs_sync', 'scanning')
         self.cam.put('FWEnable', 'Yes')
+        self.cam.put('SaveFiles', 'No')
         self.cam.put('FWAutoRemove', 'No')
 
-        self.cam.put('FWNamePattern', 'eigxrd$id')
-        self.cam.put('SavesFiles', 'No')
-        self.cam.put('FWClear', 1)
-
-        self.rsyncer.dest = os.path.join(self.fileroot, self.datadir)
-        self.rsyncer.start()
-
     def post_scan(self, **kws):
+        if self.scandb is not None:
+            self.scandb.set_info('eiger_needs_sync', 'finishing')
         self.ContinuousMode()
 
     def open_shutter(self):
@@ -231,22 +221,21 @@ class AD_Eiger(AreaDetector):
     def arm(self, mode=None, fnum=None, wait=False, numframes=None):
         if mode is not None:
             self.mode = mode
-        self.cam.put('Acquire', 0, wait=True)
+        if self.cam.get('Acquire') != 0:
+            self.cam.put('Acquire', 0, wait=True)
+            time.sleep(5*self.arm_delay)
 
-        if self.mode == SCALER_MODE:
+        if self.mode == NDARRAY_MODE:
             numframes = 1
 
         if numframes is not None:
             self.cam.put('NumImages', numframes)
-
-        self.ad.FileCaptureOff()
+        # self.ad.FileCaptureOff()
         time.sleep(self.arm_delay)
 
     def disarm(self, mode=None, wait=False):
         if mode is not None:
             self.mode = mode
-        self.rsyncer.stop()
-
         time.sleep(self.arm_delay)
 
     def start(self, mode=None, arm=False, wait=False):
@@ -254,7 +243,11 @@ class AD_Eiger(AreaDetector):
             self.mode = mode
         if arm:
             self.arm()
-        self.cam.put('Acquire', 1, wait=wait)
+        for i in range(10):
+            self.cam.put('Acquire', 1, wait=False)
+            time.sleep(self.start_delay)
+            if self.cam.get('Acquire') == 1:
+                break
         time.sleep(self.start_delay)
 
     def stop(self, mode=None, disarm=False, wait=False):
@@ -317,6 +310,7 @@ class AD_Eiger(AreaDetector):
         """
 
         self.cam.put('TriggerMode', 'External Enable')
+        self.cam.put('Acquire', 0, wait=True)
 
         if numframes is not None:
             self.cam.put('NumImages', 1)
@@ -334,11 +328,8 @@ class AD_Eiger(AreaDetector):
     def config_filesaver(self, path=None, name=None, number=None,
                          numcapture=None, template=None, auto_save=None,
                          write_mode=None, auto_increment=None, enable=True):
-        print("config file saver Eiger ", path)
         if path is not None:
             self.datadir = path
-
-
 
     def file_write_complete(self):
         return True
