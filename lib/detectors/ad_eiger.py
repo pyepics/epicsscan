@@ -164,7 +164,7 @@ class AD_Eiger(AreaDetector):
     a pretty generic areaDetector, but overwriting
     pre_scan() to collect offset frames
     """
-    def __init__(self, prefix, label='eigxrd', mode='scaler', url=None,
+    def __init__(self, prefix, label='eiger', mode='scaler', url=None,
                  filesaver='TIFF1:', fileroot='/home/xas_user', scandb=None, **kws):
 
         AreaDetector.__init__(self, prefix, label=label, mode=mode,
@@ -183,6 +183,7 @@ class AD_Eiger(AreaDetector):
         self.cam.PV('FilePath')
         self.cam.PV('SaveFiles')
         self.cam.PV('SequenceId')
+        self.cam.PV('DetectorState_RBV')
         self.mode = mode
 
         self.stop_delay = self.readout_time = 5.0e-5
@@ -331,8 +332,20 @@ class AD_Eiger(AreaDetector):
         if path is not None:
             self.datadir = path
 
-    def file_write_complete(self):
-        return True
 
-    def getNumCaptured_RBV(self):
-        return 1e50
+    def get_next_filename(self):
+        pattern = self.cam.get('FWNamePattern')
+        seqid = "%d" % (1+self.cam.get('SequenceId'))
+        prefix = pattern.replace('$id', seqid)
+        return "%s_master.h5" % (prefix)
+
+    def file_write_complete(self):
+        """
+        assume that if the detector is working,
+        that the file will be written
+        """
+        detstate = self.cam.get('DetectorState_RBV')
+        return detstate != 6 # Error
+
+    def get_numcaptured(self):
+        return self.cam.get('NumImagesCounter_RBV')
