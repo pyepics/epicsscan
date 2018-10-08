@@ -342,15 +342,11 @@ class AreaDetector(DetectorMixin):
 
         if npulses is not None:
             self.cam.put('NumImages', npulses)
-
-        print("ad pre_scan -> config_filesaver ", fileopts)
         self.config_filesaver(**fileopts)
 
         if hasattr(self, 'custom_pre_scan'):
            self.custom_pre_scan(row=row, mode=mode, npulse=npulses,
                                 dwelltime=dwelltime, **kws)
-
-
 
     def post_scan(self, **kws):
         self.config_filesaver(enable=False)

@@ -159,7 +159,7 @@ class Struck(Device):
             self.set_dwelltime(dwelltime)
         self._mode = NDARRAY_MODE
 
-        time.sleep(0.05)
+        time.sleep(0.01)
         self.ExternalMode(trigger_width=trigger_width, countonstart=countonstart)
 
     def ROIMode(self, dwelltime=None, numframes=None, countonstart=True,
@@ -340,7 +340,8 @@ class StruckDetector(DetectorMixin):
                  mode='scaler',  scaler=None, rois=None, **kws):
         nchan = int(nchan)
         self.mode = mode
-
+        self.arm_delay = 0.025
+        self.start_delay = 0.025
         self.struck = Struck(prefix, scaler=scaler, nchan=nchan)
         DetectorMixin.__init__(self, prefix, **kws)
         self.label = label
@@ -368,7 +369,7 @@ class StruckDetector(DetectorMixin):
         "run just after scan"
         pass
 
-    def arm(self, mode=None, fnum=None, wait=False, numframes=None):
+    def arm(self, mode=None, fnum=None, wait=True, numframes=None):
         "arm detector, ready to collect with optional mode"
         # print("Struck Arm: ", mode, numframes)
         if fnum is not None:
@@ -379,12 +380,16 @@ class StruckDetector(DetectorMixin):
             self.struck.ROIMode(numframes=numframes)
         elif self.mode == NDARRAY_MODE:
             self.struck.NDArrayMode(numframes=numframes)
+        if wait:
+            time.sleep(self.arm_delay)
 
-    def start(self, mode=None, arm=False, wait=False):
+    def start(self, mode=None, arm=False, wait=True):
         "start detector, optionally arming and waiting"
         if arm:
-            self.arm(mode=mode)
+            self.arm(mode=mode, wait=wait)
         self.struck.start(wait=wait)
+        if wait:
+            time.sleep(self.start_delay)
 
     def stop(self):
         "stop detector"

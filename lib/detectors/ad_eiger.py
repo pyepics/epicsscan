@@ -174,7 +174,6 @@ class AD_Eiger(AreaDetector):
         self.simplon = None
         if url is not None:
             self.simplon = EigerSimplon(url, prefix)
-        print(" EIGER scandb ", self.scandb)
         self.cam.PV('FWEnable')
         self.cam.PV('FWClear')
         self.cam.PV('FWNImagesPerFile')
@@ -184,18 +183,19 @@ class AD_Eiger(AreaDetector):
         self.cam.PV('SaveFiles')
         self.cam.PV('SequenceId')
         self.cam.PV('DetectorState_RBV')
+        self.cam.PV('AcquireBusy')
         self.mode = mode
 
         self.stop_delay = self.readout_time = 5.0e-5
-        self.arm_delay = 0.25
-        self.start_delay = 0.05
+        self.arm_delay = 0.1
+        self.start_delay = 0.1
         self.dwelltime = None
         self.datadir = ''
         self.ad.FileCaptureOff()
 
     def custom_pre_scan(self, row=0, dwelltime=None, **kws):
-        print("Custom Prescan AD getFilePath ", self.datadir)
-        time.sleep(1.0)
+        # print("Custom Prescan AD getFilePath ", self.datadir)
+        time.sleep(0.5)
         # self.cam.put('FilePath', os.path.join(self.fileroot, self.datadir))
         if self.scandb is not None:
             self.scandb.set_info('eiger_starting_seqid',
@@ -219,9 +219,10 @@ class AD_Eiger(AreaDetector):
     def AcquireOffset(self, timeout=10, open_shutter=True):
         pass
 
-    def arm(self, mode=None, fnum=None, wait=False, numframes=None):
+    def arm(self, mode=None, fnum=None, wait=True, numframes=None):
         if mode is not None:
             self.mode = mode
+        # force arm delay
         if self.cam.get('Acquire') != 0:
             self.cam.put('Acquire', 0, wait=True)
             time.sleep(5*self.arm_delay)
@@ -231,28 +232,34 @@ class AD_Eiger(AreaDetector):
 
         if numframes is not None:
             self.cam.put('NumImages', numframes)
-        # self.ad.FileCaptureOff()
-        time.sleep(self.arm_delay)
 
-    def disarm(self, mode=None, wait=False):
+        time.sleep(self.arm_delay/2.0)
+        if wait:
+            time.sleep(self.arm_delay)
+
+    def disarm(self, mode=None, wait=True):
         if mode is not None:
             self.mode = mode
-        time.sleep(self.arm_delay)
+        if wait:
+            time.sleep(self.arm_delay)
 
-    def start(self, mode=None, arm=False, wait=False):
+    def start(self, mode=None, arm=False, wait=True):
         if mode is not None:
             self.mode = mode
         if arm:
-            self.arm()
+            self.arm(mode=mode, wait=wait)
+        # note: need to wait a bit for acquire to start
         for i in range(10):
             self.cam.put('Acquire', 1, wait=False)
-            time.sleep(self.start_delay)
+            time.sleep(self.start_delay/5.0)
             if self.cam.get('Acquire') == 1:
                 break
-        time.sleep(self.start_delay)
+        if wait:
+            time.sleep(self.start_delay)
 
-    def stop(self, mode=None, disarm=False, wait=False):
-        time.sleep(self.stop_delay)
+    def stop(self, mode=None, disarm=False, wait=True):
+        if wait:
+            time.sleep(self.stop_delay)
         self.cam.put('Acquire', 0, wait=wait)
         if disarm:
             self.disarm()
@@ -345,7 +352,8 @@ class AD_Eiger(AreaDetector):
         that the file will be written
         """
         detstate = self.cam.get('DetectorState_RBV')
-        return detstate != 6 # Error
+        acq_busy = self.cam.get('AcquireBusy')
+        return (acq_busy==0) and (detstate != 6) # Error
 
     def get_numcaptured(self):
         return self.cam.get('NumImagesCounter_RBV')

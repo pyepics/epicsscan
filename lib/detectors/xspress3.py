@@ -238,7 +238,8 @@ class Xspress3Detector(DetectorMixin):
         self.label = label
         if self.label is None:
             self.label = self.prefix
-
+        self.arm_delay   = 0.05
+        self.start_delay = 0.45
         self._counter = None
         self.counters = []
         self._repr_extra = self.repr_fmt % (nmcas, nrois,
@@ -448,7 +449,7 @@ class Xspress3Detector(DetectorMixin):
         self._xsp3.FileCaptureOff()
         time.sleep(0.1)
 
-    def arm(self, mode=None, fnum=None, wait=False, numframes=None):
+    def arm(self, mode=None, fnum=None, wait=True, numframes=None):
         t0 = time.time()
         if mode is not None:
             self.mode = mode
@@ -473,21 +474,25 @@ class Xspress3Detector(DetectorMixin):
                 self._xsp3.put('C%iSCA:TSControl' % i, 0)
         if self._xsp3.DetectorState_RBV > 0:
             self._xsp3.put('Acquire', 0, wait=True)
-        time.sleep(0.025)
+        if wait:
+            time.sleep(self.arm_delay)
 
-    def disarm(self, mode=None, wait=False):
+    def disarm(self, mode=None, wait=True):
         if mode is not None:
             self.mode = mode
-        time.sleep(.05)
+        if wait:
+            time.sleep(self.arm_delay)
         self._xsp3.FileCaptureOff()
 
-    def start(self, mode=None, arm=False, wait=False):
+    def start(self, mode=None, arm=False, wait=True):
         if mode is not None:
             self.mode = mode
         if arm:
-            self.arm()
-        self._xsp3.put('Acquire', 1, wait=wait)
-        time.sleep(0.5)  # Note that this delay is carefully tuned
+            self.arm(mode=mode, wait=wait)
+        self._xsp3.put('Acquire', 1, wait=False)
+        time.sleep(0.05)
+        if wait:
+            time.sleep(self.start_delay)
 
 
     def stop(self, mode=None, disarm=False, wait=False):

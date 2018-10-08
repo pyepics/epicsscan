@@ -26,6 +26,8 @@ class DetectorMixin(Saveable):
         self.dwelltime = None
         self._mode     = SCALER_MODE
         self.data_dir = None
+        self.arm_delay   = 0.00
+        self.start_delay = 0.05
         self.extra_pvs = []
         self._repr_extra = ''
         self._savevals = {}
