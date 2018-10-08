@@ -187,7 +187,7 @@ class AD_Eiger(AreaDetector):
         self.mode = mode
 
         self.stop_delay = self.readout_time = 5.0e-5
-        self.arm_delay = 0.1
+        self.arm_delay = 0.15
         self.start_delay = 0.1
         self.dwelltime = None
         self.datadir = ''
@@ -233,7 +233,7 @@ class AD_Eiger(AreaDetector):
         if numframes is not None:
             self.cam.put('NumImages', numframes)
 
-        time.sleep(self.arm_delay/2.0)
+        time.sleep(self.arm_delay/3.0)
         if wait:
             time.sleep(self.arm_delay)
 
