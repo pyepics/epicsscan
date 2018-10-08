@@ -386,7 +386,7 @@ class Slew_Scan(StepScan):
             caput('%sstatus' % (mappref), 'Collecting')
         dtimer =  debugtime()
         self.scandb.set_info('repeated_map_rows', '')
-        repeat_rows = []
+        repeated_rows = []
         while irow < npts:
             if self.look_for_interrupts():
                 if mappref is not None:
@@ -493,6 +493,7 @@ class Slew_Scan(StepScan):
                 if mappref is not None:
                     caput('%sstatus' % (mappref), 'Aborting')
                 break
+
             # dtimer.add("stopping detectors after delay")
             for det in self.detectors:
                 det.stop()
@@ -564,27 +565,38 @@ class Slew_Scan(StepScan):
             if not rowdata_ok:
                 fmt=  '#BAD Row %d nXPS=%d, nSIS=%d, nXRF=%d, nXRD=%d: (npulses=%d) redo!\n'
                 self.write(fmt % (irow, self.xps.ngathered, npts_sca, nxrf, nxrd, npulses))
-                if debug:
-                    sys.exit()
-                repeat_rows.append(irow)
-                self.scandb.set_info('repeated_map_rows', repr(repeat_rows))
+
+                repeated_rows.append(irow)
+                self.scandb.set_info('repeated_map_rows', repr(repeated_rows))
                 irow -= 1
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
+                time.sleep(0.25)
+                for det in self.detectors:
+                    det.stop()
+                time.sleep(0.25)
+                for det in self.detectors:
+                    det.arm(mode='ndarray', numframes=npulses,
+                            fnum=irow, wait=False)
                 time.sleep(0.25)
 
             if self.look_for_interrupts():
                 if mappref is not None:
                     caput('%sstatus' % (mappref), 'Aborting')
-                break
+
+            if mappref is not None:
+                abort = caget('%sstatus' % (mappref), 'Aborting')
+                if abort or (1 == caget('%sAbort' % (mappref))):
+                    break
+
             if debug:
                 dtimer.show()
             time.sleep(0.025)
 
         if mappref is not None:
             caput('%sstatus' % (mappref), 'Finishing')
+
         self.post_scan()
-        if mappref is not None:
-            caput('%sstatus' % (mappref), 'IDLE')
+
         print('Scan done.')
         self.set_info('scan_progress', 'done')
         return
