@@ -449,8 +449,9 @@ class NewportXPS:
         if group is None:
             print("Do have a group to move")
             return
-        err, ret = self._xps.GroupMoveAbort(self._sid, group)
-        self.check_error(err, msg="Aborting '%s'" % (group))
+        ret = self._xps.GroupMoveAbort(self._sid, group)
+        print('abort group ', group, ret)
+
 
     @withConnectedXPS
     def move_group(self, group=None, **kws):
