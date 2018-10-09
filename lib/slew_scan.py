@@ -282,7 +282,6 @@ class Slew_Scan(StepScan):
         run a slew scan
         """
         self.prepare_scan()
-        # debug = True
         trajs = self.xps.trajectories
 
         dir_off = 1
@@ -582,12 +581,6 @@ class Slew_Scan(StepScan):
             if self.look_for_interrupts():
                 if mappref is not None:
                     caput('%sstatus' % (mappref), 'Aborting')
-
-            if mappref is not None:
-                abort = caget('%sstatus' % (mappref), 'Aborting')
-                if abort or (1 == caget('%sAbort' % (mappref))):
-                    break
-
             if debug:
                 dtimer.show()
             time.sleep(0.025)
