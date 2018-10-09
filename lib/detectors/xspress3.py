@@ -238,7 +238,7 @@ class Xspress3Detector(DetectorMixin):
         self.label = label
         if self.label is None:
             self.label = self.prefix
-        self.arm_delay   = 0.05
+        self.arm_delay   = 0.1
         self.start_delay = 0.5
         self._counter = None
         self.counters = []
@@ -445,6 +445,9 @@ class Xspress3Detector(DetectorMixin):
     def get_numcaptured(self):
         return self._xsp3.getNumCaptured_RBV()
 
+    def get_last_filename(self):
+        return self._xsp3.getLastFileName()
+
     def finish_capture(self):
         self._xsp3.FileCaptureOff()
         time.sleep(0.1)
@@ -455,6 +458,7 @@ class Xspress3Detector(DetectorMixin):
             self.mode = mode
         if self._xsp3.DetectorState_RBV > 0:
             self._xsp3.put('Acquire', 0)
+        self._xsp3.put('ERASE',   1) #, wait=True)
 
         if fnum is not None:
             self.fnum = fnum
@@ -476,6 +480,7 @@ class Xspress3Detector(DetectorMixin):
             self._xsp3.put('Acquire', 0, wait=True)
         if wait:
             time.sleep(self.arm_delay)
+        # print("Xspress3 arm " , mode, fnum, numframes, time.time()-t0)
 
     def disarm(self, mode=None, wait=True):
         if mode is not None:
