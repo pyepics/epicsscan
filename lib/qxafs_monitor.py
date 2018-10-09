@@ -64,12 +64,8 @@ class QXAFS_ScanWatcher(object):
         self.idgapsym_pv = PV('%sGapSymmetry' % pvroot)
         self.idtaper_pv  = PV('%sTaperEnergy' % pvroot)
         self.idtaperset_pv  = PV('%sTaperEnergySet' % pvroot)
+        self.xps = NewportXPS(self.config['host'])
 
-        self.xps = NewportXPS(self.config['host'],
-                              username=self.config['username'],
-                              password=self.config['password'],
-                              group=self.config['group'],
-                              outputs=self.config['outputs'])
         time.sleep(0.1)
         self.connected = True
 
@@ -120,7 +116,7 @@ class QXAFS_ScanWatcher(object):
                 print("aborting QXAFS scan")
                 self.xps.abort_group()
                 time.sleep(1.0)
-                self.set_info('request_abort', 0)
+                # self.set_info('request_abort', 0)
 
             time.sleep(0.05)
             now = time.time()
@@ -238,4 +234,6 @@ class QXAFS_ScanWatcher(object):
             time.sleep(1.0)
             if self.heartbeat_pv is not None:
                 self.heartbeat_pv.put("%i"%int(time.time()))
+        print("QXAFS monitory done ")
+
 #
