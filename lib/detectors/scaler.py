@@ -1,6 +1,7 @@
 """
 Basic Scaler Counter and Detector
 """
+import time
 from epics import PV, get_pv, caget
 from epics.devices import Scaler
 
