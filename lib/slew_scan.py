@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 """
-xafs scan
-based on EpicsApps.StepScan.
-
+Slew Scan based on EpicsApps.StepScan.
 """
 import sys
 import os
@@ -277,6 +275,12 @@ class Slew_Scan(StepScan):
             det.disarm(mode=self.detmode)
             det.ContinuousMode()
 
+    def write_slewscanstatus(self, text, flush=False):
+        self.master.write("%s\n" % text)
+        self.scandb.add_slewscanstatus(text)
+        if flush:
+            self.master.flush()
+
     def run(self, filename='map.001', comments=None, debug=False, npts=None):
         """
         run a slew scan
@@ -314,7 +318,8 @@ class Slew_Scan(StepScan):
 
         self.pre_scan(npulses=npulses, dwelltime=dwelltime, mode='ndarray')
 
-        master = open(master_file, 'w')
+        self.scandb.clear_slewscanstatus()
+        self.master = open(master_file, 'w')
         dim  = 1
         npts = 1
         if self.outer is not None:
@@ -325,19 +330,21 @@ class Slew_Scan(StepScan):
             ypos = str(pvs[0])
             if ypos.endswith('.VAL'):
                 ypos = ypos[:-4]
-        master.write("#Scan.version = 1.4\n")
-        master.write('#SCAN.starttime = %s\n' % time.ctime())
-        master.write('#SCAN.filename  = %s\n' % self.filename)
-        master.write('#SCAN.dimension = %i\n' % dim)
-        master.write('#SCAN.nrows_expected = %i\n' % npts)
-        master.write('#SCAN.time_per_row_expected = %.2f\n' % self.rowtime)
+        buff = ["#Scan.version = 1.4",
+                '#SCAN.starttime = %s' % time.ctime(),
+                '#SCAN.filename  = %s' % self.filename,
+                '#SCAN.dimension = %i' % dim,
+                '#SCAN.nrows_expected = %i' % npts,
+                '#SCAN.time_per_row_expected = %.2f' % self.rowtime]
         if dim == 2:
-            master.write('#Y.positioner  = %s\n' %  ypos)
-            master.write('#Y.start_stop_step = %f, %f, %f \n' %  (start, stop, step))
-        master.write('#------------------------------------\n')
-        master.write('# yposition  xrf_file  struck_file  xps_file  xrd_file   time\n')
-        master.flush()
-        master.close()
+            buff.append('#Y.positioner  = %s' %  ypos)
+            buff.append('#Y.start_stop_step = %f, %f, %f' %  (start, stop, step))
+        buff.append('#------------------------------------')
+        buff.append('# yposition  xrf_file  struck_file  xps_file  xrd_file   time')
+
+        [self.write_slewscanstatus(l) for l in buff]
+        self.master.flush()
+        self.master.close()
 
         def make_filename(fname, i):
             return "%s.%4.4i" % (fname, i)
@@ -497,12 +504,11 @@ class Slew_Scan(StepScan):
                 det.stop()
 
             masterline = "%s %8.4f\n" % (masterline, time.time()-start_time)
+            self.master = open(master_file, 'a')
 
-            master = open(master_file, 'a')
-            master.write(masterline)
-            master.flush()
-            os.fsync(master.fileno())
-            master.close()
+            self.write_slewscanstatus(masterline, flush=True)
+            self.master.close()
+
 
             if irow < npts-1:
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]

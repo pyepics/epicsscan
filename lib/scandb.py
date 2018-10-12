@@ -383,6 +383,22 @@ class ScanDB(object):
         cls, table = self.get_table('config')
         return self.query(table).filter(cls.id==idnum).one()
 
+    def add_slewscanstatus(self, text):
+        """add message to slewscanstatus table"""
+        cls, table = self.get_table('slewscanstatus')
+        table.insert().execute(text=text)
+        self.commit()
+
+    def clear_slewscanstatus(self, **kws):
+        cls, table = self.get_table('slewscanstatus')
+        a = self.get_slewscanstatus()
+        if len(a) < 0:
+            return
+        self.session.execute(table.delete())
+        self.commit()
+
+    def get_slewscanstatus(self, **kws):
+        return self.select('slewscanstatus', orderby='id', **kws)
 
     def set_message(self, text):
         """add message to messages table"""

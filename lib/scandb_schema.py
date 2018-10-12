@@ -194,6 +194,9 @@ class Commands(_BaseTable):
 class ScanData(_BaseTable):
     notes, pvname, data, units, breakpoints, modify_time = [None]*6
 
+class SlewScanStatus(_BaseTable):
+    text, modify_time = None, None
+
 class Instrument(_BaseTable):
     "instrument table"
     name, notes = None, None
@@ -320,6 +323,12 @@ def create_scandb(dbname, server='sqlite', create=True, **kws):
                                  StrCol('breakpoints', default=''),
                                  Column('modify_time', DateTime)])
 
+    slewscanstatus = Table('slewscanstatus', metadata,
+                           Column('id', Integer, primary_key=True),
+                           StrCol('text'),
+                           Column('modify_time', DateTime, default=datetime.now))
+
+
     instrument = NamedTable('instrument', metadata, name_unique=True,
                             cols=[IntCol('show', default=1),
                                   IntCol('display_order', default=0)])
@@ -394,7 +403,8 @@ def map_scandb(metadata):
     keyattrs = {}
     for cls in (Info, Messages, Config, Status, PV, PVType, MonitorValues,
                 Macros, ExtraPVs, Commands, ScanData, ScanPositioners,
-                ScanCounters, ScanDetectors, ScanDefs, SlewScanPositioners,
+                ScanCounters, ScanDetectors, ScanDefs,
+                SlewScanPositioners, SlewScanStatus,
                 Position, Position_PV, Instrument, Instrument_PV,
                 Instrument_Precommands, Instrument_Postcommands):
 
@@ -440,13 +450,14 @@ def map_scandb(metadata):
     keyattrs['instrument_pv'] = 'id'
     keyattrs['monitovalues'] = 'id'
     keyattrs['messages'] = 'id'
+    keyattrs['slewscanstatus'] = 'id'
 
     # set onupdate and default constraints for several datetime columns
     # note use of ColumnDefault to wrap onpudate/default func
     fnow = ColumnDefault(datetime.now)
 
     for tname in ('info', 'messages', 'commands', 'position','scandefs',
-                  'scandata', 'monitorvalues', 'commands'):
+                  'scandata', 'slewscanstatus', 'monitorvalues', 'commands'):
         tables[tname].columns['modify_time'].onupdate =  fnow
         tables[tname].columns['modify_time'].default =  fnow
 
