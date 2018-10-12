@@ -10,7 +10,6 @@ import time
 from threading import Thread
 import numpy as np
 
-
 from .scan import StepScan
 from .positioner import Positioner
 from .saveable import Saveable
@@ -503,12 +502,11 @@ class Slew_Scan(StepScan):
             for det in self.detectors:
                 det.stop()
 
-            masterline = "%s %8.4f\n" % (masterline, time.time()-start_time)
+            masterline = "%s %8.4f" % (masterline, time.time()-start_time)
             self.master = open(master_file, 'a')
 
             self.write_slewscanstatus(masterline, flush=True)
             self.master.close()
-
 
             if irow < npts-1:
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
