@@ -428,6 +428,8 @@ class MacroFrame(wx.Frame) :
         self.resume_btn = add_button(panel, label='Resume',  action=self.onResume)
         self.abort_btn  = add_button(panel, label='Abort Command',  action=self.onAbort)
         self.cancel_btn = add_button(panel, label='Cancel All', action=self.onCancelAll)
+        self.restart_btn = add_button(panel, label='Restart Server',
+                                      action=self.onRestartServer)
 
         sizer.Add(self.start_btn,  0, wx.ALIGN_LEFT, 2)
         sizer.Add(self.pause_btn,  0, wx.ALIGN_LEFT, 2)
@@ -610,6 +612,21 @@ class MacroFrame(wx.Frame) :
         self.onAbort()
         time.sleep(1.0)
         self.onResume()
+
+    def onRestartServer(self, event=None):
+        self.onPause()
+        self.scandb.cancel_remaining_commands()
+        self.onAbort()
+        time.sleep(0.5)
+        self.onResume()
+        epv = self.scandb.get_info('epics_status_prefix', default=None)
+        if epv is not None:
+            try:
+                shutdownpv = epics.PV(epv + 'Shutdown', connect=True)
+                shutdownpv.connect()
+                shutdownpv.put(1)
+            except:
+                print("Could not request shutdown")
 
     def onClose(self, event=None):
         self.SaveMacroFile(AUTOSAVE_FILE)
