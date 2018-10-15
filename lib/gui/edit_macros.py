@@ -9,6 +9,7 @@ import wx.lib.scrolledpanel as scrolled
 from wx.lib.editor import Editor
 
 from collections import OrderedDict
+import epics
 from .gui_utils import (GUIColors, set_font_with_children, YesNo,
                         add_menu, add_button, add_choice, pack, SimpleText,
                         FileOpen, FileSave, popup, FloatCtrl,
@@ -620,15 +621,13 @@ class MacroFrame(wx.Frame) :
         self.onAbort()
         time.sleep(0.5)
         self.onResume()
-
+        print(" on restart server ")
         epv = self.scandb.get_info('epics_status_prefix', default=None)
         if epv is not None:
-            try:
-                shutdownpv = epics.PV(epv + 'Shutdown', connect=True)
-                shutdownpv.connect()
-                shutdownpv.put(1)
-            except:
-                print("Could not request shutdown")
+            shutdownpv = epics.PV(epv + 'Shutdown')
+            time.sleep(.1)
+            print("Shutdown PV ", shutdownpv)
+            shutdownpv.put(1)
 
     def onClose(self, event=None):
         self.SaveMacroFile(AUTOSAVE_FILE)
