@@ -271,6 +271,7 @@ class Slew_Scan(StepScan):
             # print("Ran Post Scan Method:  ", m)
 
         for det in self.detectors:
+            det.stop()
             det.disarm(mode=self.detmode)
             det.ContinuousMode()
 
@@ -538,7 +539,7 @@ class Slew_Scan(StepScan):
                     time.sleep(0.1)
                     ntry = ntry + 1
                 nxrf = xrfdet.get_numcaptured()
-                print("XRF file write complete? ", write_complete, nxrf, npulses, ntry)
+                # print("XRF file write complete? ", write_complete, nxrf, npulses, ntry)
                 if (nxrf < npulses-1) or not write_complete:
                     xrfdet.finish_capture()
                     nxrf = xrfdet.get_numcaptured()
@@ -593,7 +594,6 @@ class Slew_Scan(StepScan):
             caput('%sstatus' % (mappref), 'Finishing')
 
         self.post_scan()
-
         print('Scan done.')
         self.set_info('scan_progress', 'done')
         return
