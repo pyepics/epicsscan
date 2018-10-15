@@ -436,6 +436,7 @@ class MacroFrame(wx.Frame) :
         sizer.Add(self.resume_btn, 0, wx.ALIGN_LEFT, 2)
         sizer.Add(self.abort_btn,  0, wx.ALIGN_LEFT, 2)
         sizer.Add(self.cancel_btn, 0, wx.ALIGN_LEFT, 2)
+        sizer.Add(self.restart_btn, 0, wx.ALIGN_LEFT, 2)
         pack(panel, sizer)
         return panel
 
@@ -619,6 +620,7 @@ class MacroFrame(wx.Frame) :
         self.onAbort()
         time.sleep(0.5)
         self.onResume()
+
         epv = self.scandb.get_info('epics_status_prefix', default=None)
         if epv is not None:
             try:
