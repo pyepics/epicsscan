@@ -125,6 +125,9 @@ class NewportXPS:
         if err is not 0:
             err = "%d" % err
             desc = self._xps.errorcodes.get(err, 'unknown error')
+            print("XPS Error: message = ", msg)
+            print("error : ", err, desc)
+
             raise XPSException("%s %s [Error %s]" % (msg, desc, err))
 
     def save_systemini(self, fname='system.ini'):
@@ -733,7 +736,7 @@ class NewportXPS:
         err, ret = self._xps.MultipleAxesPVTExecution(self._sid,
                                                       self.traj_group,
                                                       self.traj_file, 1)
-        self.check_error(err, msg="PVT Execute")
+        # self.check_error(err, msg="PVT Execute")
         if verbose:
             print( " PVT Execute  ", ret)
 
