@@ -400,6 +400,16 @@ class ScanDB(object):
     def get_slewscanstatus(self, **kws):
         return self.select('slewscanstatus', orderby='id', **kws)
 
+    def read_slewscan_status(self):
+        text = []
+        for row in self.select('slewscanstatus', orderby='id'):
+            text.append(str(row.text))
+        return "\n".join(text)
+
+    def last_slewscan_status(self):
+        lastrow = self.select('slewscanstatus', orderby='id')[-1]
+        return lastrow.modify_time.isoformat()
+
     def set_message(self, text):
         """add message to messages table"""
         cls, table = self.get_table('messages')
