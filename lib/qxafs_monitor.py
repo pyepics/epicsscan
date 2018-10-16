@@ -117,6 +117,8 @@ class QXAFS_ScanWatcher(object):
                 self.xps.abort_group()
                 time.sleep(1.0)
                 # self.set_info('request_abort', 0)
+                self.qxafs_finish()
+                break
 
             time.sleep(0.05)
             now = time.time()
@@ -180,7 +182,7 @@ class QXAFS_ScanWatcher(object):
         if self.pulsecount_pv is not None:
             self.pulsecount_pv.put("%i" % self.pulse)
         self.set_info('scan_current_point', self.pulse)
-        # print("Monitor QXAFS done")
+        print("Monitor QXAFS done")
         last_pulse = self.pulse = 0
         self.qxafs_finish()
 
