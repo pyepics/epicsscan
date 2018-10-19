@@ -297,7 +297,7 @@ class QXAFS_Scan(XAFS_Scan):
         caput(qconf['id_array_pv'], np.zeros(2000))
 
     def make_trajectory(self, reverse=False,
-                        theta_accel=1, width_accel=0.020, **kws):
+                        theta_accel=2, width_accel=0.050, **kws):
         """this method builds the text of a Trajectory script for
         a Newport XPS Controller based on the energies and dwelltimes"""
 
@@ -312,7 +312,7 @@ class QXAFS_Scan(XAFS_Scan):
         height = caget(qconf['height_pv'])
         th_off = caget(qconf['theta_motor'] + '.OFF')
         wd_off = caget(qconf['width_motor'] + '.OFF')
-        theta_accel = max(1.5, theta_accel)
+        # theta_accel = max(1.5, theta_accel)
 
         # we want energy trajectory points to be at or near
         # midpoints of desired energy values
