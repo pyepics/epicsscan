@@ -284,7 +284,7 @@ def create_scandb(dbname, server='sqlite', create=True, **kws):
                               StrCol('options')])
 
     detconf = NamedTable('scandetectorconfig', metadata,
-                         cols=[StrCol('kind'),
+                         cols=[StrCol('kind', size=128),
                                StrCol('text'),
                                PointerCol('scandetectors'),
                                Column('modify_time', DateTime, default=datetime.now),
