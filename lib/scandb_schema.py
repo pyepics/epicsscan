@@ -155,6 +155,10 @@ class ScanDetectors(_BaseTable):
     "detectors table"
     name, notes, pvname, kind, options, use = [None]*6
 
+class ScanDetectorConfig(_BaseTable):
+    "detector calibration, masks, and other config table"
+    name, notes, kind, text, modify_time =  [None]*5
+
 class ExtraPVs(_BaseTable):
     "extra pvs in scan table"
     name, notes, pvname, use = [None]*4
@@ -278,6 +282,13 @@ def create_scandb(dbname, server='sqlite', create=True, **kws):
     det    = NamedTable('scandetectors', metadata, with_pv=True, with_use=True,
                         cols=[StrCol('kind',   size=128),
                               StrCol('options')])
+
+    detconf = NamedTable('scandetectorconfig', metadata,
+                         cols=[StrCol('kind'),
+                               StrCol('text'),
+                               PointerCol('scandetectors'),
+                               Column('modify_time', DateTime, default=datetime.now),
+                         ])
 
     scans = NamedTable('scandefs', metadata,
                        cols=[StrCol('text'),
@@ -403,7 +414,7 @@ def map_scandb(metadata):
     keyattrs = {}
     for cls in (Info, Messages, Config, Status, PV, PVType, MonitorValues,
                 Macros, ExtraPVs, Commands, ScanData, ScanPositioners,
-                ScanCounters, ScanDetectors, ScanDefs,
+                ScanCounters, ScanDetectors, ScanDetectorConfig, ScanDefs,
                 SlewScanPositioners, SlewScanStatus,
                 Position, Position_PV, Instrument, Instrument_PV,
                 Instrument_Precommands, Instrument_Postcommands):
@@ -457,7 +468,8 @@ def map_scandb(metadata):
     fnow = ColumnDefault(datetime.now)
 
     for tname in ('info', 'messages', 'commands', 'position','scandefs',
-                  'scandata', 'slewscanstatus', 'monitorvalues', 'commands'):
+                  'scandata', 'slewscanstatus', 'scandetectorconfig',
+                  'monitorvalues', 'commands'):
         tables[tname].columns['modify_time'].onupdate =  fnow
         tables[tname].columns['modify_time'].default =  fnow
 
