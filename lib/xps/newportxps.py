@@ -121,14 +121,13 @@ class NewportXPS:
                 self.ftphome = '/Admin'
         self.read_systemini()
 
-    def check_error(self, err, msg=''):
+    def check_error(self, err, msg='', with_raise=True):
         if err is not 0:
             err = "%d" % err
             desc = self._xps.errorcodes.get(err, 'unknown error')
-            print("XPS Error: message = ", msg)
-            print("error : ", err, desc)
-
-            raise XPSException("%s %s [Error %s]" % (msg, desc, err))
+            print("XPSError: message= %s, error=%s, description=%s" % (msg, err, desc))
+            if with_raise:
+                raise XPSException("%s %s [Error %s]" % (msg, desc, err))
 
     def save_systemini(self, fname='system.ini'):
         """
@@ -686,13 +685,14 @@ class NewportXPS:
         err, ret = self._xps.MultipleAxesPVTPulseOutputSet(self._sid, self.traj_group,
                                                            2, end_segment,
                                                            traj['pixeltime'])
-        self.check_error(err, msg="PVTPulseOutputSet")
+        self.check_error(err, msg="PVTPulseOutputSet", with_raise=False)
         if verbose:
             print(" PVTPulse  ", ret)
         err, ret = self._xps.MultipleAxesPVTVerification(self._sid,
                                                          self.traj_group,
                                                          self.traj_file)
-        self.check_error(err, msg="PVTVerification")
+
+        self.check_error(err, msg="PVTVerification", with_raise=False)
         if verbose:
             print(" PVTVerify  ", ret)
         self.traj_state = ARMED
@@ -736,7 +736,7 @@ class NewportXPS:
         err, ret = self._xps.MultipleAxesPVTExecution(self._sid,
                                                       self.traj_group,
                                                       self.traj_file, 1)
-        # self.check_error(err, msg="PVT Execute")
+        self.check_error(err, msg="PVT Execute", with_raise=False)
         if verbose:
             print( " PVT Execute  ", ret)
 
