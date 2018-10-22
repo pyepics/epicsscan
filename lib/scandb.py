@@ -41,6 +41,21 @@ from .utils import (normalize_pvname, asciikeys, pv_fullname,
                     ScanDBException, ScanDBAbort)
 from .create_scan import create_scan
 
+def get_credentials(envvar='ESCAN_CREDENTIALS'):
+    """look up credentials file from environment variable"""
+    conn = {}
+    credfile = os.environ.get(envvar, None)
+    if credfile is not None and os.path.exists(credfile):
+        with open(credfile, 'r') as fh:
+            lines = fh.readlines()
+            for line in lines:
+                line = line[:-1].strip()
+                if line.startswith('#'):
+                    continue
+                key, val = line.split('=')
+                conn[key.strip()] = val.strip()
+    return conn
+
 def json_encode(val):
     "simple wrapper around json.dumps"
     if val is None or isinstance(val, (str, unicode)):
@@ -154,8 +169,16 @@ class ScanDB(object):
         self.pvs = {}
         self.scandata = []
         self.restoring_pvs = []
-        if dbname is not None:
-            self.connect(dbname, server=server, create=create, **kws)
+        if dbname is None:
+            conndict = get_credentials(envvar='ESCAN_CREDENTIALS')
+            if 'dbname' in conndict:
+                self.dbname = conndict.pop('dbname')
+            if 'server' in conndict:
+                self.server = conndict.pop('server')
+            kws.update(conndict)
+        if self.dbname is not None:
+            self.connect(self.dbname, server=self.server,
+                         create=create, **kws)
 
     def create_newdb(self, dbname, connect=False, **kws):
         "create a new, empty database"

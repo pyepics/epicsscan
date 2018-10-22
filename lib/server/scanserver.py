@@ -29,7 +29,7 @@ DEBUG_TIMER = False
 ALWAYS_LOAD_MODULES = False
 
 class ScanServer():
-    def __init__(self, dbname=None, _larch=None,  **kwargs):
+    def __init__(self, dbname=None, _larch=None,  **kws):
         self.epicsdb = None
         self.scandb = None
         self.abort = False
@@ -37,12 +37,11 @@ class ScanServer():
         self.larch_modules = {}
         self.command_in_progress = False
         self.req_shutdown = False
-        if dbname is not None:
-            self.connect(dbname, **kwargs)
+        self.connect(dbname, **kws)
 
-    def connect(self, dbname, **kwargs):
+    def connect(self, dbname, **kws):
         """connect to Scan Database"""
-        self.scandb = ScanDB(dbname=dbname, **kwargs)
+        self.scandb = ScanDB(dbname=dbname, **kws)
 
         self.set_scan_message('Server Initializing')
         self.scandb.set_hostpid()
