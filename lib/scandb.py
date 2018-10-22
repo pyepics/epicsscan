@@ -663,8 +663,6 @@ class ScanDB(object):
     def get_slewpositioners(self, **kws):
         return self.getall('slewscanpositioners', orderby='id', **kws)
 
-    def get_detectors(self, **kws):
-        return self.getall('scandetectors', orderby='id', **kws)
 
     def get_positioner(self, name):
         """return positioner by name"""
@@ -732,6 +730,9 @@ class ScanDB(object):
         return row
 
     ### detectors
+    def get_detectors(self, **kws):
+        return self.getall('scandetectors', orderby='id', **kws)
+
     def get_detector(self, name):
         """return detector by name"""
         return self.getrow('scandetectors', name, one_or_none=True)
@@ -751,6 +752,11 @@ class ScanDB(object):
         row = self.__addRow(cls, ('name',), (name,), **kws)
         self.session.add(row)
         return row
+
+    ### detectors
+    def get_detectorconfigs(self, **kws):
+        return self.getall('scandetectorconfigs', orderby='id', **kws)
+
 
     ### counters -- simple, non-triggered PVs to add to detectors
     def get_counters(self, **kws):
