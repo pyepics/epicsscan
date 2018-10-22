@@ -12,7 +12,7 @@ setup(name = 'epicsscan',
       description = 'Epics Scanning library and applications',
       package_dir = {'epicsscan': 'lib'},
       packages = ['epicsscan', 'epicsscan.server', 'epicsscan.gui',
-                  'epicsscan.detectors', 'epicsscan.xps'],
+                  'epicsscan.detectors'],
       )
 
 errmsg = "WARNING: epicsscan requires Python module: '%s'"
