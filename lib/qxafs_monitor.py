@@ -15,7 +15,7 @@ from epics import caget, caput, PV, get_pv
 
 from epicsscan.scandb import ScanDB
 from epicsscan.utils import hms, tstamp
-from epicsscan.xps import NewportXPS
+from newportxps import NewportXPS
 
 from optparse import OptionParser
 

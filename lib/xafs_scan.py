@@ -10,6 +10,7 @@ import numpy as np
 from threading import Thread
 from epics import caget, caput, PV, get_pv
 from larch import Group
+from newportxps import NewportXPS
 
 from .scan import StepScan
 from .positioner import Positioner
@@ -17,7 +18,6 @@ from .saveable import Saveable
 from .file_utils import fix_varname
 from .utils import ScanDBAbort, hms
 from .detectors import Struck, TetrAMM, Xspress3, Counter
-from .xps import NewportXPS
 from .debugtime import debugtime
 XAFS_K2E = 3.809980849311092
 HC       = 12398.4193
