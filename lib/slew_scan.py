@@ -285,6 +285,7 @@ class Slew_Scan(StepScan):
         """
         run a slew scan
         """
+        debug = self.scandb.get_info('debug_scan', as_bool=True) or debug
         self.prepare_scan()
         trajs = self.xps.trajectories
 
@@ -499,7 +500,7 @@ class Slew_Scan(StepScan):
                     caput('%sstatus' % (mappref), 'Aborting')
                 break
 
-            # dtimer.add("stopping detectors after delay")
+            dtimer.add("stopping detectors after delay")
             for det in self.detectors:
                 det.stop()
 
