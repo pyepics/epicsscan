@@ -18,7 +18,6 @@ from .areadetector import AreaDetector
 from ..debugtime import debugtime
 
 
-
 def restart_procserv_ioc(ioc_port=29200):
     """
     send a Ctrl-C to a procServ ioc running on localhost
@@ -136,6 +135,8 @@ class EigerSimplon:
             time.sleep(5.0)
             set_pvs = True
         else:
+            reset_pv = self.prefix.replace('cam1:', ':') + 'SysReset'
+            caput(reset_pv, 1)
             print("Warning -- you will need to restart Epics IOC")
 
         self._put('detector', 'command', 'arm', value=True)
