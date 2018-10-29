@@ -354,10 +354,7 @@ class StruckDetector(DetectorMixin):
 
     def pre_scan(self, mode=None, npulses=None, dwelltime=None, **kws):
         "run just prior to scan"
-        if mode is not None:
-            self.mode = mode
-        # print("StruckDetector Prescan", self.mode, npulses, dwelltime, kws)
-        self.arm(mode=self.mode, numframes=npulses)
+        self.arm(mode=mode, numframes=npulses)
         self.counters = self._counter.counters
         if dwelltime is not None:
             self.dwelltime = dwelltime
@@ -372,6 +369,8 @@ class StruckDetector(DetectorMixin):
     def arm(self, mode=None, fnum=None, wait=True, numframes=None):
         "arm detector, ready to collect with optional mode"
         # print("Struck Arm: ", mode, numframes)
+        if mode is not None:
+            self.mode = mode
         if fnum is not None:
             self.fnum = fnum
         if self.mode == SCALER_MODE:
