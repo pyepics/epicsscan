@@ -9,7 +9,6 @@ import glob
 import epics
 
 from ..scandb import ScanDB, make_datetime
-
 from ..file_utils import fix_varname, nativepath
 from ..utils import (strip_quotes, plain_ascii, tstamp,
                      ScanDBException, ScanDBAbort)
@@ -107,8 +106,9 @@ class ScanServer():
     def do_command(self, req):
         self.set_path()
         cmd_stat = self.scandb.get_command_status(req.id).lower()
-        if not cmd_stat.startswith('request'):
-            self.set_scan_message("Warning: skipping command <%s>" % repr(req))
+        if str(cmd_stat) not in ('requested', 'starting', 'running', 'aborting'):
+            msg = "Warning: skipping command <%s> status=%s"
+            self.set_scan_message(msg % repr(req.command), cmd_stat )
             self.scandb.set_command_status('canceled', cmdid=req.id)
             return
 
