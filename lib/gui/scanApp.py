@@ -155,7 +155,8 @@ class ScanFrame(wx.Frame):
         self.scan_started = False
 
         self.scandb = ScanDB(dbname=dbname, server=server, host=host,
-                 user=user, password=password, port=port, create=create)
+                             user=user, password=password, port=port,
+                             create=create)
 
         self.Bind(wx.EVT_CLOSE, self.onClose)
 
@@ -556,6 +557,11 @@ class ScanFrame(wx.Frame):
             basedir = os.path.abspath(str(dlg.GetPath())).replace('\\', '/')
             self.set_workdir(basedir=basedir)
 
+            pref, username = os.path.split(basedir)
+            try:
+                self.scandb.add_command("set_user_name(%s)"% username)
+            except:
+                pass
         dlg.Destroy()
 
     def onSaveScanDef(self, evt=None):
