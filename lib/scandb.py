@@ -776,10 +776,24 @@ class ScanDB(object):
         self.session.add(row)
         return row
 
-    ### detectors
+    ### detector configurations
     def get_detectorconfigs(self, **kws):
-        return self.getall('scandetectorconfigs', orderby='id', **kws)
+        return self.getall('scandetectorconfig', orderby='id', **kws)
 
+    def get_detectorconfig(self, name, **kws):
+        return self.getrow('scandetectorconfig', name, one_or_none=True)
+
+    def set_detectorconfig(self, name, text):
+        """set detector configuration"""
+        cls, table = self.get_table('scandetectorconfig')
+        row = self.get_detectorconfig(name)
+        if row is None:
+            table.insert().execute(name=name, text=text)
+        else:
+            print("do update")
+            q = table.update().where(table.c.name==name)
+            q.values({table.c.text: text}).execute()
+        self.commit()
 
     ### counters -- simple, non-triggered PVs to add to detectors
     def get_counters(self, **kws):
