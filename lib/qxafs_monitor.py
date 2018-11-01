@@ -130,7 +130,7 @@ class QXAFS_ScanWatcher(object):
                 self.idtaperset_pv.put(0, wait=True)
                 time.sleep(0.250)
                 val = self.idarray[last_pulse + self.id_lookahead]
-                self.iddrive_pv.put(val, wait=True)
+                self.iddrive_pv.put(val, wait=True, timeout=5.0)
                 time.sleep(0.250)
 
             if self.pulse > last_pulse:
@@ -154,7 +154,7 @@ class QXAFS_ScanWatcher(object):
                 if ((self.idbusy_pv.get() == 0) and
                     (now > self.last_move_time + self.dead_time) and
                     (val > MIN_ID_ENERGY) and (val < MAX_ID_ENERGY)):
-                    self.iddrive_pv.put(val)
+                    self.iddrive_pv.put(val, wait=False)
                     time.sleep(0.1)
                     self.last_move_time = time.time()
 
