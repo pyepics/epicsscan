@@ -382,7 +382,7 @@ class StruckDetector(DetectorMixin):
         if wait:
             time.sleep(self.arm_delay)
 
-    def disarm(self):
+    def disarm(self, mode=None, wait=False):
         pass
 
     def ContinuousMode(self, **kws):
