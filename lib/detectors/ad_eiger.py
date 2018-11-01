@@ -120,23 +120,24 @@ class EigerSimplon:
         t0 = time.time()
         time.sleep(3.0)
 
-        for i in range(50):
+        for i in range(150):
             self._put(module='detector', task='command', parameter='initialize')
             if self.last_status != 200:
-                time.sleep(0.50)
+                time.sleep(0.250)
             else:
                 break
         if self.last_status != 200:
             raise ValueError('eiger detector initialize failed')
+        print("Detector Initialized in %.2f sec" % (time.time()-t0))
 
-        set_pvs = False
+        set_pvs = True
         if self.procserv_iocport is not None:
+            print("Restarting Epics IOC for Eiger with procserv")
             restart_procserv_ioc(self.procserv_iocport)
-            time.sleep(5.0)
-            set_pvs = True
         else:
+            print("Restarting Epics IOC for Eiger with SysReset")
             reset_pv = self.prefix.replace('cam1:', ':') + 'SysReset'
-            caput(reset_pv, 1)
+            caput(reset_pv, 1, wait=True)
             print("Warning -- you will need to restart Epics IOC")
 
         self._put('detector', 'command', 'arm', value=True)
@@ -144,6 +145,7 @@ class EigerSimplon:
 
         # make sure the epics interface has useful values set for Continuous Mode
         if set_pvs:
+            print("Setting Eiger to Continuous Mode")
             prefix = self.prefix
             caput(prefix + 'AcquireTime',   0.103, wait=True)
             caput(prefix + 'AcquirePeriod', 0.103, wait=True)
