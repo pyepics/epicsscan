@@ -27,6 +27,22 @@ def restart_procserv_ioc(ioc_port=29200):
     tn.write('\n')
     time.sleep(3)
 
+class EigerResponse:
+    def __init__(self, command, retval):
+        self.command = command
+        self.status = retval.status_code
+        self.reason = retval.reason
+        self.keywords = ['command', 'status', 'reason']
+        for key, val in json.loads(retval.text).items():
+            self.keywords.append(key)
+            setattr(self, key, val)
+
+    def __repr__(self):
+        out = []
+        for key in self.keywords:
+            out.append("%s: %s" % (key, getattr(self, key)))
+        return('\n'.join(out))
+
 class EigerSimplon:
     """
     Connect to Eiger Simplon API
@@ -47,7 +63,6 @@ class EigerSimplon:
         self.message = ''
         self.prefix=prefix
 
-
     def _exec(self, request='get', module='detector', task='status',
               parameter='state', value=None):
 
@@ -61,55 +76,35 @@ class EigerSimplon:
             jsondata = None
             if value is not None:
                 jsondata = json.dumps({'value': value})
-            ret = requests.put(command, data=jsondata)
-        else:
-            ret = requests.get(command)
-
-        self.last_status = ret.status_code
-        out = ["# %s" % command,
-               "# response: %s: %s" % (ret.status_code, ret.reason)]
-        dat = None
-        try:
-            dat = json.loads(ret.text)
-        except ValueError:
-            out.append('no valid json data')
-        if dat is not None:
-            if isinstance(dat, (list, tuple)):
-                out.append(" %s" % (dat))
-            elif isinstance(dat, dict):
-                for key, val in dat.items():
-                    out.append("  %s: %s" % (key, val))
-        self.message = '\n'.join(out)
+            return requests.put(command, data=jsondata)
+        # get:
+        return EigerResponse(command, requests.get(command))
 
     def _put(self, module='detector', task='status',
              parameter='state', value=''):
-        self._exec(request='put', module=module, task=task,
+        return self._exec(request='put', module=module, task=task,
                    parameter=parameter, value=value)
 
     def _get(self, module='detector', task='status',
              parameter='state', value=''):
-        self._exec(request='get', module=module, task=task,
-                   parameter=parameter, value=value)
-        return self.message
+        return self._exec(request='get', module=module, task=task,
+                          parameter=parameter, value=value)
 
     def set_energy(self, energy=15000):
-        self._put(module='detector', task='config',
+        return self._put(module='detector', task='config',
                   parameter='photon_energy', value=energy)
 
     def get_energy(self, energy=15000):
-        self._get(module='detector', task='config',
-                  parameter='photon_energy')
-        return self.message
+        return self._get(module='detector', task='config',
+                         parameter='photon_energy')
 
     def clear_disk(self):
-        self._put(module='filewriter', task='command',
-                  parameter='clear')
-        return self.message
+        return self._put(module='filewriter', task='command',
+                         parameter='clear')
 
     def show_diskspace(self):
-        self._get(module='filewriter', task='status',
-                parameter='buffer_free')
-        return self.message
+        return self._get(module='filewriter', task='status',
+                         parameter='buffer_free')
 
     def restart_daq(self):
         """
@@ -141,7 +136,7 @@ class EigerSimplon:
             print("Warning -- you will need to restart Epics IOC")
 
         self._put('detector', 'command', 'arm', value=True)
-        self._put('detector', 'config', 'pixel_mask_applied', value=False)
+        self._put('detector', 'config', 'pixel_mask_applied', value=True)
 
         # make sure the epics interface has useful values set for Continuous Mode
         if set_pvs:
