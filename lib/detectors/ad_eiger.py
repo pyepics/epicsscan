@@ -77,22 +77,22 @@ class EigerSimplon:
             if value is not None:
                 jsondata = json.dumps({'value': value})
             return requests.put(command, data=jsondata)
-        # get:
-        return EigerResponse(command, requests.get(command))
+        else: # get
+            return EigerResponse(command, requests.get(command))
 
-    def _put(self, module='detector', task='status',
-             parameter='state', value=''):
+    def _put(self, module='detector', task='status', parameter='state',
+             value=''):
         return self._exec(request='put', module=module, task=task,
                    parameter=parameter, value=value)
 
-    def _get(self, module='detector', task='status',
-             parameter='state', value=''):
+    def _get(self, module='detector', task='status', parameter='state',
+             value=''):
         return self._exec(request='get', module=module, task=task,
                           parameter=parameter, value=value)
 
     def set_energy(self, energy=15000):
         return self._put(module='detector', task='config',
-                  parameter='photon_energy', value=energy)
+                         parameter='photon_energy', value=energy)
 
     def get_energy(self, energy=15000):
         return self._get(module='detector', task='config',
@@ -126,6 +126,7 @@ class EigerSimplon:
         print("Detector Initialized in %.2f sec" % (time.time()-t0))
 
         set_pvs = True
+        time.sleep(5.0)
         if self.procserv_iocport is not None:
             print("Restarting Epics IOC for Eiger with procserv")
             restart_procserv_ioc(self.procserv_iocport)
@@ -135,6 +136,7 @@ class EigerSimplon:
             caput(reset_pv, 1, wait=True)
             print("Warning -- you will need to restart Epics IOC")
 
+        time.sleep(5.0)
         self._put('detector', 'command', 'arm', value=True)
         self._put('detector', 'config', 'pixel_mask_applied', value=True)
 
