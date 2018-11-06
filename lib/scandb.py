@@ -783,16 +783,22 @@ class ScanDB(object):
     def get_detectorconfig(self, name, **kws):
         return self.getrow('scandetectorconfig', name, one_or_none=True)
 
-    def set_detectorconfig(self, name, text):
+    def set_detectorconfig(self, name, text, notes=None):
         """set detector configuration"""
         cls, table = self.get_table('scandetectorconfig')
         row = self.get_detectorconfig(name)
         if row is None:
-            table.insert().execute(name=name, text=text)
+            args = dict(name=name, text=text)
+            if notes is not None:
+                args['notes'] = notes
+            table.insert().execute(**args)
         else:
-            print("do update")
             q = table.update().where(table.c.name==name)
-            q.values({table.c.text: text}).execute()
+            q = q.values({table.c.text: text})
+            if notes is not None:
+                q = q.values({table.c.notes: notes})
+            q.execute()
+
         self.commit()
 
     ### counters -- simple, non-triggered PVs to add to detectors
