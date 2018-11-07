@@ -275,11 +275,22 @@ class Slew_Scan(StepScan):
             det.disarm(mode=self.detmode)
             det.ContinuousMode()
 
-    def write_slewscanstatus(self, text, flush=False):
-        self.master.write("%s\n" % text)
-        self.scandb.add_slewscanstatus(text)
-        if flush:
-            self.master.flush()
+    def write_master(self, textlines):
+        """ write a list of text lines to master file"""
+        for text in textlines:
+            self.scandb.add_slewscanstatus(text)
+
+        self.mastertext.extend(textlines)
+
+        tempfile = os.path.join(self.mapdir, 'Master_tmp')
+        destfile = os.path.join(self.mapdir, 'Master.dat')
+        fh = open(tempfile, 'w')
+        fh.write('\n'.join(self.mastertext))
+        fh.write('')
+        fh.close()
+        time.sleep(0.025)
+        shutil.copy(tempfile, destfile)
+        os.utime(destfile, None)
 
     def run(self, filename='map.001', comments=None, debug=False, npts=None):
         """
@@ -303,11 +314,9 @@ class Slew_Scan(StepScan):
         # print("SlewScan Config ", pvnames, self.slewscan_config['motors'])
 
         self.xps.arm_trajectory(tname)
-
         npulses = trajs[tname]['npulses'] + 1
         dwelltime = trajs[tname]['pixeltime']
 
-        master_file = os.path.join(self.mapdir, 'Master.dat')
         env_file = os.path.join(self.mapdir, 'Environ.dat')
         roi_file = os.path.join(self.mapdir, 'ROI.dat')
 
@@ -320,7 +329,6 @@ class Slew_Scan(StepScan):
         self.pre_scan(npulses=npulses, dwelltime=dwelltime, mode='ndarray')
 
         self.scandb.clear_slewscanstatus()
-        self.master = open(master_file, 'w')
         dim  = 1
         npts = 1
         if self.outer is not None:
@@ -331,21 +339,20 @@ class Slew_Scan(StepScan):
             ypos = str(pvs[0])
             if ypos.endswith('.VAL'):
                 ypos = ypos[:-4]
-        buff = ["#Scan.version = 1.4",
+        mbuff = ["#Scan.version = 1.4",
                 '#SCAN.starttime = %s' % time.ctime(),
                 '#SCAN.filename  = %s' % self.filename,
                 '#SCAN.dimension = %i' % dim,
                 '#SCAN.nrows_expected = %i' % npts,
                 '#SCAN.time_per_row_expected = %.2f' % self.rowtime]
         if dim == 2:
-            buff.append('#Y.positioner  = %s' %  ypos)
-            buff.append('#Y.start_stop_step = %f, %f, %f' %  (start, stop, step))
-        buff.append('#------------------------------------')
-        buff.append('# yposition  xrf_file  struck_file  xps_file  xrd_file   time')
+            mbuff.extend(['#Y.positioner  = %s' %  (ypos),
+                         '#Y.start_stop_step = %f, %f, %f' %  (start, stop, step)])
+        mbuff.extend(['#------------------------------------',
+             '# yposition  xrf_file  struck_file  xps_file  xrd_file   time'])
 
-        [self.write_slewscanstatus(l) for l in buff]
-        self.master.flush()
-        self.master.close()
+        self.mastertext = []
+        self.write_master(buff)
 
         def make_filename(fname, i):
             return "%s.%4.4i" % (fname, i)
@@ -493,6 +500,14 @@ class Slew_Scan(StepScan):
 
             # wait for trajectory to finish
             dtimer.add('scan thread run join()')
+            xt0 = time.time()
+            while scan_thread.is_alive():
+                time.sleep(0.1)
+                if time.time()-xt0 > 0.8*self.rowtime:
+                    break
+                if self.look_for_interrupts():
+                    self.xps.abort_group()
+
             scan_thread.join()
             dtimer.add('scan thread joined')
             if self.look_for_interrupts():
@@ -504,11 +519,7 @@ class Slew_Scan(StepScan):
             for det in self.detectors:
                 det.stop()
 
-            masterline = "%s %8.4f" % (masterline, time.time()-start_time)
-            self.master = open(master_file, 'a')
-
-            self.write_slewscanstatus(masterline, flush=True)
-            self.master.close()
+            self.write_master(["%s %8.4f" % (masterline, time.time()-start_time)])
 
             if irow < npts-1:
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
