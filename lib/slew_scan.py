@@ -281,16 +281,18 @@ class Slew_Scan(StepScan):
             self.scandb.add_slewscanstatus(text)
 
         self.mastertext.extend(textlines)
-
-        tempfile = os.path.join(self.mapdir, 'Master_tmp')
+        print("Write Master ", len(self.mastertext))
+        oldfile = os.path.join(self.mapdir, '_Master_.dat')
         destfile = os.path.join(self.mapdir, 'Master.dat')
-        fh = open(tempfile, 'w')
+        if os.path.exists(destfile):
+            shutil.move(destfile, oldfile)
+        fh = open(destfile, 'w')
         fh.write('\n'.join(self.mastertext))
         fh.write('')
         fh.close()
-        time.sleep(0.025)
-        shutil.copy(tempfile, destfile)
         os.utime(destfile, None)
+        time.sleep(0.025)
+
 
     def run(self, filename='map.001', comments=None, debug=False, npts=None):
         """
@@ -352,7 +354,7 @@ class Slew_Scan(StepScan):
              '# yposition  xrf_file  struck_file  xps_file  xrd_file   time'])
 
         self.mastertext = []
-        self.write_master(buff)
+        self.write_master(mbuff)
 
         def make_filename(fname, i):
             return "%s.%4.4i" % (fname, i)
