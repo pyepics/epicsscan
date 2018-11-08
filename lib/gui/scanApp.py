@@ -541,7 +541,10 @@ class ScanFrame(wx.Frame):
             basedir = basedir[len(fileroot):]
         self.scandb.set_info('user_folder', basedir)
         fullpath = os.path.join(fileroot, basedir)
+        if os.name == 'nt' and ':' in fullpath[:4]:
+            fullpath = fullpath.replace(':', ':/')
         fullpath = fullpath.replace('\\', '/').replace('//', '/')
+
         try:
             os.chdir(fullpath)
         except:
@@ -559,7 +562,7 @@ class ScanFrame(wx.Frame):
 
             pref, username = os.path.split(basedir)
             try:
-                self.scandb.add_command("set_user_name(%s)"% username)
+                self.scandb.add_command("set_user_name('%s')"% username)
             except:
                 pass
         dlg.Destroy()
