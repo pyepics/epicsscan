@@ -541,12 +541,13 @@ class QXAFS_Scan(XAFS_Scan):
         start_time = time.strftime('%Y-%m-%d %H:%M:%S')
         dtimer.add('info set')
         time.sleep(1.0)
+        # out = self.xps.run_trajectory(name='qxafs', save=False)
+        # dtimer.add('trajectory run')
 
         scan_thread = Thread(target=self.xps.run_trajectory,
-                             kwargs=dict(save=False), name='trajectory_thread')
-
+                             kwargs=dict(name='qxafs', save=False),
+                             name='trajectory_thread')
         scan_thread.start()
-
         dtimer.add('scan trajectory started')
 
         xt0 = time.time()
@@ -557,11 +558,8 @@ class QXAFS_Scan(XAFS_Scan):
                 break
             if self.look_for_interrupts():
                 break
-        print("Scan Thread join: ", dir(scan_thread))
         scan_thread.join()
-        print("Scan Thread join done")
         dtimer.add('scan thread joined')
-
         self.set_info('scan_progress', 'reading data')
         for det in self.detectors:
             det.stop()
