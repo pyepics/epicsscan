@@ -31,7 +31,10 @@ class QXAFS_ScanWatcher(object):
                  pulsecount_pvname=None, **kws):
         self.verbose = verbose
         self.scandb = ScanDB()
-        self.set_state(0)
+        try:
+            self.set_state(0)
+        except:
+            raise RuntimeError("Cannot connect to ScanDB")
 
         self.state = 0
         self.last = self.pulse = -1
@@ -100,7 +103,7 @@ class QXAFS_ScanWatcher(object):
         self.pulse = 0
         self.last_move_time = 0
         self.idarray = self.idarray_pv.get()
-        self.dtime = float(self.get_info(key='qxafs_dwelltime', default=0.5))
+        self.dtime = float(self.scandb.get_info(key='qxafs_dwelltime', default=0.5))
         if self.verbose:
             print("Monitor QXAFS begin %i ID Points"  % len(self.idarray))
 
@@ -109,7 +112,7 @@ class QXAFS_ScanWatcher(object):
             if self.get_state() == 0:
                 print("Break : state=0")
                 break
-            npts = int(self.get_info(key='scan_total_points', default=0))
+            npts = int(self.scandb.get_info(key='scan_total_points', default=0))
             if self.scandb.get_info(key='request_abort', as_bool=True):
                 print("QXAFS scan aborted")
                 self.xps.abort_group()
@@ -180,19 +183,13 @@ class QXAFS_ScanWatcher(object):
                 self.scandb.commit()
         if self.pulsecount_pv is not None:
             self.pulsecount_pv.put("%i" % self.pulse)
-        self.set_info('scan_current_point', self.pulse)
+        self.scandb.set_info('scan_current_point', self.pulse)
         print("Monitor QXAFS scan complete, finishing")
         last_pulse = self.pulse = 0
         self.qxafs_finish()
 
-    def get_info(self, *args, **kws):
-        return self.scandb.get_info(*args, **kws)
-
-    def set_info(self, key,  val):
-        return self.scandb.set_info(key, val)
-
     def set_state(self, val):
-        return self.set_info('qxafs_running', val)
+        return self.scandb.set_info('qxafs_running', val)
 
     def get_state(self):
         val  = self.scandb.get_info(key='qxafs_running', default=0)
