@@ -281,7 +281,7 @@ class Slew_Scan(StepScan):
             self.scandb.add_slewscanstatus(text)
 
         self.mastertext.extend(textlines)
-        print("Write Master ", len(self.mastertext))
+        # print("Write Master ", len(self.mastertext))
         oldfile = os.path.join(self.mapdir, '_Master_.dat')
         destfile = os.path.join(self.mapdir, 'Master.dat')
         if os.path.exists(destfile):
@@ -508,7 +508,7 @@ class Slew_Scan(StepScan):
                 if time.time()-xt0 > 0.8*self.rowtime:
                     break
                 if self.look_for_interrupts():
-                    self.xps.abort_group()
+                    break
 
             scan_thread.join()
             dtimer.add('scan thread joined')
