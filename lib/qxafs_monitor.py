@@ -241,4 +241,50 @@ class QXAFS_ScanWatcher(object):
                 self.heartbeat_pv.put("%i"%int(time.time()))
         print("QXAFS monitor  mainloop done ")
 
-#
+if __name__ == '__main__':
+
+    PIDFILE = os.path.join(os.path.expanduser('~'), 'logs', 'qxafs_monitor.pid')
+    HEARTBEAT_PVNAME = '13XRM:edb:info02'
+    PULSECOUNT_PVNAME = '13XRM:edb:info03'
+
+    usage = "usage: %prog [options] file(s)"
+
+    parser = OptionParser(usage=usage, prog="qxafs_monitor",  version="1")
+    parser.add_option("-f", "--force", dest="force", action="store_true",
+                      default=False, help="force restart, default = False")
+    parser.add_option("-v", "--verbose", dest="verbose", action="store_true",
+                      default=False, help="verbose messages, default = False")
+
+    (options, args) = parser.parse_args()
+
+    try:
+        heartbeat = int(caget(HEARTBEAT_PVNAME, as_string=True))
+    except:
+        heartbeat = -1
+
+    pid = -1
+    with open(PIDFILE) as fh:
+        pid = int(fh.readlines()[0][:-1])
+
+    # check if pid is actually running:
+    if pid > 0:
+        try:
+            os.kill(pid, 0)
+        except OSError:
+            pid = -1
+
+    if (options.force or (abs(time.time() - heartbeat) > 60.0) or pid < 0):
+        heartbeat = -1
+        if pid > 0:
+            print('killing pid=', pid, ' at ', time.ctime())
+            os.system("kill -9 %d" % pid)
+            time.sleep(1.0)
+
+        watcher = QXAFS_ScanWatcher(verbose=options.verbose,
+                                    heartbeat_pvname=HEARTBEAT_PVNAME,
+                                    pulsecount_pvname=PULSECOUNT_PVNAME,
+                                    pidfile=PIDFILE)
+        print("start QXAFS Monitor (pid %d)" % (os.getpid()))
+        watcher.mainloop()
+    else:
+        print('QXAFS Monitor running OK (pid %d) at %s ' % (pid, time.ctime()))
