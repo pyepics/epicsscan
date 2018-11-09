@@ -68,8 +68,10 @@ class LarchScanDBServer(object):
             self.enable_abort()
 
     def check_abort_pause(self, msg='at caget'):
-        self.scandb.test_abort(msg)
+        if self.scandb.test_abort(msg):
+            return False
         self.scandb.wait_for_pause(timeout=86400.0)
+        return True
 
     def enable_abort(self):
         """this replaes several larch functions with
@@ -77,23 +79,22 @@ class LarchScanDBServer(object):
         """
         def caget(pvname, _larch=None, **kws):
             amsg = "at caget('%s')" % pvname
-            self.check_abort_pause(msg=amsg)
-            return epics.caget(pvname, **kws)
+            if self.check_abort_pause(msg=amsg):
+                return epics.caget(pvname, **kws)
 
         def caput(pvname, value, _larch=None, **kws):
             amsg = "at caput('%s', %s)" % (pvname, repr(value))
-            self.check_abort_pause(msg=amsg)
-            return epics.caput(pvname, value, **kws)
+            if self.check_abort_pause(msg=amsg):
+                return epics.caput(pvname, value, **kws)
 
         def PV(pvname, _larch=None, **kws):
             amsg = "at PV('%s')" % pvname
-            self.check_abort_pause(msg=amsg)
-            return epics.get_pv(pvname, **kws)
+            if self.check_abort_pause(msg=amsg):
+                return epics.get_pv(pvname, **kws)
 
         self.symtab.set_symbol('_epics.caget', caget)
         self.symtab.set_symbol('_epics.caput', caput)
         self.symtab.set_symbol('_epics.PV', PV)
-
 
     def load_modules(self, macro_dir=None, verbose=False):
         self.load_macros(macro_dir=macro_dir, verbose=verbose)
