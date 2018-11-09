@@ -83,7 +83,7 @@ class QXAFS_ScanWatcher(object):
             pv.connect()
             self.counters.append((cname, pv))
         if self.verbose:
-            print("QXAFS_connect_counters %i counters" % (len(self.counters)))
+            self.write("QXAFS_connect_counters %i counters" % (len(self.counters)))
 
     def qxafs_finish(self):
         nidarr = len(self.idarray)
@@ -105,7 +105,7 @@ class QXAFS_ScanWatcher(object):
         self.idarray = self.idarray_pv.get()
         self.dtime = float(self.scandb.get_info(key='qxafs_dwelltime', default=0.5))
         if self.verbose:
-            print("Monitor QXAFS begin %i ID Points"  % len(self.idarray))
+            self.write("Monitor QXAFS begin %i ID Points"  % len(self.idarray))
 
         self.qxafs_connect_counters()
         while True:
@@ -114,7 +114,7 @@ class QXAFS_ScanWatcher(object):
                 break
             npts = int(self.scandb.get_info(key='scan_total_points', default=0))
             if self.scandb.get_info(key='request_abort', as_bool=True):
-                print("QXAFS scan aborted")
+                self.write("QXAFS scan aborted")
                 self.xps.abort_group()
                 time.sleep(1.0)
                 self.qxafs_finish()
@@ -136,7 +136,7 @@ class QXAFS_ScanWatcher(object):
             if self.pulse > last_pulse:
                 if self.pulsecount_pv is not None:
                     self.pulsecount_pv.put("%i" % self.pulse)
-                self.set_info('scan_current_point', self.pulse)
+                self.scandb.set_info('scan_current_point', self.pulse)
                 if self.heartbeat_pv is not None:
                     self.heartbeat_pv.put("%i" % int(time.time()))
 
@@ -149,14 +149,13 @@ class QXAFS_ScanWatcher(object):
 
                 val = self.idarray[self.pulse + self.id_lookahead]
 
-                if self.verbose and self.pulse % 10 == 0:
-                    print("QXAFS: %d/%d  ID Energy=%.3f " % (self.pulse, npts, val))
+                if self.verbose and self.pulse % 25 == 0:
+                    self.write("QXAFS: %d/%d ID Energy=%.3f " % (self.pulse, npts, val))
 
                 if ((self.idbusy_pv.get() == 0) and
                     (now > self.last_move_time + self.dead_time) and
                     (val > MIN_ID_ENERGY) and (val < MAX_ID_ENERGY)):
                     self.iddrive_pv.put(val, wait=False)
-                    # print("push ID to %.4f, %s"  %  (val, time.ctime()))
                     time.sleep(0.1)
                     self.last_move_time = time.time()
 
@@ -170,7 +169,6 @@ class QXAFS_ScanWatcher(object):
                     self.scandb.set_info('scan_progress',  msg)
                     self.scandb.set_info('heartbeat', tstamp())
                     msg_counter += 1
-                # print("-> publish scan data ", last_pulse, len(self.counters))
                 for name, pv in self.counters:
                     try:
                         value = pv.get()
@@ -179,12 +177,12 @@ class QXAFS_ScanWatcher(object):
                         else:
                             self.scandb.append_scandata(name, value)
                     except:
-                        print( "Could not set scandata for %s: %i, %s" % (name, pv))
+                        self.write( "Could not set scandata for %s: %i, %s" % (name, pv))
                 self.scandb.commit()
         if self.pulsecount_pv is not None:
             self.pulsecount_pv.put("%i" % self.pulse)
         self.scandb.set_info('scan_current_point', self.pulse)
-        print("Monitor QXAFS scan complete, finishing")
+        self.write("Monitor QXAFS scan complete, finishing")
         last_pulse = self.pulse = 0
         self.qxafs_finish()
 
@@ -210,7 +208,7 @@ class QXAFS_ScanWatcher(object):
             pid = int(fh.readlines()[0][:-1])
 
         if pid is not None:
-            print('killing pid=', pid, ' at ', time.ctime())
+            self.write('killing pid=', pid, ' at ', time.ctime())
             os.system("kill -9 %d" % pid)
             time.sleep(1.0)
 
@@ -219,6 +217,10 @@ class QXAFS_ScanWatcher(object):
             fh.write("%d\n" % os.getpid() )
             fh.close()
 
+    def write(self, msg):
+        sys.stdout.write("%s\n" % msg)
+        sys.stdout.flush()
+
     def mainloop(self):
         if not self.connected:
             self.connect()
@@ -226,7 +228,6 @@ class QXAFS_ScanWatcher(object):
         self.qxafs_connect_counters()
         while True:
             state = self.get_state()
-            # print("Main loop ", state, 2==state)
             if 2 == int(state):
                 self.monitor_qxafs()
             else:
@@ -236,7 +237,7 @@ class QXAFS_ScanWatcher(object):
             time.sleep(1.0)
             if self.heartbeat_pv is not None:
                 self.heartbeat_pv.put("%i"%int(time.time()))
-        print("QXAFS monitor  mainloop done ")
+        self.write("QXAFS monitor  mainloop done ")
 
 if __name__ == '__main__':
 
