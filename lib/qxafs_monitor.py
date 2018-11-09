@@ -28,10 +28,9 @@ DEFAULT_PIDFILE = os.path.join(os.path.expanduser('~'), 'qxafs_monitor.pid')
 class QXAFS_ScanWatcher(object):
     def __init__(self, verbose=False, pidfile=None,
                  heartbeat_pvname=None,
-                 pulsecount_pvname=None,
-                 **conn_kws):
+                 pulsecount_pvname=None, **kws):
         self.verbose = verbose
-        self.scandb = ScanDB(**conn_kws)
+        self.scandb = ScanDB()
         self.set_state(0)
 
         self.state = 0
@@ -107,16 +106,14 @@ class QXAFS_ScanWatcher(object):
 
         self.qxafs_connect_counters()
         while True:
-            # print(" QXAFS Pulse ", self.pulse, last_pulse, self.get_state())
             if self.get_state() == 0:
                 print("Break : state=0")
                 break
             npts = int(self.get_info(key='scan_total_points', default=0))
             if self.scandb.get_info(key='request_abort', as_bool=True):
-                print("aborting QXAFS scan")
+                print("QXAFS scan aborted")
                 self.xps.abort_group()
                 time.sleep(1.0)
-                # self.set_info('request_abort', 0)
                 self.qxafs_finish()
                 break
 
@@ -139,8 +136,6 @@ class QXAFS_ScanWatcher(object):
                 self.set_info('scan_current_point', self.pulse)
                 if self.heartbeat_pv is not None:
                     self.heartbeat_pv.put("%i" % int(time.time()))
-                if self.verbose and self.pulse % 10 == 0:
-                    print("QXAFS Monitor " , self.pulse, len(self.counters))
 
                 # if the ID has been moving for more than 0.75 sec, stop it
                 if ((self.pulse > 2) and
@@ -151,10 +146,14 @@ class QXAFS_ScanWatcher(object):
 
                 val = self.idarray[self.pulse + self.id_lookahead]
 
+                if self.verbose and self.pulse % 10 == 0:
+                    print("QXAFS: %d/%d  ID Energy=%.3f " % (self.pulse, npts, val))
+
                 if ((self.idbusy_pv.get() == 0) and
                     (now > self.last_move_time + self.dead_time) and
                     (val > MIN_ID_ENERGY) and (val < MAX_ID_ENERGY)):
                     self.iddrive_pv.put(val, wait=False)
+                    # print("push ID to %.4f, %s"  %  (val, time.ctime()))
                     time.sleep(0.1)
                     self.last_move_time = time.time()
 
@@ -182,7 +181,7 @@ class QXAFS_ScanWatcher(object):
         if self.pulsecount_pv is not None:
             self.pulsecount_pv.put("%i" % self.pulse)
         self.set_info('scan_current_point', self.pulse)
-        print("Monitor QXAFS done")
+        print("Monitor QXAFS scan complete, finishing")
         last_pulse = self.pulse = 0
         self.qxafs_finish()
 
@@ -233,9 +232,13 @@ class QXAFS_ScanWatcher(object):
             # print("Main loop ", state, 2==state)
             if 2 == int(state):
                 self.monitor_qxafs()
+            else:
+                if self.scandb.get_info(key='request_abort', as_bool=True):
+                    self.xps.abort_group()
+                    time.sleep(1.0)
             time.sleep(1.0)
             if self.heartbeat_pv is not None:
                 self.heartbeat_pv.put("%i"%int(time.time()))
-        print("QXAFS monitory done ")
+        print("QXAFS monitor  mainloop done ")
 
 #
