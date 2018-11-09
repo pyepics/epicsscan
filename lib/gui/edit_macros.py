@@ -427,15 +427,15 @@ class MacroFrame(wx.Frame) :
         self.start_btn  = add_button(panel, label='Start',  action=self.onStart)
         self.pause_btn  = add_button(panel, label='Pause',  action=self.onPause)
         self.resume_btn = add_button(panel, label='Resume',  action=self.onResume)
-        self.abort_btn  = add_button(panel, label='Abort Command',  action=self.onAbort)
-        self.cancel_btn = add_button(panel, label='Cancel All', action=self.onCancelAll)
+        # self.abort_btn  = add_button(panel, label='Abort Command',  action=self.onAbort)
+        self.cancel_btn = add_button(panel, label='Abort Macro', action=self.onCancelAll)
         self.restart_btn = add_button(panel, label='Restart Server',
                                       action=self.onRestartServer)
 
         sizer.Add(self.start_btn,  0, wx.ALIGN_LEFT, 2)
         sizer.Add(self.pause_btn,  0, wx.ALIGN_LEFT, 2)
         sizer.Add(self.resume_btn, 0, wx.ALIGN_LEFT, 2)
-        sizer.Add(self.abort_btn,  0, wx.ALIGN_LEFT, 2)
+        # sizer.Add(self.abort_btn,  0, wx.ALIGN_LEFT, 2)
         sizer.Add(self.cancel_btn, 0, wx.ALIGN_LEFT, 2)
         sizer.Add(self.restart_btn, 0, wx.ALIGN_LEFT, 2)
         pack(panel, sizer)
@@ -610,8 +610,8 @@ class MacroFrame(wx.Frame) :
 
     def onCancelAll(self, event=None):
         self.onPause()
+        self.scandb.set_info('request_abort', 1)
         self.scandb.cancel_remaining_commands()
-        self.onAbort()
         time.sleep(1.0)
         self.onResume()
 
