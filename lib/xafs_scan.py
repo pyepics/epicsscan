@@ -312,7 +312,7 @@ class QXAFS_Scan(XAFS_Scan):
         height = caget(qconf['height_pv'])
         th_off = caget(qconf['theta_motor'] + '.OFF')
         wd_off = caget(qconf['width_motor'] + '.OFF')
-        # theta_accel = max(1.5, theta_accel)
+        # theta_accel = min(1.5, theta_accel)
 
         # we want energy trajectory points to be at or near
         # midpoints of desired energy values
@@ -349,7 +349,6 @@ class QXAFS_Scan(XAFS_Scan):
         the1  = 0.5 * tvelo[-1] * tim0
         wid1  = 0.5 * wvelo[-1] * tim0
 
-        print("Theta Accel ", theta_accel)
         dtheta = np.diff(theta)
         dwidth = np.diff(width)
         dtime  = times[1:]
@@ -476,6 +475,7 @@ class QXAFS_Scan(XAFS_Scan):
         npts = len(self.positioners[0].array)
         self.dwelltime_varys = False
         dtime = self.dwelltime[0]
+        estimated_scantime = npts*dtime
         dtimer.add('set dwelltime')
         self.set_info('scan_progress', 'preparing scan')
         extra_vals = []
@@ -541,8 +541,26 @@ class QXAFS_Scan(XAFS_Scan):
         start_time = time.strftime('%Y-%m-%d %H:%M:%S')
         dtimer.add('info set')
         time.sleep(1.0)
-        out = self.xps.run_trajectory(name='qxafs', save=False)
-        dtimer.add('trajectory run')
+
+        scan_thread = Thread(target=self.xps.run_trajectory,
+                             kwargs=dict(save=False), name='trajectory_thread')
+
+        scan_thread.start()
+
+        dtimer.add('scan trajectory started')
+
+        xt0 = time.time()
+        while scan_thread.is_alive():
+            time.sleep(0.1)
+            if time.time()-xt0 > 0.9*estimated_scantime:
+                print("Scan nearing end... now joining thread")
+                break
+            if self.look_for_interrupts():
+                break
+        print("Scan Thread join: ", dir(scan_thread))
+        scan_thread.join()
+        print("Scan Thread join done")
+        dtimer.add('scan thread joined')
 
         self.set_info('scan_progress', 'reading data')
         for det in self.detectors:
@@ -593,7 +611,7 @@ class QXAFS_Scan(XAFS_Scan):
 
         if self.look_for_interrupts():
             self.write("scan aborted at point %i of %i." % (self.cpt, self.npts))
-            raise ScanDBAbort("scan aborted")
+            # raise ScanDBAbort("scan aborted")
 
         # run post_scan methods
         self.set_info('scan_progress', 'finishing')
