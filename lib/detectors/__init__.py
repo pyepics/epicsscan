@@ -14,6 +14,7 @@ from epics.devices import Scaler, MCA
 from ..saveable import Saveable
 from ..file_utils import fix_filename
 
+from .xrd_calibration import read_poni, write_poni
 from .trigger import Trigger
 from .counter import Counter, DummyCounter, DeviceCounter, MotorCounter
 from .base  import DetectorMixin, SimpleDetector, MotorDetector
