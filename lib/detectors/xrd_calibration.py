@@ -22,15 +22,15 @@ def write_poni(filename, calname='', pixel1=0, pixel2=0,
                wavelength=0, **kws):
     buff = '''# XRD Calibration  {calname:s}
 # Saved {ctime:s}
-PixelSize1: {pixel1:14.7g}
-PixelSize2: {pixel2:14.7g}
-Distance: {dist:14.7g}
-Poni1: {poni1:14.7g}
-Poni2: {poni2:14.7g}
-Rot1: {rot1:14.7g}
-Rot2: {rot2:14.7g}
-Rot3: {rot3:14.7g}
-Wavelength: {wavelength:14.7g}
+PixelSize1: {pixel1:16.11g}
+PixelSize2: {pixel2:16.11g}
+Distance: {dist:16.11g}
+Poni1: {poni1:16.11g}
+Poni2: {poni2:16.11g}
+Rot1: {rot1:16.11g}
+Rot2: {rot2:16.11g}
+Rot3: {rot3:16.11g}
+Wavelength: {wavelength:16.11g}
 '''
     with open(filename, 'w') as fh:
         fh.write(buff.format(calname=calname, ctime=time.ctime(),
