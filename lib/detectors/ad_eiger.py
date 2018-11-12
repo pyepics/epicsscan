@@ -5,10 +5,15 @@ Eiger 500K
 
 """
 import os
+import sys
 import time
 import requests
 import json
 import subprocess
+import numpy as np
+import h5py
+from glob import glob
+
 from telnetlib import Telnet
 
 from epics import get_pv, caput, caget, Device, poll, PV
@@ -16,6 +21,9 @@ from epics import get_pv, caput, caget, Device, poll, PV
 from .base import DetectorMixin, SCALER_MODE, NDARRAY_MODE, ROI_MODE
 from .areadetector import AreaDetector
 from ..debugtime import debugtime
+from ..scandb import ScanDB
+
+from pyFAI.azimuthalIntegrator import AzimuthalIntegrator
 
 
 def restart_procserv_ioc(ioc_port=29200):
@@ -155,6 +163,103 @@ class EigerSimplon:
             caput(prefix + 'FWEnable',      0, wait=True)
         print("Restart Done.")
 
+
+
+MAXVAL = 2**32 - 2**15
+
+class EigerFileCopier(object):
+    def __init__(self, mountpoint='/eiger1', **kws):
+
+        self.scandb = scandb.ScanDB()
+        self.source_dir = mountpoint
+        self.rsync_cmd = '/bin/rsync -va'
+        self.rsync_opts = '-va'
+        self.map_folder = ''
+        self.config_time = 0
+        self.set_state('idle')
+        self.sleep_time = 5.0
+
+    def set_state(self, state):
+        self.scandb.set_info('eiger_needs_sync', state)
+
+    def get_state(self, state):
+        return self.scandb.set_info('eiger_needs_sync')
+
+    def read_config(self):
+        self.config_time = time.time()
+        self.map_folder = self.scandb.get_info('map_folder')
+        if self.map_folder.endswith('/'):
+            self.map_folder = self.map_folder[:-1]
+
+        eiger_poni = self.scandb.get_info('eiger_calibration')
+        calib = json.loads(self.scandb.get_detectorconfig(eiger_poni).text)
+        self.integrator = AzimuthalIntegrator(**calib)
+
+    def run_command(self, cmd):
+        print("# %s  : %s " % (time.ctime(), cmd))
+        subprocess.call(cmd, shell=True)
+
+
+    def copy(self, finish=False):
+        if len(self.map_folder) < 0 or self.get_state() == 'idle':
+            return
+
+        cmd = "%s %s/*.h5 %s/." % (self.rsync_cmd,
+                                   self.source_dir,
+                                   self.map_folder)
+
+        self.run_command(cmd)
+        if finish:
+            time.sleep(self.sleep_time)
+            self.run_command(cmd)
+
+    def integrate(self):
+        eigerfiles = glob(os.path.join(self.map_folder, '*_data_000001.h5'))
+        for efile in sorted(eigerfiles):
+            outfile = efile.replace('_data_000001.h5', '.npy')
+            if not os.path.exists(outfile):
+                self.save_1dint(efile, outfile)
+
+    def save_1dint(self, h5file, outfile):
+        xrdfile = h5py.File(h5file, 'r')
+        xrdsum = xrdfile['/entry/data/data'][1:-1, 1:-1, 3:-3][:,::-1,:]
+        nframes, nx, ny = xrdsum.shape
+        xrdfile.close()
+        t0 = time.time()
+        dat = []
+        do_int = self.integrator.integrate1d
+        for i in range(nframes):
+            img = xrdsum[i, :, :]
+            img[np.where(img>MAXVAL)] = 0
+            q, x = do_int(img, 2048, method='csr',
+                          unit='q_A^-1',
+                          correctSolidAngle=True,
+                          polarization_factor=0.999)
+            if i == 0:
+                dat.append(q)
+            dat.append(x)
+        dat = np.array(dat)
+        _path, fname = os.path.split(outfile)
+        print("writing 1D integration to %s, %.2f sec" %  (fname, time.time()-t0))
+        np.save(outfile, dat)
+
+    def run(self):
+        while True:
+            time.sleep(self.sleep_time)
+            state = self.get_state()
+            if state.startswith('starting'):
+                self.read_config()
+                self.set_state('scanning')
+            elif state.startswith('scanning'):
+                self.copy()
+                self.integrate()
+            elif state.startswith('finishing'):
+                self.copy(finish=True)
+                self.integrate()
+                self.set_state('idle')
+                self.map_folder = ''
+            elif state.startswith('idle'):
+                time.sleep(self.sleep_time)
 
 
 class AD_Eiger(AreaDetector):
