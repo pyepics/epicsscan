@@ -4,6 +4,7 @@ Eiger support
 Eiger 500K
 
 """
+from __future__ import print_function
 import os
 import sys
 import time
@@ -13,7 +14,7 @@ import subprocess
 import numpy as np
 import h5py
 from glob import glob
-
+from datetime import datetime
 from telnetlib import Telnet
 
 from epics import get_pv, caput, caget, Device, poll, PV
@@ -21,7 +22,6 @@ from epics import get_pv, caput, caget, Device, poll, PV
 from .base import DetectorMixin, SCALER_MODE, NDARRAY_MODE, ROI_MODE
 from .areadetector import AreaDetector
 from ..debugtime import debugtime
-from ..scandb import ScanDB
 
 from pyFAI.azimuthalIntegrator import AzimuthalIntegrator
 
@@ -164,49 +164,54 @@ class EigerSimplon:
         print("Restart Done.")
 
 
-
 MAXVAL = 2**32 - 2**15
 
 class EigerFileCopier(object):
-    def __init__(self, mountpoint='/eiger1', **kws):
+    def __init__(self, mountpoint='/eiger1',
+                 copy_status='13XRM:EIGER:',  **kws):
+        from epicsscan.scandb import ScanDB
 
-        self.scandb = scandb.ScanDB()
+        self.scandb = ScanDB()
+        self.copy_dev  = Device(copy_status,
+                                attrs=('status', 'tstamp', 'folder'))
         self.source_dir = mountpoint
-        self.rsync_cmd = '/bin/rsync -va'
-        self.rsync_opts = '-va'
+        self.rsync_cmd = '/bin/rsync'
+        self.rsync_opts = '-a'
         self.map_folder = ''
         self.config_time = 0
         self.set_state('idle')
         self.sleep_time = 5.0
 
     def set_state(self, state):
-        self.scandb.set_info('eiger_needs_sync', state)
+        self.copy_dev.status = state
 
-    def get_state(self, state):
-        return self.scandb.set_info('eiger_needs_sync')
+    def get_state(self):
+        return self.copy_dev.get('status', as_string=True)
 
     def read_config(self):
         self.config_time = time.time()
         self.map_folder = self.scandb.get_info('map_folder')
+        self.copy_dev.folder = self.map_folder
         if self.map_folder.endswith('/'):
             self.map_folder = self.map_folder[:-1]
 
         eiger_poni = self.scandb.get_info('eiger_calibration')
         calib = json.loads(self.scandb.get_detectorconfig(eiger_poni).text)
         self.integrator = AzimuthalIntegrator(**calib)
+        print("EigerSaver Config:")
+        print("   map_folder  ", self.map_folder)
+        print("   calibration ", eiger_poni, calib)
 
     def run_command(self, cmd):
-        print("# %s  : %s " % (time.ctime(), cmd))
+        print("# command ", cmd)
         subprocess.call(cmd, shell=True)
-
+        self.copy_dev.tstamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
 
     def copy(self, finish=False):
         if len(self.map_folder) < 0 or self.get_state() == 'idle':
             return
-
-        cmd = "%s %s/*.h5 %s/." % (self.rsync_cmd,
-                                   self.source_dir,
-                                   self.map_folder)
+        cmd = '/bin/rsync -a {source:s}/*.h5 {dest:s}'
+        cmd = cmd.format(source=self.source_dir, dest=self.map_folder)
 
         self.run_command(cmd)
         if finish:
@@ -240,7 +245,7 @@ class EigerFileCopier(object):
             dat.append(x)
         dat = np.array(dat)
         _path, fname = os.path.split(outfile)
-        print("writing 1D integration to %s, %.2f sec" %  (fname, time.time()-t0))
+        print("writing 1D data: %s, %.2f sec" %  (fname, time.time()-t0))
         np.save(outfile, dat)
 
     def run(self):
@@ -269,16 +274,22 @@ class AD_Eiger(AreaDetector):
     a pretty generic areaDetector, but overwriting
     pre_scan() to collect offset frames
     """
+
     def __init__(self, prefix, label='eiger', mode='scaler', url=None,
-                 filesaver='TIFF1:', fileroot='/home/xas_user', scandb=None, **kws):
+                 filesaver='TIFF1:', fileroot='/home/xas_user',
+                 copy_status=None, **kws):
 
         AreaDetector.__init__(self, prefix, label=label, mode=mode,
-                             filesaver=filesaver, fileroot=fileroot,
-                              scandb=scandb, **kws)
+                              filesaver=filesaver, fileroot=fileroot, **kws)
 
         self.simplon = None
         if url is not None:
             self.simplon = EigerSimplon(url, prefix)
+
+        self.copy_dev = None
+        if copy_status is not None:
+            self.copy_dev  = Device(copy_status,
+                                    attrs=('status', 'tstamp', 'folder'))
         self.cam.PV('FWEnable')
         self.cam.PV('FWClear')
         self.cam.PV('FWNImagesPerFile')
@@ -298,21 +309,33 @@ class AD_Eiger(AreaDetector):
         self.datadir = ''
         self.ad.FileCaptureOff()
 
+    def set_state(self, state):
+        if self.copy_dev is not None:
+            print("AD Eiger, set CopyDevice Status = ", state)
+            self.copy_dev.status = state
+
+    def get_state(self):
+        return self.copy_dev.get('status', as_string=True)
+
     def custom_pre_scan(self, row=0, dwelltime=None, **kws):
         # print("Custom Prescan AD getFilePath ", self.datadir)
-        time.sleep(0.5)
-        # self.cam.put('FilePath', os.path.join(self.fileroot, self.datadir))
-        if self.scandb is not None:
-            self.scandb.set_info('eiger_starting_seqid',
-                                 self.cam.get('SequenceId', as_string=True))
-            self.scandb.set_info('eiger_needs_sync', 'scanning')
+        t0 = time.time()
+        files_synced = False
+        print(" Ad Eiger clearing disk: ")
+        while not files_synced:
+            time.sleep(0.1)
+            files_synced = (self.get_state().startswith('idle') or
+                            (time.time()-t0) > 120.0)
+        self.simplon.clear_disk()
+        print(" Ad Eiger cleared disk: %.1f sec" % (time.time()-t0))
+
+        self.set_state('starting')
         self.cam.put('FWEnable', 'Yes')
         self.cam.put('SaveFiles', 'No')
         self.cam.put('FWAutoRemove', 'No')
 
     def post_scan(self, **kws):
-        if self.scandb is not None:
-            self.scandb.set_info('eiger_needs_sync', 'finishing')
+        self.set_state('finishing')
         self.ContinuousMode()
 
     def open_shutter(self):
@@ -447,7 +470,7 @@ class AD_Eiger(AreaDetector):
 
     def get_next_filename(self):
         pattern = self.cam.get('FWNamePattern')
-        seqid = "%d" % (1+self.cam.get('SequenceId'))
+        seqid = "%d" % self.cam.get('SequenceId')
         prefix = pattern.replace('$id', seqid)
         return "%s_master.h5" % (prefix)
 
