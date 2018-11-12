@@ -16,7 +16,7 @@ from .saveable import Saveable
 
 from .utils import ScanDBAbort
 from .detectors import Struck, TetrAMM, Xspress3
-from .detectors import (Counter, Trigger, AreaDetector)
+from .detectors import (Counter, Trigger, AreaDetector, write_poni)
 from .file_utils import fix_varname, fix_filename, increment_filename
 
 from epics import PV, poll, get_pv, caget, caput
@@ -321,6 +321,7 @@ class Slew_Scan(StepScan):
 
         env_file = os.path.join(self.mapdir, 'Environ.dat')
         roi_file = os.path.join(self.mapdir, 'ROI.dat')
+        poni_file = os.path.join(self.mapdir, 'XRD.poni')
 
         [p.move_to_pos(0, wait=False) for p in self.positioners]
         for pv, v1, v2 in self.motor_vals.values():
@@ -479,9 +480,13 @@ class Slew_Scan(StepScan):
                 xrdfile = xrddet.get_next_filename()
 
             if irow < 2:
+                self.save_envdata(filename=env_file)
                 if xrfdet is not None:
                     xrfdet.save_calibration(roi_file)
-                self.save_envdata(filename=env_file)
+               if xrddet is not None:
+                   xrd_poni = self.scandb.get_info('eiger_calibration')
+                   calib = json.loads(self.scandb.get_detectorconfig(xrd_poni).text)
+                   write_poni(poni_file, calname=xrd_poni, **calib)
 
             if dim == 2:
                 pos0 = "%8.4f" % self.positioners[0].array[irow-1]
