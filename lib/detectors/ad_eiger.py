@@ -226,20 +226,20 @@ class EigerFileCopier(object):
                 self.save_1dint(efile, outfile)
 
     def save_1dint(self, h5file, outfile):
+        t0 = time.time()
         xrdfile = h5py.File(h5file, 'r')
         xrdsum = xrdfile['/entry/data/data'][1:-1, 1:-1, 3:-3][:,::-1,:]
         nframes, nx, ny = xrdsum.shape
         xrdfile.close()
-        t0 = time.time()
+        integrate = self.integrator.integrate1d
+        opts = dict(method='csr',unit='q_A^-1',
+                    correctSolidAngle=True,
+                    polarization_factor=0.999)
         dat = []
-        do_int = self.integrator.integrate1d
         for i in range(nframes):
             img = xrdsum[i, :, :]
             img[np.where(img>MAXVAL)] = 0
-            q, x = do_int(img, 2048, method='csr',
-                          unit='q_A^-1',
-                          correctSolidAngle=True,
-                          polarization_factor=0.999)
+            q, x = integrate(img, 2048, **opts)
             if i == 0:
                 dat.append(q)
             dat.append(x)
