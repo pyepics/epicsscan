@@ -228,7 +228,7 @@ class EigerFileCopier(object):
     def save_1dint(self, h5file, outfile):
         t0 = time.time()
         xrdfile = h5py.File(h5file, 'r')
-        xrdsum = xrdfile['/entry/data/data'][1:-1, 1:-1, 3:-3][:,::-1,:]
+        xrdsum = xrdfile['/entry/data/data'][1:, 1:-1, 3:-3][:,::-1,:]
         nframes, nx, ny = xrdsum.shape
         xrdfile.close()
         integrate = self.integrator.integrate1d
