@@ -16,7 +16,7 @@ import h5py
 from glob import glob
 from datetime import datetime
 from telnetlib import Telnet
-
+from base64 import b64encode, b64decode
 from epics import get_pv, caput, caget, Device, poll, PV
 
 from .base import DetectorMixin, SCALER_MODE, NDARRAY_MODE, ROI_MODE
@@ -105,6 +105,24 @@ class EigerSimplon:
     def get_energy(self, energy=15000):
         return self._get(module='detector', task='config',
                          parameter='photon_energy')
+
+    def get_pixel_mask(self):
+        _dat = self._get(task='config', parameter='pixel_mask')
+        return np.fromstring(b64decode(_dat.value['data']), dtype='uint32')
+
+    def set_pixel_mask(self, mask):
+        if mask.dtype != np.uint32:
+            raise ValueError("mask must have dtype of uint32")
+        ny_pixs = self._get(module='detector', task='config',
+                            parameter='y_pixels_in_detector').value
+        nx_pixs = self._get(module='detector', task='config',
+                            parameter='x_pixels_in_detector').value
+        if mask.shape != (ny_pixs, nx_pixs):
+            raise ValueError("mask must have shape (%d, %d)" % (ny_pixs, nx_pixs))
+
+        val = self._get(task='config', parameter='pixel_mask').value
+        val['data'] = b64encode(mask.flatten())
+        _dat = self._put(task='config', parameter='pixel_mask', value=val)
 
     def clear_disk(self):
         return self._put(module='filewriter', task='command',
