@@ -245,10 +245,10 @@ class Slew_Scan(StepScan):
             v1, v2 = trajs['foreward']['start'][i], trajs['backward']['start'][i]
             thispv = PV(pvname)
             self.motor_vals[pvname] = (thispv, v1, v2)
-            self.orig_positions[thispv] = thispv.get()
+            self.orig_positions[pvname] = thispv.get()
 
         for p in self.positioners:
-            self.orig_positions[p.pv] = p.current()
+            self.orig_positions[p.pv.pvname] = p.current()
 
         detpath = self.mapdir[len(self.fileroot):]
         if detpath.startswith('/'):
@@ -263,8 +263,8 @@ class Slew_Scan(StepScan):
 
     def post_scan(self):
         self.set_info('scan_progress', 'finishing')
-        for pv, val in self.orig_positions.items():
-            pv.put(val)
+        for pvname, val in self.orig_positions.items():
+            caput(pvname, val)
 
         for m in self.post_scan_methods:
             m()
@@ -543,7 +543,7 @@ class Slew_Scan(StepScan):
             if scadet is not None:
                 sisfile = os.path.abspath(os.path.join(self.mapdir, scafile))
                 ncsa, npts_sca = scadet.save_arraydata(filename=sisfile, npts=npulses)
-            dtimer.add('saved SIS data %s ' % sisfile)
+            dtimer.add('saved SIS data')
 
             xps_saver_thread.join()
             dtimer.add('saved XPS data')
@@ -553,23 +553,22 @@ class Slew_Scan(StepScan):
                 t0 = time.time()
                 write_complete = xrfdet.file_write_complete()
                 ntry = 0
-                while not write_complete and (time.time()-t0 < 2.5):
+                while not write_complete and (time.time()-t0 < 1.0):
                     write_complete = xrfdet.file_write_complete()
                     time.sleep(0.1)
                     ntry = ntry + 1
                 nxrf = xrfdet.get_numcaptured()
-                # print("XRF file write complete? ", write_complete, nxrf, npulses, ntry)
                 if (nxrf < npulses-1) or not write_complete:
                     xrfdet.finish_capture()
                     nxrf = xrfdet.get_numcaptured()
                     write_complete = xrfdet.file_write_complete()
                 if (nxrf < npulses-2) or not write_complete:
-                    print("XRF file write failed ", write_complete, nxrf, npulses, ntry)
+                    print("XRF file write failed ", write_complete, nxrf,
+                          npulses, ntry)
                     rowdata_ok = False
                     xrfdet.stop()
-                    time.sleep(0.5)
-
-            dtimer.add('saved XRF data %s' % xrfdet.get_last_filename())
+                    time.sleep(0.25)
+            dtimer.add('saved XRF data')
 
             if xrddet is not None:
                 t0 = time.time()
