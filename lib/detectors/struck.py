@@ -159,7 +159,7 @@ class Struck(Device):
             self.set_dwelltime(dwelltime)
         self._mode = NDARRAY_MODE
 
-        time.sleep(0.01)
+        # time.sleep(0.01)
         self.ExternalMode(trigger_width=trigger_width, countonstart=countonstart)
 
     def ROIMode(self, dwelltime=None, numframes=None, countonstart=True,

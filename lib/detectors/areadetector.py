@@ -142,7 +142,7 @@ class ADFileMixin(object):
                 rbv = self.fileGet('Capture_RBV')
                 if rbv:
                     break
-                time.sleep(0.025)
+                time.sleep(0.005)
             out = rbv
         return out
 
