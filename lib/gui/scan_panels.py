@@ -245,12 +245,17 @@ class GenericScanPanel(scrolled.ScrolledPanel):
 
         wids = self.pos_settings[index]
         # clear current widgets for this row
-        this_wid = wids[2].GetId()
-        if wids[2].pv is not None:
-            for icb, ccb in wids[2].pv.callbacks.items():
+        wid2 = wids[2]
+        wid2pv = wids[2].pv
+        this_wid = wid2.GetId()
+        if wid2pv is not None:
+            keys = list(wid2pv.callbacks.keys())
+            print("update pos : ", keys)
+            for icb in keys:
+                ccb = wid2pv.callbacks[icb]
                 if ccb[1].get('wid', None) == this_wid:
                     try:
-                        wids[2].pv.remove_callback(index=icb)
+                        wid2pv.remove_callback(index=icb)
                     except:
                         pass
 

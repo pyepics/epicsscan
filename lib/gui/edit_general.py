@@ -54,18 +54,17 @@ class SettingsFrame(wx.Frame) :
 
             ir += 1
             sizer.Add(add_subtitle(panel, '%s:' % sect),  (ir, 0),  (1, 4), LCEN, 1)
-            # print("Section ", sect)
-            # print("  -- data ", vars)
             for vname, as_bool in vars:
                 row = self.scandb.get_info(vname, full_row=True)
-                val = row.value
-                try:
-                    val = bool(int(row.value))
-                except:
-                    print('Could not convert value to bool ', val)
+                _desc = row.notes or vname
+                desc = wx.StaticText(panel, -1, label="  %s: " % _desc, size=(300, -1))
 
-                desc = wx.StaticText(panel, -1, label="  %s: " % row.notes, size=(300, -1))
+                val = row.value
                 if as_bool:
+                    try:
+                        val = bool(int(row.value))
+                    except:
+                        val = False
                     ctrl = check(panel, default=val)
                 else:
                     ctrl = wx.TextCtrl(panel, value=val,  size=(250, -1))

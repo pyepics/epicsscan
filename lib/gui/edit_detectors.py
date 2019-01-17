@@ -200,7 +200,7 @@ class DetectorDetailsFrame(wx.Frame):
 
         sizer.Add(okcancel(self, self.onOK, self.onClose),
                   (irow+1, 0), (1, 3), LCEN, 1)
-        wx.EVT_CLOSE(self, self.onClose)
+        self.Bind(wx.EVT_CLOSE, self.onClose)
         self.SetMinSize((225, 350))
         pack(self, sizer)
         self.Show()
@@ -378,7 +378,7 @@ class DetectorFrame(wx.Frame) :
         mainsizer = wx.BoxSizer(wx.VERTICAL)
         mainsizer.Add(panel, 1, wx.GROW|wx.ALL, 1)
 
-        wx.EVT_CLOSE(self, self.onClose)
+        self.Bind(wx.EVT_CLOSE, self.onClose)
         pack(self, mainsizer)
         self.Show()
         self.Raise()

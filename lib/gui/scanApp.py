@@ -428,14 +428,8 @@ class ScanFrame(wx.Frame):
         menu_dat['Scans'] = (("Scan Definitions\tCtrl+D",
                               "Browsn and Manage Saved Scans", self.onEditScans),
                              ("Show Sequences and Scan Queue",
-                               "Show Scans Queue",  self.onEditSequences),
-                             ("<separator>", "", None),
-                             ("Read Scan Definition\tCtrl+O",
-                              "Read Scan Defintion", self.onReadScanDef),
-                             ("Save Scan Definition\tCtrl+S",
-                              "Save Scan Definition", self.onSaveScanDef),
-                             ("Read old scan (.scn) File",
-                              "Read old scan (.scn) file", self.onReadOldScanFile))
+                               "Show Scans Queue",  self.onEditSequences))
+
 
         menu_dat['Positioners'] = (("Configure",
                                     "Setup Motors and Positioners", self.onEditPositioners),
