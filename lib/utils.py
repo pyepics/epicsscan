@@ -1,6 +1,7 @@
 import sys
 import socket
 import time
+import six
 from datetime import timedelta
 
 class ScanDBException(Exception):
@@ -70,7 +71,10 @@ def pv_fullname(name):
 
 def asciikeys(adict):
     """ensure a dictionary has ASCII keys (and so can be an **kwargs)"""
-    return dict((k.encode('ascii'), v) for k, v in adict.items())
+    if six.PY2:
+        return dict((k.encode('ascii'), v) for k, v in adict.items())
+    else:
+        return adict
 
 
 def read_oldscanfile(fname):
