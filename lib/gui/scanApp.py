@@ -312,8 +312,20 @@ class ScanFrame(wx.Frame):
                 scan_is_new = True
 
         if scan_is_new or force_save:
-            sdb.add_scandef(scanname, text=json.dumps(scan), type=scan['type'])
-            sdb.commit()
+            name_exists = sdb.get_scandef(scanname) is not None
+            if name_exists:
+                count = 0
+                while name_exists and count < 25:
+                    count += 1
+                    time.sleep(0.25)
+                    scanname = time.strftime("__%b%d_%H:%M:%S__") + ('%d' % count)
+                    name_exists = sdb.get_scandef(scanname) is not None
+            if name_exists:
+                print("Cannot find a scan name... something is wrong with ScanDB")
+            else:
+                sdb.add_scandef(scanname, text=json.dumps(scan),
+                                type=scan['type'])
+                sdb.commit()
             self.last_scanname = scanname
         return self.last_scanname, scan
 
