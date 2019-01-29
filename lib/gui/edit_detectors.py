@@ -159,7 +159,7 @@ class DetectorDetailsFrame(wx.Frame):
         kind   = self.det.kind
         opts   = DET_DEFAULT_OPTS.get(kind, {})
         opts.update(json.loads(self.det.options))
-        optkeys = opts.keys()
+        optkeys = list(opts.keys())
         optkeys.sort()
         irow = 2
         for key in optkeys:

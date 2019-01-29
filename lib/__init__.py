@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-__version__ = '0.5'
+__version__ = '0.6'
 
 from .station_config import StationConfig
 from .spec_emulator import SpecScan

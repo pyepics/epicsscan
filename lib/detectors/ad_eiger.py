@@ -274,10 +274,10 @@ class EigerFileCopier(object):
                 self.read_config()
                 self.set_state('scanning')
             elif state.startswith('scanning'):
-                self.copy()
+                # self.copy()
                 self.integrate()
             elif state.startswith('finishing'):
-                self.copy(finish=True)
+                # self.copy(finish=True)
                 self.integrate()
                 self.set_state('idle')
                 self.map_folder = ''
@@ -294,7 +294,7 @@ class AD_Eiger(AreaDetector):
     """
 
     def __init__(self, prefix, label='eiger', mode='scaler', url=None,
-                 filesaver='TIFF1:', fileroot='/home/xas_user',
+                 filesaver='HDF1:', fileroot='/home/xas_user',
                  copy_status=None, **kws):
 
         AreaDetector.__init__(self, prefix, label=label, mode=mode,
