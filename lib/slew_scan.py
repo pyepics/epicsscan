@@ -484,7 +484,7 @@ class Slew_Scan(StepScan):
                 if xrfdet is not None:
                     xrfdet.save_calibration(roi_file)
                 if xrddet is not None:
-                    xrd_poni = self.scandb.get_info('eiger_calibration')
+                    xrd_poni = self.scandb.get_info('xrd_calibration')
                     calib = json.loads(self.scandb.get_detectorconfig(xrd_poni).text)
                     write_poni(poni_file, calname=xrd_poni, **calib)
 
