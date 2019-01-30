@@ -178,6 +178,7 @@ class ADFileMixin(object):
         "get FileName for index"
         return self.getFileTemplate() % (self.getFilePath(),
                                          self.getFileName(), index)
+
     def getNextFileName(self, with_path=False):
         "calculate next file name"
         fmt  = self.getFileTemplate()
