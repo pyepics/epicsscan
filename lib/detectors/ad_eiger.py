@@ -160,7 +160,7 @@ class EigerSimplon:
             print("Restarting Epics IOC for Eiger with SysReset")
             reset_pv = self.prefix.replace('cam1:', ':') + 'SysReset'
             caput(reset_pv, 1, wait=True)
-            print("Warning -- you will need to restart Epics IOC")
+            # print("Warning -- you will need to restart Epics IOC")
 
         time.sleep(5.0)
         self._put('detector', 'command', 'arm', value=True)
@@ -213,12 +213,10 @@ class EigerFileCopier(object):
         if self.map_folder.endswith('/'):
             self.map_folder = self.map_folder[:-1]
 
-        eiger_poni = self.scandb.get_info('eiger_calibration')
+        eiger_poni = self.scandb.get_info('xrd_calibration')
         calib = json.loads(self.scandb.get_detectorconfig(eiger_poni).text)
         self.integrator = AzimuthalIntegrator(**calib)
-        print("EigerSaver Config:")
-        print("   map_folder  ", self.map_folder)
-        print("   calibration ", eiger_poni, calib)
+
 
     def run_command(self, cmd):
         print("# command ", cmd)
@@ -310,9 +308,7 @@ class AD_Eiger(AreaDetector):
                                     attrs=('status', 'tstamp', 'folder'))
         self.cam.PV('FWEnable')
         self.cam.PV('FWClear')
-        self.cam.PV('FWNImagesPerFile')
-        self.cam.PV('FWAutoRemove')
-        self.cam.PV('FWNamePattern')
+        self.cam.PV('DataSource')
         self.cam.PV('FilePath')
         self.cam.PV('SaveFiles')
         self.cam.PV('SequenceId')
@@ -321,7 +317,7 @@ class AD_Eiger(AreaDetector):
         self.mode = mode
 
         self.stop_delay = self.readout_time = 5.0e-5
-        self.arm_delay = 0.15
+        self.arm_delay = 0.25
         self.start_delay = 0.1
         self.dwelltime = None
         self.datadir = ''
@@ -336,21 +332,25 @@ class AD_Eiger(AreaDetector):
         return self.copy_dev.get('status', as_string=True)
 
     def custom_pre_scan(self, row=0, dwelltime=None, **kws):
-        # print("Custom Prescan AD getFilePath ", self.datadir)
-        t0 = time.time()
-        files_synced = False
-        print(" Ad Eiger clearing disk: ")
-        while not files_synced:
-            time.sleep(0.1)
-            files_synced = (self.get_state().startswith('idle') or
-                            (time.time()-t0) > 120.0)
+        print("Custom Prescan AD getFilePath ", self.datadir)
+        # t0 = time.time()
+        # files_synced = False
+        # print(" Ad Eiger clearing disk: ")
+        # while not files_synced:
+        #     time.sleep(0.1)
+        #     files_synced = (self.get_state().startswith('idle') or
+        #                     (time.time()-t0) > 120.0)
         self.simplon.clear_disk()
         print(" Ad Eiger cleared disk: %.1f sec" % (time.time()-t0))
 
         self.set_state('starting')
-        self.cam.put('FWEnable', 'Yes')
+        self.cam.put('FWEnable', 'No')
         self.cam.put('SaveFiles', 'No')
         self.cam.put('FWAutoRemove', 'No')
+        self.cam.put('DataSource', 'Stream')
+        self.cam.put('ArrayCallbacks', 'Enabled')
+        self.cam.put('StreamEnable', 'Yes')
+        self.cam.put('ShutterMode', 'None')
 
     def post_scan(self, **kws):
         self.set_state('finishing')
@@ -368,32 +368,39 @@ class AD_Eiger(AreaDetector):
     def arm(self, mode=None, fnum=None, wait=True, numframes=None):
         if mode is not None:
             self.mode = mode
-        # force arm delay
+
         if self.cam.get('Acquire') != 0:
             self.cam.put('Acquire', 0, wait=True)
             time.sleep(5*self.arm_delay)
 
-        if self.mode == NDARRAY_MODE:
+        if fnum is not None:
+            self.fnum = fnum
+            self.ad.setFileNumber(fnum)
+
+        if self.mode == SCALER_MODE:
             numframes = 1
 
         if numframes is not None:
             self.cam.put('NumImages', numframes)
+            self.ad.setFileNumCapture(numframes)
+
+        self.ad.setFileWriteMode(2) # Stream
+        if self.mode == ROI_MODE:
+            self.ad.FileCaptureOff()
+            self.roistat.start()
+        else:
+            self.ad.FileCaptureOn(verify_rbv=True)
 
         time.sleep(self.arm_delay/3.0)
         if wait:
             time.sleep(self.arm_delay)
 
-    def disarm(self, mode=None, wait=True):
-        if mode is not None:
-            self.mode = mode
-        if wait:
-            time.sleep(self.arm_delay)
 
     def start(self, mode=None, arm=False, wait=True):
         if mode is not None:
             self.mode = mode
-        if arm:
-            self.arm(mode=mode, wait=wait)
+        if arm or self.mode == SCALER_MODE:
+            self.arm()
         # note: need to wait a bit for acquire to start
         for i in range(10):
             self.cam.put('Acquire', 1, wait=False)
@@ -470,9 +477,9 @@ class AD_Eiger(AreaDetector):
             self.cam.put('NumImages', 1)
             self.cam.put('NumTriggers', numframes)
 
-        self.cam.put('FWEnable', 1)
-        nperfile = min(99000, max(1000, numframes)) + 1000
-        self.cam.put('FWNImagesPerFile', nperfile)
+        # self.cam.put('FWEnable', 1)
+        # nperfile = min(99000, max(1000, numframes)) + 1000
+        # self.cam.put('FWNImagesPerFile', nperfile)
 
         if dwelltime is not None:
             dwelltime = self.dwelltime
