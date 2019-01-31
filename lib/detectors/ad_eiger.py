@@ -341,17 +341,24 @@ class AD_Eiger(AreaDetector):
     def custom_pre_scan(self, row=0, dwelltime=None, **kws):
         # t0 = time.time()
         # self.simplon.clear_disk()
-        print(" Ad Eiger pre-scan ") # cleared disk: %.1f sec" % (time.time()-t0))
+        # print(" Ad Eiger pre-scan ") # cleared disk: %.1f sec" % (time.time()-t0))
+
+        if self.cam.get('Acquire') != 0:
+            self.cam.put('Acquire', 0, wait=True)
+            time.sleep(5*self.arm_delay)
+        # print("Eiger is off  ",   self.cam.get('Acquire', as_string=True))
 
         self.ad.setFileTemplate("%s%s_%4.4d.h5")
         self.set_state('starting')
+        self.cam.put('FWCompression', 'Disabled')
         self.cam.put('FWEnable', 'No')
         self.cam.put('SaveFiles', 'No')
         self.cam.put('FWAutoRemove', 'No')
         self.cam.put('DataSource', 'Stream')
-        self.cam.put('ArrayCallbacks', 'Enabled')
+        self.cam.put('ArrayCallbacks', 'Enable')
         self.cam.put('StreamEnable', 'Yes')
         self.cam.put('ShutterMode', 'None')
+        time.sleep(0.25)
 
     def post_scan(self, **kws):
         self.set_state('finishing')
@@ -434,6 +441,9 @@ class AD_Eiger(AreaDetector):
     def ContinuousMode(self, dwelltime=0.25, numframes=64000):
         self.ScalerMode(dwelltime=dwelltime, numframes=numframes)
         self.cam.put('FWEnable', 0)
+        time.sleep(0.05)
+        self.cam.put('NumImages', numframes, wait=True)
+
 
     def ScalerMode(self, dwelltime=0.25, numframes=1):
         """ set to scaler mode: ready for step scanning
@@ -450,6 +460,7 @@ class AD_Eiger(AreaDetector):
             self.cam.put('TriggerMode', 'Internal Series') # Internal Mode
         except ValueError:
             pass
+        self.ad.FileCaptureOff()
         if numframes is not None:
             self.cam.put('NumImages', numframes)
             self.cam.put('NumTriggers', 1)
@@ -473,6 +484,7 @@ class AD_Eiger(AreaDetector):
 
         self.cam.put('TriggerMode', 'External Enable')
         self.cam.put('Acquire', 0, wait=True)
+        self.cam.put('NumImages', 1)
 
         if numframes is not None:
             self.cam.put('NumImages', 1)
