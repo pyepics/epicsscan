@@ -349,6 +349,10 @@ class AD_Eiger(AreaDetector):
         # print("Eiger is off  ",   self.cam.get('Acquire', as_string=True))
 
         self.ad.setFileTemplate("%s%s_%4.4d.h5")
+        if self.filesaver.startswith('HDF'):
+            self.ad.filePut('Compression', 'zlib')
+            self.ad.filePut('ZLevel', 4)
+
         self.set_state('starting')
         self.cam.put('FWCompression', 'Disabled')
         self.cam.put('FWEnable', 'No')
