@@ -479,12 +479,15 @@ class AD_Eiger(AreaDetector):
         self.set_dwelltime(dwelltime)
         self.mode = NDARRAY_MODE
 
-    def config_filesaver(self, path=None, name=None, number=None,
-                         numcapture=None, template=None, auto_save=None,
-                         write_mode=None, auto_increment=None, enable=True):
+    def config_filesaver(self, path=None, **kws):
+        # name=None, number=None,
+        # numcapture=None, template=None, auto_save=None,
+        # write_mode=None, auto_increment=None, enable=True):
+        print("Eiger config file saveer ")
+        print(path, kws)
         if path is not None:
             self.datadir = path
-
+        self.ad.config_filesaver(path=path, **kws)
 
     def get_next_filename(self):
         pattern = self.cam.get('FWNamePattern')
