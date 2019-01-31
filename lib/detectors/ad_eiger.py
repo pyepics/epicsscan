@@ -216,7 +216,7 @@ class EigerFileCopier(object):
         eiger_poni = self.scandb.get_info('eiger_calibration')
         calib = json.loads(self.scandb.get_detectorconfig(eiger_poni).text)
         self.integrator = AzimuthalIntegrator(**calib)
-        print("EigerSaver Config:")
+        print("Eiger 1D Saver: ")
         print("   map_folder  ", self.map_folder)
         print("   calibration ", eiger_poni, calib)
 
@@ -228,6 +228,8 @@ class EigerFileCopier(object):
     def copy(self, finish=False):
         if len(self.map_folder) < 0 or self.get_state() == 'idle':
             return
+        print("copy disabled...")
+        old = """
         cmd = '/bin/rsync -a {source:s}/*.h5 {dest:s}'
         cmd = cmd.format(source=self.source_dir, dest=self.map_folder)
 
@@ -235,18 +237,24 @@ class EigerFileCopier(object):
         if finish:
             time.sleep(self.sleep_time)
             self.run_command(cmd)
+        """
 
     def integrate(self):
-        eigerfiles = glob(os.path.join(self.map_folder, '*_data_000001.h5'))
+        eigerfiles = glob(os.path.join(self.map_folder, 'eiger*.h5'))
         for efile in sorted(eigerfiles):
-            outfile = efile.replace('_data_000001.h5', '.npy')
+            outfile = efile.replace('.h5', '.npy')
             if not os.path.exists(outfile):
                 self.save_1dint(efile, outfile)
 
     def save_1dint(self, h5file, outfile):
         t0 = time.time()
         xrdfile = h5py.File(h5file, 'r')
-        xrdsum = xrdfile['/entry/data/data'][1:, 1:-1, 3:-3][:,::-1,:]
+        data = xrdfile['/entry/data/data']
+        if data.shape[1] > data.shape[2]:
+            xrdsum = data[1:, 3:-3, 1:-1]
+        else:
+            xrdsum = data[1:, 1:-1, 3:-3][:,::-1,:]
+
         nframes, nx, ny = xrdsum.shape
         xrdfile.close()
         integrate = self.integrator.integrate1d
@@ -336,17 +344,15 @@ class AD_Eiger(AreaDetector):
         return self.copy_dev.get('status', as_string=True)
 
     def custom_pre_scan(self, row=0, dwelltime=None, **kws):
-        # print("Custom Prescan AD getFilePath ", self.datadir)
         t0 = time.time()
         files_synced = False
-        print(" Ad Eiger clearing disk: ")
         while not files_synced:
             time.sleep(0.1)
             files_synced = (self.get_state().startswith('idle') or
                             (time.time()-t0) > 120.0)
-        self.simplon.clear_disk()
-        print(" Ad Eiger cleared disk: %.1f sec" % (time.time()-t0))
 
+        print(" Ad Eiger cleared disk: %.1f sec" % (time.time()-t0))
+        self.ad.setFileTemplate("%s%s_%4.4d.h5")
         self.set_state('starting')
         self.cam.put('FWEnable', 'Yes')
         self.cam.put('SaveFiles', 'No')
