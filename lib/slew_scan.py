@@ -256,6 +256,7 @@ class Slew_Scan(StepScan):
         for det in self.detectors:
             det.data_dir = mapdir
             try:
+                det.stop()
                 det.config_filesaver(path=detpath)
             except AttributeError:
                 pass
