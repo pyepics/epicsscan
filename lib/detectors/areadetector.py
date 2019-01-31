@@ -268,6 +268,7 @@ class AreaDetector(DetectorMixin):
                                                         self.mode, self._repr_extra)
 
     def config_filesaver(self, **kws):
+        print("AD config filesaveer ", self.name, self.label, kws)
         self.ad.config_filesaver(**kws)
 
     def config_shutter(self, mode=None, open_pv=None, close_pv=None,
