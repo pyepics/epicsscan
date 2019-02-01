@@ -28,7 +28,7 @@ from .quadem import TetrAMM, TetrAMMDetector
 from .ad_perkinelmer import AD_PerkinElmer
 from .ad_pilatus import AD_Pilatus
 from .ad_eiger import AD_Eiger
-from .ad_integrator import AD_Integrator
+from .ad_integrator import AD_Integrator, read_poni
 
 DET_DEFAULT_OPTS = {'scaler': {'use_calc': True, 'nchans': 8},
                     'tetramm': {'nchans': 4},

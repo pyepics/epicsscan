@@ -1,7 +1,8 @@
-import os, sys, time, json
+import os, sys, time
+import json
+import glob
 import numpy as np
-from epicsscan.scandb import ScanDB
-
+import h5py
 from pyFAI.azimuthalIntegrator import AzimuthalIntegrator
 
 MAXVAL = 2**32 - 2**15
@@ -9,6 +10,7 @@ MAXVAL = 2**32 - 2**15
 class AD_Integrator(object):
     """1D integrator"""
     def __init__(self,  suffix='h5', **kws):
+        from epicsscan.scandb import ScanDB
         self.scandb = ScanDB()
         self.folder = ''
         self.label = ''
@@ -19,8 +21,8 @@ class AD_Integrator(object):
     def set_state(self, state):
         self.scandb.set_info('xrd_1dint_status', state.lower())
 
-    def get_state(self, state):
-        return self.scandb.set_info('xrd_1dint_status').lower()
+    def get_state(self):
+        return self.scandb.get_info('xrd_1dint_status').lower()
 
     def read_config(self):
         calfile = self.scandb.get_info('xrd_calibration')
@@ -30,11 +32,16 @@ class AD_Integrator(object):
             self.folder = self.folder[:-1]
 
         calib = json.loads(self.scandb.get_detectorconfig(calfile).text)
+        print("Read Integration configuration: ", calfile)
         self.integrator = AzimuthalIntegrator(**calib)
 
     def save_1dint(self, h5file, outfile):
         t0 = time.time()
-        xrdfile = h5py.File(h5file, 'r')
+        try:
+            xrdfile = h5py.File(h5file, 'r')
+        except IOError:
+            time.sleep(2.0*self.sleep_time)
+            return
         data = xrdfile['/entry/data/data']
         if data.shape[1] > data.shape[2]:
             data = data[1:, 3:-3, 1:-1]
@@ -62,9 +69,9 @@ class AD_Integrator(object):
 
     def integrate(self):
         fname = '%s*.%s' % (self.label, self.suffix)
-        xrdfiles = glob(os.path.join(self.folder, fname))
+        xrdfiles = glob.glob(os.path.join(self.folder, fname))
         for xfile in sorted(xrdfiles):
-            outfile = xfile.replace(self.suffix, '.npy')
+            outfile = xfile.replace(self.suffix, 'npy')
             if not os.path.exists(outfile):
                 self.save_1dint(xfile, outfile)
 
@@ -85,3 +92,41 @@ class AD_Integrator(object):
                 time.sleep(5*self.sleep_time)
             elif state.startswith('quit'):
                 return
+
+
+def read_poni(fname):
+    """read XRD calibration from pyFAI poni file"""
+    conf = dict(dist=None, wavelength=None, pixel1=None, pixel2=None,
+                poni1=None, poni2=None, rot1=None, rot2=None, rot3=None)
+
+    with open(fname, 'r') as fh:
+        for line in fh.readlines():
+            line = line[:-1].strip()
+            if line.startswith('#'):
+                continue
+            key, val = [a.strip() for a in line.split(':', 1)]
+            key = key.lower()
+            if key == 'detector_config':
+                confdict = json.loads(val)
+                for k, v in confdict.items():
+                    k = k.lower()
+                    if k in conf:
+                        conf[k] = float(v)
+
+            else:
+                if key == 'distance':
+                    key='dist'
+                elif key == 'pixelsize1':
+                    key='pixel1'
+                elif key == 'pixelsize2':
+                    key='pixel2'
+                if key in conf:
+                    conf[key] = float(val)
+    missing = []
+    for key, val in conf.items():
+        if val is None:
+            missing.append(key)
+    if len(missing)>0:
+        msg = "'%s' is not a valid PONI file: missing '%s'"
+        raise ValueError(msg % (fname, ', '.join(missing)))
+    return conf
