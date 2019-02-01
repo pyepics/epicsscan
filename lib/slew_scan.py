@@ -205,6 +205,9 @@ class Slew_Scan(StepScan):
             # print("prepare detector ", det)
             if isinstance(det, AreaDetector):
                 xrd_det = det
+                self.set_info('xrd_1dint_status', 'starting')
+                self.set_info('xrd_1dint_label', det.label)
+
             if 'xspress3' in det.label.lower():
                 xrf_det = det
 
@@ -269,12 +272,13 @@ class Slew_Scan(StepScan):
 
         for m in self.post_scan_methods:
             m()
-            # print("Ran Post Scan Method:  ", m)
 
         for det in self.detectors:
             det.stop()
             det.disarm(mode=self.detmode)
             det.ContinuousMode()
+            if isinstance(det, AreaDetector):
+                self.set_info('xrd_1dint_status', 'finishing')
 
     def write_master(self, textlines):
         """ write a list of text lines to master file"""

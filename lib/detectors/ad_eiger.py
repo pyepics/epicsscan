@@ -23,8 +23,6 @@ from .base import DetectorMixin, SCALER_MODE, NDARRAY_MODE, ROI_MODE
 from .areadetector import AreaDetector
 from ..debugtime import debugtime
 
-from pyFAI.azimuthalIntegrator import AzimuthalIntegrator
-
 
 def restart_procserv_ioc(ioc_port=29200):
     """
@@ -182,114 +180,6 @@ class EigerSimplon:
         print("Restart Done.")
 
 
-MAXVAL = 2**32 - 2**15
-
-class EigerFileCopier(object):
-    def __init__(self, mountpoint='/eiger1',
-                 copy_status='13XRM:EIGER:',  **kws):
-        from epicsscan.scandb import ScanDB
-
-        self.scandb = ScanDB()
-        self.copy_dev  = Device(copy_status,
-                                attrs=('status', 'tstamp', 'folder'))
-        self.source_dir = mountpoint
-        self.rsync_cmd = '/bin/rsync'
-        self.rsync_opts = '-a'
-        self.map_folder = ''
-        self.config_time = 0
-        self.set_state('idle')
-        self.sleep_time = 5.0
-
-    def set_state(self, state):
-        self.copy_dev.status = state
-
-    def get_state(self):
-        return self.copy_dev.get('status', as_string=True)
-
-    def read_config(self):
-        self.config_time = time.time()
-        self.map_folder = self.scandb.get_info('map_folder')
-        self.copy_dev.folder = self.map_folder
-        if self.map_folder.endswith('/'):
-            self.map_folder = self.map_folder[:-1]
-
-        eiger_poni = self.scandb.get_info('xrd_calibration')
-        calib = json.loads(self.scandb.get_detectorconfig(eiger_poni).text)
-        self.integrator = AzimuthalIntegrator(**calib)
-
-    def run_command(self, cmd):
-        print("# command ", cmd)
-        subprocess.call(cmd, shell=True)
-        self.copy_dev.tstamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-
-    def copy(self, finish=False):
-        if len(self.map_folder) < 0 or self.get_state() == 'idle':
-            return
-        print("copy disabled...")
-        old = """
-        cmd = '/bin/rsync -a {source:s}/*.h5 {dest:s}'
-        cmd = cmd.format(source=self.source_dir, dest=self.map_folder)
-
-        self.run_command(cmd)
-        if finish:
-            time.sleep(self.sleep_time)
-            self.run_command(cmd)
-        """
-
-    def integrate(self):
-        eigerfiles = glob(os.path.join(self.map_folder, 'eiger*.h5'))
-        for efile in sorted(eigerfiles):
-            outfile = efile.replace('.h5', '.npy')
-            if not os.path.exists(outfile):
-                self.save_1dint(efile, outfile)
-
-    def save_1dint(self, h5file, outfile):
-        t0 = time.time()
-        xrdfile = h5py.File(h5file, 'r')
-        data = xrdfile['/entry/data/data']
-        if data.shape[1] > data.shape[2]:
-            xrdsum = data[1:, 3:-3, 1:-1]
-        else:
-            xrdsum = data[1:, 1:-1, 3:-3][:,::-1,:]
-
-        nframes, nx, ny = xrdsum.shape
-        xrdfile.close()
-        integrate = self.integrator.integrate1d
-        opts = dict(method='csr',unit='q_A^-1',
-                    correctSolidAngle=True,
-                    polarization_factor=0.999)
-        dat = []
-        for i in range(nframes):
-            img = xrdsum[i, :, :]
-            img[np.where(img>MAXVAL)] = 0
-            q, x = integrate(img, 2048, **opts)
-            if i == 0:
-                dat.append(q)
-            dat.append(x)
-        dat = np.array(dat)
-        _path, fname = os.path.split(outfile)
-        print("writing 1D data: %s, %.2f sec" %  (fname, time.time()-t0))
-        np.save(outfile, dat)
-
-    def run(self):
-        while True:
-            time.sleep(self.sleep_time)
-            state = self.get_state()
-            if state.startswith('starting'):
-                self.read_config()
-                self.set_state('scanning')
-            elif state.startswith('scanning'):
-                # self.copy()
-                self.integrate()
-            elif state.startswith('finishing'):
-                # self.copy(finish=True)
-                self.integrate()
-                self.set_state('idle')
-                self.map_folder = ''
-            elif state.startswith('idle'):
-                time.sleep(self.sleep_time)
-
-
 class AD_Eiger(AreaDetector):
     """
     Eiger areaDetector
@@ -299,9 +189,7 @@ class AD_Eiger(AreaDetector):
     """
 
     def __init__(self, prefix, label='eiger', mode='scaler', url=None,
-                 filesaver='HDF1:', fileroot='/home/xas_user',
-                 copy_status=None, **kws):
-
+                 filesaver='HDF1:', fileroot='/home/xas_user', **kws):
         AreaDetector.__init__(self, prefix, label=label, mode=mode,
                               filesaver=filesaver, fileroot=fileroot, **kws)
 
@@ -309,10 +197,6 @@ class AD_Eiger(AreaDetector):
         if url is not None:
             self.simplon = EigerSimplon(url, prefix)
 
-        self.copy_dev = None
-        if copy_status is not None:
-            self.copy_dev  = Device(copy_status,
-                                    attrs=('status', 'tstamp', 'folder'))
         self.cam.PV('FWEnable')
         self.cam.PV('FWClear')
         self.cam.PV('DataSource')
@@ -330,14 +214,6 @@ class AD_Eiger(AreaDetector):
         self.datadir = ''
         self.ad.FileCaptureOff()
 
-    def set_state(self, state):
-        if self.copy_dev is not None:
-            print("AD Eiger, set CopyDevice Status = ", state)
-            self.copy_dev.status = state
-
-    def get_state(self):
-        return self.copy_dev.get('status', as_string=True)
-
     def custom_pre_scan(self, row=0, dwelltime=None, **kws):
         # t0 = time.time()
         # self.simplon.clear_disk()
@@ -353,7 +229,6 @@ class AD_Eiger(AreaDetector):
             self.ad.filePut('Compression', 'zlib')
             self.ad.filePut('ZLevel', 4)
 
-        self.set_state('starting')
         self.cam.put('FWCompression', 'Disabled')
         self.cam.put('FWEnable', 'No')
         self.cam.put('SaveFiles', 'No')
@@ -365,7 +240,6 @@ class AD_Eiger(AreaDetector):
         time.sleep(0.25)
 
     def post_scan(self, **kws):
-        self.set_state('finishing')
         self.ContinuousMode()
 
     def open_shutter(self):
