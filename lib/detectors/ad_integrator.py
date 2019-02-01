@@ -44,9 +44,9 @@ class AD_Integrator(object):
             return
         data = xrdfile['/entry/data/data']
         if data.shape[1] > data.shape[2]:
-            data = data[1:, 3:-3, 1:-1]
+            data = data[:, 3:-3, 1:-1]
         else:
-            data = data[1:, 1:-1, 3:-3]
+            data = data[:, 1:-1, 3:-3]
 
         nframes, nx, ny = data.shape
         xrdfile.close()
