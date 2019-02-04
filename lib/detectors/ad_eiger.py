@@ -207,7 +207,8 @@ class AD_Eiger(AreaDetector):
         self.cam.PV('AcquireBusy')
         self.mode = mode
 
-        self.stop_delay = self.readout_time = 5.0e-5
+        self.readout_time = 5.0e-5
+        self.stop_delay = 0.05
         self.arm_delay = 0.25
         self.start_delay = 0.1
         self.dwelltime = None
@@ -395,4 +396,4 @@ class AD_Eiger(AreaDetector):
         return (acq_busy==0) and (detstate != 6) # Error
 
     def get_numcaptured(self):
-        return self.cam.get('NumImagesCounter_RBV')
+        return self.ad.getNumCaptured_RBV()
