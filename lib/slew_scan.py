@@ -527,9 +527,9 @@ class Slew_Scan(StepScan):
                     caput('%sstatus' % (mappref), 'Aborting')
                 break
 
-            dtimer.add("stopping detectors after delay")
-            for det in self.detectors:
-                det.stop()
+            # dtimer.add("stopping detectors after delay")
+            # for det in self.detectors:
+            #     det.stop()
 
             self.write_master(["%s %8.4f" % (masterline, time.time()-start_time)])
 
@@ -537,24 +537,22 @@ class Slew_Scan(StepScan):
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
             dtimer.add('start read')
 
-            xpsfile = os.path.abspath(os.path.join(self.mapdir, posfile))
-
-            xps_saver_thread = Thread(target=self.xps.read_and_save,
-                                  args=(xpsfile,), name='xps_saver')
-            xps_saver_thread.start()
+            pos_file = os.path.abspath(os.path.join(self.mapdir, posfile))
+            pos_saver_thread = Thread(target=self.xps.read_and_save,
+                                  args=(pos_file,), name='pos_saver')
+            pos_saver_thread.start()
 
             npts_sca = npulses
             nsca = -1
             if scadet is not None:
+                scadet.stop()
                 sisfile = os.path.abspath(os.path.join(self.mapdir, scafile))
                 ncsa, npts_sca = scadet.save_arraydata(filename=sisfile, npts=npulses)
             dtimer.add('saved SIS data')
 
-            xps_saver_thread.join()
-            dtimer.add('saved XPS data')
-
             nxrf = nxrd = 0
             if xrfdet is not None:
+                xrfdet.stop()
                 t0 = time.time()
                 write_complete = xrfdet.file_write_complete()
                 ntry = 0
@@ -576,17 +574,20 @@ class Slew_Scan(StepScan):
             dtimer.add('saved XRF data')
 
             if xrddet is not None:
-                t0 = time.time()
                 nxrd = xrddet.get_numcaptured()
                 while ((nxrd < nxrf) and
-                       (time.time()- t0 < 5.0)):
+                       (time.time()- t0 < 10.0)):
                     nxrd = xrddet.get_numcaptured()
                     time.sleep(0.01)
+                xrddet.stop()
 
             dtimer.add('saved XRD data')
             rowdata_ok = (rowdata_ok and
                           (npts_sca > npulses-1) and
                           (nxrf > npulses-2))
+
+            pos_saver_thread.join()
+            dtimer.add('saved XPS data')
 
             if debug:
                 print("#== Row %d nXPS=%d, nSIS=%d, nXRF=%d, nXRD=%d  npulses=%d, OK=%s" %
