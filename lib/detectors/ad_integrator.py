@@ -68,6 +68,8 @@ class AD_Integrator(object):
         np.save(outfile, dat)
 
     def integrate(self):
+        if len(self.folder) < 0:
+            self.read_config()
         fname = '%s*.%s' % (self.label, self.suffix)
         xrdfiles = glob.glob(os.path.join(self.folder, fname))
         for xfile in sorted(xrdfiles):
@@ -79,6 +81,7 @@ class AD_Integrator(object):
         while True:
             time.sleep(self.sleep_time)
             state = self.get_state()
+            # print(state, self.folder)
             if state.startswith('starting'):
                 self.read_config()
                 self.set_state('running')
@@ -87,7 +90,7 @@ class AD_Integrator(object):
             elif state.startswith('finishing'):
                 self.integrate()
                 self.set_state('idle')
-                self.map_folder = ''
+                self.folder = ''
             elif state.startswith('idle'):
                 time.sleep(5*self.sleep_time)
             elif state.startswith('quit'):
