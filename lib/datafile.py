@@ -20,6 +20,7 @@ ScanFile supports several methods:
 which  can be overridden to create a new Output file type
 """
 import os
+import six
 import time
 import numpy as np
 import json
@@ -167,16 +168,23 @@ class ScanFile(object):
         if 'a' in mode or 'w' in mode:
             self.filename = new_filename(self.filename)
 
-        if isinstance(self.fh, file):
+        if self.fh is not None:
             self.fh.close()
         self.fh = open(self.filename, mode)
         return self.fh
 
     def check_writeable(self):
         "check that output file is open and writeable"
-        return (isinstance(self.fh, file) and
-                not self.fh.closed and
-                ('a' in self.fh.mode or 'w' in self.fh.mode))
+        if self.fh is None:
+            return False
+        writable = getattr(self.fh, 'writable', None)
+        if writable is not None:
+            return writable()
+        try:
+            return (not self.fh.closed and
+                    ('a' in self.fh.mode or 'w' in self.fh.mode))
+        except:
+            return False
 
     def flush(self):
         "flush file"
@@ -240,7 +248,7 @@ class ASCIIScanFile(ScanFile):
         "write extra PVS"
         out = ['%s ExtraPVs.Start: Family.Member: Value | PV' % COM1]
         for desc, pvname, val in self.scan.read_extra_pvs():
-            if not isinstance(val, (str, unicode)):
+            if not isinstance(val, six.string_types):
                 val = repr(val)
             # require a '.' in the description!!
             if '.' not in desc:
