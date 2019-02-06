@@ -441,9 +441,11 @@ class QXAFS_Scan(XAFS_Scan):
 
         dtimer.add('make traj')
         energy_orig = caget(qconf['energy_pv'])
-        id_offset = 1000.0*caget(qconf['id_offset_pv'])
-        idarray = 1.e-3*(1.0+id_offset/energy_orig)*traj['energy']
-        idarray = np.concatenate((idarray, idarray[-1]+np.arange(1,26)/250.0))
+        if qconf['id_drive_pv'] is not None:
+            idenergy_orig = caget(qconf['id_drive_pv'])
+            id_offset = 1000.0*caget(qconf['id_offset_pv'])
+            idarray = 1.e-3*(1.0+id_offset/energy_orig)*traj['energy']
+            idarray = np.concatenate((idarray, idarray[-1]+np.arange(1,26)/250.0))
         # print("idarray: ", idarray)
         dtimer.add('idarray')
         time.sleep(0.1)
@@ -453,10 +455,11 @@ class QXAFS_Scan(XAFS_Scan):
         orig_positions = [p.current() for p in self.positioners]
         # print("Original Positions: ", orig_positions)
         dtimer.add('orig positions')
-        try:
-            caput(qconf['id_drive_pv'], idarray[0], wait=False)
-        except:
-            pass
+        if qconf['id_drive_pv'] is not None:
+            try:
+                caput(qconf['id_drive_pv'], idarray[0], wait=False)
+            except:
+                pass
         caput(qconf['energy_pv'],  traj['energy'][0], wait=False)
 
         self.clear_interrupts()
@@ -467,10 +470,11 @@ class QXAFS_Scan(XAFS_Scan):
         self.scandb.set_info('qxafs_dwelltime', self.dwelltime[0])
 
         caput(qconf['energy_pv'], traj['energy'][0], wait=True)
-        try:
-            caput(qconf['id_drive_pv'], idarray[0], wait=True, timeout=5.0)
-        except:
-            pass
+        if qconf['id_drive_pv'] is not None:
+            try:
+                caput(qconf['id_drive_pv'], idarray[0], wait=True, timeout=5.0)
+            except:
+                pass
 
         npts = len(self.positioners[0].array)
         self.dwelltime_varys = False
@@ -574,13 +578,10 @@ class QXAFS_Scan(XAFS_Scan):
            self.pos_actual.append([e])
 
         ne = len(energy)
-        caput(qconf['energy_pv'], energy_orig-0.50)
-
         self.finish_qscan()
-
         out = self.post_scan()
+        caput(qconf['energy_pv'], energy_orig-5.0)
         self.check_outputs(out, msg='post scan')
-
 
         [c.read() for c in self.counters]
 
@@ -602,9 +603,17 @@ class QXAFS_Scan(XAFS_Scan):
         dtimer.add('set scan data')
         for val, pos in zip(orig_positions, self.positioners):
             pos.move_to(val, wait=False)
+            print("move  pos :: ", pos, val)
 
         self.datafile.write_data(breakpoint=-1, close_file=True, clear=False)
 
+        # print("QXAFS Done ", qconf['energy_pv'], qconf['id_drive_pv'])
+        caput(qconf['energy_pv'], energy_orig+2.5)
+        if qconf['id_drive_pv'] is not None:
+            caput(qconf['id_drive_pv'], idenergy_orig)
+        time.sleep(1.0)
+
+        # print("QXAFS scan done, set energy = ", energy_orig)
         caput(qconf['energy_pv'], energy_orig, wait=True)
 
         if self.look_for_interrupts():
