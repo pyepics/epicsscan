@@ -502,13 +502,13 @@ class Slew_Scan(StepScan):
                                              posfile, xrdfile)
             if xrddet is not None:
                 xt0 = time.time()
-                while xrddet.cam.Acquire != 1:
-                    time.sleep(0.05)
-                    if (time.time() - xt0) > 2:
-                        rowdata_ok = False
-                        break
-                if xrddet.cam.Acquire != 1:
-                    print("XRD not Acquiring ", irow, xrddet, xrddet.cam.Acquire)
+                # while xrddet.cam.Acquire != 1:
+                #     time.sleep(0.05)
+                #     if (time.time() - xt0) > 2:
+                #         rowdata_ok = False
+                #         break
+                # if xrddet.cam.Acquire != 1:
+                #    print("XRD not Acquiring ", irow, xrddet, xrddet.cam.Acquire)
 
             # wait for trajectory to finish
             dtimer.add('scan thread run join()')
