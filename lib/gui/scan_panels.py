@@ -74,7 +74,7 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         self.slewlist = []
         for pos in self.scandb.get_slewpositioners():
             self.slewlist.append(pos.name)
-
+            
     def load_scandict(self, scan):
         """meant to be overwritten"""
         pass
@@ -821,11 +821,10 @@ class XAFSScanPanel(GenericScanPanel):
         elif label == 'nreg':
             nregs = value
             for ireg, reg in enumerate(self.reg_settings):
-                if ireg < nregs:
-                    for wid in reg: wid.Enable()
-                else:
-                    for wid in reg: wid.Disable()
-
+                for wid in reg:
+                    wid.Enable(ireg < nregs)
+            self.Refresh()
+                        
         elif label == 'units':
             if units == self.units_list[0] and not ev_units: # was 1/A, convert to eV
                 wids[0].SetValue(ktoe(wids[0].GetValue()) + e0_off)
