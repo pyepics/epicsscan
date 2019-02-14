@@ -265,6 +265,7 @@ class QXAFS_Scan(XAFS_Scan):
         self.e0 = e0
         self.energies = []
         self.regions = []
+        self.with_id = False
         self.xps = None
         XAFS_Scan.__init__(self, label=label, energy_pv=energy_pv,
                            read_pv=read_pv, e0=e0, scandb=scandb,
@@ -281,6 +282,9 @@ class QXAFS_Scan(XAFS_Scan):
         """initialize a QXAFS scan"""
         if self.config is None:
             self.config = json.loads(self.scandb.get_config('qxafs').notes)
+        self.with_id = ('id_array_pv' in self.config and
+                        'id_drive_pv' in self.config)
+                        
         conf = self.config
         if self.xps is None:
             self.xps = NewportXPS(conf['host'],
@@ -294,7 +298,8 @@ class QXAFS_Scan(XAFS_Scan):
         caput(qconf['id_track_pv'], 1)
         caput(qconf['y2_track_pv'], 1)
         self.scandb.set_info('qxafs_running', 0)
-        caput(qconf['id_array_pv'], np.zeros(2000))
+        if self.with_id:
+            caput(qconf['id_array_pv'], np.zeros(2000))
 
     def make_trajectory(self, reverse=False,
                         theta_accel=2, width_accel=0.050, **kws):
@@ -436,12 +441,13 @@ class QXAFS_Scan(XAFS_Scan):
         self.scandb.set_info('qxafs_running', 1) # preparing
         self.connect_qxafs()
         qconf = self.config
+        
         dtimer.add('connect qxafs')
         traj = self.make_trajectory()
 
         dtimer.add('make traj')
         energy_orig = caget(qconf['energy_pv'])
-        if qconf['id_drive_pv'] is not None:
+        if self.with_id:
             idenergy_orig = caget(qconf['id_drive_pv'])
             id_offset = 1000.0*caget(qconf['id_offset_pv'])
             idarray = 1.e-3*(1.0+id_offset/energy_orig)*traj['energy']
@@ -455,7 +461,7 @@ class QXAFS_Scan(XAFS_Scan):
         orig_positions = [p.current() for p in self.positioners]
         # print("Original Positions: ", orig_positions)
         dtimer.add('orig positions')
-        if qconf['id_drive_pv'] is not None:
+        if self.with_id:
             try:
                 caput(qconf['id_drive_pv'], idarray[0], wait=False)
             except:
@@ -466,11 +472,12 @@ class QXAFS_Scan(XAFS_Scan):
         dtimer.add('clear interrupts')
         sis_prefix = qconf['mcs_prefix']
 
-        caput(qconf['id_array_pv'], idarray)
+        if self.with_id:
+            caput(qconf['id_array_pv'], idarray)
         self.scandb.set_info('qxafs_dwelltime', self.dwelltime[0])
 
         caput(qconf['energy_pv'], traj['energy'][0], wait=True)
-        if qconf['id_drive_pv'] is not None:
+        if self.with_id:
             try:
                 caput(qconf['id_drive_pv'], idarray[0], wait=True, timeout=5.0)
             except:
@@ -609,7 +616,7 @@ class QXAFS_Scan(XAFS_Scan):
 
         # print("QXAFS Done ", qconf['energy_pv'], qconf['id_drive_pv'])
         caput(qconf['energy_pv'], energy_orig+2.5)
-        if qconf['id_drive_pv'] is not None:
+        if self.with_id:
             caput(qconf['id_drive_pv'], idenergy_orig)
         time.sleep(1.0)
 
