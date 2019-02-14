@@ -141,8 +141,9 @@ class ScanFrame(wx.Frame):
     _about = """StepScan GUI
   Matt Newville <newville @ cars.uchicago.edu>
   """
-    def __init__(self, dbname='Test.db', server='sqlite', host=None,
-                 user=None, password=None, port=None, create=True,  **kws):
+    def __init__(self, **kws):
+        # dbname='Test.db', server='sqlite', host=None,
+        #          user=None, password=None, port=None, create=True,  
 
         wx.Frame.__init__(self, None, -1, style=FRAMESTYLE, **kws)
 
@@ -154,9 +155,9 @@ class ScanFrame(wx.Frame):
         self.last_scanname = ''
         self.scan_started = False
 
-        self.scandb = ScanDB(dbname=dbname, server=server, host=host,
-                             user=user, password=password, port=port,
-                             create=create)
+        self.scandb = ScanDB()
+
+        print(' Connected ScanDB  ', self.scandb.engine)
 
         self.Bind(wx.EVT_CLOSE, self.onClose)
 
@@ -722,18 +723,20 @@ class ScanFrame(wx.Frame):
 
 
 class ScanApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
-    def __init__(self, dbname='TestScan.db', server='sqlite', host=None,
-                 port=None, user=None, password=None, create=True, debug=False, **kws):
+    def __init__(self, debug=False, **kws):
         self.debug = debug
-        self.scan_opts = dict(dbname=dbname, server=server, host=host,
-                              port=port, create=create, user=user,
-                              password=password)
-        self.scan_opts.update(kws)
+        # , dbname='TestScan.db', server='sqlite', host=None,
+        # port=None, user=None, password=None, create=True, debug=False, **kws):
+        # self.debug = debug
+        # self.scan_opts = dict(dbname=dbname, server=server, host=host,
+        #                       port=port, create=create, user=user,
+        #                       password=password)
+        # self.scan_opts.update(kws)
         wx.App.__init__(self)
 
     def OnInit(self):
         self.Init()
-        frame = ScanFrame(**self.scan_opts)
+        frame = ScanFrame() #**self.scan_opts)
         frame.Show()
         self.SetTopWindow(frame)
         if self.debug:
