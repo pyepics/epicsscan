@@ -121,7 +121,9 @@ class ScanViewerFrame(wx.Frame):
             msg       = self.get_info('scan_progress')
         except:
             logging.exception("No Scan at ScanTime")
-
+            return
+        if msg is None:
+            return
         try:
             # npts = len(sdata[-1].data)
             nptsall = [len(s.data) for s in sdata]
@@ -324,6 +326,8 @@ class ScanViewerFrame(wx.Frame):
 
     def onPlot(self, evt=None, npts=None):
         """draw plot of newest data"""
+        if npts is None:
+            npts = 0
         new_plot = self.force_newplot or npts < 3
         lgroup, gname = self.lgroup, SCANGROUP
 
@@ -339,7 +343,8 @@ class ScanViewerFrame(wx.Frame):
             xlabel = '%s (%s)' % (xlabel, xunits)
         except:
             logging.exception("No units at onPlot")
-
+            return
+        
         def make_array(wids, iy):
             gn  = SCANGROUP
             op1 = self.yops[iy][0].GetStringSelection()
