@@ -582,9 +582,10 @@ class Slew_Scan(StepScan):
                 xrddet.stop()
 
             dtimer.add('saved XRD data')
+            
             rowdata_ok = (rowdata_ok and
-                          (npts_sca > npulses-1) and
-                          (nxrf > npulses-2))
+                          (npts_sca >= npulses-1) and
+                          (nxrf >= npulses-2))
 
             pos_saver_thread.join()
             dtimer.add('saved XPS data')
