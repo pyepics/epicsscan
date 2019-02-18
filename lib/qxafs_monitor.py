@@ -142,7 +142,7 @@ class QXAFS_ScanWatcher(object):
                     val = self.idarray[last_pulse + self.id_lookahead]
                     try:
                         self.iddrive_pv.put(val, wait=True, timeout=5.0)
-                    except:
+                    except CASeverityException:
                         pass
                     time.sleep(0.250)
 
@@ -171,7 +171,7 @@ class QXAFS_ScanWatcher(object):
                         (val > MIN_ID_ENERGY) and (val < MAX_ID_ENERGY)):
                         try:
                             self.iddrive_pv.put(val, wait=False)
-                        except:
+                        except CASeverityException:
                             pass
                         time.sleep(0.1)
                         self.last_move_time = time.time()

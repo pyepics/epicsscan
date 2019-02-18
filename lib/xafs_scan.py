@@ -9,6 +9,7 @@ import json
 import numpy as np
 from threading import Thread
 from epics import caget, caput, PV, get_pv
+from epics.ca import CASeverityException
 from larch import Group
 from newportxps import NewportXPS
 
@@ -284,7 +285,7 @@ class QXAFS_Scan(XAFS_Scan):
             self.config = json.loads(self.scandb.get_config('qxafs').notes)
         self.with_id = ('id_array_pv' in self.config and
                         'id_drive_pv' in self.config)
-                        
+
         conf = self.config
         if self.xps is None:
             self.xps = NewportXPS(conf['host'],
@@ -441,7 +442,7 @@ class QXAFS_Scan(XAFS_Scan):
         self.scandb.set_info('qxafs_running', 1) # preparing
         self.connect_qxafs()
         qconf = self.config
-        
+
         dtimer.add('connect qxafs')
         traj = self.make_trajectory()
 
@@ -464,7 +465,7 @@ class QXAFS_Scan(XAFS_Scan):
         if self.with_id:
             try:
                 caput(qconf['id_drive_pv'], idarray[0], wait=False)
-            except:
+            except CASeverityException:
                 pass
         caput(qconf['energy_pv'],  traj['energy'][0], wait=False)
 
@@ -480,7 +481,7 @@ class QXAFS_Scan(XAFS_Scan):
         if self.with_id:
             try:
                 caput(qconf['id_drive_pv'], idarray[0], wait=True, timeout=5.0)
-            except:
+            except CASeverityException:
                 pass
 
         npts = len(self.positioners[0].array)
@@ -617,7 +618,10 @@ class QXAFS_Scan(XAFS_Scan):
         # print("QXAFS Done ", qconf['energy_pv'], qconf['id_drive_pv'])
         caput(qconf['energy_pv'], energy_orig+2.5)
         if self.with_id:
-            caput(qconf['id_drive_pv'], idenergy_orig)
+            try:
+                caput(qconf['id_drive_pv'], idenergy_orig)
+            except CASeverityException:
+                pass
         time.sleep(1.0)
 
         # print("QXAFS scan done, set energy = ", energy_orig)
