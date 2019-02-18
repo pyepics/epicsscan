@@ -64,7 +64,8 @@ class ScalerDetector(DetectorMixin):
         "set to scaler mode, for step scanning"
         if dwelltime is not None:
             self.scaler.CountTime(dwelltime)
-        return self.scaler.OneShotMode()
+        return self.scaler.put('CONT', 0, wait=True)
+
 
     def ContinuousMode(self, dwelltime=None, numframes=None, **kws):
         "set to continuous mode"
@@ -74,7 +75,7 @@ class ScalerDetector(DetectorMixin):
 
     def arm(self, mode=None, wait=True, fnum=None, **kws):
         "arm detector, ready to collect with optional mode"
-        self.scaler.OneShotMode()
+        self.scaler.put('CONT', 0, wait=True)
         if wait:
             time.sleep(self.arm_delay)
 

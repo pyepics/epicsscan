@@ -68,7 +68,7 @@ class Struck(Device):
         """
         out = self.put('ChannelAdvance', 1)  # external
         if self.scaler is not None:
-            self.scaler.OneShotMode()
+            self.scaler.put('CONT', 0, wait=True)
         if realtime is not None:
             self.put('PresetReal', realtime)
         if prescale is not None:
@@ -79,16 +79,17 @@ class Struck(Device):
             self.put('InitialChannelAdvancel', initialadvance)
         if trigger_width is not None:
             self.put('LNEOutputWidth', trigger_width)
-
+        time.sleep(0.002)
         return out
 
     def InternalMode(self, prescale=None):
         "put Struck in Internal Mode"
         out = self.put('ChannelAdvance', 0)  # internal
         if self.scaler is not None:
-            self.scaler.OneShotMode()
+            self.scaler.put('CONT', 0, wait=True)
         if prescale is not None:
             self.put('Prescale', prescale)
+        time.sleep(0.002)
         return out
 
     def set_dwelltime(self, val):
@@ -110,11 +111,11 @@ class Struck(Device):
         """
         self.InternalMode()
         if numframes is not None:
-            self.put('NuseAll', numframes)
+            self.put('NuseAll', numframes, wait=True)
         if dwelltime is not None:
             self.set_dwelltime(dwelltime)
         if self.scaler is not None:
-            self.scaler.AutoCountMode()
+            self.scaler.put('CONT', 1, wait=True)
         self._mode = SCALER_MODE
 
     def ScalerMode(self, dwelltime=1.0, numframes=1):
@@ -128,11 +129,11 @@ class Struck(Device):
         1. numframes should be 1, unless you know what you're doing.
         """
         if numframes is not None:
-            self.put('NuseAll', numframes)
+            self.put('NuseAll', numframes, wait=True)
         if dwelltime is not None:
             self.set_dwelltime(dwelltime)
         if self.scaler is not None:
-            self.scaler.OneShotMode()
+            self.scaler.put('CONT', 0, wait=True)
         self._mode = SCALER_MODE
 
     def NDArrayMode(self, dwelltime=None, numframes=None, countonstart=True,
@@ -152,14 +153,14 @@ class Struck(Device):
            as it can lead to inconsistent data arrays.
 
         """
-        # print("SIS NDArrayMode ", dwelltime, numframes)
+        # print("Struck ArrayMode ", dwelltime, numframes)
         if numframes is not None:
             self.put('NuseAll', numframes)
         if dwelltime is not None:
             self.set_dwelltime(dwelltime)
         self._mode = NDARRAY_MODE
 
-        # time.sleep(0.01)
+        time.sleep(0.01)
         self.ExternalMode(trigger_width=trigger_width, countonstart=countonstart)
 
     def ROIMode(self, dwelltime=None, numframes=None, countonstart=True,
@@ -172,7 +173,7 @@ class Struck(Device):
     def start(self, wait=False):
         "Start Struck"
         if self.scaler is not None:
-            self.scaler.OneShotMode()
+            self.scaler.put('CONT', 0, wait=True)
         return self.put('EraseStart', 1, wait=wait)
 
     def stop(self):
@@ -354,6 +355,7 @@ class StruckDetector(DetectorMixin):
 
     def pre_scan(self, mode=None, npulses=None, dwelltime=None, **kws):
         "run just prior to scan"
+        # print("Struck PreScan: arm ")
         self.arm(mode=mode, numframes=npulses)
         self.counters = self._counter.counters
         if dwelltime is not None:
