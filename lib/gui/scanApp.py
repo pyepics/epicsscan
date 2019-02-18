@@ -143,7 +143,7 @@ class ScanFrame(wx.Frame):
   """
     def __init__(self, **kws):
         # dbname='Test.db', server='sqlite', host=None,
-        #          user=None, password=None, port=None, create=True,  
+        #          user=None, password=None, port=None, create=True,
 
         wx.Frame.__init__(self, None, -1, style=FRAMESTYLE, **kws)
 
@@ -265,7 +265,7 @@ class ScanFrame(wx.Frame):
         # print("PVs connected")
         self.statusbar.SetStatusText('Epics Ready')
 
-    def generate_scan(self, scanname=None, debug=False, force_save=False):
+    def generate_scan(self, scanname=None, debug=False, force_save=True):
         """generate scan definition from current values on GUI
         return scanname, scan_dict
         """
@@ -331,7 +331,7 @@ class ScanFrame(wx.Frame):
         return self.last_scanname, scan
 
     def onStartScan(self, evt=None):
-        sname, scan = self.generate_scan(force_save=False)
+        sname, scan = self.generate_scan()
         fname  = scan.get('filename', 'scan.001')
         nscans = int(scan.get('nscans', 1))
         comments = scan.get('comments', '')
@@ -339,7 +339,6 @@ class ScanFrame(wx.Frame):
         self.scandb.set_info('request_abort', 0)
         self.scandb.set_info('request_pause', 0)
         self.scandb.set_info('nscans', nscans)
-
 
         fmt = "do_%s('%s', filename='%s', nscans=%i, comments='''%s''')"
 
@@ -356,7 +355,7 @@ class ScanFrame(wx.Frame):
         self.scantimer.Start(100)
 
     def onDebugScan(self, evt=None):
-        sname, scan = self.generate_scan(force_save=False)
+        sname, scan = self.generate_scan()
         print("DEBUG generated scan name  ", sname)
         fname  = scan.get('filename', 'scan.001')
         nscans = int(scan.get('nscans', 1))
