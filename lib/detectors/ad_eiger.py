@@ -119,7 +119,7 @@ class EigerSimplon:
             raise ValueError("mask must have shape (%d, %d)" % (ny_pixs, nx_pixs))
 
         val = self._get(task='config', parameter='pixel_mask').value
-        val['data'] = b64encode(mask.flatten())
+        val['data'] = str(b64encode(mask.flatten()), 'latin-1')
         _dat = self._put(task='config', parameter='pixel_mask', value=val)
 
     def clear_disk(self):
@@ -189,9 +189,11 @@ class AD_Eiger(AreaDetector):
     """
 
     def __init__(self, prefix, label='eiger', mode='scaler', url=None,
-                 filesaver='HDF1:', fileroot='/home/xas_user', **kws):
+                 filesaver='HDF1:', roistat='ROIStat1:',
+                 fileroot='/home/xas_user', **kws):
         AreaDetector.__init__(self, prefix, label=label, mode=mode,
-                              filesaver=filesaver, fileroot=fileroot, **kws)
+                              filesaver=filesaver, roistat=roistat,
+                              fileroot=fileroot, **kws)
 
         self.simplon = None
         if url is not None:
@@ -238,6 +240,14 @@ class AD_Eiger(AreaDetector):
         self.cam.put('ArrayCallbacks', 'Enable')
         self.cam.put('StreamEnable', 'Yes')
         self.cam.put('ShutterMode', 'None')
+        if self.mode == ROI_MODE:
+            for iroi in range(8):
+                pref = '%s%d:' % (self.roistat._prefix, 1+iroi)
+                if caget(pref + 'Use') == 1:
+                    label = caget(pref + 'Name', as_string=True).strip()
+                    if len(label) > 0:
+                        pvname = pref + 'Total_RBV'
+                        self.counters.append(Counter(pvname, label=label))
         time.sleep(0.25)
 
     def post_scan(self, **kws):
@@ -346,6 +356,34 @@ class AD_Eiger(AreaDetector):
         if dwelltime is not None:
             self.set_dwelltime(dwelltime)
         self.mode = SCALER_MODE
+
+    def ROIMode(self, dwelltime=None, numframes=None, nrois=4):
+        """ set to ROI mode: ready for slew scanning with ROI saving
+
+    Arguments:
+        dwelltime (None or float): dwelltime per frame in seconds [0.25]
+        numframes (None int):   number of frames to collect [16384]
+
+    Notes:
+        1. this arms detector so that it is eady for slew scanning and
+           saving of ROI time series
+        2. setting dwelltime or numframes to None is discouraged,
+           as it can lead to inconsistent data arrays.
+        """
+        print("AD Eiger ROI Mode ", dwelltime, numframes)
+        self.cam.put('TriggerMode', 'External Enable')
+        self.cam.put('Acquire', 0, wait=True)
+        self.cam.put('NumImages', 1)
+
+        if numframes is None:
+            numframes = MAX_FRAMES
+        self.roistat.stop()
+        self.roistat.arm(numframes=numframes)
+
+        if dwelltime is not None:
+            self.set_dwelltime(dwelltime)
+        self.mode = ROI_MODE
+
 
     def NDArrayMode(self, dwelltime=None, numframes=None):
         """ set to array mode: ready for slew scanning
