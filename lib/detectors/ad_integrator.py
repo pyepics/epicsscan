@@ -9,11 +9,12 @@ MAXVAL = 2**32 - 2**15
 
 class AD_Integrator(object):
     """1D integrator"""
-    def __init__(self,  suffix='h5', **kws):
+    def __init__(self,  suffix='h5', mask=None, **kws):
         from epicsscan.scandb import ScanDB
         self.scandb = ScanDB()
         self.folder = ''
         self.label = ''
+        self.mask = mask
         self.suffix = suffix
         self.sleep_time = 1.0
         self.set_state('idle')
@@ -43,6 +44,8 @@ class AD_Integrator(object):
             time.sleep(2.0*self.sleep_time)
             return
         data = xrdfile['/entry/data/data']
+        if self.mask is not None:
+            data = data * self.mask
         if data.shape[1] > data.shape[2]:
             data = data[:, 3:-3, 1:-1]
         else:
