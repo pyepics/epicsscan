@@ -19,9 +19,12 @@ from telnetlib import Telnet
 from base64 import b64encode, b64decode
 from epics import get_pv, caput, caget, Device, poll, PV
 
+from .counter import Counter
 from .base import DetectorMixin, SCALER_MODE, NDARRAY_MODE, ROI_MODE
 from .areadetector import AreaDetector
 from ..debugtime import debugtime
+
+MAX_FRAMES = 8192
 
 
 def restart_procserv_ioc(ioc_port=29200):
