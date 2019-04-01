@@ -12,6 +12,7 @@ import json
 import sys
 import numpy as np
 from epics import caget, caput, PV, get_pv
+from epics.ca import CASeverityException
 
 from epicsscan.scandb import ScanDB
 from epicsscan.utils import hms, tstamp
