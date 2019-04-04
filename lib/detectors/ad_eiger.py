@@ -249,7 +249,7 @@ class AD_Eiger(AreaDetector):
                 if caget(pref + 'Use') == 1:
                     label = caget(pref + 'Name', as_string=True).strip()
                     if len(label) > 0:
-                        pvname = pref + 'Total_RBV'
+                        pvname = pref + 'TSTotal'
                         self.counters.append(Counter(pvname, label=label))
         time.sleep(0.25)
 
@@ -287,7 +287,10 @@ class AD_Eiger(AreaDetector):
         self.ad.setFileWriteMode(2) # Stream
         if self.mode == ROI_MODE:
             self.ad.FileCaptureOff()
-            self.roistat.start()
+            self.cam.put('NumTriggers', numframes)
+            self.roistat.arm(numframes=numframes)
+            time.sleep(0.25)
+            self.roistat.start(erase=True)
         else:
             self.ad.FileCaptureOn(verify_rbv=True)
 
@@ -373,7 +376,7 @@ class AD_Eiger(AreaDetector):
         2. setting dwelltime or numframes to None is discouraged,
            as it can lead to inconsistent data arrays.
         """
-        print("AD Eiger ROI Mode ", dwelltime, numframes)
+        # print("AD Eiger ROI Mode ", dwelltime, numframes)
         self.cam.put('TriggerMode', 'External Enable')
         self.cam.put('Acquire', 0, wait=True)
         self.cam.put('NumImages', 1)
