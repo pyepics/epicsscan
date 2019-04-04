@@ -221,7 +221,7 @@ class AD_ROIStat(Device):
         self.put('TSControl', 2)
 
     def start(self, erase=True):
-        sval = 1 if erase else 0
+        sval = 0 if erase else 1
         self.put('TSControl', sval)
 
     def arm(self, numframes=None, blocking=False):
