@@ -223,12 +223,11 @@ class AD_Eiger(AreaDetector):
     def custom_pre_scan(self, row=0, dwelltime=None, **kws):
         # t0 = time.time()
         # self.simplon.clear_disk()
-        # print(" Ad Eiger pre-scan ") # cleared disk: %.1f sec" % (time.time()-t0))
+        # print(" Ad Eiger pre-scan ", row, dwelltime, kws, self.filesaver)
 
         if self.cam.get('Acquire') != 0:
             self.cam.put('Acquire', 0, wait=True)
             time.sleep(5*self.arm_delay)
-        # print("Eiger is off  ",   self.cam.get('Acquire', as_string=True))
 
         self.ad.setFileTemplate("%s%s_%4.4d.h5")
         if self.filesaver.startswith('HDF'):
@@ -244,6 +243,8 @@ class AD_Eiger(AreaDetector):
         self.cam.put('StreamEnable', 'Yes')
         self.cam.put('ShutterMode', 'None')
         if self.mode == ROI_MODE:
+            old_counters = [c for c in self.counters]
+            self.counters = []
             for iroi in range(8):
                 pref = '%s%d:' % (self.roistat._prefix, 1+iroi)
                 if caget(pref + 'Use') == 1:
@@ -251,6 +252,7 @@ class AD_Eiger(AreaDetector):
                     if len(label) > 0:
                         pvname = pref + 'TSTotal'
                         self.counters.append(Counter(pvname, label=label))
+            self.counters.extend(old_counters)
         time.sleep(0.25)
 
     def post_scan(self, **kws):
@@ -286,12 +288,12 @@ class AD_Eiger(AreaDetector):
 
         self.ad.setFileWriteMode(2) # Stream
         if self.mode == ROI_MODE:
-            self.ad.FileCaptureOff()
             self.cam.put('NumTriggers', numframes)
             self.roistat.arm(numframes=numframes)
             time.sleep(0.25)
             self.roistat.start(erase=True)
-        else:
+        # print("AD EIGER ARM ", mode)
+        if self.mode in (ROI_MODE, NDARRAY_MODE):
             self.ad.FileCaptureOn(verify_rbv=True)
 
         time.sleep(self.arm_delay/3.0)
@@ -383,6 +385,7 @@ class AD_Eiger(AreaDetector):
 
         if numframes is None:
             numframes = MAX_FRAMES
+        self.cam.put('NumTriggers', numframes)
         self.roistat.stop()
         self.roistat.arm(numframes=numframes)
 
@@ -410,12 +413,7 @@ class AD_Eiger(AreaDetector):
         self.cam.put('NumImages', 1)
 
         if numframes is not None:
-            self.cam.put('NumImages', 1)
             self.cam.put('NumTriggers', numframes)
-
-        # self.cam.put('FWEnable', 1)
-        # nperfile = min(99000, max(1000, numframes)) + 1000
-        # self.cam.put('FWNImagesPerFile', nperfile)
 
         if dwelltime is not None:
             dwelltime = self.dwelltime
