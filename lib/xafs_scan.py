@@ -570,7 +570,7 @@ class QXAFS_Scan(XAFS_Scan):
         while scan_thread.is_alive():
             time.sleep(0.1)
             if time.time()-xt0 > 0.9*estimated_scantime:
-                print("Scan nearing end... now joining thread")
+                # print("Scan nearing end... now joining thread")
                 break
             if self.look_for_interrupts():
                 break
