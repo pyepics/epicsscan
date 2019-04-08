@@ -497,15 +497,19 @@ class QXAFS_Scan(XAFS_Scan):
         self.xps.arm_trajectory('qxafs')
         dtimer.add('traj armed')
         out = self.pre_scan(npulses=traj['npulses'],
-                            dweltims=dtime, mode='roi')
+                            dweltims=dtime,
+                            mode='roi', filename=self.filename)
         self.check_outputs(out, msg='pre scan')
         dtimer.add('prescan ran')
+
+        userdir = self.scandb.get_info('user_folder')
 
         det_arm_delay = det_start_delay = 0.05
         det_prefixes = []
         for det in self.detectors:
             det_prefixes.append(det.prefix)
             det.arm(mode='roi', numframes=traj['npulses'], fnum=0, wait=False)
+            det.config_filesaver(path=userdir)
             det_arm_delay = max(det_arm_delay, det.arm_delay)
             det_start_delay = max(det_start_delay, det.start_delay)
 
