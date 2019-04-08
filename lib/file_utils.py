@@ -50,6 +50,7 @@ def get_homedir():
 def fix_varname(s):
     """fix string to be a 'good' variable name."""
     t = str(s).translate(BAD_FILETABLE)
+    t.replace('.', '_')
     while t.endswith('_'): t = t[:-1]
     return t
 
