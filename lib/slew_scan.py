@@ -88,7 +88,6 @@ class Slew_Scan(StepScan):
             caput('%sbasedir' % (mappref), userdir)
             caput('%sstatus'  % (mappref), 'Starting')
         sname = os.path.join(basedir, currscan)
-        oname = os.path.join(basedir, 'PreviousScan.ini')
         if not self.filename.endswith('.h5'):
             self.filename = self.filename + '.h5'
 
@@ -116,9 +115,6 @@ class Slew_Scan(StepScan):
 
         self.mapdir = mapdir
         self.fileroot = fileroot
-
-        if os.path.exists(sname):
-            shutil.copy(sname, oname)
 
         txt = ['# FastMap configuration file (saved: %s)'%(time.ctime()),
                '#-------------------------#','[general]',
@@ -582,7 +578,7 @@ class Slew_Scan(StepScan):
                 xrddet.stop()
 
             dtimer.add('saved XRD data')
-            
+
             rowdata_ok = (rowdata_ok and
                           (npts_sca >= npulses-1) and
                           (nxrf >= npulses-2))
