@@ -245,6 +245,8 @@ class AD_Eiger(AreaDetector):
         if self.mode == ROI_MODE:
             old_counters = [c for c in self.counters]
             self.counters = []
+            self.ad.setFileTemplate("%s%s.h5")
+            self.ad.filePut('FileNumber', 1)
             for iroi in range(8):
                 pref = '%s%d:' % (self.roistat._prefix, 1+iroi)
                 if caget(pref + 'Use') == 1:
