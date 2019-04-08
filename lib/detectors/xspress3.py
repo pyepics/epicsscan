@@ -6,11 +6,11 @@ from six.moves.configparser import ConfigParser
 
 from epics import get_pv, caput, caget, Device, poll
 from epics.devices.ad_mca import ADMCA
-
 from .counter import Counter, DummyCounter, DeviceCounter
 from .base import DetectorMixin, SCALER_MODE, NDARRAY_MODE, ROI_MODE
 from .areadetector import ADFileMixin
 from ..debugtime import debugtime
+from ..file_utils import fix_varname
 
 MAX_ROIS = 32
 MAX_FRAMES = 16384
@@ -277,29 +277,31 @@ class Xspress3Detector(DetectorMixin):
             fh.write('\n'.join(buff))
             fh.write('\n')
 
-    def pre_scan(self, mode=None, npulses=None, dwelltime=None, **kws):
+    def pre_scan(self, mode=None, npulses=None, dwelltime=None,
+                 filename=None, **kws):
         "run just prior to scan"
         dt = debugtime()
 
         if mode is not None:
             self.mode = mode
 
-        # print("Xspress3 Prescan", self.mode, npulses, dwelltime, kws)
-
         self._xsp3.put('Acquire', 0, wait=True)
         poll(0.05, 0.5)
         self._xsp3.put('ERASE', 1)
         dt.add('xspress3: clear, erase')
+        if filename is None:
+            filename = ''
 
         if self.mode == SCALER_MODE:
             self.ScalerMode(dwelltime=dwelltime, numframes=npulses)
         elif self.mode == ROI_MODE:
             self.ROIMode(dwelltime=dwelltime, numframes=npulses)
+            filename = "%s_%s" % (filename, self.label)
         elif self.mode == NDARRAY_MODE:
             self._xsp3.FileCaptureOff()
             time.sleep(0.01)
             self.NDArrayMode(dwelltime=dwelltime, numframes=npulses)
-
+            filename = self.label
         dt.add('xspress3: set mode %s' % self.mode)
         if dwelltime is not None:
             self.dwelltime = dwelltime
@@ -311,7 +313,7 @@ class Xspress3Detector(DetectorMixin):
 
         dt.add('xspress3: set dtime, npulses')
         self.config_filesaver(number=1,
-                              name='xsp3',
+                              name=fix_varname(filename),
                               numcapture=npulses,
                               template="%s%s.%4.4d",
                               auto_increment=False,
