@@ -16,7 +16,7 @@ from newportxps import NewportXPS
 from .scan import StepScan
 from .positioner import Positioner
 from .saveable import Saveable
-from .file_utils import fix_varname
+from .file_utils import fix_varname, new_filename
 from .utils import ScanDBAbort, hms
 from .detectors import Struck, TetrAMM, Xspress3, Counter
 from .debugtime import debugtime
@@ -428,6 +428,7 @@ class QXAFS_Scan(XAFS_Scan):
         self.complete = False
         if filename is not None:
             self.filename  = filename
+        self.filename = new_filename(self.filename)
 
         if comments is not None:
             self.comments = comments
@@ -533,7 +534,6 @@ class QXAFS_Scan(XAFS_Scan):
             det.start(arm=False, wait=False)
         time.sleep(det_start_delay)
         dtimer.add('detectors started')
-
         self.datafile = self.open_output_file(filename=self.filename,
                                               comments=self.comments)
 
