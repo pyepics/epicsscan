@@ -84,6 +84,7 @@ class ADFileMixin(object):
 
     def filePut(self, attr, value, **kws):
         "put file attribute"
+
         return self.put("%s%s" % (self.filesaver, attr), value, **kws)
 
     def fileGet(self, attr, **kws):
@@ -243,6 +244,7 @@ class AreaDetector(DetectorMixin):
         self.filesaver = filesaver
         self.fileroot = fileroot
         self.prefix = prefix
+        self.cam_prefix = cam
         self.mode = mode
         self.arm_delay = arm_delay
         self.start_delay = start_delay
@@ -254,13 +256,9 @@ class AreaDetector(DetectorMixin):
         self.roistat = AD_ROIStat(prefix, roistat=roistat)
 
         self.dwelltime_pv = get_pv('%s%sAcquireTime' % (prefix, cam))
-        self.counters = [Counter("%s%sArrayCounter_RBV" % (prefix, cam),
-                                 label='Image Counter')]
+        self.counters = []
         if filesaver in AD_FILESAVERS:
             self.filesaver = filesaver
-            f_counter = Counter("%s%sFileNumber_RBV" % (prefix, filesaver),
-                                label='File Counter')
-            self.counters.append(f_counter)
         self._repr_extra = 'filesaver=%s' % repr(filesaver)
 
     def __repr__(self):
@@ -304,38 +302,37 @@ class AreaDetector(DetectorMixin):
         self.cam.put('Acquire', 0, wait=True)
         poll(0.05, 0.5)
 
-        fileopts = dict(number=1,
-                        name=self.label,
-                        numcapture=npulses,
-                        template="%s%s.%4.4d",
-                        auto_increment=False,
-                        auto_save=True, enable=True)
+        if filename is None:
+            filename = ''
+        filename = "%s_%s" % (filename, self.label)
+
+        numcapture = npulses
+        template = "%s%s.%4.4d"
+        auto_increment = False
 
         if self.mode == SCALER_MODE:
             self.ScalerMode()
-            fileopts['auto_increment']=True
-            fileopts['number'] = 1
-            fileopts['numcapture'] = scan.npts
+            auto_increment = True
+            numcapture = scan.npts
             file_ext = self.filesaver.lower()
             if file_ext.endswith(':'):
                 file_ext = file_ext[:-1]
             if file_ext.endswith('1'):
                 file_ext = file_ext[:-1]
-
-            fileopts['template']  = "%%s%%s_%%4.4d.%s" % file_ext
-
-            if filename is None:
-                filename = ''
-            fname = fix_filename('%s_%s' % (filename, self.label))
-            fname = fname.replace('.', '_')
-            fileopts['name'] = fname
+            template  = "%%s%%s_%%4.4d.%s" % file_ext
 
         elif self.mode == ROI_MODE:
             self.ROIMode()
         elif self.mode == NDARRAY_MODE:
             time.sleep(0.01)
+            filename = self.label
             self.NDArrayMode(dwelltime=dwelltime, numframes=npulses)
-
+        if self.mode in (ROI_MODE, NDARRAY_MODE):
+            c1 = Counter("%s%sArrayCounter_RBV" % (self.prefix, self.cam_prefix),
+                        label='Image Counter')
+            c2 = Counter("%s%sFileNumber_RBV" % (self.prefix, self.filesaver),
+                         label='File Counter')
+            self.counters = [c1, c2]
         if dwelltime is not None:
             self.dwelltime = dwelltime
         if self.dwelltime is not None:
@@ -343,7 +340,12 @@ class AreaDetector(DetectorMixin):
 
         if npulses is not None:
             self.cam.put('NumImages', npulses)
-        self.config_filesaver(**fileopts)
+
+        self.config_filesaver(name=filename, number=1, enable=True,
+                              auto_save=True, template=template,
+                              numcapture=numcapture,
+                              auto_increment=auto_increment)
+
 
         if hasattr(self, 'custom_pre_scan'):
            self.custom_pre_scan(row=row, mode=mode, npulse=npulses,
