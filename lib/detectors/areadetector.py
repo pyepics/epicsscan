@@ -7,10 +7,9 @@ import os
 import time
 from epics import PV, get_pv, caget, caput, Device, poll
 
-from epicsscan.file_utils import fix_filename
-
 from .base import DetectorMixin, SCALER_MODE, NDARRAY_MODE, ROI_MODE
 from .counter import Counter
+from ..file_utils import fix_varname
 
 AD_FILESAVERS = ('TIFF1:', 'JPEG1:', 'netCDF1:', 'HDF1:', 'Nexus1:')
 
@@ -304,7 +303,7 @@ class AreaDetector(DetectorMixin):
 
         if filename is None:
             filename = ''
-        filename = "%s_%s" % (filename, self.label)
+        filename = fix_varname("%s_%s" % (filename, self.label))
 
         numcapture = npulses
         template = "%s%s.%4.4d"
