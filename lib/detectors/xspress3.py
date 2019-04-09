@@ -296,12 +296,12 @@ class Xspress3Detector(DetectorMixin):
             self.ScalerMode(dwelltime=dwelltime, numframes=npulses)
         elif self.mode == ROI_MODE:
             self.ROIMode(dwelltime=dwelltime, numframes=npulses)
-            filename = "%s_%s" % (filename, self.label)
+            filename = "%s_xsp3" % filename
         elif self.mode == NDARRAY_MODE:
             self._xsp3.FileCaptureOff()
             time.sleep(0.01)
             self.NDArrayMode(dwelltime=dwelltime, numframes=npulses)
-            filename = self.label
+            filename = 'xsp3'
         dt.add('xspress3: set mode %s' % self.mode)
         if dwelltime is not None:
             self.dwelltime = dwelltime
