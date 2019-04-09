@@ -326,7 +326,7 @@ class AreaDetector(DetectorMixin):
             time.sleep(0.01)
             filename = self.label
             self.NDArrayMode(dwelltime=dwelltime, numframes=npulses)
-        if self.mode in (ROI_MODE, NDARRAY_MODE):
+        if self.mode == NDARRAY_MODE:
             c1 = Counter("%s%sArrayCounter_RBV" % (self.prefix, self.cam_prefix),
                         label='Image Counter')
             c2 = Counter("%s%sFileNumber_RBV" % (self.prefix, self.filesaver),
