@@ -3,7 +3,11 @@ import json
 import glob
 import numpy as np
 import h5py
-from pyFAI.azimuthalIntegrator import AzimuthalIntegrator
+try:
+    from pyFAI.azimuthalIntegrator import AzimuthalIntegrator
+    HAS_PYFAI = True
+except ImportError:
+    HAS_PYFAI = False
 
 MAXVAL = 2**32 - 2**15
 
@@ -34,10 +38,13 @@ class AD_Integrator(object):
 
         calib = json.loads(self.scandb.get_detectorconfig(calfile).text)
         print("Read Integration configuration: ", calfile)
-        self.integrator = AzimuthalIntegrator(**calib)
+        if HAS_PYFAI:
+            self.integrator = AzimuthalIntegrator(**calib)
 
     def save_1dint(self, h5file, outfile):
         t0 = time.time()
+        if not HAS_PYFAI:
+            return
         try:
             xrdfile = h5py.File(h5file, 'r')
         except IOError:
