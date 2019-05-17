@@ -10,7 +10,6 @@ import numpy as np
 from threading import Thread
 from epics import caget, caput, PV, get_pv
 from epics.ca import CASeverityException
-from larch import Group
 from newportxps import NewportXPS
 
 from .scan import StepScan
@@ -368,12 +367,6 @@ class QXAFS_Scan(XAFS_Scan):
             buff.append(fmt % (dtime[i], dtheta[i], tvelo[i],
                                dwidth[i], wvelo[i]))
         buff.append(elast)
-
-        old =  Group(buffer='\n'.join(buff),
-                     start_theta=theta[0]+the0,
-                     start_width=width[0]-wid0,
-                     theta=theta, tvelo=tvelo,   times=times,
-                     energy=energy, width=width, wvelo=wvelo)
 
         buff.append("")
         buff = '\n'.join(buff)
