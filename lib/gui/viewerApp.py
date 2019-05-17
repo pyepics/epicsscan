@@ -15,7 +15,6 @@ import time
 import shutil
 import numpy as np
 from random import randrange
-
 from datetime import timedelta
 
 import wx
@@ -31,11 +30,9 @@ except:
 import epics
 from epics.wx import DelayedEpicsCallback, EpicsFunction
 
-from larch import Interpreter, use_plugin_path, isParameter
+from larch import Interpreter, isParameter
 from larch.fitting import fit_report
-
-use_plugin_path('math')
-from fitpeak import fit_peak
+from larch.math import fit_peak
 
 from wxmplot import PlotFrame, PlotPanel
 from ..datafile import StepScanData
