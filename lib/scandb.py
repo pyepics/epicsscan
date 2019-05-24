@@ -17,7 +17,7 @@ from datetime import datetime
 
 # from utils import backup_versions, save_backup
 import sqlalchemy
-from sqlalchemy import MetaData, Table, select, and_, create_engine
+from sqlalchemy import MetaData, Table, select, and_, create_engine, text
 from sqlalchemy.orm import sessionmaker, mapper, clear_mappers
 
 from sqlalchemy.exc import IntegrityError
@@ -449,7 +449,7 @@ class ScanDB(object):
         if len(vals) < 1:
             table = table.insert()
         else:
-            table = table.update(whereclause="key='%s'" % key)
+            table = table.update(whereclause=text("key='%s'" % key))
         table.execute(**data)
         self.commit()
 
@@ -530,7 +530,7 @@ class ScanDB(object):
             table = self.tables[table]
         constraints = ["%s=%s" % (str(k), repr(v)) for k, v in where.items()]
         whereclause = ' AND '.join(constraints)
-        table.update(whereclause=whereclause).execute(**vals)
+        table.update(whereclause=text(whereclause)).execute(**vals)
         self.commit()
 
     def getrow(self, table, name, one_or_none=False):
@@ -552,7 +552,7 @@ class ScanDB(object):
 
     def rename_scandef(self, scanid, name):
         cls, table = self.get_table('scandefs')
-        table.update(whereclause="id='%d'" % scanid).execute(name=name)
+        table.update(whereclause=text("id='%d'" % scanid)).execute(name=name)
 
     def del_scandef(self, name=None, scanid=None):
         """delete scan defn by name"""
@@ -650,7 +650,7 @@ class ScanDB(object):
         if isinstance(value, (int, float)):
             value = [value]
         where = "name='%s'" % name
-        update = tab.update().where(whereclause=where)
+        update = tab.update().where(whereclause=text(where))
         if self.server.startswith('sqli'):
             update.execute(data=json_encode(value))
         else:
@@ -660,8 +660,8 @@ class ScanDB(object):
     def append_scandata(self, name, val):
         cls, tab = self.get_table('scandata')
         where = "name='%s'" % name
-        tselect = tab.select(whereclause=where)
-        tupdate = tab.update().where(whereclause=where)
+        tselect = tab.select(whereclause=text(where))
+        tupdate = tab.update().where(whereclause=text(where))
         if self.server.startswith('sqli'):
             data = json.loads(tselect.execute().fetchone().data)
             data.append(val)
@@ -862,7 +862,7 @@ class ScanDB(object):
             table.insert().execute(name=name, notes=notes, is_monitor=ismon)
         elif notes is not '':
             where = "name='%s'" % name
-            table.update(whereclause=where).execute(notes=notes,
+            table.update(whereclause=text(where)).execute(notes=notes,
                                                     is_monitor=ismon)
         thispv = self.query(table).filter(cls.name == name).one()
         self.connect_pvs(names=[name])
@@ -1020,7 +1020,7 @@ class ScanDB(object):
             status = 'unknown'
 
         statid = self.status_codes[status]
-        thiscmd = table.update(whereclause="id='%i'" % cmdid)
+        thiscmd = table.update(whereclause=text("id='%i'" % cmdid))
         thiscmd.execute(status_id=statid)
         if status.startswith('start'):
             thiscmd.execute(start_time=datetime.now())
@@ -1037,14 +1037,14 @@ class ScanDB(object):
         if cmdid is None:
             cmdid  = self.get_current_command_id()
         cls, table = self.get_table('commands')
-        table.update(whereclause="id='%i'" % cmdid).execute(output_file=filename)
+        table.update(whereclause=text("id='%i'" % cmdid)).execute(output_file=filename)
 
     def set_command_output(self, value=None, cmdid=None):
         """set the status of a command (by id)"""
         if cmdid is None:
             cmdid  = self.get_current_command_id()
         cls, table = self.get_table('commands')
-        table.update(whereclause="id='%i'" % cmdid).execute(output_value=repr(value))
+        table.update(whereclause=text("id='%i'" % cmdid)).execute(output_value=repr(value))
 
     def cancel_command(self, cmdid):
         """cancel command"""
@@ -1060,7 +1060,7 @@ class ScanDB(object):
                 break
         cmd = self.get_current_command()
         cmdid = cmd.id
-        table.update(whereclause="id>='%i'" % cmdid).execute(status_id=cancel)
+        table.update(whereclause=text("id>='%i'" % cmdid)).execute(status_id=cancel)
 
     def test_abort(self, msg='scan abort'):
         """look for abort, raise ScanDBAbort if set"""
