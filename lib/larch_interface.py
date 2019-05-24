@@ -59,12 +59,15 @@ class LarchScanDBServer(object):
         self.loaded_modules = {}
 
         self.larch = self.symtab = None
+        print("Larch Scan DB Server ", scandb, HAS_LARCH)
         if HAS_LARCH:
+            from larch.epics.larchscan import connect_scandb
             self.larch  = larch.Interpreter(writer=self.writer)
+            connect_scandb(scandb, _larch=self.larch)
             self.symtab = self.larch.symtable
-            self.symtab.set_symbol(LARCH_SCANDB, self.scandb)
-            self.symtab.set_symbol(LARCH_INSTDB, InstrumentDB(self.scandb))
-            self.symtab._sys.color_exceptions = False
+            # self.symtab.set_symbol(LARCH_SCANDB, self.scandb)
+            # self.symtab.set_symbol(LARCH_INSTDB, InstrumentDB(self.scandb))
+            # self.symtab._sys.color_exceptions = False
             self.enable_abort()
 
     def check_abort_pause(self, msg='at caget'):
@@ -74,7 +77,7 @@ class LarchScanDBServer(object):
         return True
 
     def enable_abort(self):
-        """this replaes several larch functions with
+        """this replaces several larch functions with
         functions that support raising ScanDBAbort exceptions
         """
         def caget(pvname, _larch=None, **kws):
