@@ -304,7 +304,6 @@ class StepScan(object):
 
     def pre_scan(self, row=0, filename=None, **kws):
         # dtimer = debugtime()
-
         self.set_info('scan_progress', 'running pre_scan routines')
         for (desc, pv) in self.extra_pvs:
             pv.connect()
@@ -312,6 +311,7 @@ class StepScan(object):
         if filename is None:
             filename = self.filename
         kws['filename'] = filename
+        kws['dwelltime'] = self.dwelltime
         out = []
         for meth in self.pre_scan_methods:
             out.append(meth(scan=self, row=row, **kws))
@@ -321,7 +321,7 @@ class StepScan(object):
         for det in self.detectors:
             for counter in det.counters:
                 self.add_counter(counter)
-        # dtimer.add('pre_scan add counters for %s' % det)
+            # dtimer.add('pre_scan add counters for %s' % det)
 
         if callable(self.prescan_func):
             try:
