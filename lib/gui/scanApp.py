@@ -142,9 +142,6 @@ class ScanFrame(wx.Frame):
   Matt Newville <newville @ cars.uchicago.edu>
   """
     def __init__(self, **kws):
-        # dbname='Test.db', server='sqlite', host=None,
-        #          user=None, password=None, port=None, create=True,
-
         wx.Frame.__init__(self, None, -1, style=FRAMESTYLE, **kws)
 
         self.pvlist = {}
@@ -180,8 +177,7 @@ class ScanFrame(wx.Frame):
         self.statusbar.SetStatusText('Larch Ready')
 
         try:
-            fico = os.path.join(larch.site_config.larchdir,
-                                'icons', ICON_FILE)
+            fico = os.path.join(larch.site_config.icondir, ICON_FILE)
             self._icon = wx.Icon(fico, wx.BITMAP_TYPE_ICO)
             self.SetIcon(self._icon)
         except:
@@ -536,7 +532,6 @@ class ScanFrame(wx.Frame):
         if basedir is None:
             basedir = self.scandb.get_info('user_folder')
         basedir = str(basedir)
-
         fileroot = self.scandb.get_info('server_fileroot')
         if os.name == 'nt':
             fileroot = self.scandb.get_info('windows_fileroot')
@@ -735,7 +730,7 @@ class ScanApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
 
     def OnInit(self):
         self.Init()
-        frame = ScanFrame() #**self.scan_opts)
+        frame = ScanFrame()
         frame.Show()
         self.SetTopWindow(frame)
         if self.debug:
