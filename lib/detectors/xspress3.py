@@ -47,10 +47,10 @@ class Xspress3(Device, ADFileMixin):
             data_pv = "%sMCA%i:ArrayData" % (prefix, imca)
             mca = ADMCA(dprefix, data_pv=data_pv, roi_prefix=rprefix)
             self.mcas.append(mca)
-            attrs.append("%s:MCA%iROI:TSControl" % (prefix, imca))
-            attrs.append("%s:MCA%iROI:TSNumPoints" % (prefix, imca))
-            attrs.append("%s:C%iSCA:TSControl" % (prefix, imca))
-            attrs.append("%s:C%iSCA:TSNumPoints" % (prefix, imca))
+            attrs.append("MCA%iROI:TSControl" % (imca))
+            attrs.append("MCA%iROI:TSNumPoints" % (imca))
+            attrs.append("C%iSCA:TSControl" % (imca))
+            attrs.append("C%iSCA:TSNumPoints" % (imca))
         Device.__init__(self, prefix, attrs=attrs, delim='')
         for attr in self.det_attrs:
             self.add_pv("%sdet1:%s" % (prefix, attr), attr)
@@ -280,11 +280,11 @@ class Xspress3Detector(DetectorMixin):
     def pre_scan(self, mode=None, npulses=None, dwelltime=None,
                  filename=None, **kws):
         "run just prior to scan"
+
         dt = debugtime()
 
         if mode is not None:
             self.mode = mode
-
         self._xsp3.put('Acquire', 0, wait=True)
         poll(0.05, 0.5)
         self._xsp3.put('ERASE', 1)
@@ -356,7 +356,7 @@ class Xspress3Detector(DetectorMixin):
     Notes:
         1. numframes should be 1, unless you know what you're doing.
         """
-        # print "Xspress3 ScalerMode"
+
         self._xsp3.put('TriggerMode', 1) # Internal
         self._xsp3.put('ERASE', 1)
         if numframes is not None:
