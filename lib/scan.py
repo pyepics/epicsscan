@@ -312,6 +312,8 @@ class StepScan(object):
             filename = self.filename
         kws['filename'] = filename
         kws['dwelltime'] = self.dwelltime
+        if isinstance(kws['dwelltime'], (list, tuple, np.ndarray)):
+            kws['dwelltime'] = self.dwelltime[0]
         out = []
         for meth in self.pre_scan_methods:
             out.append(meth(scan=self, row=row, **kws))
