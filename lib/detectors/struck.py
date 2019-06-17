@@ -95,6 +95,9 @@ class Struck(Device):
     def set_dwelltime(self, val):
         "Set Dwell Time"
         # print("Struck DwellTime ", self._pvs['Dwell'], val)
+        if isinstance(val, (list, tuple, numpy.ndarray)):
+            val = val[0]
+
         if val is not None:
             self.put('Dwell', val)
 
