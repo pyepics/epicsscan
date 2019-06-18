@@ -305,8 +305,8 @@ class Slew_Scan(StepScan):
 
         dir_off = 1
         tname = 'foreward'
-        if trajs['foreward']['axes'][0] == 'X':
-            dir_off += 1
+        # if trajs['foreward']['axes'][0] == 'X':
+        #     dir_off += 1
         if trajs['foreward']['start'] >  trajs['foreward']['stop']:
             dir_off += 1
         if dir_off % 2 == 0:
@@ -324,14 +324,15 @@ class Slew_Scan(StepScan):
         roi_file = os.path.join(self.mapdir, 'ROI.dat')
         poni_file = os.path.join(self.mapdir, 'XRD.poni')
 
-        [p.move_to_pos(0, wait=False) for p in self.positioners]
+        for p in self.positioners:
+            p.move_to_pos(0, wait=False)
+
         for pv, v1, v2 in self.motor_vals.values():
             val = v1
             if tname == 'backward': val = v2
             pv.put(val, wait=False)
 
         self.pre_scan(npulses=npulses, dwelltime=dwelltime, mode='ndarray')
-
         self.scandb.clear_slewscanstatus()
         dim  = 1
         npts = 1
@@ -343,7 +344,7 @@ class Slew_Scan(StepScan):
             ypos = str(pvs[0])
             if ypos.endswith('.VAL'):
                 ypos = ypos[:-4]
-        mbuff = ["#Scan.version = 1.4",
+        mbuff = ["#Scan.version = 2.0",
                 '#SCAN.starttime = %s' % time.ctime(),
                 '#SCAN.filename  = %s' % self.filename,
                 '#SCAN.dimension = %i' % dim,
@@ -460,12 +461,15 @@ class Slew_Scan(StepScan):
             # dtimer.add('outer pos move')
             dtimer.add('trajectory armed')
 
-            [p.move_to_pos(irow-1, wait=True) for p in self.positioners]
+            for p in self.positioners:
+                p.move_to_pos(irow-1, wait=True)
+
             # dtimer.add('inner pos move(2)')
             for pv, v1, v2 in self.motor_vals.values():
                 val = v1
                 if trajname == 'backward': val = v2
                 pv.put(val, wait=True)
+
             dtimer.add('inner pos move done')
             # start trajectory in another thread
             scan_thread = Thread(target=self.xps.run_trajectory,
@@ -530,7 +534,9 @@ class Slew_Scan(StepScan):
             self.write_master(["%s %8.4f" % (masterline, time.time()-start_time)])
 
             if irow < npts-1:
-                [p.move_to_pos(irow, wait=False) for p in self.positioners]
+                for p in self.positioners:
+                    p.move_to_pos(irow, wait=True)
+
             dtimer.add('start read')
 
             pos_file = os.path.abspath(os.path.join(self.mapdir, posfile))
