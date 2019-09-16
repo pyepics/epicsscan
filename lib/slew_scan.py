@@ -564,6 +564,12 @@ class Slew_Scan(StepScan):
                     ntry = ntry + 1
                 nxrf = xrfdet.get_numcaptured()
                 if (nxrf < npulses-1) or not write_complete:
+                    time.sleep(0.50)
+                    xrfdet.finish_capture()
+                    nxrf = xrfdet.get_numcaptured()
+                    write_complete = xrfdet.file_write_complete()
+                if (nxrf < npulses-1) or not write_complete:
+                    time.sleep(0.50)
                     xrfdet.finish_capture()
                     nxrf = xrfdet.get_numcaptured()
                     write_complete = xrfdet.file_write_complete()
