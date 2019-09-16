@@ -13,7 +13,8 @@ MAXVAL = 2**32 - 2**15
 
 class AD_Integrator(object):
     """1D integrator"""
-    def __init__(self,  suffix='h5', mask=None, **kws):
+    def __init__(self,  suffix='h5', mask=None, flip=True,
+                 nqpoints=2048, trim_edges=(3,3,1,1),  **kws):
         from epicsscan.scandb import ScanDB
         self.scandb = ScanDB()
         self.folder = ''
@@ -21,6 +22,9 @@ class AD_Integrator(object):
         self.mask = mask
         self.suffix = suffix
         self.sleep_time = 1.0
+        self.flip = flip
+        self.trim_edges = trim_edges
+        self.nqpoints = nqpoints
         self.set_state('idle')
 
     def set_state(self, state):
@@ -43,20 +47,26 @@ class AD_Integrator(object):
 
     def save_1dint(self, h5file, outfile):
         t0 = time.time()
-        if not HAS_PYFAI:
+        if not HAS_PYFAI or not os.path.exists(h5file):
+            return
+        if os.stat(h5file).st_mtime > (t0-5.0):
+            time.sleep(self.sleep_time)
             return
         try:
             xrdfile = h5py.File(h5file, 'r')
         except IOError:
-            time.sleep(2.0*self.sleep_time)
+            time.sleep(self.sleep_time)
             return
-        data = xrdfile['/entry/data/data']
+        try:
+            data = xrdfile['/entry/data/data']
+        except KeyError:
+            time.sleep(self.sleep_time)
+            return
+
         if self.mask is not None:
             data = data * self.mask
-        if data.shape[1] > data.shape[2]:
-            data = data[:, 3:-3, 1:-1]
-        else:
-            data = data[:, 1:-1, 3:-3]
+        x1, x2, y1, y2 = self.trim_edges
+        data = data[:, x1:-x2, y1:-y2]
 
         nframes, nx, ny = data.shape
         xrdfile.close()
@@ -64,11 +74,15 @@ class AD_Integrator(object):
         opts = dict(method='csr',unit='q_A^-1',
                     correctSolidAngle=True,
                     polarization_factor=0.999)
+
         dat = []
+        slice1 = slice(None, None, None)
+        if self.flip:
+            slice1 = slice(None, None, -1)
         for i in range(nframes):
             img = data[i, :, :]
             img[np.where(img>MAXVAL)] = 0
-            q, x = integrate(img[::-1, :], 2048, **opts)
+            q, x = integrate(img[slice1, :], self.nqpoints, **opts)
             if i == 0:
                 dat.append(q)
             dat.append(x)
@@ -85,7 +99,10 @@ class AD_Integrator(object):
         for xfile in sorted(xrdfiles):
             outfile = xfile.replace(self.suffix, 'npy')
             if not os.path.exists(outfile):
-                self.save_1dint(xfile, outfile)
+                try:
+                    self.save_1dint(xfile, outfile)
+                except:
+                    pass
 
     def run(self):
         while True:
@@ -105,7 +122,6 @@ class AD_Integrator(object):
                 time.sleep(5*self.sleep_time)
             elif state.startswith('quit'):
                 return
-
 
 def read_poni(fname):
     """read XRD calibration from pyFAI poni file"""
