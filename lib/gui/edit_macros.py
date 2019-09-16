@@ -3,6 +3,7 @@ import sys
 import time
 import logging
 from sqlalchemy.sql import func as sqlfunc
+from sqlalchemy import text
 from datetime import datetime, timedelta
 import wx
 import wx.lib.scrolledpanel as scrolled
@@ -45,7 +46,7 @@ class ScanDBMessageQueue(object):
 
     def get_new_messages(self):
         try:
-            q = self.tab.select(whereclause="id>'%i'" % self.last_id)
+            q = self.tab.select(whereclause=text("id>'%i'" % self.last_id))
         except TypeError:
             return [None]
         out = q.order_by(self.cls.id).execute().fetchall()
