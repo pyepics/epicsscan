@@ -40,6 +40,15 @@ AD_FILE_ATTRS = ('AutoIncrement', 'AutoSave', 'Capture', 'EnableCallbacks',
 AD_ROISTAT_ATTRS = ('TSNumPoints', 'TSControl', 'EnableCallbacks',
                     'ArrayCallbacks', 'BlockingCallbacks')
 
+def get_adversion(prefix, cam='cam1:'):
+    """return areaDetector version"""
+    pvname = "%s%sADCoreVersion_RBV" % (prefix, cam)
+    val = caget(pvname, timeout=0.1)  # give up easily
+    if val is None:
+        return ('0', '0')
+    return val.split('.')
+
+
 class ADFileMixin(object):
     """mixin class for area detector, MUST part of an epics Device"""
 
