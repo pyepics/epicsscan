@@ -14,7 +14,7 @@ import logging
 import numpy as np
 from socket import gethostname
 from datetime import datetime
-
+import yaml
 # from utils import backup_versions, save_backup
 import sqlalchemy
 from sqlalchemy import MetaData, Table, select, and_, create_engine, text
@@ -47,13 +47,9 @@ def get_credentials(envvar='ESCAN_CREDENTIALS'):
     credfile = os.environ.get(envvar, None)
     if credfile is not None and os.path.exists(credfile):
         with open(credfile, 'r') as fh:
-            lines = fh.readlines()
-            for line in lines:
-                line = line[:-1].strip()
-                if line.startswith('#'):
-                    continue
-                key, val = line.split('=')
-                conn[key.strip()] = val.strip()
+            text = fh.read()
+            text.replace('=', ': ')
+            conn = yaml.load(text, Loader=yaml.Loader)
     return conn
 
 def json_encode(val):
