@@ -32,9 +32,17 @@ def restart_procserv_ioc(ioc_port=29200):
     send a Ctrl-C to a procServ ioc running on localhost
     """
     tn = Telnet('localhost', ioc_port)
-    tn.write('\x03')
-    tn.write('\n')
-    time.sleep(3)
+    msgs =['\n##\n## EpicsScan restart ioc: {:s}\n##\n'.format(time.ctime()),
+           '\x03\n']
+    for m in msgs:
+        tn.write(bytes(m, 'utf-8'))
+        time.sleep(0.5)
+
+    time.sleep(5)
+    msgs = ['\n##\n## EpicsScan restart done: {:s}\n##\n'.format(time.ctime())]
+    for m in msgs:
+        tn.write(bytes(m, 'utf-8'))
+        time.sleep(0.5)
 
 class EigerResponse:
     def __init__(self, command, retval):
