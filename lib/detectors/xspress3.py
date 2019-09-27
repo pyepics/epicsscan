@@ -2,21 +2,40 @@
 Quantum Xspress3 detector
 """
 import time
+from collections import namedtuple
 from six.moves.configparser import ConfigParser
 
 from epics import get_pv, caput, caget, Device, poll
 from epics.devices.ad_mca import ADMCA
 from .counter import Counter, DummyCounter, DeviceCounter
 from .base import DetectorMixin, SCALER_MODE, NDARRAY_MODE, ROI_MODE
-from .areadetector import ADFileMixin
+from .areadetector import ADFileMixin, get_adversion
 from ..debugtime import debugtime
 from ..file_utils import fix_varname
 
 MAX_ROIS = 32
 MAX_FRAMES = 16384
 
+SCAFormats = namedtuple('SCAFormats', ('acq', 'npts', 'valform', 'tsform'))
+
+def get_scaformats(adversion):
+    """return SCAFormats tuple of SCA format strings
+    for AD version 2 and 3
+    """
+    acquire  = 'TS:TSAcquire'
+    numpoints = 'TS:TSNumPoints'
+    valform = 'C%dSCA:%d:Value_RBV'
+    tsform  = 'C%dSCA:%d:TSArrayValue'
+    if adversion == 2:
+        acquire = 'TSControl'
+        numpoints = 'TSNumPoints'
+        valform = 'C%dSCA%d:Value_RBV'
+        tsform  = 'C%dSCA%d:TSArrayValue'
+    return SCAFormats(acquire, numpoints, valform, tsform)
+
+
 class Xspress3(Device, ADFileMixin):
-    """Epics Xspress3.20 interface (with areaDetector2)"""
+    """Epics Xspress3.20 interface (with areaDetector 2 or 3)"""
 
     det_attrs = ('NumImages', 'NumImages_RBV', 'Acquire', 'Acquire_RBV',
                  'ArrayCounter_RBV', 'ERASE', 'UPDATE', 'AcquireTime',
@@ -24,13 +43,15 @@ class Xspress3(Device, ADFileMixin):
                  'CTRL_DTC')
 
     _nonpvs = ('_prefix', '_pvs', '_delim', 'filesaver', 'fileroot',
-               'pathattrs', '_nonpvs', 'nmcas', 'mcas', '_chans')
+               'pathattrs', '_nonpvs', 'nmcas', 'mcas', '_chans',
+               '_ad_version')
 
     pathattrs = ('FilePath', 'FileTemplate', 'FileName', 'FileNumber',
                  'Capture', 'NumCapture', 'AutoIncrement', 'AutoSave')
 
     def __init__(self, prefix, nmcas=4, filesaver='HDF1:',
-                 fileroot='/home/xspress3'):
+                 fileroot='/home/xspress3', ad_version=2):
+        self._ad_version = ad_version
         dt = debugtime()
         self.nmcas = nmcas
         attrs = []
@@ -40,27 +61,44 @@ class Xspress3(Device, ADFileMixin):
         self.fileroot = fileroot
         self._prefix = prefix
         self.mcas = []
+
+        scaf = get_scaformats(ad_version) # ('acq', 'npts', 'valform', 'tsform')
         for i in range(nmcas):
             imca = i+1
             dprefix = "%sdet1:" % prefix
-            rprefix = "%sMCA%iROI" % (prefix, imca)
-            data_pv = "%sMCA%i:ArrayData" % (prefix, imca)
+            rprefix = "%sMCA%dROI" % (prefix, imca)
+            data_pv = "%sMCA%d:ArrayData" % (prefix, imca)
             mca = ADMCA(dprefix, data_pv=data_pv, roi_prefix=rprefix)
             self.mcas.append(mca)
-            attrs.append("MCA%iROI:TSControl" % (imca))
-            attrs.append("MCA%iROI:TSNumPoints" % (imca))
-            attrs.append("C%iSCA:TSControl" % (imca))
-            attrs.append("C%iSCA:TSNumPoints" % (imca))
+            attrs.append("MCA%dROI:TSControl" % (imca))
+            attrs.append("MCA%dROI:TSNumPoints" % (imca))
+            attrs.append("C%dSCA:%s" % (imca, scaf.acq))
+            attrs.append("C%dSCA:%s" % (imca, scaf.npts))
         Device.__init__(self, prefix, attrs=attrs, delim='')
         for attr in self.det_attrs:
             self.add_pv("%sdet1:%s" % (prefix, attr), attr)
-        for i in range(nmcas):
-            imca = i+1
-            for j in range(8):
-                isca = j+1
-                attr = "C%iSCA%i"% (imca, isca)
-                self.add_pv("%s%s:Value_RBV" % (prefix, attr), attr)
+        for imca in range(1, nmcas+1):
+            for isca in range(1, 9):
+                attr = scaf.valform % (imca, isca)
+                self.add_pv("%s%s" % (prefix, attr), attr)
         poll(0.003, 0.25)
+
+
+    def set_timeseries(self, mode='stop', nframes=MAX_FRAMES):
+        scaf = get_scaformats(self._ad_version) # ('acq', 'npts', 'valform', 'tsform')
+
+        # ROI stats:  0=Erase/Start, 1=Start, 2=Stop
+        # SCA TS:     0=Done, 1=Acquire
+        roi_val, sca_val = 0, 1 # start!
+        if mode.lower().startswith('stop'):
+            roi_val, sca_val = 2, 0 # stop
+
+        for i in range(1, self.nmcas+1):
+            self.put('MCA%dROI:TSControl' % i, roi_val)
+            self.put('MCA%dROI:BlockingCallbacks' % i, 1)
+            self.put('MCA%dROI:TSNumPoints' % i, nframes)
+            self.put("C%dSCA:%s" % (i, scaf.acq), sca_val)
+            self.put("C%dSCA:%s" % (i, scaf.npts), nframes)
 
     def set_dwelltime(self, dwelltime):
         """set dwell time in seconds
@@ -110,17 +148,19 @@ class Xspress3Counter(DeviceCounter):
     """Counters for Xspress3-1-10"""
     sca_labels = ('Clock', 'ResetTicks', 'ResetCounts',
                   'AllEvent', 'AllGood', 'Window1', 'Window2',
-                  'Pileup', 'DTFactor')
-    scas2save = (0, 1, 2, 3, 4, 7)
-    scas2save = (0, 1, 3)
+                  'Pileup', 'Event Width', 'DTFactor', 'DT Percent')
     scas2save = (0,)
-    def __init__(self, prefix, outpvs=None, nmcas=4,
-                 nrois=32, rois=None, nscas=1, use_unlabeled=False,
-                 use_full=False, mode=None):
+
+    def __init__(self, prefix, outpvs=None, nmcas=4, nrois=32, rois=None,
+                 nscas=1, ad_version=2, use_unlabeled=False, use_full=False,
+                 mode=None):
 
         # ROI #8 for DTFactor is a recent addition,
         # here we get ready to test if it is connected.
-        self.sca8 = get_pv('%sC1SCA8:Value_RBV' % prefix)
+        self.ad_version = ad_version
+        self.sca8 = None
+        if self.ad_version == 2:
+            self.sca8 = get_pv("%s%s" % (prefix, (scaf.valform % 8)))
 
         self.mode = mode
         self.nmcas, self.nrois = int(nmcas), int(nrois)
@@ -161,24 +201,25 @@ class Xspress3Counter(DeviceCounter):
             else:
                 break
 
+        scaf = get_scaformats(self.ad_version) # ('acq', 'npts', 'valform', 'tsform')
         roi_format = '%sMCA%iROI:%i:Total_RBV'
-        sca_format = '%sC%iSCA%i:Value_RBV'
+        sca_format = '%s' + scaf.valform
         time.sleep(0.01)
 
-        scas2save = (0, 8)
-        has_sca8 = self.sca8.connected
-        # print("XSPRESS3 has SCA8 : ", self.sca8, has_sca8)
-        save_dtcorrect = False
-        if not has_sca8:
-            scas2save = (0, )
-            save_dtcorrect = True
+        scas2save = (0, )
+        save_dtcorrect = True
+        print("Xspress3 Counters" , self.mode == ROI_MODE, self.ad_version)
+
+        if self.ad_version == 2:
+            scas2save = (0, 8)
+            save_dtcorrect = False
 
         if self.mode == ROI_MODE:
             save_dtcorrect = False
             roi_format = '%sMCA%iROI:%i:TSTotal'
-            sca_format = '%sC%iSCA%i:TSArrayValue'
-            if not has_sca8:
-                scas2save = (0, 1, 3)
+            sca_format = '%s' + scaf.tsform
+            if self.ad_version == 3:
+                scas2save = (0, 9)  # 0=Clock, 9=DTFactor
 
         for roiname in self.rois:
             lname = roiname.lower()
@@ -189,18 +230,18 @@ class Xspress3Counter(DeviceCounter):
                     _label  = "%s mca%i" % (roiname, imca)
                     add_counter(_pvname, _label)
 
-        if save_dtcorrect:
-            for imca in range(1, self.nmcas+1):
-                _pvname = '%sC%i:DTFactor_RBV' % (prefix, imca)
-                _label = 'DTFactor mca%i' % (imca)
-                add_counter(_pvname, _label)
-
         if sca_format is not None:
             for isca in scas2save:
                 for imca in range(1, self.nmcas+1):
                     _pvname = sca_format % (prefix, imca, isca)
                     _label = '%s mca%i' % (self.sca_labels[isca], imca)
                     add_counter(_pvname, _label)
+
+        if save_dtcorrect:
+            for imca in range(1, self.nmcas+1):
+                _pvname = '%sC%i:DTFactor_RBV' % (prefix, imca)
+                _label = 'DTFactor mca%i' % (imca)
+                add_counter(_pvname, _label)
 
         if self.use_full:
             for imca in range(1, self.nmcas+1):
@@ -225,10 +266,15 @@ class Xspress3Detector(DetectorMixin):
         self.filesaver = filesaver
         self.trigger_suffix = 'det1:Acquire'
 
+        # get AD Version, as TimeSeries PV names changed between 2 and 3.
+        self.ad_version = get_adversion(prefix, cam='det1:')
+
+
         DetectorMixin.__init__(self, prefix, label=label)
         self._xsp3 = Xspress3(prefix, nmcas=nmcas,
                               fileroot=fileroot,
-                              filesaver=filesaver)
+                              filesaver=filesaver,
+                              ad_version=int(self.ad_version[0]))
         self.prefix = prefix
         self.dwelltime = None
         self.mode = mode
@@ -248,7 +294,8 @@ class Xspress3Detector(DetectorMixin):
 
         self._connect_args = dict(nmcas=nmcas, nrois=nrois, rois=rois,
                                   mode=mode, use_unlabeled=use_unlabeled,
-                                  use_full=use_full)
+                                  use_full=use_full,
+                                  ad_version=int(self.ad_version[0]))
         self.connect_counters()
 
     def __repr__(self):
@@ -322,6 +369,7 @@ class Xspress3Detector(DetectorMixin):
         if self._counter is None:
             self.connect_counters()
         dt.add('xspress3: connect counters')
+        self._counter.mode = mode
         self._counter._get_counters()
 
         self.counters = self._counter.counters
@@ -363,13 +411,7 @@ class Xspress3Detector(DetectorMixin):
             self._xsp3.put('NumImages', numframes)
         if dwelltime is not None:
             self.set_dwelltime(dwelltime)
-        for i in self._chans:
-            self._xsp3.put('C%iSCA:TSControl' % i, 2) # 'Stop'
-            self._xsp3.put('MCA%iROI:TSControl' % i, 2) # 'Stop'
-            self._xsp3.put('MCA%iROI:BlockingCallbacks' % i, 1)
-            self._xsp3.put('MCA%iROI:TSNumPoints' % i, MAX_FRAMES)
-            self._xsp3.put('C%iSCA:TSNumPoints' % i, MAX_FRAMES)
-
+        self._xsp3.set_timeseries('stop')
         self.mode = SCALER_MODE
 
     def ROIMode(self, dwelltime=None, numframes=None):
@@ -389,18 +431,12 @@ class Xspress3Detector(DetectorMixin):
         # print("Xspress3 ROI Mode ", dwelltime, numframes)
 
         self._xsp3.put('TriggerMode', 3) # External, TTL Veto
-        for i in self._chans:
-            self._xsp3.put('MCA%iROI:TSControl' % i, 2) # 'Stop'
-            self._xsp3.put('C%iSCA:TSControl' % i, 2) # 'Stop'
+
         if numframes is None:
             numframes = MAX_FRAMES
 
         self._xsp3.put('NumImages', numframes)
-        for i in self._chans:
-            self._xsp3.put('MCA%iROI:TSNumPoints' % i, numframes)
-            self._xsp3.put('C%iSCA:TSNumPoints' % i, numframes)
-            self._xsp3.put('MCA%iROI:BlockingCallbacks' % i, 1)
-
+        self._xsp3.set_timeseries('stop', numframes)
         if dwelltime is not None:
             self.set_dwelltime(dwelltime)
         self.mode = ROI_MODE
@@ -421,9 +457,7 @@ class Xspress3Detector(DetectorMixin):
         """
         # print("Xspress3 NDArrayMode ", dwelltime, numframes)
         self._xsp3.put('TriggerMode', 3)
-        for i in self._chans:
-            self._xsp3.put('MCA%iROI:TSControl' % i, 2) # 'Stop
-            self._xsp3.put('C%iSCA:TSControl' % i, 2) # 'Stop
+        self._xsp3.set_timeseries('stop')
 
         if numframes is not None:
             self._xsp3.put('NumImages', numframes)
@@ -475,9 +509,7 @@ class Xspress3Detector(DetectorMixin):
             self._xsp3.FileCaptureOff()
         elif self.mode == ROI_MODE:
             self._xsp3.FileCaptureOff()
-            for i in self._chans:
-                self._xsp3.put('MCA%iROI:TSControl' % i, 0) # 'Erase/Start'
-                self._xsp3.put('C%iSCA:TSControl' % i, 0)
+            self._xsp3.set_timeseries('start', numframes)
         if self._xsp3.DetectorState_RBV > 0:
             self._xsp3.put('Acquire', 0, wait=True)
         if wait:
