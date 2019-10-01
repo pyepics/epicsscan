@@ -208,7 +208,7 @@ class Xspress3Counter(DeviceCounter):
 
         scas2save = (0, )
         save_dtcorrect = True
-        print("Xspress3 Counters" , self.mode == ROI_MODE, self.ad_version)
+        # print("Xspress3 Counters" , self.mode == ROI_MODE, self.ad_version)
 
         if self.ad_version == 2:
             scas2save = (0, 8)
