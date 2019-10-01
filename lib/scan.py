@@ -306,7 +306,7 @@ class StepScan(object):
         # dtimer = debugtime()
         self.set_info('scan_progress', 'running pre_scan routines')
         for (desc, pv) in self.extra_pvs:
-            pv.connect()
+            pv.connect(timeout=0.1)
         # dtimer.add('pre_scan connect to extra pvs')
         if filename is None:
             filename = self.filename
