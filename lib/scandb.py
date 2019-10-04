@@ -602,7 +602,8 @@ class ScanDB(object):
         sdict['data_callback'] = data_callback
         sdict['extra_pvs'] = []
         for row  in self.getall('extrapvs', orderby='id'):
-            sdict['extra_pvs'].append((row.name, row.pvname))
+            if row.use:
+                sdict['extra_pvs'].append((row.name, row.pvname))
         return create_scan(**sdict)
 
     # macros
