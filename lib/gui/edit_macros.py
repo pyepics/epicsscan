@@ -168,12 +168,12 @@ class PosScanMacroBuilder(wx.Frame):
         if self.instdb is None:
             return
         scanname = self.scanname.GetStringSelection()
-        command = "pos_scan('%s', '%s', number=%s)"
+        command = "pos_scan(%s, %s, number=%s)"
         buff = ["#start auto-generated macro"]
         for pname in self.pos_names:
             if self.wid_include[pname].IsChecked():
                 nscans = self.wid_nscans[pname].GetStringSelection()
-                buff.append( command % (pname, scanname, nscans))
+                buff.append( command % (repr(pname), repr(scanname), nscans))
         buff.append("#end auto-generated macro")
         buff.append("")
         self.parent.editor.AppendText("\n".join(buff))
