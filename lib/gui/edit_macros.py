@@ -67,7 +67,11 @@ class PosScanMacroBuilder(wx.Frame):
 
     def build_dialog(self):
         # positions  = self.instdb.get_positionlist('IDE_SampleStage')
-        positions  = self.instdb.get_positionlist('SampleStage')
+        instname = self.scandb.get_info('samplestage_instrument')
+        if instname is None:
+            instname = 'SampleStage'
+        positions  = self.instdb.get_positionlist(instname)
+
         panel = scrolled.ScrolledPanel(self)
         self.checkboxes = OrderedDict()
         sizer = wx.GridBagSizer(len(positions)+5, 4)
@@ -193,7 +197,10 @@ class PosXRDMacroBuilder(wx.Frame):
 
     def build_dialog(self):
         # positions  = self.instdb.get_positionlist('IDE_SampleStage')
-        positions  = self.instdb.get_positionlist('SampleStage')
+        instname = self.scandb.get_info('samplestage_instrument')
+        if instname is None:
+            instname = 'SampleStage'
+        positions  = self.instdb.get_positionlist(instname)
         panel = scrolled.ScrolledPanel(self)
         self.checkboxes = OrderedDict()
         sizer = wx.GridBagSizer(len(positions)+5, 4)
