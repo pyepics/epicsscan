@@ -608,17 +608,16 @@ class Slew_Scan(StepScan):
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
                 time.sleep(0.25)
 
-                # if debug:
-                #     sys.exit()
-                # repeated_rows.append(irow)
-                # self.scandb.set_info('repeated_map_rows', repr(repeated_rows))
-                # for det in self.detectors:
-                #    det.stop()
-                #time.sleep(0.25)
-
+            # check again for pause, resume, and abort
+            self.look_for_interrupts()
+            while self.pause:
+                time.sleep(0.25)
+                if self.look_for_interrupts():
+                    break
             if self.look_for_interrupts():
                 if mappref is not None:
                     caput('%sstatus' % (mappref), 'Aborting')
+                break
             if debug:
                 dtimer.show()
             time.sleep(0.025)
