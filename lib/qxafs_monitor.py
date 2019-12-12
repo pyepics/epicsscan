@@ -10,6 +10,7 @@ import os
 import time
 import json
 import sys
+from threading import Thread
 import numpy as np
 from epics import caget, caput, PV, get_pv
 from epics.ca import CASeverityException
@@ -124,10 +125,20 @@ class QXAFS_ScanWatcher(object):
                 break
             npts = int(self.scandb.get_info(key='scan_total_points', default=0))
             if self.scandb.get_info(key='request_abort', as_bool=True):
-                self.write("QXAFS scan aborted")
-                self.xps.abort_group()
-                time.sleep(1.0)
+                self.write("QXAFS abort requested during scan")
+                time.sleep(0.25)
+                abort_thread = Thread(target=self.xps.abort_group,
+                                      name='abort_thread')
+                abort_thread.start()
+                time.sleep(2.0)
+                self.write("QXAFS abort begun. finishing scan: %s" % (time.ctime()))
                 self.qxafs_finish()
+                self.write("QXAFS scan finished, joining abort thread: %s" % (time.ctime()))
+                for ixx in range(10):
+                    if abort_thread.isAlive():
+                        self.write('QXAFS waiting for abort: %d %s' % (ixx, time.ctime()))
+                        abort_thread.join(0.5)
+                self.write("QXAFS abort thread joined. isAlive=",  abort_thread.isAlive())
                 break
 
             time.sleep(0.05)
@@ -253,6 +264,7 @@ class QXAFS_ScanWatcher(object):
                 self.monitor_qxafs()
             else:
                 if self.scandb.get_info(key='request_abort', as_bool=True):
+                    self.write("QXAFS abort requested while not scanning")
                     self.xps.abort_group()
                     time.sleep(1.0)
             time.sleep(1.0)
