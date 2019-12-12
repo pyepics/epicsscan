@@ -250,7 +250,7 @@ class AD_Eiger(AreaDetector):
         self.cam.put('ArrayCallbacks', 'Enable')
         self.cam.put('StreamEnable', 'Yes')
         self.cam.put('ShutterMode', 'None')
-        if self.mode == ROI_MODE:
+        if self.mode in (ROI_MODE, SCALER_MODE):
             old_counters = [c for c in self.counters]
             self.counters = []
             self.ad.setFileTemplate("%s%s.h5")
@@ -260,7 +260,8 @@ class AD_Eiger(AreaDetector):
                 if caget(pref + 'Use') == 1:
                     label = caget(pref + 'Name', as_string=True).strip()
                     if len(label) > 0:
-                        pvname = pref + 'TSTotal'
+                        pvsuff = 'TSTotal' if self.mode == ROI_MODE else 'Total_RBV.VAL'
+                        pvname = pref + pvsuff
                         self.counters.append(Counter(pvname, label=label))
             self.counters.extend(old_counters)
         time.sleep(0.25)
