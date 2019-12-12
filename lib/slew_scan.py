@@ -425,7 +425,9 @@ class Slew_Scan(StepScan):
                 now = time.time()
                 prescan_lasttime = float(self.scandb.get_info('map_prescan_lasttime'))
                 prescan_interval = float(self.scandb.get_info('map_prescan_interval'))
-                if now > prescan_lasttime + prescan_interval:
+                run_prescan = ((now > prescan_lasttime + prescan_interval) or
+                               ( ((irow % 250) == 0) and (irow < 0.9*npts)) )
+                if run_prescan:
                     try:
                         self.larch.run("pre_scan_command(row=%i, npts=%i)" % (irow, npts))
                     except:
