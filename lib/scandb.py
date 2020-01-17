@@ -30,11 +30,11 @@ import epics
 
 from .scandb_schema import get_dbengine, create_scandb, map_scandb
 from .scandb_schema import (Info, Status, PV, MonitorValues, ExtraPVs,
-                           Macros, Commands, ScanData, ScanPositioners,
-                           ScanCounters, ScanDetectors, ScanDefs,
-                           SlewScanPositioners, Position, Position_PV,
-                           Instrument, Instrument_PV,
-                           Instrument_Precommands, Instrument_Postcommands)
+                            Macros, Commands, ScanData, ScanPositioners,
+                            ScanCounters, ScanDetectors, ScanDefs,
+                            SlewScanPositioners, Position, Position_PV,
+                            Instrument, Instrument_PV, Common_Commands,
+                            Instrument_Precommands, Instrument_Postcommands)
 
 
 from .utils import (normalize_pvname, asciikeys, pv_fullname,
@@ -111,7 +111,7 @@ def save_sqlite(filename, dbname=None, server='postgresql', **kws):
     tablenames = ('info', 'config', 'slewscanpositioners', 'scanpositioners',
                   'scancounters', 'scandetectors', 'scandefs', 'extrapvs',
                   'macros', 'pv', 'instrument', 'position', 'instrument_pv',
-                  'position_pv', 'commands')
+                  'position_pv', 'commands', 'common_commands')
 
     rows, cols = {}, {}
     n = 0
@@ -846,6 +846,12 @@ class ScanDB(object):
         self.add_pv(pvname, notes=name)
         return row
 
+    def get_common_commands(self, show_hidden=False):
+        out = self.getall('common_commands', orderby='display_order')
+        if not show_hidden:
+            out = [row for row in out if row.show==1]
+        return out
+    
     # add PV to list of PVs
     def add_pv(self, name, notes='', monitor=False):
         """add pv to PV table if not already there """

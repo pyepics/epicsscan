@@ -205,6 +205,10 @@ class Instrument(_BaseTable):
     "instrument table"
     name, notes = None, None
 
+class Common_Commands(_BaseTable):
+    "common table"
+    name, notes, args, display_order, show = None, None, None, None, None
+
 class Position(_BaseTable):
     "position table"
     pv, date, name, notes, image = None, None, None, None, None
@@ -266,6 +270,11 @@ def create_scandb(dbname, server='sqlite', create=True, **kws):
                  StrCol('text'),
                  Column('modify_time', DateTime, default=datetime.now))
 
+    common_commands = NamedTable('common_commands', metadata,
+                                 cols=[StrCol('args'),
+                                       IntCol('show', default=1),
+                                       IntCol('display_order', default=1)])
+    
     config = NamedTable('config', metadata)
     status = NamedTable('status', metadata)
     slewpos    = NamedTable('slewscanpositioners', metadata, with_use=True,
@@ -415,7 +424,7 @@ def map_scandb(metadata):
     for cls in (Info, Messages, Config, Status, PV, PVType, MonitorValues,
                 Macros, ExtraPVs, Commands, ScanData, ScanPositioners,
                 ScanCounters, ScanDetectors, ScanDetectorConfig, ScanDefs,
-                SlewScanPositioners, SlewScanStatus,
+                SlewScanPositioners, SlewScanStatus, Common_Commands,
                 Position, Position_PV, Instrument, Instrument_PV,
                 Instrument_Precommands, Instrument_Postcommands):
 
