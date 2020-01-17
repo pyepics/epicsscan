@@ -77,6 +77,7 @@ from .edit_extrapvs    import ExtraPVsFrame
 from .edit_scandefs    import ScandefsFrame
 from .edit_sequences   import SequencesFrame
 from .edit_macros      import MacroFrame
+from .common_commands  import CommonCommandsFrame
 
 ICON_FILE = 'epics_scan.ico'
 ALL_CEN =  wx.ALL|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL
@@ -217,9 +218,12 @@ class ScanFrame(wx.Frame):
         creators = {'slew': SlewScanPanel,
                     'xafs': XAFSScanPanel,
                     'linear': LinearScanPanel}
+
         self.notebooks = (('slew', 'Map Scans'),
                           ('xafs', 'XAFS Scans'),
-                          ('linear', 'Linear Scans'))
+                          ('linear', 'Linear Scans'),
+                          # ('commands', 'Common Commands')
+        )
 
         for stype, title in self.notebooks:
             span = creators[stype](self, scandb=self.scandb,
@@ -436,7 +440,9 @@ class ScanFrame(wx.Frame):
         menu_dat['Scans'] = (("Scan Definitions\tCtrl+D",
                               "Browsn and Manage Saved Scans", self.onEditScans),
                              ("Show Sequences and Scan Queue",
-                               "Show Scans Queue",  self.onEditSequences))
+                               "Show Scans Queue",  self.onEditSequences),
+                             ("Show Common Commands",
+                               "Show Common Commands",  self.onCommonCommands))
 
 
         menu_dat['Positioners'] = (("Configure",
@@ -518,6 +524,9 @@ class ScanFrame(wx.Frame):
     def onEditSequences(self, evt=None):
         self.show_subframe('sequences', SequencesFrame)
 
+    def onCommonCommands(self, evt=None):
+        self.show_subframe('commands', CommonCommandsFrame)        
+        
     def onEditMacro(self, evt=None):
         self.show_subframe('macro', MacroFrame)
 

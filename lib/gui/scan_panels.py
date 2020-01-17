@@ -59,7 +59,7 @@ class GenericScanPanel(scrolled.ScrolledPanel):
                                         name=self.__name__)
         self.Font13 = wx.Font(13, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
         self.Font12 = wx.Font(12, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
-        self.sizer = wx.GridBagSizer(8, 8)
+        self.sizer = wx.GridBagSizer(5, 5)
         self.scantime = -1.0
         self.get_positioners()
         self._initialized = False # used to shunt events while creating windows
