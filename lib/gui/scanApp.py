@@ -77,7 +77,6 @@ from .edit_extrapvs    import ExtraPVsFrame
 from .edit_scandefs    import ScandefsFrame
 from .edit_sequences   import SequencesFrame
 from .edit_macros      import MacroFrame
-from .common_commands  import CommonCommandsFrame
 
 ICON_FILE = 'epics_scan.ico'
 ALL_CEN =  wx.ALL|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL
@@ -155,7 +154,7 @@ class ScanFrame(wx.Frame):
 
         self.scandb = ScanDB()
 
-        print(' Connected ScanDB  ', self.scandb.engine)
+        print('Connected ScanDB  ', self.scandb.engine)
 
         self.Bind(wx.EVT_CLOSE, self.onClose)
 
@@ -440,9 +439,10 @@ class ScanFrame(wx.Frame):
         menu_dat['Scans'] = (("Scan Definitions\tCtrl+D",
                               "Browsn and Manage Saved Scans", self.onEditScans),
                              ("Show Sequences and Scan Queue",
-                               "Show Scans Queue",  self.onEditSequences),
-                             ("Show Common Commands",
-                               "Show Common Commands",  self.onCommonCommands))
+                               "Show Scans Queue",  self.onEditSequences))
+
+###   ("Show Common Commands",
+###    "Show Common Commands",  self.onCommonCommands))
 
 
         menu_dat['Positioners'] = (("Configure",
@@ -524,9 +524,6 @@ class ScanFrame(wx.Frame):
     def onEditSequences(self, evt=None):
         self.show_subframe('sequences', SequencesFrame)
 
-    def onCommonCommands(self, evt=None):
-        self.show_subframe('commands', CommonCommandsFrame)        
-        
     def onEditMacro(self, evt=None):
         self.show_subframe('macro', MacroFrame)
 

@@ -16,6 +16,8 @@ from .gui_utils import (GUIColors, set_font_with_children, YesNo,
                         FileOpen, FileSave, popup, FloatCtrl,
                         FRAMESTYLE, Font)
 
+from .common_commands  import CommonCommandsFrame
+
 from ..scandb import InstrumentDB
 
 import larch
@@ -467,11 +469,12 @@ class MacroFrame(wx.Frame) :
 
         # options
         pmenu = wx.Menu()
-        add_menu(self, pmenu, "Position Scans\tCtrl+P",
+        add_menu(self, pmenu, "Common Commands",
+                 "Common Commands", self.onCommonCommands)
+        add_menu(self, pmenu, "Position Scans",
                  "Position Scans", self.onBuildPosScan)
-        add_menu(self, pmenu, "XRD at Position\tCtrl+P",
+        add_menu(self, pmenu, "XRD at Position",
                  "XRD at Position", self.onBuildPosXRD)
-
 
         self.menubar.Append(fmenu, "&File")
         self.menubar.Append(pmenu, "Insert Commands")
@@ -536,6 +539,9 @@ class MacroFrame(wx.Frame) :
 
     def onBuildPosXRD(self, event=None):
         self.show_subframe('buildxrdsmacro', PosXRDMacroBuilder)
+
+    def onCommonCommands(self, evt=None):
+        self.show_subframe('commands', CommonCommandsFrame)        
 
     def onReadMacro(self, event=None):
         wcard = 'Scan files (*.lar)|*.lar|All files (*.*)|*.*'
