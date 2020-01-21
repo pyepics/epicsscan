@@ -59,7 +59,6 @@ class LarchScanDBServer(object):
         self.loaded_modules = {}
 
         self.larch = self.symtab = None
-        print("Larch Scan DB Server ", scandb, HAS_LARCH)
         if HAS_LARCH:
             from larch.epics.larchscan import connect_scandb
             self.larch  = larch.Interpreter(writer=self.writer)
