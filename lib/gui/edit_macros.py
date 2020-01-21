@@ -16,7 +16,7 @@ from .gui_utils import (GUIColors, set_font_with_children, YesNo,
                         FileOpen, FileSave, popup, FloatCtrl,
                         FRAMESTYLE, Font)
 
-from .common_commands  import CommonCommandsFrame
+from .common_commands  import CommonCommandsFrame, CommonCommandsAdminFrame
 
 from ..scandb import InstrumentDB
 
@@ -475,6 +475,9 @@ class MacroFrame(wx.Frame) :
                  "Position Scans", self.onBuildPosScan)
         add_menu(self, pmenu, "XRD at Position",
                  "XRD at Position", self.onBuildPosXRD)
+        pmenu.AppendSeparator()
+        add_menu(self, pmenu, "Admin Common Commands",
+                 "Admin Common Commands", self.onCommonCommandsAdmin)
 
         self.menubar.Append(fmenu, "&File")
         self.menubar.Append(pmenu, "Insert Commands")
@@ -542,6 +545,9 @@ class MacroFrame(wx.Frame) :
 
     def onCommonCommands(self, evt=None):
         self.show_subframe('commands', CommonCommandsFrame)        
+
+    def onCommonCommandsAdmin(self, evt=None):
+        self.show_subframe('commands_admin', CommonCommandsAdminFrame)        
 
     def onReadMacro(self, event=None):
         wcard = 'Scan files (*.lar)|*.lar|All files (*.*)|*.*'

@@ -13,7 +13,7 @@ import epics
 from epics.wx import EpicsFunction, PVText, PVStaticText
 
 from .gui_utils import (SimpleText, FloatCtrl, Closure, HyperText,
-                        pack, add_choice, hms, check)
+                        pack, add_choice, add_button,  check)
 
 from ..utils import normalize_pvname, atGSECARS
 
@@ -39,11 +39,91 @@ ELEM_LIST = ('H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na',
              'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf')
 
 
+class CommonCommandsAdminFrame(wx.Frame):
+    """Manage Display of Common Commands from the Common_Commands Table
+    """
+    def __init__(self, parent, scandb, pos=(-1, -1), size=(700, 625), _larch=None):
+        self.parent = parent
+        self.scandb = scandb
+
+        labstyle  = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
+        font11 = wx.Font(11, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
+        font12 = wx.Font(12, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
+
+        wx.Frame.__init__(self, None, -1,
+                          'Epics Scanning: Common Commands Admin Page',  size=size)
+
+        panel = scrolled.ScrolledPanel(self, size=size)
+        panel.SetMinSize(size)
+        self.SetFont(font11)
+
+        sizer = wx.GridBagSizer(2, 2)
+        
+        sizer.Add(SimpleText(panel, 'Command Name', size=(200, -1),
+                             style=labstyle, font=font12),
+                  (0, 0), (1, 1), labstyle)
+        sizer.Add(SimpleText(panel, 'Display?', size=(125, -1),
+                             style=labstyle, font=font12),
+                  (0, 1), (1, 1), labstyle)
+        sizer.Add(SimpleText(panel, 'Order ', size=(125, -1),
+                             style=labstyle, font=font12),
+                  (0, 2), (1, 1), labstyle)
+        sizer.Add(SimpleText(panel, 'Edit Hint and Arguments', size=(250, -1),
+                             style=labstyle, font=font12),
+                  (0, 3), (1, 1), labstyle)
+
+        sizer.Add(wx.StaticLine(panel, size=(625, 3),
+                                style=wx.LI_HORIZONTAL|wx.GROW), (1, 0), (1, 5))
+        
+        irow = 2
+        self.wids  = {}
+        self.commands = self.scandb.get_common_commands()
+        for icmd, cmd in enumerate(self.commands):
+            print(icmd, cmd)
+            text = SimpleText(panel, cmd.name, size=(195, -1), style=labstyle)
+            text.SetFont(font11)
+            text.SetToolTip(cmd.notes)
+
+            display = check(panel, default=(cmd.show==1), label='', size=(100, -1))
+            zorder = FloatCtrl(panel, value=cmd.display_order, minval=0,
+                               maxval=1000000, precision=1, size=(100, -1))
+            editbtn = add_button(panel, "Edit", size=(120, -1),
+                                 action=partial(self.onEditCommand, cmd=cmd.name))
+            
+            self.wids[cmd.name] = (display, zorder, editbtn)
+            
+            sizer.Add(text,    (irow, 0), (1, 1), labstyle, 2)
+            sizer.Add(display, (irow, 1), (1, 1), labstyle, 2)
+            sizer.Add(zorder,  (irow, 2), (1, 1), labstyle, 2)
+            sizer.Add(editbtn, (irow, 3), (1, 1), labstyle, 2)
+            irow += 1
+
+        sizer.Add(wx.StaticLine(panel, size=(625, 3),
+                                style=wx.LI_HORIZONTAL|wx.GROW), (irow, 0), (1, 5))
+        irow += 1
+        sizer.Add(add_button(panel, "OK", size=(120, -1),  action=self.onOK),
+                  (irow, 0), (1, 2))
+
+        pack(panel, sizer)
+        panel.SetupScrolling()
+
+        mainsizer = wx.BoxSizer(wx.VERTICAL)
+        mainsizer.Add(panel, 1, wx.GROW|wx.ALL, 1)
+        pack(self, mainsizer)
+        self.Show()
+        self.Raise()
+
+    def onOK(self, event=None):
+        print("admin commands OK")
+
+    def onEditCommand(self, event=None, cmd=None):
+        print("edit command ", cmd, self.wids[cmd])
+
 class CommonCommandsFrame(wx.Frame):
     """Edit/Manage/Execute Common Commands from the
     Common_Commands Table
     """
-    def __init__(self, parent, scandb, pos=(-1, -1), size=(650, 475), _larch=None):
+    def __init__(self, parent, scandb, pos=(-1, -1), size=(700, 625), _larch=None):
         self.parent = parent
         self.scandb = scandb
 
@@ -54,35 +134,35 @@ class CommonCommandsFrame(wx.Frame):
         wx.Frame.__init__(self, None, -1,
                           'Epics Scanning: Common Commands',  size=size)
 
-        panel = scrolled.ScrolledPanel(self, size=(650, 475))
-        panel.SetMinSize((650, 475))
+        panel = scrolled.ScrolledPanel(self, size=size)
+        panel.SetMinSize(size)
         self.SetFont(font11)
 
-        sizer = wx.GridBagSizer(3, 3)
+        sizer = wx.GridBagSizer(2, 2)
         
-        for icol, title in enumerate(('Command Name', 'Argument 1',
-                                      'Argument 2')):
-            sizer.Add(SimpleText(panel, title, size=(175, -1), style=labstyle,
-                                 font=font12), (0, icol), (1, 1), labstyle)
+        sizer.Add(SimpleText(panel, 'Command Name', size=(200, -1),
+                             style=labstyle, font=font12),
+                  (0, 0), (1, 1), labstyle)
+        sizer.Add(SimpleText(panel, 'Arguments', size=(200, -1),
+                             style=labstyle, font=font12),
+                  (0, 1), (1, 3), labstyle)
+
         sizer.Add(wx.StaticLine(panel, size=(625, 3),
                                 style=wx.LI_HORIZONTAL|wx.GROW), (1, 0), (1, 5))
         
         irow = 2
-        self.wids  = []
+        self.wids  = {}
         self.commands = self.scandb.get_common_commands()
         for icmd, cmd in enumerate(self.commands):
-            dobtn = wx.Button(panel, label=cmd.name, size=(175, -1),
-                              style=labstyle)
-            dobtn.SetFont(font11)
-            dobtn.SetToolTip(cmd.notes)
-            dobtn.Bind(wx.EVT_BUTTON, partial(self.onButton, index=icmd))
-            # name = SimpleText(panel, cmd.name, size=(175, -1), style=labstyle)
-
-            sizer.Add(dobtn, (irow, 0), (1, 1), labstyle, 2)
-            args = cmd.args.split('|') + ['', '']
+            hlink = HyperText(panel, cmd.name, size=(195, -1),
+                              style=labstyle, action=self.onCommand)
+            hlink.SetFont(font11)
+            hlink.SetToolTip(cmd.notes)
+            sizer.Add(hlink, (irow, 0), (1, 1), labstyle, 2)
+            args = cmd.args.split('|') + ['']*10
             _wids = []
-            opts = dict(size=(175, -1))
-            for i in range(2):
+            opts = dict(size=(125, -1))
+            for i in range(4):
                 arg = args[i].strip()
                 if arg == '':
                     arg = SimpleText(panel, '', **opts)
@@ -98,7 +178,7 @@ class CommonCommandsFrame(wx.Frame):
                     arg = add_choice(panel, ELEM_LIST, default=25, **opts)
                 sizer.Add(arg,  (irow, i+1), (1, 1), labstyle, 2)
                 _wids.append(arg)
-            self.wids.append(_wids)
+            self.wids[cmd.name] = _wids
             irow += 1
 
         sizer.Add(wx.StaticLine(panel, size=(625, 3),
@@ -112,10 +192,11 @@ class CommonCommandsFrame(wx.Frame):
         self.Show()
         self.Raise()
 
-    def onButton(self, evt=None, index=-1):
-        cmd = self.commands[index].name
+    def onCommand(self, event=None, label=None):
+        if label is None:
+            return
         args = []
-        for wid in self.wids[index]:
+        for wid in self.wids[label]:
             val = None
             if hasattr(wid, 'GetValue'):
                 val = str(wid.GetValue())
@@ -127,5 +208,5 @@ class CommonCommandsFrame(wx.Frame):
                 except:
                     val = "'%s'" % val
                 args.append(val)
-        cmd = "%s(%s)\n" % (cmd, ', '.join(args))
+        cmd = "%s(%s)\n" % (label, ', '.join(args))
         self.parent.editor.AppendText(cmd)
