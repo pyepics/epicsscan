@@ -43,55 +43,45 @@ class CommonCommandsFrame(wx.Frame):
     """Edit/Manage/Execute Common Commands from the
     Common_Commands Table
     """
-    colLabels = (('Request ',     75, 'button'),
-                 ('Command',     150, None),
-                 ('Argument 1',  125, None), 
-                 ('Argument 2',  125, None),
-                 ('Description', 275, None))
-    
-    def __init__(self, parent, pos=(-1, -1), size=(650, 475), _larch=None):
+    def __init__(self, parent, scandb, pos=(-1, -1), size=(650, 475), _larch=None):
         self.parent = parent
-        style    = wx.DEFAULT_FRAME_STYLE|wx.TAB_TRAVERSAL
-        labstyle  = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
-        rlabstyle = wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
-        tstyle    = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL
+        self.scandb = scandb
 
+        labstyle  = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
         font11 = wx.Font(11, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
-        titlefont = wx.Font(12, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
+        font12 = wx.Font(12, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
 
         wx.Frame.__init__(self, None, -1,
                           'Epics Scanning: Common Commands',  size=size)
 
-        panel = scrolled.ScrolledPanel(self, size=(650, 400))
-        panel.SetMinSize((650, 450))
+        panel = scrolled.ScrolledPanel(self, size=(650, 475))
+        panel.SetMinSize((650, 475))
         self.SetFont(font11)
 
         sizer = wx.GridBagSizer(3, 3)
         
-        for icol, title, width in ((0, 'Add', 75),
-                                   (1, 'Command Name', 200),
-                                   (2, 'Argument 1', 175), 
-                                   (3, 'Argument 2', 175)):
-            sizer.Add(SimpleText(panel, title, size=(width, -1), style=labstyle,
-                                 font=titlefont), (0, icol), (1, 1), labstyle)
-        sizer.Add(wx.StaticLine(panel, size=(650, 3),
+        for icol, title in enumerate(('Command Name', 'Argument 1',
+                                      'Argument 2')):
+            sizer.Add(SimpleText(panel, title, size=(175, -1), style=labstyle,
+                                 font=font12), (0, icol), (1, 1), labstyle)
+        sizer.Add(wx.StaticLine(panel, size=(625, 3),
                                 style=wx.LI_HORIZONTAL|wx.GROW), (1, 0), (1, 5))
         
         irow = 2
         self.wids  = []
         self.commands = self.scandb.get_common_commands()
         for icmd, cmd in enumerate(self.commands):
-            dobtn = wx.Button(panel, label='Add', size=(75, -1))
+            dobtn = wx.Button(panel, label=cmd.name, size=(175, -1),
+                              style=labstyle)
+            dobtn.SetFont(font11)
+            dobtn.SetToolTip(cmd.notes)
             dobtn.Bind(wx.EVT_BUTTON, partial(self.onButton, index=icmd))
-            name = SimpleText(panel, cmd.name, size=(175, -1), style=labstyle)
-            name.SetToolTip(cmd.notes)
+            # name = SimpleText(panel, cmd.name, size=(175, -1), style=labstyle)
 
             sizer.Add(dobtn, (irow, 0), (1, 1), labstyle, 2)
-            sizer.Add(name,  (irow, 1), (1, 1), labstyle, 2)
-            
             args = cmd.args.split('|') + ['', '']
             _wids = []
-            opts = dict(size=(150, -1))
+            opts = dict(size=(175, -1))
             for i in range(2):
                 arg = args[i].strip()
                 if arg == '':
@@ -106,23 +96,19 @@ class CommonCommandsFrame(wx.Frame):
                     arg = add_choice(panel, EDGE_LIST, default=0, **opts)
                 elif arg.startswith('atsym'):
                     arg = add_choice(panel, ELEM_LIST, default=25, **opts)
-                sizer.Add(arg,  (irow, 2+i), (1, 1), labstyle, 2)
+                sizer.Add(arg,  (irow, i+1), (1, 1), labstyle, 2)
                 _wids.append(arg)
             self.wids.append(_wids)
             irow += 1
 
-        sizer.Add(wx.StaticLine(panel, size=(650, 3),
+        sizer.Add(wx.StaticLine(panel, size=(625, 3),
                                 style=wx.LI_HORIZONTAL|wx.GROW), (irow, 0), (1, 5))
-            
-        
         pack(panel, sizer)
-
         panel.SetupScrolling()
 
         mainsizer = wx.BoxSizer(wx.VERTICAL)
         mainsizer.Add(panel, 1, wx.GROW|wx.ALL, 1)
         pack(self, mainsizer)
-
         self.Show()
         self.Raise()
 
@@ -141,7 +127,5 @@ class CommonCommandsFrame(wx.Frame):
                 except:
                     val = "'%s'" % val
                 args.append(val)
-        cmd = "%s(%s)" % (cmd, ', '.join(args))
-        print("Add Command: ", cmd)
-        # self.parent.scandb.add_command(cmd)
-        
+        cmd = "%s(%s)\n" % (cmd, ', '.join(args))
+        self.parent.editor.AppendText(cmd)
