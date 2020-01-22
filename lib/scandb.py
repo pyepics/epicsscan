@@ -191,6 +191,10 @@ class ScanDB(object):
 
         if fileroot is None:
             fileroot = self.get_info('server_fileroot')
+            if os.name == 'nt':
+                fileroot = self.get_info('windows_fileroot')
+                if not fileroot.endswith('/'):
+                    fileroot += '/'                
             fileroot = fileroot.replace('\\', '/').replace('//', '/')
         if workdir.startswith(fileroot):
             workdir = workdir[len(fileroot):]

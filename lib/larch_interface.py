@@ -54,6 +54,11 @@ class LarchScanDBServer(object):
     def __init__(self, scandb):
         self.scandb = scandb
         self.fileroot = self.scandb.get_info('server_fileroot')
+        if os.name == 'nt':
+            self.fileroot = self.scandb.get_info('windows_fileroot')
+            if not self.fileroot.endswith('/'):
+                self.fileroot += '/'                
+            
         self.writer = LarchScanDBWriter(scandb=scandb)
         self.macro_dir = self.scandb.get_info('macro_folder')
         self.loaded_modules = {}
@@ -105,7 +110,6 @@ class LarchScanDBServer(object):
         """read latest larch macros / modules"""
         if not HAS_LARCH:
             return
-
         if macro_dir is None:
             macro_dir = self.macro_dir
 
@@ -116,6 +120,7 @@ class LarchScanDBServer(object):
         if not os.path.exists(moduledir):
             self.scandb.set_info('scan_message',
                                  "Cannot locate modules in '%s'" % moduledir)
+            print("no macros imported ", moduledir)
             return
 
         try:
@@ -188,7 +193,6 @@ class LarchScanDBServer(object):
         for mod in self.loaded_modules:
             if hasattr(symtab, mod):
                 modlist.append(getattr(symtab, mod))
-
         for group in modlist:
             for name in dir(group):
                 obj = getattr(group, name)
@@ -200,6 +204,6 @@ class LarchScanDBServer(object):
                     if callable(sig):
                         sig = sig()
                     if 'PRIVATE' not in doc and sig is not None:
-                        macros[name] = sig, doc
-
+                        macros[name] = sig, doc, obj
+                        
         return macros
