@@ -135,8 +135,7 @@ class CommonCommandsAdminFrame(wx.Frame):
         if macobj is None:
             return
         path, lineno = os.path.normpath(macobj.__file__), macobj.lineno
-        if os.name == 'nt':
-            subprocess.Popen([EDITOR, '%s%d'  % (LINESYN, lineno), path])                                   
+        subprocess.Popen([EDITOR, '%s%d'  % (LINESYN, lineno), path])                                   
                                    
         
     def onOK(self, event=None):
