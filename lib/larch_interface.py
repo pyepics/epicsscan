@@ -193,11 +193,13 @@ class LarchScanDBServer(object):
             for name in dir(group):
                 obj = getattr(group, name)
                 if callable(obj) and not name.startswith('_'):
-                    doc  = obj.__doc__
+                    doc = getattr(obj, '__doc__', None)
                     if doc is None:
                         doc = ''
-                        if hasattr(obj, '_signature'):
-                            doc = obj._signature()
-                    if 'PRIVATE' not in doc:
-                        macros[name] = doc
+                    sig = getattr(obj, '_signature', None)
+                    if callable(sig):
+                        sig = sig()
+                    if 'PRIVATE' not in doc and sig is not None:
+                        macros[name] = sig, doc
+
         return macros
