@@ -54,11 +54,6 @@ class LarchScanDBServer(object):
     def __init__(self, scandb):
         self.scandb = scandb
         self.fileroot = self.scandb.get_info('server_fileroot')
-        if os.name == 'nt':
-            self.fileroot = self.scandb.get_info('windows_fileroot')
-            if not self.fileroot.endswith('/'):
-                self.fileroot += '/'                
-            
         self.writer = LarchScanDBWriter(scandb=scandb)
         self.macro_dir = self.scandb.get_info('macro_folder')
         self.loaded_modules = {}
@@ -113,7 +108,13 @@ class LarchScanDBServer(object):
         if macro_dir is None:
             macro_dir = self.macro_dir
 
-        moduledir = os.path.join(self.fileroot, macro_dir, 'macros')
+        macro_root = self.fileroot
+        if os.name == 'nt':
+            macro_root = self.scandb.get_info('windows_fileroot')
+            if not macro_root.endswith('/'):
+                macro_root += '/'
+
+        moduledir = os.path.join(macro_root, macro_dir, 'macros')
         _sys = self.symtab._sys
         if moduledir not in _sys.path:
             _sys.path.insert(0, moduledir)
@@ -205,5 +206,5 @@ class LarchScanDBServer(object):
                         sig = sig()
                     if 'PRIVATE' not in doc and sig is not None:
                         macros[name] = sig, doc, obj
-                        
+
         return macros
