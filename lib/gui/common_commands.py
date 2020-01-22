@@ -2,15 +2,13 @@
 """
 Common Commands Panel
 """
+import os
 import time
-import json
-from functools import partial
+import subprocess
 import wx
 import wx.lib.scrolledpanel as scrolled
 
 import numpy as np
-import epics
-from epics.wx import EpicsFunction, PVText, PVStaticText
 
 from .gui_utils import (SimpleText, FloatCtrl, Closure, HyperText,
                         pack, add_choice, add_button,  check)
@@ -39,6 +37,7 @@ ELEM_LIST = ('H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na',
              'Bi', 'Po', 'At', 'Rn', 'Fr', 'Ra', 'Ac', 'Th', 'Pa', 'U',
              'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf')
 
+WINEDITOR = 'C:/Program Files/Notepad++/notepad++.exe'
 
 class CommonCommandsAdminFrame(wx.Frame):
     """Manage Display of Common Commands from the Common_Commands Table
@@ -46,6 +45,9 @@ class CommonCommandsAdminFrame(wx.Frame):
     def __init__(self, parent, scandb, pos=(-1, -1), size=(750, 725), _larch=None):
         self.parent = parent
         self.scandb = scandb
+        self._larch = parent.parent._larch
+        self._larch.load_macros()
+        self.macros = parent.parent._larch.get_macros()
 
         labstyle  = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
         font11 = wx.Font(11, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
@@ -80,10 +82,16 @@ class CommonCommandsAdminFrame(wx.Frame):
         self.cmds = {}
         for icmd, cmd in enumerate(self.scandb.get_common_commands()):
             self.cmds[cmd.name] = (cmd.show, cmd.display_order, cmd.args)
-            text = SimpleText(panel, cmd.name, size=(195, -1), style=labstyle)
+            text = HyperText(panel, cmd.name, size=(195, -1), style=labstyle,
+                             action=self.onCommand)
             text.SetFont(font11)
-            text.SetToolTip(cmd.notes)
 
+            macsig, macdoc, macobj = self.macros.get(cmd.name, (None, None, None))
+            if macobj is not None:
+                tip = " %s:\n%s line %d" % (macsig, macobj.__file__, macobj.lineno)
+                text.SetToolTip(tip)
+                
+            
             display = check(panel, default=(cmd.show==1), label='', size=(100, -1))
             zorder = FloatCtrl(panel, value=cmd.display_order, minval=0,
                                maxval=1000000, precision=0, size=(75, -1))
@@ -115,6 +123,20 @@ class CommonCommandsAdminFrame(wx.Frame):
         self.Show()
         self.Raise()
 
+    def onCommand(self, event=None, label=None):
+        if label is None:
+            return
+        macsig, macdoc, macobj = self.macros.get(label, (None, None, None))
+        if macobj is None:
+            return
+        path, lineno = os.path.normpath(macobj.__file__), macobj.lineno
+        if os.name == 'nt':
+            browser = os.path.join(os.getenv('WINDIR'), 'explorer.exe')
+            print("open -> ", path, '  ', lineno)
+            subprocess.Popen([WINEDITOR, '-n%d'  % lineno, path])
+                                   
+                                   
+        
     def onOK(self, event=None):
         for wname, wids in self.wids.items():
             show, order, args = [w.GetValue() for w in wids]
@@ -147,7 +169,6 @@ class CommonCommandsFrame(wx.Frame):
         self._larch = parent.parent._larch
         self._larch.load_macros()
         macros = parent.parent._larch.get_macros()
-
         labstyle  = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
         font11 = wx.Font(11, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
         font12 = wx.Font(12, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
@@ -179,7 +200,7 @@ class CommonCommandsFrame(wx.Frame):
         for icmd, cmd in enumerate(self.commands):
             if cmd.show == 0:
                 continue
-            macsig, macdoc = macros.get(cmd.name, (None, None))
+            macsig, macdoc, macobj = macros.get(cmd.name, (None, None, None))
             hlink = HyperText(panel, cmd.name, size=(195, -1),
                               style=labstyle, action=self.onCommand)
             hlink.SetFont(font11)
@@ -187,8 +208,7 @@ class CommonCommandsFrame(wx.Frame):
                 macdoc = cmd.notes
             if macsig is None:
                 macsig = "%s()" % cmd.name
-
-            tip = " %s : \n %s " % (macsig, macdoc)
+            tip = " %s:\n%s" % (macsig, macdoc)
             hlink.SetToolTip(tip)
             sizer.Add(hlink, (irow, 0), (1, 1), labstyle, 2)
             args = cmd.args.split('|') + ['']*10
