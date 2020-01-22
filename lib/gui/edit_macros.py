@@ -544,10 +544,10 @@ class MacroFrame(wx.Frame) :
         self.show_subframe('buildxrdsmacro', PosXRDMacroBuilder)
 
     def onCommonCommands(self, evt=None):
-        self.show_subframe('commands', CommonCommandsFrame)        
+        self.show_subframe('commands', CommonCommandsFrame)
 
     def onCommonCommandsAdmin(self, evt=None):
-        self.show_subframe('commands_admin', CommonCommandsAdminFrame)        
+        self.show_subframe('commands_admin', CommonCommandsAdminFrame)
 
     def onReadMacro(self, event=None):
         wcard = 'Scan files (*.lar)|*.lar|All files (*.*)|*.*'
