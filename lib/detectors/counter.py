@@ -5,7 +5,7 @@ import numpy as np
 from collections import OrderedDict
 from epics import get_pv, caget
 
-from epicsscan.saveable import Saveable
+from ..saveable import Saveable
 
 class Counter(Saveable):
     """simple scan counter object

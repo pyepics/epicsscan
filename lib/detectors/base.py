@@ -1,7 +1,7 @@
 """
 basic Detector classes, including DetectorMixin and SimpleDetector
 """
-from epicsscan.saveable import Saveable
+from ..saveable import Saveable
 from .trigger import Trigger
 from .counter import Counter, MotorCounter
 
