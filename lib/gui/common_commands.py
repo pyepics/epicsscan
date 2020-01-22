@@ -37,7 +37,12 @@ ELEM_LIST = ('H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na',
              'Bi', 'Po', 'At', 'Rn', 'Fr', 'Ra', 'Ac', 'Th', 'Pa', 'U',
              'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf')
 
-WINEDITOR = 'C:/Program Files/Notepad++/notepad++.exe'
+if os.name == 'nt':
+    EDITOR = 'C:/Program Files/Notepad++/notepad++.exe'
+    LINESYN = '-n'
+else:
+    EDITOR = os.getenv('EDITOR', 'nano')
+    LINESYN = '+'
 
 class CommonCommandsAdminFrame(wx.Frame):
     """Manage Display of Common Commands from the Common_Commands Table
@@ -131,10 +136,7 @@ class CommonCommandsAdminFrame(wx.Frame):
             return
         path, lineno = os.path.normpath(macobj.__file__), macobj.lineno
         if os.name == 'nt':
-            browser = os.path.join(os.getenv('WINDIR'), 'explorer.exe')
-            print("open -> ", path, '  ', lineno)
-            subprocess.Popen([WINEDITOR, '-n%d'  % lineno, path])
-                                   
+            subprocess.Popen([EDITOR, '%s%d'  % (LINESYN, lineno), path])                                   
                                    
         
     def onOK(self, event=None):
