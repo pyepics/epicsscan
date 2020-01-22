@@ -172,6 +172,7 @@ class ScanFrame(wx.Frame):
         self.Bind(wx.EVT_TIMER, self.onScanTimer, self.scantimer)
 
         self._larch = LarchScanDBServer(self.scandb)
+        self._larch.load_macros()
         self._larch.set_symbol('_sys.wx.wxapp', wx.GetApp())
         self._larch.set_symbol('_sys.wx.parent', self)
         self.statusbar.SetStatusText('Larch Ready')
