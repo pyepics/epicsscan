@@ -846,12 +846,9 @@ class ScanDB(object):
         self.add_pv(pvname, notes=name)
         return row
 
-    def get_common_commands(self, show_hidden=False):
-        out = self.getall('common_commands', orderby='display_order')
-        if not show_hidden:
-            out = [row for row in out if row.show==1]
-        return out
-    
+    def get_common_commands(self):
+        return self.getall('common_commands', orderby='display_order')
+
     # add PV to list of PVs
     def add_pv(self, name, notes='', monitor=False):
         """add pv to PV table if not already there """
