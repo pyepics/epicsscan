@@ -193,7 +193,7 @@ class ScanDB(object):
             if os.name == 'nt':
                 fileroot = self.get_info('windows_fileroot')
                 if not fileroot.endswith('/'):
-                    fileroot += '/'                
+                    fileroot += '/'
             fileroot = fileroot.replace('\\', '/').replace('//', '/')
         if workdir.startswith(fileroot):
             workdir = workdir[len(fileroot):]
@@ -207,7 +207,6 @@ class ScanDB(object):
         finally:
             # self.set_info('server_fileroot',  fileroot)
             self.set_info('user_folder',      workdir)
-        print("ScanDB: Working directory %s " % os.getcwd())
         time.sleep(0.1)
 
     def isScanDB(self, dbname, server='sqlite',
@@ -851,6 +850,16 @@ class ScanDB(object):
 
     def get_common_commands(self):
         return self.getall('common_commands', orderby='display_order')
+
+    def add_common_commands(self, name, args='', show=True, display_order=1000):
+        """add extra pv (recorded at breakpoints in scans"""
+        cls, table = self.get_table('common_commands')
+        name = name.strip()
+        kws = dict(args=args.strip(), show=int(show), display_order=int(display_order))
+        row = self.__addRow(cls, ('name',), (name,), **kws)
+        self.session.add(row)
+        return row
+
 
     # add PV to list of PVs
     def add_pv(self, name, notes='', monitor=False):
