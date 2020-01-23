@@ -113,10 +113,10 @@ class CommonCommandsAdminFrame(wx.Frame):
             argstxt = wx.TextCtrl(panel, value=cmd.args, size=(300, -1))
             self.wids[cmd.name] = (display, zorder, argstxt)
 
-            sizer.Add(text,    (irow, 0), (1, 1), labstyle, 2)
-            sizer.Add(display, (irow, 1), (1, 1), labstyle, 2)
-            sizer.Add(zorder,  (irow, 2), (1, 1), labstyle, 2)
-            sizer.Add(argstxt, (irow, 3), (1, 1), labstyle, 2)
+            sizer.Add(text,    (irow, 0), (1, 1), labstyle, 1)
+            sizer.Add(display, (irow, 1), (1, 1), labstyle, 1)
+            sizer.Add(zorder,  (irow, 2), (1, 1), labstyle, 1)
+            sizer.Add(argstxt, (irow, 3), (1, 1), labstyle, 1)
             irow += 1
 
         sizer.Add(wx.StaticLine(panel, size=(625, 3),
@@ -130,19 +130,19 @@ class CommonCommandsAdminFrame(wx.Frame):
         irow += 1
         sizer.Add(SimpleText(panel, "Add new command (must be defined):",
                              size=(500, -1)),
-                  (irow, 0), (1, 4), labstyle, 2)
+                  (irow, 0), (1, 4), labstyle, 1)
         irow += 1
-        sizer.Add(SimpleText(panel, "Name:", size=(175, -1)),
-                  (irow, 0), (1, 1), labstyle, 2)
-        sizer.Add(self.newcmd_name, (irow, 1), (1, 3), labstyle, 2)
+        sizer.Add(SimpleText(panel, "Name:", size=(175, -1), style=labstyle),
+                  (irow, 0), (1, 1), labstyle, 1)
+        sizer.Add(self.newcmd_name, (irow, 1), (1, 3), labstyle, 1)
         irow += 1
-        sizer.Add(SimpleText(panel, "Arguments:", size=(175, -1)),
-                  (irow, 0), (1, 1), labstyle, 2)
-        sizer.Add(self.newcmd_args, (irow, 1), (1, 3), labstyle, 2)
+        sizer.Add(SimpleText(panel, "Arguments:", size=(175, -1), style=labstyle),
+                  (irow, 0), (1, 1), labstyle, 1)
+        sizer.Add(self.newcmd_args, (irow, 1), (1, 3), labstyle, 1)
         irow += 1
-        sizer.Add(SimpleText(panel, "Order:", size=(175, -1)),
-                  (irow, 0), (1, 1), labstyle, 2)
-        sizer.Add(self.newcmd_order, (irow, 1), (1, 3), labstyle, 2)
+        sizer.Add(SimpleText(panel, "Order:", size=(175, -1), style=labstyle),
+                  (irow, 0), (1, 1), labstyle, 1)
+        sizer.Add(self.newcmd_order, (irow, 1), (1, 3), labstyle, 1)
 
         irow += 1
         sizer.Add(wx.StaticLine(panel, size=(625, 3),
