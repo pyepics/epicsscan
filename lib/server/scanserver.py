@@ -25,7 +25,6 @@ from .epics_scandb import EpicsScanDB
 from .abort_slewscan import abort_slewscan
 
 DEBUG_TIMER = False
-ALWAYS_LOAD_MODULES = False
 
 class ScanServer():
     def __init__(self, dbname=None, _larch=None,  **kws):
@@ -125,8 +124,6 @@ class ScanServer():
             self.scandb.set_command_status('canceled', cmdid=req.id)
             return
 
-        if HAS_LARCH and ALWAYS_LOAD_MODULES:
-            all_macros = self.larch.load_modules()
         self.command_in_progress = True
         self.set_status('starting')
         self.scandb.set_command_status('starting', cmdid=req.id)
@@ -156,20 +153,16 @@ class ScanServer():
                                      {'last_used_time': make_datetime()})
             command = "do_%s" % command
             args = ', '.join(words)
-        elif command.lower().startswith('load_plugins'):
-            pass
         elif command.lower().startswith('restart_scanserver'):
             self.scandb.set_info('error_message',   '')
             self.scandb.set_info('request_shutdown', 1)
-        elif (command.lower().startswith('load_modules') or
-              command.lower().startswith('load_macro')):
+        elif command.lower().startswith('load_macro'):
             self.scandb.set_info('error_message',   '')
             self.set_scan_message('Server Reloading Larch Macros...')
             if HAS_LARCH:
-                self.larch.load_modules()
+                self.larch.load_macros()
             else:
                 self.scandb.set_info('error_message',  'Macro system not available')
-
         else:
             if len(args) == 0:
                 larch_cmd = command

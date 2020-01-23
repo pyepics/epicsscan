@@ -98,9 +98,6 @@ class LarchScanDBServer(object):
         self.symtab.set_symbol('_epics.caput', caput)
         self.symtab.set_symbol('_epics.PV', PV)
 
-    def load_modules(self, macro_dir=None, verbose=False):
-        self.load_macros(macro_dir=macro_dir, verbose=verbose)
-
     def load_macros(self, macro_dir=None, verbose=False):
         """read latest larch macros / modules"""
         if not HAS_LARCH:
