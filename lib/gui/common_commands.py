@@ -265,8 +265,8 @@ class CommonCommandsFrame(wx.Frame):
                 if arg in ('', None):
                     break
                 label, arg = arg.split(':')
-                if arg == '':
-                    arg = SimpleText(panel, '', size=(125, -1))
+                if label == 'use_signature':
+                    arg = ''
                 elif arg.startswith('float'):
                     dval, dmin, dmax, dprec = [float(x) for x in arg[5:].split(',')]
                     arg = FloatCtrl(panel, value=dval, precision=dprec,
@@ -283,9 +283,13 @@ class CommonCommandsFrame(wx.Frame):
                 elif arg.startswith('inst_'):
                     poslist = list(reversed(self.instdb.get_positionlist(arg[5:])))
                     arg = add_choice(panel, poslist, default=0, **opts)
-                pname = SimpleText(panel, "%s=" % label, size=(75,-1))
-                sizer.Add(pname,  (irow, 2*i+1), (1, 1), labstyle, 2)
-                sizer.Add(arg,    (irow, 2*i+2), (1, 1), labstyle, 2)
+                if label == 'use_signature':
+                    pname = SimpleText(panel, "Note: will insert example as comment", size=(250,-1))
+                    sizer.Add(pname,  (irow, 2*i+1), (1, 2), labstyle, 2)
+                else:
+                    pname = SimpleText(panel, "%s=" % label, size=(75,-1))
+                    sizer.Add(pname,  (irow, 2*i+1), (1, 1), labstyle, 2)
+                    sizer.Add(arg,    (irow, 2*i+2), (1, 1), labstyle, 2)
                 _wids.append((label, arg))
             self.wids[cmd.name] = _wids
             irow += 1
@@ -306,18 +310,21 @@ class CommonCommandsFrame(wx.Frame):
             return
         args = []
         macsig = self.wids[label][0]
+        cmd = "%s()" % (label)
         for pname, wid in self.wids[label][1:]:
             val = None
-            if hasattr(wid, 'GetValue'):
-                val = str(wid.GetValue())
-            elif hasattr(wid, 'GetStringSelection'):
-                val = wid.GetStringSelection()
-            if val is not None:
-                try:
-                    val = float(val)
-                except:
-                    val = repr(val)
-                args.append("%s=%s" % (pname, val)
-)
-        cmd = "%s(%s)\n" % (label, ', '.join(args))
-        self.parent.editor.AppendText(cmd)
+            if pname == 'use_signature':
+                cmd = '#%s' % macsig
+            else:
+                if hasattr(wid, 'GetValue'):
+                    val = str(wid.GetValue())
+                elif hasattr(wid, 'GetStringSelection'):
+                    val = wid.GetStringSelection()
+                if val is not None:
+                    try:
+                        val = float(val)
+                    except:
+                        val = repr(val)
+                    args.append("%s=%s" % (pname, val))
+                cmd = "%s(%s)" % (label, ', '.join(args))
+        self.parent.editor.AppendText("%s\n" % cmd)
