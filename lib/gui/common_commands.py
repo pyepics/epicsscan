@@ -64,25 +64,35 @@ class CommonCommandsAdminFrame(wx.Frame):
         panel = scrolled.ScrolledPanel(self, size=size)
         panel.SetMinSize(size)
         self.SetFont(font11)
+        self.SetBackgroundColour('#F0F0E8')
 
         sizer = wx.GridBagSizer(2, 2)
+        irow = 1
+        sizer.Add(SimpleText(panel,
+                             'WARNING: Consult Beamline Staff Before Making Changes',
+                             size=(600, -1),
+                             style=labstyle, font=font12),
+                  (irow, 0), (1, 5), labstyle)
+
+        irow += 2
         sizer.Add(SimpleText(panel, 'Command Name', size=(200, -1),
                              style=labstyle, font=font12),
-                  (0, 0), (1, 1), labstyle)
+                  (irow, 0), (1, 1), labstyle)
         sizer.Add(SimpleText(panel, 'Display?', size=(125, -1),
                              style=labstyle, font=font12),
-                  (0, 1), (1, 1), labstyle)
+                  (irow, 1), (1, 1), labstyle)
         sizer.Add(SimpleText(panel, 'Order ', size=(125, -1),
                              style=labstyle, font=font12),
-                  (0, 2), (1, 1), labstyle)
+                  (irow, 2), (1, 1), labstyle)
         sizer.Add(SimpleText(panel, 'Arguments Hints', size=(250, -1),
                              style=labstyle, font=font12),
-                  (0, 3), (1, 1), labstyle)
+                  (irow, 3), (1, 1), labstyle)
 
+        irow += 1
         sizer.Add(wx.StaticLine(panel, size=(625, 3),
-                                style=wx.LI_HORIZONTAL|wx.GROW), (1, 0), (1, 5))
+                                style=wx.LI_HORIZONTAL|wx.GROW), (irow, 0), (1, 5))
 
-        irow = 2
+        irow += 1
         self.wids  = {}
         self.cmds = {}
         for icmd, cmd in enumerate(self.scandb.get_common_commands()):
@@ -95,8 +105,8 @@ class CommonCommandsAdminFrame(wx.Frame):
             if macobj is not None:
                 tip = " %s:\n%s line %d" % (macsig, macobj.__file__, macobj.lineno)
                 text.SetToolTip(tip)
-                
-            
+
+
             display = check(panel, default=(cmd.show==1), label='', size=(100, -1))
             zorder = FloatCtrl(panel, value=cmd.display_order, minval=0,
                                maxval=1000000, precision=0, size=(75, -1))
@@ -111,6 +121,33 @@ class CommonCommandsAdminFrame(wx.Frame):
 
         sizer.Add(wx.StaticLine(panel, size=(625, 3),
                                 style=wx.LI_HORIZONTAL|wx.GROW), (irow, 0), (1, 5))
+
+        self.newcmd_order = FloatCtrl(panel, value=1000, minval=0,
+                                        maxval=1000000, precision=0, size=(75, -1))
+        self.newcmd_args = wx.TextCtrl(panel, value='', size=(300, -1))
+        self.newcmd_name = wx.TextCtrl(panel, value='', size=(300, -1))
+
+        irow += 1
+        sizer.Add(SimpleText(panel, "Add new command (must be defined):",
+                             size=(500, -1)),
+                  (irow, 0), (1, 4), labstyle, 2)
+        irow += 1
+        sizer.Add(SimpleText(panel, "Name:", size=(175, -1)),
+                  (irow, 0), (1, 1), labstyle, 2)
+        sizer.Add(self.newcmd_name, (irow, 1), (1, 3), labstyle, 2)
+        irow += 1
+        sizer.Add(SimpleText(panel, "Arguments:", size=(175, -1)),
+                  (irow, 0), (1, 1), labstyle, 2)
+        sizer.Add(self.newcmd_args, (irow, 1), (1, 3), labstyle, 2)
+        irow += 1
+        sizer.Add(SimpleText(panel, "Order:", size=(175, -1)),
+                  (irow, 0), (1, 1), labstyle, 2)
+        sizer.Add(self.newcmd_order, (irow, 1), (1, 3), labstyle, 2)
+
+        irow += 1
+        sizer.Add(wx.StaticLine(panel, size=(625, 3),
+                                style=wx.LI_HORIZONTAL|wx.GROW), (irow, 0), (1, 5))
+
         irow += 1
         sizer.Add(add_button(panel, "Save Changes", size=(120, -1),
                              action=self.onOK),
@@ -135,9 +172,9 @@ class CommonCommandsAdminFrame(wx.Frame):
         if macobj is None:
             return
         path, lineno = os.path.normpath(macobj.__file__), macobj.lineno
-        subprocess.Popen([EDITOR, '%s%d'  % (LINESYN, lineno), path])                                   
-                                   
-        
+        subprocess.Popen([EDITOR, '%s%d'  % (LINESYN, lineno), path])
+
+
     def onOK(self, event=None):
         for wname, wids in self.wids.items():
             show, order, args = [w.GetValue() for w in wids]
@@ -149,10 +186,16 @@ class CommonCommandsAdminFrame(wx.Frame):
                 vals['display_order'] = order
             if args != cargs:
                 vals['args'] = args
-
             if len(vals) > 0:
                 self.scandb.update_where('common_commands',
                                          {'name': wname}, vals)
+
+        newcmd_name = self.newcmd_name.GetValue().strip()
+        if len(newcmd_name) > 0 and newcmd_name not in self.cmds:
+            newcmd_args  = self.newcmd_args.GetValue().strip()
+            newcmd_order = self.newcmd_order.GetValue()
+            self.scandb.add_common_commands(newcmd_name, newcmd_args, show=True,
+                                            display_order=newcmd_order)
         self.scandb.commit()
 
     def onDone(self, event=None):
@@ -180,6 +223,7 @@ class CommonCommandsFrame(wx.Frame):
         panel = scrolled.ScrolledPanel(self, size=size)
         panel.SetMinSize(size)
         self.SetFont(font11)
+        self.SetBackgroundColour('#F0F0E8')
 
         sizer = wx.GridBagSizer(2, 2)
 
