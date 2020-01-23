@@ -196,6 +196,7 @@ class CommonCommandsAdminFrame(wx.Frame):
             newcmd_order = self.newcmd_order.GetValue()
             self.scandb.add_common_commands(newcmd_name, newcmd_args, show=True,
                                             display_order=newcmd_order)
+        self.scandb.add_command("load_macros()")
         self.scandb.commit()
 
     def onDone(self, event=None):
