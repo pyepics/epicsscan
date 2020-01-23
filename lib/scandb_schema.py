@@ -186,7 +186,7 @@ class Macros(_BaseTable):
 class Commands(_BaseTable):
     "commands-to-be-executed table"
     command, notes, arguments = None, None, None
-    status, status_name = None, None
+    status, status_name, run_order = None, None, None
     request_time, start_time, modify_time = None, None, None
     output_value, output_file, nrepeat = None, None, None
     def __repr__(self):
@@ -274,7 +274,7 @@ def create_scandb(dbname, server='sqlite', create=True, **kws):
                                  cols=[StrCol('args'),
                                        IntCol('show', default=1),
                                        IntCol('display_order', default=1)])
-    
+
     config = NamedTable('config', metadata)
     status = NamedTable('status', metadata)
     slewpos    = NamedTable('slewscanpositioners', metadata, with_use=True,
@@ -317,6 +317,7 @@ def create_scandb(dbname, server='sqlite', create=True, **kws):
                             StrCol('arguments'),
                             PointerCol('status', default=1),
                             IntCol('nrepeat',  default=1),
+                            IntCol('runy_order', default=1),
                             Column('request_time', DateTime,
                                    default=datetime.now),
                             Column('start_time',    DateTime),

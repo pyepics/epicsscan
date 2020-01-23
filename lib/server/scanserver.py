@@ -243,13 +243,13 @@ class ScanServer():
         cmd_cls, cmd_table = self.scandb.get_table('commands')
         request_id = self.scandb.status_codes['requested']
         cmd_query = cmd_table.select().where(
-            cmd_table.c.status_id==request_id).order_by(cmd_cls.id)
+            cmd_table.c.status_id==request_id).order_by(cmd_cls.run_order)
 
         # Note: this loop is really just looking for new commands
         # or interrupts, so does not need to go super fast.
         while True:
             epics.poll(0.025, 1.0)
-            time.sleep(0.50)
+            time.sleep(0.25)
             now = time.time()
             self.look_for_interrupts()
 
@@ -259,7 +259,7 @@ class ScanServer():
                 break
 
             # update server heartbeat / message
-            if now > msgtime + 1:
+            if now > msgtime + 0.75:
                 msgtime = now
                 self.scandb.set_info('heartbeat', tstamp())
                 if self.epicsdb is not None:
@@ -278,11 +278,11 @@ class ScanServer():
                     req = reqs[0]
                     self.scandb.set_command_status('aborted', cmdid=req.id)
                     abort_slewscan()
-                time.sleep(1.0)
+                time.sleep(0.5)
                 if self.epicsdb is not None:
                     self.epicsdb.Abort = 0
                 self.clear_interrupts()
-                time.sleep(1.0)
+                time.sleep(0.5)
 
             # do next command
             elif len(reqs) > 0:
