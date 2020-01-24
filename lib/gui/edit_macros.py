@@ -17,7 +17,7 @@ from .gui_utils import (GUIColors, set_font_with_children, YesNo,
                         FRAMESTYLE, Font)
 
 from .common_commands  import CommonCommandsFrame, CommonCommandsAdminFrame
-
+from .edit_sequences   import SequencesFrame
 from ..scandb import InstrumentDB
 
 import larch
@@ -479,6 +479,9 @@ class MacroFrame(wx.Frame) :
         add_menu(self, pmenu, "Admin Common Commands",
                  "Admin Common Commands", self.onCommonCommandsAdmin)
 
+        add_menu(self, pmenu, "Show Command Sequence",  "Show Queue of Commands",
+                 self.onEditSequences)
+
         self.menubar.Append(fmenu, "&File")
         self.menubar.Append(pmenu, "Insert Commands")
         self.SetMenuBar(self.menubar)
@@ -548,6 +551,10 @@ class MacroFrame(wx.Frame) :
 
     def onCommonCommandsAdmin(self, evt=None):
         self.show_subframe('commands_admin', CommonCommandsAdminFrame)
+
+    def onEditSequences(self, evt=None):
+        self.show_subframe('sequences', SequencesFrame)
+
 
     def onReadMacro(self, event=None):
         wcard = 'Scan files (*.lar)|*.lar|All files (*.*)|*.*'
