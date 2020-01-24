@@ -954,13 +954,16 @@ class ScanDB(object):
         pass
 
     ### commands -- a more complex interface
-    def get_commands(self, status=None, reverse=False,
+    def get_commands(self, status=None, reverse=False, orderby='run_order',
                      requested_since=None, **kws):
         """return command by status"""
         cls, table = self.get_table('commands')
         order = cls.id
+        if orderby.lower().startswith('run'):
+            order = cls.run_order
         if reverse:
-            order = cls.id.desc()
+            order = order.desc()
+
         q = table.select().order_by(order)
         if status in self.status_codes:
             q = q.where(table.c.status_id == self.status_codes[status])
