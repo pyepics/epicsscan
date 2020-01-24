@@ -75,7 +75,6 @@ from .edit_detectors   import DetectorFrame, ROIFrame
 from .edit_general     import SettingsFrame
 from .edit_extrapvs    import ExtraPVsFrame
 from .edit_scandefs    import ScandefsFrame
-from .edit_sequences   import SequencesFrame
 from .edit_macros      import MacroFrame
 
 ICON_FILE = 'epics_scan.ico'
@@ -438,12 +437,8 @@ class ScanFrame(wx.Frame):
 
 
         menu_dat['Scans'] = (("Scan Definitions\tCtrl+D",
-                              "Browsn and Manage Saved Scans", self.onEditScans),
-                             ("Show Sequences and Scan Queue",
-                               "Show Scans Queue",  self.onEditSequences))
+                              "Browsn and Manage Saved Scans", self.onEditScans),)
 
-###   ("Show Common Commands",
-###    "Show Common Commands",  self.onCommonCommands))
 
 
         menu_dat['Positioners'] = (("Configure",
@@ -521,9 +516,6 @@ class ScanFrame(wx.Frame):
 
     def onEditSettings(self, evt=None):
         self.show_subframe('settings', SettingsFrame)
-
-    def onEditSequences(self, evt=None):
-        self.show_subframe('sequences', SequencesFrame)
 
     def onEditMacro(self, evt=None):
         self.show_subframe('macro', MacroFrame)
