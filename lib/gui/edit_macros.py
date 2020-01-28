@@ -61,7 +61,7 @@ class ScanDBMessageQueue(object):
 
 class PosScanMacroBuilder(wx.Frame):
     """ transfer positions from offline microscope"""
-    def __init__(self, parent, scandb=None):
+    def __init__(self, parent, scandb=None, _larch=None):
         wx.Frame.__init__(self, None, -1,
                           title="Build Macro for Scans at Saved Positions")
         self.parent = parent
@@ -191,7 +191,7 @@ class PosScanMacroBuilder(wx.Frame):
 
 class PosXRDMacroBuilder(wx.Frame):
     """ transfer positions from offline microscope"""
-    def __init__(self, parent, scandb=None):
+    def __init__(self, parent, scandb=None, _larch=None):
         wx.Frame.__init__(self, None, -1,
                           title="Build Macro for XRD at Saved Positions")
         self.parent = parent
@@ -293,10 +293,10 @@ class PosXRDMacroBuilder(wx.Frame):
         self.Destroy()
 
 class MacroEditorPanel(scrolled.ScrolledPanel):
-    def __init__(self, parent, scandb=None, larch=None, size=(800, 600),
+    def __init__(self, parent, scandb=None, _larch=None, size=(800, 600),
                  style=wx.GROW|wx.TAB_TRAVERSAL):
         self.scandb = scandb
-        self.larch = larch
+        self.larch = _larch
         self.db_messages = ScanDBMessageQueue(self.scandb)
 
 
@@ -447,10 +447,11 @@ class MacroFrame(wx.Frame) :
                     'Progress': 'scan_progress',
                     'Time': 'heartbeat'}
 
-    def __init__(self, parent, pos=(-1, -1), size=(850, 600), _larch=None):
+    def __init__(self, parent, scandb=None, _larch=None,
+                 pos=(-1, -1), size=(850, 600)):
 
         self.parent = parent
-        self.scandb = parent.scandb
+        self.scandb = parent.scandb if scandb is None else scandb
         self.subframes = {}
         self.winfo = OrderedDict()
         self.output_stats = {}
@@ -674,31 +675,20 @@ class MacroFrame(wx.Frame) :
         self.output.SetInsertionPoint(self.output.GetLastPosition())
         self.output.Refresh()
 
-    def show_subframe(self, name, frameclass):
-        shown = False
-        if name in self.subframes:
-            try:
-                self.subframes[name].Raise()
-                shown = True
-            except:
-                del self.subframes[name]
-        if not shown:
-            self.subframes[name] = frameclass(self, scandb=self.scandb)
-
     def onBuildPosScan(self, event=None):
-        self.show_subframe('buildposmacro', PosScanMacroBuilder)
+        self.parent.show_subframe('buildposmacro', PosScanMacroBuilder)
 
     def onBuildPosXRD(self, event=None):
-        self.show_subframe('buildxrdsmacro', PosXRDMacroBuilder)
+        self.parent.show_subframe('buildxrdsmacro', PosXRDMacroBuilder)
 
     def onCommonCommands(self, evt=None):
-        self.show_subframe('commands', CommonCommandsFrame)
+        self.parent.show_subframe('commands', CommonCommandsFrame)
 
     def onCommonCommandsAdmin(self, evt=None):
-        self.show_subframe('commands_admin', CommonCommandsAdminFrame)
+        self.parent.show_subframe('commands_admin', CommonCommandsAdminFrame)
 
     def onEditSequence(self, evt=None):
-        self.show_subframe('sequence', ScanSequenceFrame)
+        self.parent.show_subframe('sequence', ScanSequenceFrame)
 
     def onReadMacro(self, event=None):
         wcard = 'Scan files (*.lar)|*.lar|All files (*.*)|*.*'

@@ -484,6 +484,7 @@ class ScanFrame(wx.Frame):
 
     def show_subframe(self, name, frameclass):
         shown = False
+        
         if name in self.subframes:
             try:
                 self.subframes[name].Raise()
@@ -491,7 +492,8 @@ class ScanFrame(wx.Frame):
             except:
                 del self.subframes[name]
         if not shown:
-            self.subframes[name] = frameclass(self, _larch=self._larch)
+            self.subframes[name] = frameclass(self, scandb=self.scandb,
+                                              _larch=self._larch)
             if self._icon is not None:
                 self.subframes[name].SetIcon(self._icon)
 

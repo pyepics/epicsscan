@@ -47,12 +47,12 @@ else:
 class CommonCommandsAdminFrame(wx.Frame):
     """Manage Display of Common Commands from the Common_Commands Table
     """
-    def __init__(self, parent, scandb, pos=(-1, -1), size=(750, 725), _larch=None):
+    def __init__(self, parent, scandb=None, pos=(-1, -1), size=(750, 725), _larch=None):
         self.parent = parent
-        self.scandb = scandb
-        self._larch = parent.parent._larch
+        self.scandb = parent.scandb if scandb is None else scandb
+        self._larch = parent._larch if _larch is None else _larch
         self._larch.load_macros()
-        self.macros = parent.parent._larch.get_macros()
+        self.macros = self._larch.get_macros()
 
         labstyle  = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
         font11 = wx.Font(11, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
@@ -66,7 +66,7 @@ class CommonCommandsAdminFrame(wx.Frame):
         self.SetFont(font11)
         self.SetBackgroundColour('#F0F0E8')
 
-        sizer = wx.GridBagSizer(2, 2)
+        sizer = wx.GridBagSizer(1, 1)
         irow = 1
         sizer.Add(SimpleText(panel,
                              'WARNING: Consult Beamline Staff Before Making Changes',
@@ -117,10 +117,9 @@ class CommonCommandsAdminFrame(wx.Frame):
             sizer.Add(display, (irow, 1), (1, 1), labstyle, 1)
             sizer.Add(zorder,  (irow, 2), (1, 1), labstyle, 1)
             sizer.Add(argstxt, (irow, 3), (1, 1), labstyle, 1)
-            irow += 1
-
-        sizer.Add(wx.StaticLine(panel, size=(625, 3),
-                                style=wx.LI_HORIZONTAL|wx.GROW), (irow, 0), (1, 5))
+            sizer.Add(wx.StaticLine(panel, size=(700, 1), style=wx.LI_HORIZONTAL|wx.GROW),
+                      (irow+1, 0), (1, 5))            
+            irow += 2
 
         self.newcmd_order = FloatCtrl(panel, value=1000, minval=0,
                                         maxval=1000000, precision=0, size=(75, -1))
@@ -145,7 +144,7 @@ class CommonCommandsAdminFrame(wx.Frame):
         sizer.Add(self.newcmd_order, (irow, 1), (1, 3), labstyle, 1)
 
         irow += 1
-        sizer.Add(wx.StaticLine(panel, size=(625, 3),
+        sizer.Add(wx.StaticLine(panel, size=(700, 2),
                                 style=wx.LI_HORIZONTAL|wx.GROW), (irow, 0), (1, 5))
 
         irow += 1
@@ -207,13 +206,15 @@ class CommonCommandsFrame(wx.Frame):
     """Edit/Manage/Execute Common Commands from the
     Common_Commands Table
     """
-    def __init__(self, parent, scandb, pos=(-1, -1), size=(700, 625), _larch=None):
+    def __init__(self, parent, scandb=None, pos=(-1, -1), size=(700, 625), _larch=None):
         self.parent = parent
-        self.scandb = scandb
+        self.scandb = parent.scandb if scandb is None else scandb
         self.instdb = InstrumentDB(scandb)
-        self._larch = parent.parent._larch
+
+        self._larch = parent._larch if _larch is None else _larch
         self._larch.load_macros()
-        macros = parent.parent._larch.get_macros()
+        macros = self._larch.get_macros()
+        
         labstyle  = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
         font11 = wx.Font(11, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
         font12 = wx.Font(12, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
@@ -226,19 +227,22 @@ class CommonCommandsFrame(wx.Frame):
         self.SetFont(font11)
         self.SetBackgroundColour('#F0F0E8')
 
-        sizer = wx.GridBagSizer(2, 2)
-
+        sizer = wx.GridBagSizer(1, 1)
+        
+        irow = 0
+        sizer.Add(SimpleText(panel, 'Click on Command Name to Add to Macro Text',
+                             size=(400, -1), style=labstyle, font=font12),
+                  (irow, 0), (1, 4), labstyle)
+        irow += 1
         sizer.Add(SimpleText(panel, 'Command Name', size=(200, -1),
-                             style=labstyle, font=font12),
-                  (0, 0), (1, 1), labstyle)
+                             style=labstyle, font=font12), (irow, 0), (1, 1), labstyle)
         sizer.Add(SimpleText(panel, 'Arguments', size=(200, -1),
-                             style=labstyle, font=font12),
-                  (0, 1), (1, 5), labstyle)
+                             style=labstyle, font=font12), (irow, 1), (1, 5), labstyle)
 
-        sizer.Add(wx.StaticLine(panel, size=(625, 3),
-                                style=wx.LI_HORIZONTAL|wx.GROW), (1, 0), (1, 5))
+        irow += 1
+        sizer.Add(wx.StaticLine(panel, size=(700, 1), style=wx.LI_HORIZONTAL|wx.GROW), (irow, 0), (1, 5))
 
-        irow = 2
+        irow += 1
         self.wids  = {}
         self.scandb.commit()
         self.commands = self.scandb.get_common_commands()
@@ -259,7 +263,7 @@ class CommonCommandsFrame(wx.Frame):
             sizer.Add(hlink, (irow, 0), (1, 1), labstyle, 2)
             args = cmd.args.split('|') + ['']*10
             _wids = [macsig]
-            opts = dict(size=(175, -1))
+            opts = dict(size=(150, -1))
             for i in range(5):
                 arg = args[i].strip()
                 if arg in ('', None):
@@ -287,14 +291,16 @@ class CommonCommandsFrame(wx.Frame):
                     pname = SimpleText(panel, "Note: will insert example as comment", size=(250,-1))
                     sizer.Add(pname,  (irow, 2*i+1), (1, 2), labstyle, 2)
                 else:
-                    pname = SimpleText(panel, "%s=" % label, size=(75,-1))
+                    pname = SimpleText(panel, "%s=" % label, size=(75,-1), style=LEFT)
                     sizer.Add(pname,  (irow, 2*i+1), (1, 1), labstyle, 2)
                     sizer.Add(arg,    (irow, 2*i+2), (1, 1), labstyle, 2)
                 _wids.append((label, arg))
             self.wids[cmd.name] = _wids
-            irow += 1
+            sizer.Add(wx.StaticLine(panel, size=(700, 1), style=wx.LI_HORIZONTAL|wx.GROW),
+                      (irow+1, 0), (1, 5))
+            irow += 2
 
-        sizer.Add(wx.StaticLine(panel, size=(625, 3),
+        sizer.Add(wx.StaticLine(panel, size=(700, 3),
                                 style=wx.LI_HORIZONTAL|wx.GROW), (irow, 0), (1, 5))
         pack(panel, sizer)
         panel.SetupScrolling()
@@ -327,4 +333,7 @@ class CommonCommandsFrame(wx.Frame):
                         val = repr(val)
                     args.append("%s=%s" % (pname, val))
                 cmd = "%s(%s)" % (label, ', '.join(args))
-        self.parent.editor.AppendText("%s\n" % cmd)
+        try:
+            self.parent.subframes['macro'].editor.AppendText("%s\n" % cmd)
+        except:
+            print("No editor ?")

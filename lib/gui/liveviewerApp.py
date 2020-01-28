@@ -55,9 +55,9 @@ class ScanViewerFrame(wx.Frame):
     _about = """Scan Viewer,  Matt Newville <newville @ cars.uchicago.edu>  """
     TIME_MSG = 'Point %i/%i, Time Remaining ~ %s, Status=%s'
 
-    def __init__(self, parent, dbname=None, server='sqlite',
+    def __init__(self, parent, dbname=None, server='sqlite', 
                  host=None, port=None, user=None, password=None,
-                 create=True, _larch=None, **kws):
+                 create=True, _larch=None, scandb=None, **kws):
 
         wx.Frame.__init__(self, None, -1, style=FRAMESTYLE)
         title = "Epics Step Scan Viewer"

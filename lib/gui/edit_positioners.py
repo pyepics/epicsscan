@@ -15,10 +15,10 @@ CEN  |= wx.ALL
 
 class PositionerFrame(wx.Frame) :
     """Frame to Setup Scan Positioners"""
-    def __init__(self, parent, pos=(-1, -1), _larch=None):
+    def __init__(self, parent, pos=(-1, -1), scandb=None, _larch=None):
 
         self.parent = parent
-        self.scandb = parent.scandb
+        self.scandb = parent.scandb if scandb is None else scandb
 
         wx.Frame.__init__(self, None, -1, 'Epics Scanning: Positioners Setup',
                           style=FRAMESTYLE)

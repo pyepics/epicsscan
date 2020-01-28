@@ -13,10 +13,10 @@ class SettingsFrame(wx.Frame) :
     """Frame for Setup General Settings:
     DB Connection, Settling Times, Extra PVs
     """
-    def __init__(self, parent, pos=(-1, -1), _larch=None):
+    def __init__(self, parent, pos=(-1, -1), scandb=None, _larch=None):
         self.parent = parent
         self.pvlist = parent.pvlist
-        self.scandb = parent.scandb
+        self.scandb = parent.scandb if scandb is None else scandb
 
         wx.Frame.__init__(self, None, -1,
                           'Epics Scanning Setup: General Settings',
