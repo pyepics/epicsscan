@@ -158,11 +158,13 @@ class ScanServer():
             self.scandb.set_info('request_shutdown', 1)
         elif command.lower().startswith('load_macro'):
             self.scandb.set_info('error_message',   '')
-            self.set_scan_message('Server Reloading Larch Macros...')
+            self.scandb.set_command_status('running', cmdid=req.id)
+            self.set_scan_message('Server reloading macros..')
             if HAS_LARCH:
                 self.larch.load_macros()
             else:
                 self.scandb.set_info('error_message',  'Macro system not available')
+            self.scandb.set_command_status('finished', cmdid=req.id)
         else:
             if len(args) == 0:
                 larch_cmd = command
