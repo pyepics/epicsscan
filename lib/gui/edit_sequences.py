@@ -21,36 +21,25 @@ import wx.dataview as dv
 LEFT = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
 CEN  = wx.ALIGN_CENTER|wx.ALIGN_CENTER_VERTICAL|wx.ALL
 
-builtin_macros = """ (text = '<builtin>')
-  name              arguments
-  ca_put            'PVName:str, Value:str'
-  ca_get            'PVName:str, OutputValue:str'
-  do_scan           'ScanName:enum, OutputFile:str, Nrepeat:int'
-  move_instrument   'InstName:enum, PosName:enum'
-  move_sample       'SampleName:enum'
-  scan_at           'ScanName:enum, SampleName:enum'
-"""
-
-def cmp(a, b): return (a>b)-(b<a)
-
-CommandRow = namedtuple('CommandRow', ('command', 'status', 'reqtime',
-                                       'updatetime', 'order', 'id'))
-
 DVSTYLE = dv.DV_VERT_RULES|dv.DV_ROW_LINES|dv.DV_MULTIPLE
+
+def cmp(a, b):
+    return (a>b)-(b<a)
 
 def tfmt(dt):
     return dt.strftime("%b-%d %H:%M")
 
 class ScanSequenceModel(dv.DataViewIndexListModel):
     def __init__(self, scandb):
+        dv.DataViewIndexListModel.__init__(self, 0)
         self.scandb = scandb
         self.commands = {}
         self.data = []
         self.read_data()
-        dv.DataViewIndexListModel.__init__(self, len(self.data))
 
     def read_data(self):
         yesterday = datetime.now() - timedelta(hours=24.5)
+        olddata = self.data[:]
         self.data = []
         self.commands = {}
         for cmd in self.scandb.get_commands(requested_since=yesterday):
@@ -61,9 +50,20 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
                               tfmt(cmd.modify_time),
                               repr(cmd.id)))
 
-        print('read %d commands' % len(self.data))
-        print('Last command : ', cmd.id, cmd)
-
+        # print('read %d commands' % len(self.data))
+        # print('Last command : ', cmd.id, cmd)
+        lost_rows, new_rows = [], []
+        for ix, dat in enumerate(olddata):
+            if int(dat[4]) not in self.commands:
+                 lost_rows.append(ix)
+        oldids = [int(dat[4]) for dat in olddata]
+        for  ix, dat in enumerate(self.data):
+            if int(dat[4]) not in oldids:
+                 new_rows.append(ix)
+        # print("Lost Rows: ", lost_rows)
+        # print("New Rows: ", new_rows)
+        # print("N Rows: ", len(self.data))
+        self.Reset(len(self.data))
 
     def cancel_item(self, item):
         cmd_id = int(self.GetValue(item, 4))
@@ -168,7 +168,7 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
 class ScanSequenceFrame(wx.Frame) :
     """Edit/Manage/Run/View Sequences"""
 
-    def __init__(self, parent, scandb, pos=(-1, -1), size=(800, 400), _larch=None):
+    def __init__(self, parent, scandb, pos=(-1, -1), size=(850, 400), _larch=None):
         self.parent = parent
         self.scandb = scandb
         self.last_refresh = time.monotonic() - 100.0
@@ -187,11 +187,11 @@ class ScanSequenceFrame(wx.Frame) :
                           'Epics Scanning: Command Sequence',  size=size)
 
         self.SetFont(self.Font10)
-        spanel = scrolled.ScrolledPanel(self, size=(800, 425))
+        spanel = scrolled.ScrolledPanel(self, size=(850, 425))
         self.colors = GUIColors()
         spanel.SetBackgroundColour(self.colors.bg)
         self.dvc = dv.DataViewCtrl(spanel, style=DVSTYLE)
-        self.dvc.SetMinSize((725, 250))
+        self.dvc.SetMinSize((825, 250))
 
         self.model = ScanSequenceModel(self.scandb)
         self.dvc.AssociateModel(self.model)
@@ -218,10 +218,10 @@ class ScanSequenceFrame(wx.Frame) :
         mainsizer.Add(bpan, 0, wx.GROW|wx.ALL, 1)
         pack(self, mainsizer)
 
-        for icol, dat in enumerate((('Command',      420),
-                                    ('Status',       120),
-                                    ('Requested',    120),
-                                    ('Last Updated', 120),
+        for icol, dat in enumerate((('Command',      450),
+                                    ('Status',       100),
+                                    ('Requested',    110),
+                                    ('Last Updated', 110),
                                     ('ID',            80))):
             title, width = dat
             self.dvc.AppendTextColumn(title, icol, width=width)
@@ -230,11 +230,18 @@ class ScanSequenceFrame(wx.Frame) :
             col.Alignment = wx.ALIGN_LEFT
         self.dvc.EnsureVisible(self.model.GetItem(len(self.model.data)-1))
 
+
+        self.Bind(wx.EVT_CLOSE, self.onClose)
         self.timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.onTimer, self.timer)
-        # self.timer.Start(250)
+        self.timer.Start(500)
         self.Show()
         self.Raise()
+
+    def onClose(self, event=None):
+        self.timer.Stop()
+        time.sleep(1.0)
+        self.Destroy()
 
     def onTimer(self, event=None, **kws):
         now = time.monotonic()
@@ -273,10 +280,10 @@ class ScanSequenceFrame(wx.Frame) :
         time.sleep(1.0)
 
     def onRefresh(self, event=None):
-        print("Refresh: " , time.ctime())
         self.model.read_data()
         self.Refresh()
         self.last_refresh = time.monotonic()
+        self.dvc.EnsureVisible(self.model.GetItem(len(self.model.data)-1))
 
     def onDone(self, event=None):
         self.parent.Destroy()
