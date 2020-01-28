@@ -562,7 +562,7 @@ class ScanFrame(wx.Frame):
 
             pref, username = os.path.split(basedir)
             try:
-                self.scandb.add_command("set_user_name('%s')"% username)
+                sdb.set_info('user_name', username)
             except:
                 pass
         dlg.Destroy()
