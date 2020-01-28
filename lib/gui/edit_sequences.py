@@ -39,7 +39,6 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
 
     def read_data(self):
         yesterday = datetime.now() - timedelta(hours=24.5)
-        olddata = self.data[:]
         self.data = []
         self.commands = {}
         for cmd in self.scandb.get_commands(requested_since=yesterday):
@@ -49,49 +48,64 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
                               tfmt(cmd.request_time),
                               tfmt(cmd.modify_time),
                               repr(cmd.id)))
-
-        # print('read %d commands' % len(self.data))
-        # print('Last command : ', cmd.id, cmd)
-        lost_rows, new_rows = [], []
-        for ix, dat in enumerate(olddata):
-            if int(dat[4]) not in self.commands:
-                 lost_rows.append(ix)
-        oldids = [int(dat[4]) for dat in olddata]
-        for  ix, dat in enumerate(self.data):
-            if int(dat[4]) not in oldids:
-                 new_rows.append(ix)
-        # print("Lost Rows: ", lost_rows)
-        # print("New Rows: ", new_rows)
-        # print("N Rows: ", len(self.data))
-        self.Reset(len(self.data))
+        self.Reset(len(self.data))            
 
     def cancel_item(self, item):
         cmd_id = int(self.GetValue(item, 4))
         self.scandb.cancel_command(cmd_id)
 
+    def insert_before(self, item, cmdstring):
+        cmd_id = int(self.GetValue(item, 4))
+        status = self.GetValue(item, 1)
+        if status != 'requested':
+            print('can only insert before requested commands')
+            return
+        runorder = self.commands[cmd_id].run_order
+        previous = None
+        prun = -1e23
+        for cid, cmd in self.commands.items():
+            if cmd.run_order > prun and cmd.run_order < runorder:
+                prun = cmd.run_order
+                previous = cmd
+        if previous is not None:
+            if (runorder - prun) > 1:
+                new_runorder = runorder - 1
+
+            self.scandb.add_command(cmdstring)
+            self.scandb.commit()
+            time.sleep(0.1)
+            recent = datetime.now() - timedelta(seconds=15)
+            cmds = self.scandb.get_commands(requested_since=recent)
+            cmdid = -1
+            if len(cmds) > 0:
+                cmdid = cmds[-1].id
+            if cmdid > 0:
+                self.scandb.set_command_run_order(new_runorder, cmdid)
+            self.scandb.commit()
+        self.read_data()
+        
     def move_item(self, item, direction='up'):
         cmd_id = int(self.GetValue(item, 4))
         status = self.GetValue(item, 1)
         if status != 'requested':
             print('can only move requested commands')
             return
-        runorder = self.command[cmd_id].run_order
+        runorder = self.commands[cmd_id].run_order
         other = None
         if direction == 'up':
             o = -1e23
-            for cid, cmd in commands.items():
+            for cid, cmd in self.commands.items():
                 if cmd.run_order > o and cmd.run_order < runorder:
                     o = cmd.run_order
                     other = cmd
         else:
             o = 1e23
-            for cid, cmd in commands.items():
+            for cid, cmd in self.commands.items():
                 if cmd.run_order < o and cmd.run_order > runorder:
                     o = cmd.run_order
                     other = cmd
         if other is not None:
-            cmd = self.command[cmd_id]
-            print("Swap ", cmd, other)
+            cmd = self.commands[cmd_id]
             self.scandb.set_command_run_order(other.run_order, cmd.id)
             self.scandb.set_command_run_order(cmd.run_order, other.id)
             self.scandb.commit()
@@ -117,10 +131,8 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
         """set row/col attributes (color, etc)"""
         status = self.data[row][1]
         cname = self.data[row][0]
-        # print("GettAttrByRow ", row, col, attr, status, cname, type(status))
         if status == 'finished':
             attr.SetColour('#222222')
-            attr.SetBackgroundColour('#DDDD00')
             attr.SetBold(False)
             return True
         elif status == 'aborted':
@@ -129,15 +141,14 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
             return True
         elif status == 'canceled':
             attr.SetColour('#880000')
-            attr.SetBackgroundColour('#DDDD00')
             attr.SetBold(False)
-            # attr.SetStrikethrough()
             return True
-        elif status in ('running', 'starting'):
-            attr.SetColour('#007733')
+        elif status in ('running'):
+            attr.SetColour('#008833')
+            attr.SetBackgroundColour('#FFFFDD')            
             attr.SetBold(True)
             return True
-        elif status in ('requested', ):
+        else:
             attr.SetColour('#000099')
             attr.SetBold(False)
             return True
@@ -204,25 +215,31 @@ class ScanSequenceFrame(wx.Frame) :
 
         bpan = wx.Panel(self)
         bsiz = wx.BoxSizer(wx.HORIZONTAL)
-        bsiz.Add(add_button(bpan, label='Abort Current Command', action=self.onAbort))
-        bsiz.Add(add_button(bpan, label='Cancel Selected',    action=self.onCancelSelected))
+        bsiz.Add(add_button(bpan, label='Abort Command',      action=self.onAbort))
         bsiz.Add(add_button(bpan, label='Cancel All',         action=self.onCancelAll))
+        bsiz.Add(add_button(bpan, label='Cancel Selected',    action=self.onCancelSelected))
         bsiz.Add(add_button(bpan, label='Move Selected Up',   action=self.onMoveUp))
         bsiz.Add(add_button(bpan, label='Move Selected Down', action=self.onMoveDown))
-        bsiz.Add(add_button(bpan, label='Refresh',            action=self.onRefresh))
-
         pack(bpan, bsiz)
 
+        npan = wx.Panel(self)
+        nsiz = wx.BoxSizer(wx.HORIZONTAL)
+        self.cmd_insert = wx.TextCtrl(npan, value='<new command>', size=(400, -1))
+        nsiz.Add(add_button(npan, label='Insert Before Selected:', action=self.onInsert))
+        nsiz.Add(self.cmd_insert)
+        pack(npan, nsiz)
+        
         mainsizer = wx.BoxSizer(wx.VERTICAL)
         mainsizer.Add(spanel, 1, wx.GROW|wx.ALL, 1)
         mainsizer.Add(bpan, 0, wx.GROW|wx.ALL, 1)
+        mainsizer.Add(npan, 0, wx.GROW|wx.ALL, 1)
         pack(self, mainsizer)
 
-        for icol, dat in enumerate((('Command',      450),
+        for icol, dat in enumerate((('Command',      500),
                                     ('Status',       100),
-                                    ('Requested',    110),
-                                    ('Last Updated', 110),
-                                    ('ID',            80))):
+                                    ('Requested',    100),
+                                    ('Last Updated', 100),
+                                    ('ID',            75))):
             title, width = dat
             self.dvc.AppendTextColumn(title, icol, width=width)
             col = self.dvc.Columns[icol]
@@ -230,11 +247,10 @@ class ScanSequenceFrame(wx.Frame) :
             col.Alignment = wx.ALIGN_LEFT
         self.dvc.EnsureVisible(self.model.GetItem(len(self.model.data)-1))
 
-
         self.Bind(wx.EVT_CLOSE, self.onClose)
         self.timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.onTimer, self.timer)
-        self.timer.Start(500)
+        self.timer.Start(900)
         self.Show()
         self.Raise()
 
@@ -245,9 +261,16 @@ class ScanSequenceFrame(wx.Frame) :
 
     def onTimer(self, event=None, **kws):
         now = time.monotonic()
-        cmdid  = int(self.scandb.get_info('current_command_id'))
         status = self.scandb.get_info('scan_status')
 
+        recent = datetime.now() - timedelta(minutes=1)
+        cmds = self.scandb.get_commands(requested_since=recent)
+        cmdid = -1
+        if len(cmds) > 0:
+            cmdid = cmds[-1].id
+        if cmdid < 0:
+            cmdid  = int(self.scandb.get_info('current_command_id'))
+        
         if ((cmdid != self.cmdid) or
             (status != self.cmdstatus) or
             ((now - self.last_refresh) > 300)):
@@ -259,7 +282,15 @@ class ScanSequenceFrame(wx.Frame) :
         if self.dvc.HasSelection():
             self.model.move_item(self.dvc.GetSelection(), direction='up')
             self.Refresh()
-
+            
+    def onInsert(self, event=None):
+        if self.dvc.HasSelection():
+            val = self.cmd_insert.GetValue().strip()
+            if len(val) > 0 and not (val.startswith('<') and val.endswith('>')):
+                self.model.insert_before(self.dvc.GetSelection(), val)
+            val = self.cmd_insert.SetValue('<new command>')
+            self.Refresh()
+            
     def onMoveDown(self, event=None):
         if self.dvc.HasSelection():
             self.model.move_item(self.dvc.GetSelection(), direction='down')
