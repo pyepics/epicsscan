@@ -1040,6 +1040,11 @@ class ScanDB(object):
         if status.startswith('start'):
             thiscmd.execute(start_time=datetime.now())
 
+    def set_command_run_order(self, run_order, cmdid):
+        """set the run_order of a command (by id)"""
+        cls, table = self.get_table('commands')
+        table.update(whereclause=text("id='%i'" % cmdid)).execute(run_order=run_order)
+
     def set_filename(self, filename):
         """set filename for info and command"""
         self.set_info('filename', filename)
