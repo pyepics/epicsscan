@@ -59,7 +59,7 @@ class GenericScanPanel(scrolled.ScrolledPanel):
                                         name=self.__name__)
         self.Font13 = wx.Font(13, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
         self.Font12 = wx.Font(12, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
-        self.sizer = wx.GridBagSizer(5, 5)
+        self.sizer = wx.GridBagSizer(3, 3)
         self.scantime = -1.0
         self.get_positioners()
         self._initialized = False # used to shunt events while creating windows
@@ -74,7 +74,7 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         self.slewlist = []
         for pos in self.scandb.get_slewpositioners():
             self.slewlist.append(pos.name)
-            
+
     def load_scandict(self, scan):
         """meant to be overwritten"""
         pass
@@ -250,7 +250,6 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         this_wid = wid2.GetId()
         if wid2pv is not None:
             keys = list(wid2pv.callbacks.keys())
-            print("update pos : ", keys)
             for icb in keys:
                 ccb = wid2pv.callbacks[icb]
                 if ccb[1].get('wid', None) == this_wid:
@@ -824,7 +823,7 @@ class XAFSScanPanel(GenericScanPanel):
                 for wid in reg:
                     wid.Enable(ireg < nregs)
             self.Refresh()
-                        
+
         elif label == 'units':
             if units == self.units_list[0] and not ev_units: # was 1/A, convert to eV
                 wids[0].SetValue(ktoe(wids[0].GetValue()) + e0_off)
