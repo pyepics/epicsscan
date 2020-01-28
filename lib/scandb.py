@@ -1329,7 +1329,7 @@ class InstrumentDB(object):
             raise ScanDBException('restore_postion needs valid instrument')
 
         posname = posname.strip()
-        pos  = self.get_position(inst, posname)
+        pos  = self.get_position(instname, posname)
 
         if pos is None:
             raise ScanDBException(
