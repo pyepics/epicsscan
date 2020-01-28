@@ -613,7 +613,7 @@ class MacroFrame(wx.Frame) :
         add_menu(self, fmenu, "Quit\tCtrl+Q",
                  "Quit Macro", self.onClose)
 
-        # options
+        # commands
         pmenu = wx.Menu()
         add_menu(self, pmenu, "Common Commands",
                  "Common Commands", self.onCommonCommands)
@@ -625,11 +625,13 @@ class MacroFrame(wx.Frame) :
         add_menu(self, pmenu, "Admin Common Commands",
                  "Admin Common Commands", self.onCommonCommandsAdmin)
 
-        add_menu(self, pmenu, "Show Command Sequence",  "Show Queue of Commands",
+        smenu = wx.Menu()
+        add_menu(self, smenu, "Show Command Sequence",  "Show Queue of Commands",
                  self.onEditSequence)
 
         self.menubar.Append(fmenu, "&File")
         self.menubar.Append(pmenu, "Insert Commands")
+        self.menubar.Append(smenu, "Sequence")
         self.SetMenuBar(self.menubar)
 
     def InputPanel(self):
