@@ -184,7 +184,10 @@ class PosScanMacroBuilder(wx.Frame):
                 buff.append( command % (repr(pname), repr(scanname), nscans))
         buff.append("#end auto-generated macro")
         buff.append("")
-        self.parent.editor.AppendText("\n".join(buff))
+        try:
+            self.parent.subframes['macro'].editor.AppendText("\n".join(buff))
+        except:
+            print("No editor ?")
 
     def onClose(self, event=None):
         self.Destroy()
@@ -287,12 +290,15 @@ class PosXRDMacroBuilder(wx.Frame):
                 buff.append( command % (pname, dtime))
         buff.append("#end auto-generated macro")
         buff.append("")
-        self.parent.editor.AppendText("\n".join(buff))
+        try:
+            self.parent.subframes['macro'].editor.AppendText("\n".join(buff))
+        except:
+            print("No editor ?")
 
     def onClose(self, event=None):
         self.Destroy()
 
-class MacroEditorPanel(scrolled.ScrolledPanel):
+class XXXMacroEditorPanel(scrolled.ScrolledPanel):
     def __init__(self, parent, scandb=None, _larch=None, size=(800, 600),
                  style=wx.GROW|wx.TAB_TRAVERSAL):
         self.scandb = scandb
