@@ -17,10 +17,6 @@ import wx
 import wx.lib.agw.flatnotebook as flat_nb
 import wx.lib.scrolledpanel as scrolled
 import wx.lib.mixins.inspection
-try:
-    from wx._core import PyDeadObjectError
-except:
-    PyDeadObjectError = Exception
 
 import epics
 from epics.wx import DelayedEpicsCallback, EpicsFunction
@@ -32,7 +28,7 @@ from ..datafile import StepScanData
 from ..scandb import ScanDB
 from ..file_utils import fix_filename, fix_varname
 
-from .gui_utils import (SimpleText, FloatCtrl, Closure, pack, add_button,
+from .gui_utils import (SimpleText, FloatCtrl, pack, add_button,
                         add_menu, add_choice, add_menu, check, hline,
                         CEN, RCEN, LCEN, FRAMESTYLE, Font, hms, popup)
 
@@ -55,7 +51,7 @@ class ScanViewerFrame(wx.Frame):
     _about = """Scan Viewer,  Matt Newville <newville @ cars.uchicago.edu>  """
     TIME_MSG = 'Point %i/%i, Time Remaining ~ %s, Status=%s'
 
-    def __init__(self, parent, dbname=None, server='sqlite', 
+    def __init__(self, parent, dbname=None, server='sqlite',
                  host=None, port=None, user=None, password=None,
                  create=True, _larch=None, scandb=None, **kws):
 
@@ -344,7 +340,7 @@ class ScanViewerFrame(wx.Frame):
         except:
             logging.exception("No units at onPlot")
             return
-        
+
         def make_array(wids, iy):
             gn  = SCANGROUP
             op1 = self.yops[iy][0].GetStringSelection()
