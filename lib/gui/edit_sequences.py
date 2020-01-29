@@ -8,19 +8,12 @@ from collections import OrderedDict, namedtuple
 
 from .gui_utils import (GUIColors, set_font_with_children, YesNo, popup,
                         add_button, pack, SimpleText, check, okcancel,
-                        add_subtitle, Font, LCEN, CEN, RCEN, FRAMESTYLE)
-
-RCEN |= wx.ALL
-LCEN |= wx.ALL
-CEN  |= wx.ALL
-
-# import wx.grid as gridlib
+                        add_subtitle, Font, FRAMESTYLE)
 
 import wx.dataview as dv
 
 LEFT = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
 CEN  = wx.ALIGN_CENTER|wx.ALIGN_CENTER_VERTICAL|wx.ALL
-
 DVSTYLE = dv.DV_VERT_RULES|dv.DV_ROW_LINES|dv.DV_MULTIPLE
 
 def cmp(a, b):
@@ -48,7 +41,8 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
                               tfmt(cmd.request_time),
                               tfmt(cmd.modify_time),
                               repr(cmd.id)))
-        self.Reset(len(self.data))            
+        self.data.reverse()
+        self.Reset(len(self.data))
 
     def cancel_item(self, item):
         cmd_id = int(self.GetValue(item, 4))
@@ -83,7 +77,7 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
                 self.scandb.set_command_run_order(new_runorder, cmdid)
             self.scandb.commit()
         self.read_data()
-        
+
     def move_item(self, item, direction='up'):
         cmd_id = int(self.GetValue(item, 4))
         status = self.GetValue(item, 1)
@@ -92,7 +86,7 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
             return
         runorder = self.commands[cmd_id].run_order
         other = None
-        if direction == 'up':
+        if direction == 'down': # before
             o = -1e23
             for cid, cmd in self.commands.items():
                 if cmd.run_order > o and cmd.run_order < runorder:
@@ -145,7 +139,7 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
             return True
         elif status in ('running'):
             attr.SetColour('#008833')
-            attr.SetBackgroundColour('#FFFFDD')            
+            attr.SetBackgroundColour('#FFFFDD')
             attr.SetBold(True)
             return True
         else:
@@ -178,7 +172,6 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
 
 class ScanSequenceFrame(wx.Frame) :
     """Edit/Manage/Run/View Sequences"""
-
     def __init__(self, parent, scandb, pos=(-1, -1), size=(850, 400), _larch=None):
         self.parent = parent
         self.scandb = scandb
@@ -186,16 +179,12 @@ class ScanSequenceFrame(wx.Frame) :
         self.cmdid = 0
         self.cmdstatus = ''
 
-        style    = wx.DEFAULT_FRAME_STYLE|wx.TAB_TRAVERSAL
-        labstyle  = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
-        rlabstyle = wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
-        tstyle    = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL
-
         self.Font10=wx.Font(10, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
         titlefont = wx.Font(12, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
 
         wx.Frame.__init__(self, None, -1,
-                          'Epics Scanning: Command Sequence',  size=size)
+                          'Epics Scanning: Command Sequence',
+                          style=FRAMESTYLE, size=size)
 
         self.SetFont(self.Font10)
         spanel = scrolled.ScrolledPanel(self, size=(850, 425))
@@ -218,34 +207,34 @@ class ScanSequenceFrame(wx.Frame) :
         bsiz.Add(add_button(bpan, label='Abort Command',      action=self.onAbort))
         bsiz.Add(add_button(bpan, label='Cancel All',         action=self.onCancelAll))
         bsiz.Add(add_button(bpan, label='Cancel Selected',    action=self.onCancelSelected))
-        bsiz.Add(add_button(bpan, label='Move Selected Up',   action=self.onMoveUp))
-        bsiz.Add(add_button(bpan, label='Move Selected Down', action=self.onMoveDown))
+        bsiz.Add(add_button(bpan, label='Move Command Later',   action=self.onMoveUp))
+        bsiz.Add(add_button(bpan, label='Move Command Earlier', action=self.onMoveDown))
         pack(bpan, bsiz)
 
         npan = wx.Panel(self)
         nsiz = wx.BoxSizer(wx.HORIZONTAL)
         self.cmd_insert = wx.TextCtrl(npan, value='<new command>', size=(400, -1))
-        nsiz.Add(add_button(npan, label='Insert Before Selected:', action=self.onInsert))
+        nsiz.Add(add_button(npan, label='Insert Before Selected Command:', action=self.onInsert))
         nsiz.Add(self.cmd_insert)
         pack(npan, nsiz)
-        
+
         mainsizer = wx.BoxSizer(wx.VERTICAL)
         mainsizer.Add(spanel, 1, wx.GROW|wx.ALL, 1)
         mainsizer.Add(bpan, 0, wx.GROW|wx.ALL, 1)
         mainsizer.Add(npan, 0, wx.GROW|wx.ALL, 1)
         pack(self, mainsizer)
 
-        for icol, dat in enumerate((('Command',      500),
-                                    ('Status',       100),
-                                    ('Requested',    100),
-                                    ('Last Updated', 100),
-                                    ('ID',            75))):
+        for icol, dat in enumerate((('Command',  500),
+                                    ('Status',   100),
+                                    ('Request',  100),
+                                    ('Update',   100),
+                                    ('ID',        25))):
             title, width = dat
             self.dvc.AppendTextColumn(title, icol, width=width)
             col = self.dvc.Columns[icol]
             col.Sortable = title != 'Command'
             col.Alignment = wx.ALIGN_LEFT
-        self.dvc.EnsureVisible(self.model.GetItem(len(self.model.data)-1))
+        self.dvc.EnsureVisible(self.model.GetItem(0))
 
         self.Bind(wx.EVT_CLOSE, self.onClose)
         self.timer = wx.Timer(self)
@@ -270,7 +259,7 @@ class ScanSequenceFrame(wx.Frame) :
             cmdid = cmds[-1].id
         if cmdid < 0:
             cmdid  = int(self.scandb.get_info('current_command_id'))
-        
+
         if ((cmdid != self.cmdid) or
             (status != self.cmdstatus) or
             ((now - self.last_refresh) > 300)):
@@ -282,7 +271,7 @@ class ScanSequenceFrame(wx.Frame) :
         if self.dvc.HasSelection():
             self.model.move_item(self.dvc.GetSelection(), direction='up')
             self.Refresh()
-            
+
     def onInsert(self, event=None):
         if self.dvc.HasSelection():
             val = self.cmd_insert.GetValue().strip()
@@ -290,7 +279,7 @@ class ScanSequenceFrame(wx.Frame) :
                 self.model.insert_before(self.dvc.GetSelection(), val)
             val = self.cmd_insert.SetValue('<new command>')
             self.Refresh()
-            
+
     def onMoveDown(self, event=None):
         if self.dvc.HasSelection():
             self.model.move_item(self.dvc.GetSelection(), direction='down')
@@ -314,7 +303,7 @@ class ScanSequenceFrame(wx.Frame) :
         self.model.read_data()
         self.Refresh()
         self.last_refresh = time.monotonic()
-        self.dvc.EnsureVisible(self.model.GetItem(len(self.model.data)-1))
+        self.dvc.EnsureVisible(self.model.GetItem(0))
 
     def onDone(self, event=None):
         self.parent.Destroy()
