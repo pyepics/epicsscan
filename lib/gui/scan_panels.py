@@ -9,13 +9,14 @@ Current scan types:
 """
 import time
 import json
+from functools import partial
 import wx
 import wx.lib.scrolledpanel as scrolled
 import numpy as np
 import epics
 from epics.wx import EpicsFunction, PVText, PVStaticText
 
-from .gui_utils import SimpleText, FloatCtrl, Closure, HyperText
+from .gui_utils import SimpleText, FloatCtrl, HyperText
 from .gui_utils import pack, add_choice, hms, check
 
 from .. import etok, ktoe, XAFS_Scan, StepScan, Positioner, Counter
@@ -190,7 +191,7 @@ class GenericScanPanel(scrolled.ScrolledPanel):
                                    value=dwell_value,
                                    act_on_losefocus=True,
                                    minval=0, size=(80, -1),
-                                   action=Closure(self.onVal,
+                                   action=partial(self.onVal,
                                                   label='dwelltime'))
 
         self.est_time  = SimpleText(self, '  00:00:00  ')
@@ -217,16 +218,16 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         s0, s1, ds, ns = initvals
 
         start = FloatCtrl(self, size=fsize, value=s0, act_on_losefocus=True,
-                          action=Closure(self.onVal, index=i, label='start'))
+                          action=partial(self.onVal, index=i, label='start'))
         stop  = FloatCtrl(self, size=fsize, value=s1, act_on_losefocus=True,
-                          action=Closure(self.onVal, index=i, label='stop'))
+                          action=partial(self.onVal, index=i, label='stop'))
         step  = FloatCtrl(self, size=fsize, value=ds, act_on_losefocus=True,
                           precision=4,
-                          action=Closure(self.onVal, index=i, label='step'))
+                          action=partial(self.onVal, index=i, label='step'))
         if with_npts:
             npts  = FloatCtrl(self, precision=0,  value=ns, size=(70, -1),
                               act_on_losefocus=True,
-                              action=Closure(self.onVal, index=i, label='npts'))
+                              action=partial(self.onVal, index=i, label='npts'))
         else:
             npts  = wx.StaticText(self, -1, size=fsize, label=' ')
         return start, stop, step, npts
@@ -369,7 +370,7 @@ class LinearScanPanel(GenericScanPanel):
                 pchoices = pchoices[1:]
                 idefault = 1
             pos = add_choice(self, pchoices, size=(100, -1),
-                             action=Closure(self.onPos, index=i))
+                             action=partial(self.onPos, index=i))
             pos.SetSelection(idefault)
             role  = wx.StaticText(self, -1, label=lab)
             units = wx.StaticText(self, -1, label='', size=(40, -1),
@@ -540,13 +541,13 @@ class XAFSScanPanel(GenericScanPanel):
             start, stop, step, npts = self.StartStopStepNpts(i, initvals=initvals)
             dtime = FloatCtrl(self, size=(70, -1), value=1, minval=0,
                               precision=3,
-                              action=Closure(self.onVal, index=i, label='dtime'))
+                              action=partial(self.onVal, index=i, label='dtime'))
 
             if i < 2:
                 units = wx.StaticText(self, -1, size=(30, -1), label=self.units_list[0])
             else:
                 units = add_choice(self, self.units_list,
-                                   action=Closure(self.onVal, label='units', index=i))
+                                   action=partial(self.onVal, label='units', index=i))
             self.ev_units.append(True)
 
             self.reg_settings.append((start, stop, step, npts, dtime, units))
@@ -569,11 +570,11 @@ class XAFSScanPanel(GenericScanPanel):
         sizer.Add(self.hline(), (ir, 0), (1, 7), wx.ALIGN_CENTER)
 
         self.kwtimechoice = add_choice(self, ('0', '1', '2', '3'), size=(70, -1),
-                                     action=Closure(self.onVal, label='kwpow'))
+                                     action=partial(self.onVal, label='kwpow'))
 
         self.kwtimemax = FloatCtrl(self, precision=3, value=0, minval=0,
                                    size=(65, -1),
-                                   action=Closure(self.onVal, label='kwtime'))
+                                   action=partial(self.onVal, label='kwtime'))
 
         ir += 1
         sizer.Add(SimpleText(self, "k-weight time of last region:"),  (ir, 1,), (1, 2), CEN, 3)
@@ -698,14 +699,14 @@ class XAFSScanPanel(GenericScanPanel):
                                    value=dwell_value,
                                    act_on_losefocus=True,
                                    minval=0, size=(60, -1),
-                                   action=Closure(self.onVal,
+                                   action=partial(self.onVal,
                                                   label='dwelltime'))
 
         self.est_time  = SimpleText(self, '  00:00:00  ')
         self.nregs_wid = FloatCtrl(self, precision=0, value=3,
                                    minval=1, maxval=5,
                                    size=(40, -1),  act_on_losefocus=True,
-                                   action=Closure(self.onVal, label='nreg'))
+                                   action=partial(self.onVal, label='nreg'))
         nregs = self.nregs_wid.GetValue()
 
         title  =  SimpleText(self, " %s" % title, style=LEFT,
@@ -738,7 +739,7 @@ class XAFSScanPanel(GenericScanPanel):
         s = wx.BoxSizer(wx.HORIZONTAL)
         self.e0 = FloatCtrl(p, precision=2, value=7112.0, minval=0, maxval=1e7,
                             size=(80, -1), act_on_losefocus=True,
-                            action=Closure(self.onVal, label='e0'))
+                            action=partial(self.onVal, label='e0'))
 
         self.elemchoice = add_choice(p, ELEM_LIST,
                                      action=self.onEdgeChoice, size=(70, -1))
@@ -964,7 +965,7 @@ class MeshScanPanel(GenericScanPanel):
         for i, label in enumerate((" Inner ", " Outer ")):
             lab = wx.StaticText(self, -1, label=label)
             pos = add_choice(self, pchoices, size=(100, -1),
-                             action=Closure(self.onPos, index=i))
+                             action=partial(self.onPos, index=i))
             pos.SetSelection(i)
             units = wx.StaticText(self, -1, size=(40, -1), label='')
             cur   = PVStaticText(self, pv=None, size=(100, -1),
@@ -1095,7 +1096,7 @@ class SlewScanPanel(GenericScanPanel):
                 pchoices = [p.name for p in self.scandb.get_slewpositioners()]
 
             pos = add_choice(self, pchoices, size=(100, -1),
-                             action=Closure(self.onPos, index=i))
+                             action=partial(self.onPos, index=i))
             pos.SetSelection(i)
             units = wx.StaticText(self, -1, size=(40, -1), label='',
                                   style=wx.ALIGN_CENTER)
@@ -1139,7 +1140,7 @@ class SlewScanPanel(GenericScanPanel):
                         u'600 x 600 \u03bcm', u'800 x 800 \u03bcm',
                         '1 x 1 mm', '2 x 2 mm'):
             link = HyperText(lpanel, mapname,
-                             action=Closure(self.onDefinedMap,
+                             action=partial(self.onDefinedMap,
                                             label=mapname))
             lsizer.Add(link, (jrow, jcol), (1, 1), wx.ALL, 7)
             jcol += 1

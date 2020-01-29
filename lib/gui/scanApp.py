@@ -33,6 +33,7 @@ import os
 import sys
 import time
 import shutil
+from functools import partial
 import numpy as np
 import json
 import socket
@@ -49,7 +50,7 @@ import epics
 from epics.wx import DelayedEpicsCallback, EpicsFunction, finalize_epics
 from epics.wx.utils import popup
 
-from .gui_utils import (SimpleText, FloatCtrl, Closure, pack, add_button,
+from .gui_utils import (SimpleText, FloatCtrl, pack, add_button,
                         add_menu, add_choice, add_menu, FileOpen,
                         CEN, LCEN, FRAMESTYLE, Font)
 
@@ -238,11 +239,10 @@ class ScanFrame(wx.Frame):
 
         btnsizer = wx.BoxSizer(wx.HORIZONTAL)
         btnpanel = wx.Panel(self)
-        # bnames = ("Start", "Abort", "Pause", "Resume", "Debug")
         bnames = ("Start", "Abort", "Pause", "Resume")
         for ibtn, label in enumerate(bnames):
             btn = add_button(btnpanel, "%s Scan" % label, size=(120, -1),
-                             action=Closure(self.onCtrlScan, cmd=label))
+                             action=partial(self.onCtrlScan, cmd=label))
             btnsizer.Add(btn, 0, CEN, 8)
         pack(btnpanel, btnsizer)
 
@@ -484,7 +484,7 @@ class ScanFrame(wx.Frame):
 
     def show_subframe(self, name, frameclass):
         shown = False
-        
+
         if name in self.subframes:
             try:
                 self.subframes[name].Raise()

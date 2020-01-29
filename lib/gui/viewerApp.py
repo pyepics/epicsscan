@@ -16,15 +16,11 @@ import shutil
 import numpy as np
 from random import randrange
 from datetime import timedelta
-
+from functools import partial
 import wx
 import wx.lib.agw.flatnotebook as flat_nb
 import wx.lib.scrolledpanel as scrolled
 import wx.lib.mixins.inspection
-try:
-    from wx._core import PyDeadObjectError
-except:
-    PyDeadObjectError = Exception
 
 
 import epics
@@ -39,7 +35,7 @@ from ..datafile import StepScanData
 from ..scandb import ScanDB
 from ..file_utils import fix_filename
 
-from .gui_utils import (SimpleText, FloatCtrl, Closure, pack, add_button,
+from .gui_utils import (SimpleText, FloatCtrl, pack, add_button,
                         add_menu, add_choice, add_menu, check,
                         CEN, RCEN, LCEN, FRAMESTYLE, Font)
 
@@ -207,7 +203,7 @@ class PlotterFrame(wx.Frame):
                                      (1, 0, 4, 'over left',  'Over Plot, Left Axis'),
                                      (1, 4, 2, 'over right', 'Over Plot, Right Axis')):
             sizer.Add(add_button(panel, ttl, size=(165, -1),
-                                 action=Closure(self.onPlot, opt=opt)),
+                                 action=partial(self.onPlot, opt=opt)),
                       (ir+jr, ic), (1, dc), LCEN, 2)
 
         ir += 2
@@ -437,7 +433,7 @@ class PlotterFrame(wx.Frame):
                 except IndexError:
                     pframe = None
                     break
-                except PyDeadObjectError:
+                except:
                     pframe = None
 
         if pframe is None:

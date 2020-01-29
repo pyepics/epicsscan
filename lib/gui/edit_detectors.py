@@ -7,7 +7,7 @@ import wx.lib.scrolledpanel as scrolled
 from collections import OrderedDict
 from ..detectors import DET_DEFAULT_OPTS, AD_FILE_PLUGINS
 
-from .gui_utils import (GUIColors, set_font_with_children, YesNo, Closure,
+from .gui_utils import (GUIColors, set_font_with_children, YesNo,
                         add_button, add_choice, pack, check, Font,
                         SimpleText, FloatCtrl, okcancel, add_subtitle,
                         LCEN, CEN, RCEN, LEFT, FRAMESTYLE)
@@ -298,7 +298,7 @@ class DetectorFrame(wx.Frame) :
             pvctrl = wx.TextCtrl(panel, value=det.pvname, size=(175, -1))
             use    = check(panel, default=det.use)
             detail = add_button(panel, 'Edit', size=(60, -1),
-                                action=Closure(self.onDetDetails, det=det))
+                                action=partial(self.onDetDetails, det=det))
             kind = add_choice(panel, DET_CHOICES, size=(110, -1))
             kind.SetStringSelection(dkind)
             erase  = YesNo(panel, defaultyes=False)

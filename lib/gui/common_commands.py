@@ -10,7 +10,7 @@ import wx.lib.scrolledpanel as scrolled
 
 import numpy as np
 
-from .gui_utils import (SimpleText, FloatCtrl, Closure, HyperText,
+from .gui_utils import (SimpleText, FloatCtrl, HyperText,
                         pack, add_choice, add_button,  check)
 
 from ..scandb import InstrumentDB
@@ -118,7 +118,7 @@ class CommonCommandsAdminFrame(wx.Frame):
             sizer.Add(zorder,  (irow, 2), (1, 1), labstyle, 1)
             sizer.Add(argstxt, (irow, 3), (1, 1), labstyle, 1)
             sizer.Add(wx.StaticLine(panel, size=(700, 1), style=wx.LI_HORIZONTAL|wx.GROW),
-                      (irow+1, 0), (1, 5))            
+                      (irow+1, 0), (1, 5))
             irow += 2
 
         self.newcmd_order = FloatCtrl(panel, value=1000, minval=0,
@@ -214,7 +214,7 @@ class CommonCommandsFrame(wx.Frame):
         self._larch = parent._larch if _larch is None else _larch
         self._larch.load_macros()
         macros = self._larch.get_macros()
-        
+
         labstyle  = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
         font11 = wx.Font(11, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
         font12 = wx.Font(12, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
@@ -228,7 +228,7 @@ class CommonCommandsFrame(wx.Frame):
         self.SetBackgroundColour('#F0F0E8')
 
         sizer = wx.GridBagSizer(1, 1)
-        
+
         irow = 0
         sizer.Add(SimpleText(panel, 'Click on Command Name to Add to Macro Text',
                              size=(400, -1), style=labstyle, font=font12),
