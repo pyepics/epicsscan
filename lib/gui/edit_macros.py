@@ -9,6 +9,9 @@ import wx
 import wx.lib.agw.flatnotebook as flat_nb
 import wx.lib.scrolledpanel as scrolled
 from wx.lib.editor import Editor
+import wx.dataview as dv
+
+DVSTYLE = dv.DV_VERT_RULES|dv.DV_ROW_LINES|dv.DV_MULTIPLE
 
 from collections import OrderedDict
 import epics
@@ -38,6 +41,8 @@ COLOR_OK   = '#0000BB'
 COLOR_WARN = '#BB9900'
 COLOR_ERR  = '#BB0000'
 
+def cmp(a, b):
+    return (a>b)-(b<a)
 
 class ScanDBMessageQueue(object):
     """ScanDB Messages"""
@@ -58,102 +63,172 @@ class ScanDBMessageQueue(object):
             self.last_id = out[-1].id
         return out
 
+def get_positionlist(scandb, instrument='SampleStage'):
+    """get list of positions for and instrument"""
+    return InstrumentDB(scandb).get_positionlist(instrument)
 
-class PosScanMacroBuilder(wx.Frame):
-    """ transfer positions from offline microscope"""
-    def __init__(self, parent, scandb=None, _larch=None):
-        wx.Frame.__init__(self, None, -1,
-                          title="Build Macro for Scans at Saved Positions")
+class PositionCommandModel(dv.DataViewIndexListModel):
+    def __init__(self, scandb):
+        dv.DataViewIndexListModel.__init__(self, 0)
+        self.scandb = scandb
+        self.data = []
+        self.posvals = {}
+        self.read_data()
+
+    def read_data(self):
+        self.data = []
+        for pos in get_positionlist(self.scandb):
+            use, nscan = True, '1'
+            if pos in self.posvals:
+                use, nsscan = self.posvals[pos]
+            self.data.append([pos, use, nscan])
+            self.posvals[pos] = [use, nscan]
+        self.data.reverse()
+        self.Reset(len(self.data))
+
+    def GetColumnType(self, col):
+        if col == 1:
+            return "bool"
+        return "string"
+
+    def GetValueByRow(self, row, col):
+        return self.data[row][col]
+
+    def SetValueByRow(self, value, row, col):
+        self.data[row][col] = value
+        return True
+
+    def GetColumnCount(self):
+        return len(self.data[0])
+
+    def GetCount(self):
+        return len(self.data)
+
+    def Compare(self, item1, item2, col, ascending):
+        """help for sorting data"""
+        if not ascending: # swap sort order?
+            item2, item1 = item1, item2
+        row1 = self.GetRow(item1)
+        row2 = self.GetRow(item2)
+        if col == 1:
+            return cmp(int(self.data[row1][col]), int(self.data[row2][col]))
+        else:
+            return cmp(self.data[row1][col], self.data[row2][col])
+
+    def DeleteRows(self, rows):
+        rows = list(rows)
+        rows.sort(reverse=True)
+        for row in rows:
+            del self.data[row]
+            self.RowDeleted(row)
+
+    def AddRow(self, value):
+        self.data.append(value)
+        self.RowAppended()
+
+class PositionCommandFrame(wx.Frame) :
+    """Edit/Manage/Run/View Sequences"""
+    def __init__(self, parent, scandb, pos=(-1, -1), size=(700, 550), _larch=None):
         self.parent = parent
         self.scandb = scandb
-        self.instdb = InstrumentDB(scandb)
-        self.build_dialog()
+        self.last_refresh = time.monotonic() - 100.0
+        self.Font10=wx.Font(10, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
+        titlefont = wx.Font(12, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
 
-    def build_dialog(self):
-        # positions  = self.instdb.get_positionlist('IDE_SampleStage')
-        instname = self.scandb.get_info('samplestage_instrument')
-        if instname is None:
-            instname = 'SampleStage'
-        positions  = self.instdb.get_positionlist(instname)
+        wx.Frame.__init__(self, None, -1,
+                          title="Data Collection Commands at Saved Positions",
+                          style=FRAMESTYLE, size=size)
 
-        panel = scrolled.ScrolledPanel(self)
-        self.checkboxes = OrderedDict()
-        sizer = wx.GridBagSizer(len(positions)+5, 4)
-        sizer.SetVGap(4)
-        sizer.SetHGap(4)
+        self.SetFont(self.Font10)
+        panel = scrolled.ScrolledPanel(self, size=(700, 500))
+        self.colors = GUIColors()
+        panel.SetBackgroundColour(self.colors.bg)
 
-        _nscans = ['%i'  %(i+1) for i in range(10)]
+        self.dvc = dv.DataViewCtrl(panel, style=DVSTYLE)
+        self.dvc.SetMinSize((700, 450))
+
+        self.model = PositionCommandModel(self.scandb)
+        self.dvc.AssociateModel(self.model)
+
+        self.datatype = add_choice(panel, ['Scan', 'XRD'], size=(125, -1),
+                                   action=self.onDataType)
+        self.datatype.SetSelection(0)
 
         self.scantype = add_choice(panel,  ('Maps', 'XAFS', 'Linear'),
-                                 size=(100, -1),  action = self.onScanType)
+                                   size=(125, -1),  action = self.onScanType)
         self.scantype.SetSelection(1)
-        self.scanname = add_choice(panel,  [], size=(200, -1))
-        self.pos_names = []
-        self.wid_include = {}
-        self.wid_nscans = {}
 
-        bkws = dict(size=(95, -1))
-        btn_insert = add_button(panel, "Insert Macro",  action=self.onInsert, **bkws)
-        btn_all    = add_button(panel, "Select All",    action=self.onSelAll, **bkws)
-        btn_none   = add_button(panel, "Select None",   action=self.onSelNone, **bkws)
-        btn_done   = add_button(panel, "Close",         action=self.onClose, **bkws)
+        self.scanname = add_choice(panel,  [], size=(250, -1))
+        self.xrdtime = FloatCtrl(panel, value=10, minval=0, maxval=50000, precision=1)
+        self.xrdtime.Disable()
 
-        brow = wx.BoxSizer(wx.HORIZONTAL)
-        brow.Add(btn_all ,  0, ALL_EXP|wx.ALIGN_LEFT, 1)
-        brow.Add(btn_none,  0, ALL_EXP|wx.ALIGN_LEFT, 1)
-        brow.Add(btn_insert, 0, ALL_EXP|wx.ALIGN_LEFT, 1)
-        brow.Add(btn_done, 0, ALL_EXP|wx.ALIGN_LEFT, 1)
+        sizer = wx.GridBagSizer(2, 2)
 
-        sizer.Add(brow,   (0, 0), (1, 4),  LEFT_CEN, 2)
+        irow = 0
+        sizer.Add(add_button(panel, label='Select All', size=(125, -1),
+                             action=self.onSelAll),
+                  (irow, 0), (1, 1), LEFT_CEN, 2)
+        sizer.Add(add_button(panel, label='Select None', size=(125, -1),
+                             action=self.onSelNone),
+                  (irow, 1), (1, 1), LEFT_CEN, 2)
+        sizer.Add(add_button(panel, label='Add Commands', size=(150, -1),
+                             action=self.onInsert),
+                  (irow, 2), (1, 2), LEFT_CEN, 2)
 
-        ir = 1
-        sizer.Add(SimpleText(panel, 'Scan Type:'), (ir, 0), (1, 1),  LEFT_CEN, 2)
-        sizer.Add(self.scantype,                   (ir, 1), (1, 1),  LEFT_CEN, 2)
-        sizer.Add(SimpleText(panel, 'Scan Name:'), (ir, 2), (1, 1),  LEFT_CEN, 2)
-        sizer.Add(self.scanname,                   (ir, 3), (1, 2),  LEFT_CEN, 2)
+        irow += 1
+        sizer.Add(SimpleText(panel, 'Command Type:'), (irow, 0), (1, 1), LEFT_CEN, 2)
+        sizer.Add(self.datatype,                      (irow, 1), (1, 1), LEFT_CEN, 2)
+        sizer.Add(SimpleText(panel, 'XRD Time (sec):'), (irow, 2), (1, 1), LEFT_CEN, 2)
+        sizer.Add(self.xrdtime,                       (irow, 3), (1, 1), LEFT_CEN, 2)
 
-        ir += 1
-        sizer.Add(SimpleText(panel, 'Position Name'), (ir, 0), (1, 2),  LEFT_CEN, 2)
-        sizer.Add(SimpleText(panel, 'Include?'),      (ir, 2), (1, 1),  LEFT_CEN, 2)
-        sizer.Add(SimpleText(panel, 'Nscans'),        (ir, 3), (1, 1),  LEFT_CEN, 2)
+        irow += 1
+        sizer.Add(SimpleText(panel, 'Scan Type:'),    (irow, 0), (1, 1), LEFT_CEN, 2)
+        sizer.Add(self.scantype,                      (irow, 1), (1, 1), LEFT_CEN, 2)
+        sizer.Add(SimpleText(panel, 'Scan Name:'),    (irow, 2), (1, 1), LEFT_CEN, 2)
+        sizer.Add(self.scanname,                      (irow, 3), (1, 1), LEFT_CEN, 2)
 
-        ir += 1
-        sizer.Add(wx.StaticLine(panel, size=(500, 2)),(ir, 0), (1, 4),  LEFT_CEN, 2)
 
-        ir += 1
-        for pname in positions:
-            self.pos_names.append(pname)
-            label = SimpleText(panel, "  %s  " % pname)
-            cbox = self.wid_include[pname] = wx.CheckBox(panel, -1, "")
-            cbox.SetValue(True)
-            nscans = self.wid_nscans[pname] = add_choice(panel, _nscans, size=(50, -1))
-            nscans.SetStringSelection('1')
-            sizer.Add(label,  (ir, 0), (1, 2),  LEFT_CEN, 2)
-            sizer.Add(cbox,   (ir, 2), (1, 1),  LEFT_CEN, 2)
-            sizer.Add(nscans, (ir, 3), (1, 1), LEFT_CEN, 2)
-            ir += 1
+        for icol, dat in enumerate((('Position Name',  400, 'text'),
+                                    ('Include',        100, 'bool'),
+                                    ('# Scans',        100, 'text'))):
+            label, width, dtype = dat
+            method = self.dvc.AppendTextColumn
+            mode = dv.DATAVIEW_CELL_EDITABLE
+            if dtype == 'bool':
+                method = self.dvc.AppendToggleColumn
+                mode = dv.DATAVIEW_CELL_ACTIVATABLE
+            kws = {}
+            if icol > 0:
+                kws['mode'] = mode
+            method(label, icol, width=width, **kws)
+            c = self.dvc.Columns[icol]
+            c.Alignment = wx.ALIGN_LEFT
+            c.Sortable = False
 
-        sizer.Add(wx.StaticLine(panel, size=(500, 2)), (ir, 0), (1, 4),  LEFT_CEN, 2)
-
+        irow += 1
+        sizer.Add(self.dvc, (irow, 0), (2, 5), LEFT_CEN, 2)
         pack(panel, sizer)
 
         panel.SetupScrolling()
+
         mainsizer = wx.BoxSizer(wx.VERTICAL)
-        mainsizer.Add(panel, 1,  ALL_EXP|wx.GROW|wx.ALIGN_LEFT, 1)
+        mainsizer.Add(panel, 1, wx.GROW|wx.ALL, 1)
         pack(self, mainsizer)
-        self.SetMinSize((450, 550))
-        self.SetSize((525, 600))
-        self.Raise()
+        self.dvc.EnsureVisible(self.model.GetItem(0))
+
+        self.Bind(wx.EVT_CLOSE, self.onClose)
+        self.timer = wx.Timer(self)
+        self.Bind(wx.EVT_TIMER, self.onTimer, self.timer)
+        self.timer.Start(5000)
+        wx.CallAfter(self.onScanType)
         self.Show()
-        self.onScanType()
+        self.Raise()
 
-    def onSelAll(self, event=None):
-        for cbox in self.wid_include.values():
-            cbox.SetValue(True)
-
-    def onSelNone(self, event=None):
-        for cbox in self.wid_include.values():
-            cbox.SetValue(False)
+    def onDataType(self, event=None):
+        name = self.datatype.GetStringSelection().lower()
+        self.xrdtime.Enable(name=='xrd')
+        self.scantype.Enable(name=='scan')
+        self.scanname.Enable(name=='scan')
 
     def onScanType(self, event=None):
         sname = self.scantype.GetStringSelection().lower()
@@ -173,271 +248,50 @@ class PosScanMacroBuilder(wx.Frame):
         self.scanname.SetSelection(0)
 
     def onInsert(self, event=None):
-        if self.instdb is None:
-            return
-        scanname = self.scanname.GetStringSelection()
-        command = "pos_scan(%s, %s, number=%s)"
-        buff = ["#start auto-generated macro"]
-        for pname in self.pos_names:
-            if self.wid_include[pname].IsChecked():
-                nscans = self.wid_nscans[pname].GetStringSelection()
-                buff.append( command % (repr(pname), repr(scanname), nscans))
-        buff.append("#end auto-generated macro")
+        datatype = self.datatype.GetStringSelection()
+        if datatype == 'xrd':
+            xrdtime =  self.xrdtime.GetValue()
+            command = "xrd_at(%s, t=%.1f)"
+            for posname, use, nscans in self.model.data:
+                if use:
+                    buff.append(command % (repr(posname), xrdtime))
+        else:
+            scanname = self.scanname.GetStringSelection()
+            command = "pos_scan(%s, %s, number=%s)"
+            for posname, use, nscans in self.model.data:
+                if use:
+                    buff.append(command % (repr(posname), repr(scanname), nscans))
         buff.append("")
         try:
             self.parent.subframes['macro'].editor.AppendText("\n".join(buff))
         except:
-            print("No editor ?")
-
-    def onClose(self, event=None):
-        self.Destroy()
-
-class PosXRDMacroBuilder(wx.Frame):
-    """ transfer positions from offline microscope"""
-    def __init__(self, parent, scandb=None, _larch=None):
-        wx.Frame.__init__(self, None, -1,
-                          title="Build Macro for XRD at Saved Positions")
-        self.parent = parent
-        self.scandb = scandb
-        self.instdb = InstrumentDB(scandb)
-        self.build_dialog()
-
-    def build_dialog(self):
-        # positions  = self.instdb.get_positionlist('IDE_SampleStage')
-        instname = self.scandb.get_info('samplestage_instrument')
-        if instname is None:
-            instname = 'SampleStage'
-        positions  = self.instdb.get_positionlist(instname)
-        panel = scrolled.ScrolledPanel(self)
-        self.checkboxes = OrderedDict()
-        sizer = wx.GridBagSizer(len(positions)+5, 4)
-        sizer.SetVGap(4)
-        sizer.SetHGap(4)
-
-        _nscans = ['%i'  %(i+1) for i in range(10)]
-
-        self.dwelltime = FloatCtrl(panel, precision=1, value=10,
-                                   minval=0.5, maxval=10000, size=(75, -1))
-
-        self.pos_names = []
-        self.wid_include = {}
-        self.wid_nscans = {}
-
-        bkws = dict(size=(95, -1))
-        btn_insert = add_button(panel, "Insert Macro",  action=self.onInsert, **bkws)
-        btn_all    = add_button(panel, "Select All",    action=self.onSelAll, **bkws)
-        btn_none   = add_button(panel, "Select None",   action=self.onSelNone, **bkws)
-        btn_done   = add_button(panel, "Close",         action=self.onClose, **bkws)
-
-        brow = wx.BoxSizer(wx.HORIZONTAL)
-        brow.Add(btn_all ,  0, ALL_EXP|wx.ALIGN_LEFT, 1)
-        brow.Add(btn_none,  0, ALL_EXP|wx.ALIGN_LEFT, 1)
-        brow.Add(btn_insert, 0, ALL_EXP|wx.ALIGN_LEFT, 1)
-        brow.Add(btn_done, 0, ALL_EXP|wx.ALIGN_LEFT, 1)
-
-        sizer.Add(brow,   (0, 0), (1, 4),  LEFT_CEN, 2)
-
-        ir = 1
-        sizer.Add(SimpleText(panel, 'Dwell Time:'), (ir, 0), (1, 1),  LEFT_CEN, 2)
-        sizer.Add(self.dwelltime,                   (ir, 1), (1, 1),  LEFT_CEN, 2)
-
-        ir += 1
-        sizer.Add(SimpleText(panel, 'Position Name'), (ir, 0), (1, 2),  LEFT_CEN, 2)
-        sizer.Add(SimpleText(panel, 'Include?'),      (ir, 2), (1, 1),  LEFT_CEN, 2)
-
-        ir += 1
-        sizer.Add(wx.StaticLine(panel, size=(500, 2)),(ir, 0), (1, 4),  LEFT_CEN, 2)
-
-        ir += 1
-        for pname in positions:
-            self.pos_names.append(pname)
-            label = SimpleText(panel, "  %s  " % pname)
-            cbox = self.wid_include[pname] = wx.CheckBox(panel, -1, "")
-            cbox.SetValue(True)
-            sizer.Add(label,  (ir, 0), (1, 2),  LEFT_CEN, 2)
-            sizer.Add(cbox,   (ir, 2), (1, 1),  LEFT_CEN, 2)
-            ir += 1
-
-        sizer.Add(wx.StaticLine(panel, size=(500, 2)), (ir, 0), (1, 4),  LEFT_CEN, 2)
-
-        pack(panel, sizer)
-
-        panel.SetupScrolling()
-        mainsizer = wx.BoxSizer(wx.VERTICAL)
-        mainsizer.Add(panel, 1,  ALL_EXP|wx.GROW|wx.ALIGN_LEFT, 1)
-        pack(self, mainsizer)
-        self.SetMinSize((450, 550))
-        self.SetSize((525, 600))
-        self.Raise()
-        self.Show()
+            print("No editor?")
 
     def onSelAll(self, event=None):
-        for cbox in self.wid_include.values():
-            cbox.SetValue(True)
+        for p in self.model.posvals.values():
+            p[0] = True
+        self.update()
 
     def onSelNone(self, event=None):
-        for cbox in self.wid_include.values():
-            cbox.SetValue(False)
-
-    def onInsert(self, event=None):
-        if self.instdb is None:
-            return
-        dtime = self.dwelltime.GetValue()
-        command = "xrd_at('%s', t=%.1f)"
-        buff = ["#start auto-generated macro"]
-        for pname in self.pos_names:
-            if self.wid_include[pname].IsChecked():
-                buff.append( command % (pname, dtime))
-        buff.append("#end auto-generated macro")
-        buff.append("")
-        try:
-            self.parent.subframes['macro'].editor.AppendText("\n".join(buff))
-        except:
-            print("No editor ?")
+        for p in self.model.posvals.values():
+            p[0] = False
+        self.update()
 
     def onClose(self, event=None):
+        self.timer.Stop()
+        time.sleep(1.0)
         self.Destroy()
 
-class XXXMacroEditorPanel(scrolled.ScrolledPanel):
-    def __init__(self, parent, scandb=None, _larch=None, size=(800, 600),
-                 style=wx.GROW|wx.TAB_TRAVERSAL):
-        self.scandb = scandb
-        self.larch = _larch
-        self.db_messages = ScanDBMessageQueue(self.scandb)
+    def onTimer(self, event=None, **kws):
+        now = time.monotonic()
+        poslist = get_positionlist(self.scandb)
+        if len(self.model.data) != len(poslist):
+            self.update()
 
-
-        scrolled.ScrolledPanel.__init__(self, parent,
-                                        size=size, style=style,
-                                        name=self.__name__)
-
-        self.editor = wx.TextCtrl(self, -1, size=(750, 275),
-                                  style=wx.TE_MULTILINE|wx.TE_RICH2)
-        self.editor.SetBackgroundColour('#FFFFFF')
-
-        text = """## Edit Macro text here\n#\n"""
-        self.editor.SetValue(text)
-        self.editor.SetInsertionPoint(len(text)-2)
-        self.ReadMacroFile(AUTOSAVE_FILE)
-
-        self.submit_btn  = add_button(self, label='Submit',  action=self.onSubmit)
-
-        sfont = wx.Font(11,  wx.SWISS, wx.NORMAL, wx.BOLD, False)
-        self.output = wx.TextCtrl(self, -1,  '## Output Buffer\n', size=(750, 275),
-                                  style=wx.TE_MULTILINE|wx.TE_RICH|wx.TE_READONLY)
-        self.output.CanCopy()
-        self.output.SetInsertionPointEnd()
-        self.output.SetDefaultStyle(wx.TextAttr('black', 'white', sfont))
-
-        sizer.Add(self.submit_btn, 0, LEFT|wx.GROW|wx.ALL, 3)
-        sizer.Add(self.editor, 1, CEN|wx.GROW|wx.ALL, 3)
-        sizer.Add(self.output, 1, CEN|wx.GROW|wx.ALL, 3)
-        sizer.Add(self.InputPanel(),  0, border=2,
-                  flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL|wx.EXPAND)
-
-
-    def onReadMacro(self, event=None):
-        wcard = 'Scan files (*.lar)|*.lar|All files (*.*)|*.*'
-        fname = FileOpen(self, "Read Macro from File",
-                         default_file='macro.lar',
-                         wildcard=wcard)
-        if fname is not None:
-            self.ReadMacroFile(fname)
-
-    def ReadMacroFile(self, fname):
-        if os.path.exists(fname):
-            try:
-                text = open(fname, 'r').read()
-            except:
-                logging.exception('could not read MacroFile %s' % fname)
-            finally:
-                self.editor.SetValue(text)
-                self.editor.SetInsertionPoint(len(text)-2)
-
-    def onSaveMacro(self, event=None):
-        wcard = 'Scan files (*.lar)|*.lar|All files (*.*)|*.*'
-        fname = FileSave(self, 'Save Macro to File',
-                         default_file='macro.lar', wildcard=wcard)
-        fname = os.path.join(os.getcwd(), fname)
-        if fname is not None:
-            if os.path.exists(fname):
-                ret = popup(self, "Overwrite Macro File '%s'?" % fname,
-                            "Really Overwrite Macro File?",
-                            style=wx.YES_NO|wx.NO_DEFAULT|wx.ICON_QUESTION)
-                if ret != wx.ID_YES:
-                    return
-            self.SaveMacroFile(fname)
-
-    def SaveMacroFile(self, fname):
-        try:
-            fh = open(fname, 'w')
-            fh.write('%s\n' % self.editor.GetValue())
-            fh.close()
-        except:
-            print('could not save MacroFile %s' % fname)
-
-    def onSubmit(self, event=None):
-        now = time.time()
-        if (now - self.last_start_request) < 5.0:
-            print( "double clicked start?")
-            return
-        self.last_start_request = now
-        # self.start_btn.Disable()
-        lines = self.editor.GetValue().split('\n')
-        self.scandb.set_info('request_pause',  1)
-
-        for lin in lines:
-            if '#' in lin:
-                icom = lin.index('#')
-                lin = lin[:icom]
-            lin = lin.strip()
-            if len(lin) > 0:
-                self.scandb.add_command(lin)
-        self.scandb.commit()
-        self.scandb.set_info('request_abort',  0)
-        self.scandb.set_info('request_pause',  0)
-
-    def InputPanel(self):
-        panel = wx.Panel(self, -1)
-        self.prompt = wx.StaticText(panel, -1, ' >>>', size = (30,-1),
-                                    style=wx.ALIGN_CENTER|wx.ALIGN_RIGHT)
-        self.histfile = os.path.join(larch.site_config.usr_larchdir, MACRO_HISTORY)
-        self.input = ReadlineTextCtrl(panel, -1,  '', size=(525,-1),
-                                      historyfile=self.histfile,
-                                      style=wx.ALIGN_LEFT|wx.TE_PROCESS_ENTER)
-
-        self.input.Bind(wx.EVT_TEXT_ENTER, self.onText)
-        sizer = wx.BoxSizer(wx.HORIZONTAL)
-
-        sizer.Add(self.prompt,  0, wx.BOTTOM|wx.CENTER)
-        sizer.Add(self.input,   1, wx.ALIGN_LEFT|wx.ALIGN_CENTER|wx.EXPAND)
-        panel.SetSizer(sizer)
-        sizer.Fit(panel)
-        return panel
-
-    def onText(self, event=None):
-        text = event.GetString().strip()
-        if len(text) < 1:
-            return
-        self.input.Clear()
-        self.input.AddToHistory(text)
-        out = self.scandb.add_command(text)
-        self.scandb.commit()
-        time.sleep(0.01)
-        self.writeOutput(text)
-
-    def writeOutput(self, text, color=None, with_nl=True):
-        pos0 = self.output.GetLastPosition()
-        if with_nl and not text.endswith('\n'):
-            text = '%s\n' % text
-        self.output.WriteText(text)
-        if color is not None:
-            style = self.output.GetDefaultStyle()
-            bgcol = style.GetBackgroundColour()
-            sfont = style.GetFont()
-            pos1  = self.output.GetLastPosition()
-            self.output.SetStyle(pos0, pos1, wx.TextAttr(color, bgcol, sfont))
-        self.output.SetInsertionPoint(self.output.GetLastPosition())
-        self.output.Refresh()
+    def update(self):
+        self.model.read_data()
+        self.Refresh()
+        self.dvc.EnsureVisible(self.model.GetItem(0))
 
 
 
@@ -476,12 +330,6 @@ class MacroFrame(wx.Frame) :
         self.db_messages = ScanDBMessageQueue(self.scandb)
         self.colors = GUIColors()
         self.SetBackgroundColour(self.colors.bg)
-
-        #self.nb = flat_nb.FlatNotebook(self, wx.ID_ANY, agwStyle=FNB_STYLE)
-        #self.nb.SetSize((800, 500))
-        #self.nb.SetBackgroundColour('#FCFCFA')
-        #self.SetBackgroundColour('#F0F0E8')
-        #self.edit_panels = []
 
         self.editor = wx.TextCtrl(self, -1, size=(600, 275),
                                   style=wx.TE_MULTILINE|wx.TE_RICH2)
@@ -621,23 +469,20 @@ class MacroFrame(wx.Frame) :
 
         # commands
         pmenu = wx.Menu()
-        add_menu(self, pmenu, "Common Commands",
+        add_menu(self, pmenu, "Show Command Sequence",  "Show Queue of Commands",
+                 self.onEditSequence)
+        add_menu(self, pmenu, "Add Common Commands",
                  "Common Commands", self.onCommonCommands)
-        add_menu(self, pmenu, "Position Scans",
+        add_menu(self, pmenu, "Add Scans at Selected Positions",
                  "Position Scans", self.onBuildPosScan)
-        add_menu(self, pmenu, "XRD at Position",
-                 "XRD at Position", self.onBuildPosXRD)
         pmenu.AppendSeparator()
         add_menu(self, pmenu, "Admin Common Commands",
                  "Admin Common Commands", self.onCommonCommandsAdmin)
 
         smenu = wx.Menu()
-        add_menu(self, smenu, "Show Command Sequence",  "Show Queue of Commands",
-                 self.onEditSequence)
 
         self.menubar.Append(fmenu, "&File")
-        self.menubar.Append(pmenu, "Insert Commands")
-        self.menubar.Append(smenu, "Sequence")
+        self.menubar.Append(pmenu, "Commands and Sequence")
         self.SetMenuBar(self.menubar)
 
     def InputPanel(self):
@@ -684,7 +529,8 @@ class MacroFrame(wx.Frame) :
         self.output.Refresh()
 
     def onBuildPosScan(self, event=None):
-        self.parent.show_subframe('buildposmacro', PosScanMacroBuilder)
+        # self.parent.show_subframe('buildposmacro', PosScanMacroBuilder)
+        self.parent.show_subframe('buildposmacro', PositionCommandFrame)
 
     def onBuildPosXRD(self, event=None):
         self.parent.show_subframe('buildxrdsmacro', PosXRDMacroBuilder)
