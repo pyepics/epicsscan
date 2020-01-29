@@ -249,6 +249,7 @@ class PositionCommandFrame(wx.Frame) :
 
     def onInsert(self, event=None):
         datatype = self.datatype.GetStringSelection()
+        buff = ["# commands added at positions"]
         if datatype == 'xrd':
             xrdtime =  self.xrdtime.GetValue()
             command = "xrd_at(%s, t=%.1f)"
@@ -407,7 +408,7 @@ class MacroFrame(wx.Frame) :
         sizer = wx.GridBagSizer(2, 2)
 
         self.winfo = OrderedDict()
-        opts1 = {'label':' '*99, 'colour': COLOR_OK, 'size': (350, -1), 'style': LEFT}
+        opts1 = {'label':' '*250, 'colour': COLOR_OK, 'size': (600, -1), 'style': LEFT}
         opts2 = {'label':' '*50, 'colour': COLOR_OK, 'size': (200, -1), 'style': LEFT}
         self.winfo['FileName'] = SimpleText(panel, **opts1)
         self.winfo['Command']  = SimpleText(panel, **opts1)
@@ -473,7 +474,7 @@ class MacroFrame(wx.Frame) :
                  self.onEditSequence)
         add_menu(self, pmenu, "Add Common Commands",
                  "Common Commands", self.onCommonCommands)
-        add_menu(self, pmenu, "Add Scans at Selected Positions",
+        add_menu(self, pmenu, "Scan at Selected Positions",
                  "Position Scans", self.onBuildPosScan)
         pmenu.AppendSeparator()
         add_menu(self, pmenu, "Admin Common Commands",
