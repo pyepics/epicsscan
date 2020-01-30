@@ -93,12 +93,12 @@ class PositionCommandModel(dv.DataViewIndexListModel):
     def select_above(self, item):
         itemname = self.GetValue(item, 0)
         use = True
-        for posname, dat in self.posvals.items():
-            dat[0] = use
+        for posname, x, nx in self.data:
+            self.posvals[posname][0] = use
             if posname == itemname:
                 use = not use
         self.read_data()
-        
+
     def GetColumnType(self, col):
         if col == 1:
             return "bool"
@@ -185,7 +185,7 @@ class PositionCommandFrame(wx.Frame) :
         sizer.Add(add_button(panel, label='Select All', size=(125, -1),
                              action=self.onSelAll),
                   (irow, 1), (1, 1), LEFT_CEN, 2)
-        sizer.Add(add_button(panel, label='Select All Above Highlighted', size=(200, -1),
+        sizer.Add(add_button(panel, label='Select All Above Highlighted', size=(250, -1),
                              action=self.onSelAbove),
                   (irow, 2), (1, 2), LEFT_CEN, 2)
 
