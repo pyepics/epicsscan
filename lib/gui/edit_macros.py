@@ -65,7 +65,7 @@ class ScanDBMessageQueue(object):
 
 def get_positionlist(scandb, instrument='SampleStage'):
     """get list of positions for and instrument"""
-    return InstrumentDB(scandb).get_positionlist(instrument)
+    return InstrumentDB(scandb).get_positionlist(instrument, reverse=True)
 
 class PositionCommandModel(dv.DataViewIndexListModel):
     def __init__(self, scandb):
@@ -83,9 +83,22 @@ class PositionCommandModel(dv.DataViewIndexListModel):
                 use, nsscan = self.posvals[pos]
             self.data.append([pos, use, nscan])
             self.posvals[pos] = [use, nscan]
-        self.data.reverse()
         self.Reset(len(self.data))
 
+    def select_all(self, use=True):
+        for p in self.posvals.items():
+            p[0] = use
+        self.read_data()
+
+    def select_above(self, item):
+        itemname = self.GetValue(item, 0)
+        use = True
+        for posname, dat in self.posvals.items():
+            dat[0] = use
+            if posname == itemname:
+                use = False
+        self.read_data()
+        
     def GetColumnType(self, col):
         if col == 1:
             return "bool"
@@ -128,7 +141,7 @@ class PositionCommandModel(dv.DataViewIndexListModel):
 
 class PositionCommandFrame(wx.Frame) :
     """Edit/Manage/Run/View Sequences"""
-    def __init__(self, parent, scandb, pos=(-1, -1), size=(700, 550), _larch=None):
+    def __init__(self, parent, scandb, pos=(-1, -1), size=(625, 550), _larch=None):
         self.parent = parent
         self.scandb = scandb
         self.last_refresh = time.monotonic() - 100.0
@@ -139,13 +152,14 @@ class PositionCommandFrame(wx.Frame) :
                           title="Data Collection Commands at Saved Positions",
                           style=FRAMESTYLE, size=size)
 
+        self.dvc = dv.DataViewCtrl(self, style=DVSTYLE)
+        self.dvc.SetMinSize((600, 350))
+
         self.SetFont(self.Font10)
-        panel = scrolled.ScrolledPanel(self, size=(700, 500))
+        panel = wx.Panel(self, size=(650, -1))
         self.colors = GUIColors()
         panel.SetBackgroundColour(self.colors.bg)
 
-        self.dvc = dv.DataViewCtrl(panel, style=DVSTYLE)
-        self.dvc.SetMinSize((700, 450))
 
         self.model = PositionCommandModel(self.scandb)
         self.dvc.AssociateModel(self.model)
@@ -165,14 +179,14 @@ class PositionCommandFrame(wx.Frame) :
         sizer = wx.GridBagSizer(2, 2)
 
         irow = 0
-        sizer.Add(add_button(panel, label='Select All', size=(125, -1),
-                             action=self.onSelAll),
-                  (irow, 0), (1, 1), LEFT_CEN, 2)
         sizer.Add(add_button(panel, label='Select None', size=(125, -1),
                              action=self.onSelNone),
+                  (irow, 0), (1, 1), LEFT_CEN, 2)
+        sizer.Add(add_button(panel, label='Select All', size=(125, -1),
+                             action=self.onSelAll),
                   (irow, 1), (1, 1), LEFT_CEN, 2)
-        sizer.Add(add_button(panel, label='Add Commands', size=(150, -1),
-                             action=self.onInsert),
+        sizer.Add(add_button(panel, label='Select All Above Highlighted', size=(200, -1),
+                             action=self.onSelAbove),
                   (irow, 2), (1, 2), LEFT_CEN, 2)
 
         irow += 1
@@ -187,6 +201,12 @@ class PositionCommandFrame(wx.Frame) :
         sizer.Add(SimpleText(panel, 'Scan Name:'),    (irow, 2), (1, 1), LEFT_CEN, 2)
         sizer.Add(self.scanname,                      (irow, 3), (1, 1), LEFT_CEN, 2)
 
+        irow += 1
+        sizer.Add(add_button(panel, label='Add Commands', size=(250, -1),
+                             action=self.onInsert),
+                  (irow, 0), (1, 2), LEFT_CEN, 2)
+
+        pack(panel, sizer)
 
         for icol, dat in enumerate((('Position Name',  400, 'text'),
                                     ('Include',        100, 'bool'),
@@ -205,14 +225,10 @@ class PositionCommandFrame(wx.Frame) :
             c.Alignment = wx.ALIGN_LEFT
             c.Sortable = False
 
-        irow += 1
-        sizer.Add(self.dvc, (irow, 0), (2, 5), LEFT_CEN, 2)
-        pack(panel, sizer)
-
-        panel.SetupScrolling()
-
         mainsizer = wx.BoxSizer(wx.VERTICAL)
-        mainsizer.Add(panel, 1, wx.GROW|wx.ALL, 1)
+        mainsizer.Add(panel,    0, LEFT_CEN|wx.GROW|wx.ALL, 1)
+        mainsizer.Add(self.dvc, 1, LEFT_CEN|wx.GROW|wx.ALL, 1)
+
         pack(self, mainsizer)
         self.dvc.EnsureVisible(self.model.GetItem(0))
 
@@ -269,14 +285,14 @@ class PositionCommandFrame(wx.Frame) :
             print("No editor?")
 
     def onSelAll(self, event=None):
-        for p in self.model.posvals.values():
-            p[0] = True
-        self.update()
+        self.model.select_all(True)
 
     def onSelNone(self, event=None):
-        for p in self.model.posvals.values():
-            p[0] = False
-        self.update()
+        self.model.select_all(False)
+
+    def onSelAbove(self, event=None):
+        if self.dvc.HasSelection():
+            self.model.select_above(self.dvc.GetSelection())
 
     def onClose(self, event=None):
         self.timer.Stop()
