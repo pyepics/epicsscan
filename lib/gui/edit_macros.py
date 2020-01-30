@@ -86,8 +86,8 @@ class PositionCommandModel(dv.DataViewIndexListModel):
         self.Reset(len(self.data))
 
     def select_all(self, use=True):
-        for p in self.posvals.items():
-            p[0] = use
+        for posname, dat in self.posvals.items():
+            dat[0] = use
         self.read_data()
 
     def select_above(self, item):
@@ -96,7 +96,7 @@ class PositionCommandModel(dv.DataViewIndexListModel):
         for posname, dat in self.posvals.items():
             dat[0] = use
             if posname == itemname:
-                use = False
+                use = not use
         self.read_data()
         
     def GetColumnType(self, col):
