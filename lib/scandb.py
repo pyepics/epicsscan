@@ -1309,7 +1309,7 @@ class InstrumentDB(object):
             pv_vals[ pvnames[pvval.pv_id]]= float(pvval.value)
         return pv_vals
 
-    def get_positionlist(self, instname):
+    def get_positionlist(self, instname, reverse=False):
         """return list of position names for an instrument
         """
         inst = self.get_instrument(instname)
@@ -1317,7 +1317,10 @@ class InstrumentDB(object):
         q = self.scandb.query(cls)
         q = q.filter(cls.instrument_id==inst.id)
         q = q.order_by(cls.modify_time)
-        return [p.name for p in q.all()]
+        out = [p.name for p in q.all()]
+        if reverse:
+            out.reverse()
+        return out
 
     def restore_position(self, instname, posname, wait=False, timeout=5.0,
                          exclude_pvs=None):
