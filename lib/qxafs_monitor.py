@@ -10,6 +10,7 @@ import os
 import time
 import json
 import sys
+from multiprocessing import Process
 from threading import Thread
 import numpy as np
 from epics import caget, caput, PV, get_pv
@@ -125,21 +126,18 @@ class QXAFS_ScanWatcher(object):
                 break
             npts = int(self.scandb.get_info(key='scan_total_points', default=0))
             if self.scandb.get_info(key='request_abort', as_bool=True):
-                self.write("QXAFS abort requested during scan")
-                time.sleep(0.25)
-                abort_thread = Thread(target=self.xps.abort_group,
-                                      name='abort_thread')
-                abort_thread.start()
-                time.sleep(2.0)
-                self.write("QXAFS abort begun. finishing scan: %s" % (time.ctime()))
+                self.write("QXAFS abort request during scan: %s" % time.ctime())
+                abort_proc = Process(target=self.xps.abort_group)
+                abort_proc.start()
+                self.write("QXAFS abort process begun: %s" % (time.ctime()))
+                time.sleep(0.5)
                 self.qxafs_finish()
-                self.write("QXAFS scan finished, joining abort thread: %s" % (time.ctime()))
-                for ixx in range(10):
-                    if abort_thread.isAlive():
-                        self.write('QXAFS waiting for abort: %d %s' % (ixx, time.ctime()))
-                        abort_thread.join(0.5)
-                self.write("QXAFS abort thread joined. isAlive=",  abort_thread.isAlive())
-                break
+                time.sleep(0.5)
+                self.write("QXAFS scan finished, join abort process: %s" % (time.ctime()))
+                abort_proc.join()
+                self.write("QXAFS abort process done: %s" % (time.ctime()))
+                self.scandb.set_info('request_abort', 0)
+                time.sleep(1.0)
 
             time.sleep(0.05)
             now = time.time()
