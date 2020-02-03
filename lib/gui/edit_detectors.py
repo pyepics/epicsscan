@@ -3,7 +3,7 @@ import time
 import json
 import wx
 import wx.lib.scrolledpanel as scrolled
-
+from functools import partial
 from collections import OrderedDict
 from ..detectors import DET_DEFAULT_OPTS, AD_FILE_PLUGINS
 

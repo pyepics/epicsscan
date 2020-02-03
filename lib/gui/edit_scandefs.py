@@ -47,7 +47,7 @@ class RenameDialog(wx.Dialog):
         pack(self, sx)
 
 
-class ScanDefModel(dv.PyDataViewIndexListModel):
+class ScanDefModel(dv.DataViewIndexListModel):
     """ generic scandef model construct 2D data  list,
     override GetValueByRow and Compare methonds
     """
@@ -56,7 +56,7 @@ class ScanDefModel(dv.PyDataViewIndexListModel):
         self._getval  = get_value
         self._getattr = get_attr
         self.data = data
-        dv.PyDataViewIndexListModel.__init__(self, len(data))
+        dv.DataViewIndexListModel.__init__(self, len(data))
 
     def GetColumnType(self, col):  return "string"
     def SetValueByRow(self, value, row, col):    self.data[row][col] = value
