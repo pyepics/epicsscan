@@ -265,20 +265,20 @@ class PositionCommandFrame(wx.Frame) :
 
     def onInsert(self, event=None):
         datatype = self.datatype.GetStringSelection()
-        buff = ["# commands added at positions"]
+        buff = ["#commands added at positions"]
         if datatype == 'xrd':
             xrdtime =  self.xrdtime.GetValue()
             command = "xrd_at(%s, t=%.1f)"
-            for posname, use, nscans in self.model.data:
+            for posname, use, nscans in reversed(self.model.data):
                 if use:
                     buff.append(command % (repr(posname), xrdtime))
         else:
             scanname = self.scanname.GetStringSelection()
             command = "pos_scan(%s, %s, number=%s)"
-            for posname, use, nscans in self.model.data:
+            for posname, use, nscans in reversed(self.model.data):
                 if use:
                     buff.append(command % (repr(posname), repr(scanname), nscans))
-        buff.append("")
+        buff.append("#\n")
         try:
             self.parent.subframes['macro'].editor.AppendText("\n".join(buff))
         except:
