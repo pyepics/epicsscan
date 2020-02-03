@@ -10,14 +10,10 @@ import wx.dataview as dv
 from datetime import datetime
 from .gui_utils import (GUIColors, set_font_with_children, YesNo, popup,
                         add_button, pack, SimpleText, check, okcancel,
-                        add_subtitle, Font, LCEN, CEN, RCEN, FRAMESTYLE)
-
-RCEN |= wx.ALL
-LCEN |= wx.ALL
-CEN  |= wx.ALL
+                        add_subtitle, Font, LCEN, CEN, RCEN, FRAMESTYLE,
+                        FNB_STYLE)
 
 ALL_CEN =  wx.ALL|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL
-FNB_STYLE = flat_nb.FNB_NO_X_BUTTON|flat_nb.FNB_SMART_TABS|flat_nb.FNB_NO_NAV_BUTTONS|flat_nb.FNB_NODRAG
 
 class RenameDialog(wx.Dialog):
     """Rename a Scan Name"""
@@ -32,7 +28,7 @@ class RenameDialog(wx.Dialog):
         self.newname =  wx.TextCtrl(panel, value=oldname, size=(175, -1))
 
         labstyle  = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
-        sizer = wx.GridBagSizer(10, 3)
+        sizer = wx.GridBagSizer(3, 2)
 
         sizer.Add(tlabel,       (0, 0), (1, 1), LCEN, 1)
         sizer.Add(self.newname, (0, 1), (1, 1), LCEN, 1)
@@ -399,9 +395,8 @@ class ScandefsFrame(wx.Frame) :
         self.reverse_sort = False
 
         self.SetMinSize((740, 600))
-        self.colors = GUIColors()
         panel = scrolled.ScrolledPanel(self)
-        panel.SetBackgroundColour(self.colors.bg)
+        panel.SetBackgroundColour(GUIColors.bg)
         self.nb = flat_nb.FlatNotebook(panel, wx.ID_ANY, agwStyle=FNB_STYLE)
 
         self.nb.SetBackgroundColour('#FAFCFA')
@@ -409,7 +404,7 @@ class ScandefsFrame(wx.Frame) :
 
         sizer.Add(SimpleText(panel, 'Scan Definitions',
                              font=Font(13),
-                             colour=self.colors.title, style=LCEN),
+                             colour=GUIColors.title, style=LCEN),
                   0, LCEN, 5)
 
         rsizer = wx.BoxSizer(wx.HORIZONTAL)

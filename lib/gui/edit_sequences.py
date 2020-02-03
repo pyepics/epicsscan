@@ -8,16 +8,9 @@ from collections import OrderedDict, namedtuple
 
 from .gui_utils import (GUIColors, set_font_with_children, YesNo, popup,
                         add_button, pack, SimpleText, check, okcancel,
-                        add_subtitle, Font, FRAMESTYLE)
+                        add_subtitle, Font, FRAMESTYLE, LEFT, CEN, DVSTYLE, cmp)
 
 import wx.dataview as dv
-
-LEFT = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
-CEN  = wx.ALIGN_CENTER|wx.ALIGN_CENTER_VERTICAL|wx.ALL
-DVSTYLE = dv.DV_VERT_RULES|dv.DV_ROW_LINES|dv.DV_MULTIPLE
-
-def cmp(a, b):
-    return (a>b)-(b<a)
 
 def tfmt(dt):
     return dt.strftime("%b-%d %H:%M")
@@ -188,8 +181,7 @@ class ScanSequenceFrame(wx.Frame) :
 
         self.SetFont(self.Font10)
         spanel = scrolled.ScrolledPanel(self, size=(850, 425))
-        self.colors = GUIColors()
-        spanel.SetBackgroundColour(self.colors.bg)
+        spanel.SetBackgroundColour(GUIColors.bg)
         self.dvc = dv.DataViewCtrl(spanel, style=DVSTYLE)
         self.dvc.SetMinSize((825, 250))
 

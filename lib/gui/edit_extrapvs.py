@@ -8,31 +8,24 @@ from .gui_utils import (GUIColors, set_font_with_children, YesNo,
                         add_subtitle, Font, LCEN, CEN, RCEN,
                         FRAMESTYLE)
 
-RCEN |= wx.ALL
-LCEN |= wx.ALL
-CEN  |= wx.ALL
-
 class ExtraPVsFrame(wx.Frame) :
     """Set Extra PVs"""
     def __init__(self, parent, pos=(-1, -1), scandb=None, _larch=None):
         self.parent = parent
         self.scandb = parent.scandb if scandb is None else scandb
-        
+
         wx.Frame.__init__(self, None, -1, 'Epics Scanning: Extra PVs Setup',
                           style=FRAMESTYLE)
 
         self.SetFont(Font(9))
-        sizer = wx.GridBagSizer(10, 5)
-        sizer.SetHGap(2)
-        sizer.SetVGap(2)
+        sizer = wx.GridBagSizer(3, 2)
         panel = scrolled.ScrolledPanel(self)
         self.SetMinSize((525, 550))
-        self.colors = GUIColors()
-        panel.SetBackgroundColour(self.colors.bg)
+        panel.SetBackgroundColour(GUIColors.bg)
 
         # title row
         title = SimpleText(panel, 'Extra PVs Setup',  font=Font(13),
-                           colour=self.colors.title, style=LCEN)
+                           colour=GUIColors.title, style=LCEN)
 
         sizer.Add(title,        (0, 0), (1, 3), LCEN, 5)
 

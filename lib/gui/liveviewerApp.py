@@ -30,7 +30,7 @@ from ..file_utils import fix_filename, fix_varname
 
 from .gui_utils import (SimpleText, FloatCtrl, pack, add_button,
                         add_menu, add_choice, add_menu, check, hline,
-                        CEN, RCEN, LCEN, FRAMESTYLE, Font, hms, popup)
+                        CEN, RCEN, LCEN, FRAMESTYLE, Font, hms, popup, GUIColors)
 
 CEN |=  wx.ALL
 FILE_WILDCARDS = "Scan Data Files(*.0*,*.dat,*.xdi)|*.0*;*.dat;*.xdi|All files (*.*)|*.*"
@@ -221,7 +221,7 @@ class ScanViewerFrame(wx.Frame):
         mainpanel = wx.Panel(self)
         mainsizer = wx.BoxSizer(wx.VERTICAL)
         panel = wx.Panel(mainpanel)
-
+        self.SetBackgroundColour(GUIColors.bg)
         self.yops = [[],[]]
         self.yarr = [[],[]]
         arr_kws= {'choices':[], 'size':(150, -1), 'action':self.onPlot}
@@ -242,7 +242,7 @@ class ScanViewerFrame(wx.Frame):
             self.yops[1].append(add_choice(panel, default=sel, **arr_kws))
 
         # place widgets
-        sizer = wx.GridBagSizer(5, 10)
+        sizer = wx.GridBagSizer(3, 2)
         sizer.Add(self.title,                  (0, 1), (1, 6), LCEN, 2)
         sizer.Add(SimpleText(panel, '  X ='),  (1, 0), (1, 1), CEN, 0)
         sizer.Add(self.xarr,                   (1, 3), (1, 1), RCEN, 0)

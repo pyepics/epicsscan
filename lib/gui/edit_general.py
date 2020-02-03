@@ -23,19 +23,16 @@ class SettingsFrame(wx.Frame) :
                           style=wx.DEFAULT_FRAME_STYLE|wx.TAB_TRAVERSAL)
 
         self.SetFont(Font(9))
-        sizer = wx.GridBagSizer(10, 5)
-        sizer.SetHGap(2)
-        sizer.SetVGap(2)
+        sizer = wx.GridBagSizer(3, 2)
 
         panel = scrolled.ScrolledPanel(self)
         self.SetMinSize((550, 500))
 
-        self.colors = GUIColors()
-        panel.SetBackgroundColour(self.colors.bg)
+        panel.SetBackgroundColour(GUIColors.bg)
 
         # title row
         title = SimpleText(panel, ' General Settings',  font=Font(13),
-                           colour=self.colors.title, style=LCEN)
+                           colour=GUIColors.title, style=LCEN)
         sizer.Add(title,    (0, 0), (1, 3), LCEN|wx.ALL, 2)
         ir = 0
         self.wids = {}

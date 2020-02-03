@@ -16,19 +16,12 @@ import numpy as np
 import epics
 from epics.wx import EpicsFunction, PVText, PVStaticText
 
-from .gui_utils import SimpleText, FloatCtrl, HyperText
-from .gui_utils import pack, add_choice, hms, check
+from .gui_utils import (GUIColors, SimpleText, FloatCtrl, HyperText,
+                        pack, add_choice, hms, check, LEFT, RIGHT,
+                        CEN, LCEN, RCEN, CCEN)
 
 from .. import etok, ktoe, XAFS_Scan, StepScan, Positioner, Counter
 from ..utils import normalize_pvname, atGSECARS
-
-CEN = wx.ALIGN_CENTER|wx.ALIGN_CENTER_VERTICAL
-LEFT = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL
-RIGHT = wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL
-LCEN  = wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_LEFT
-RCEN  = wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT
-CCEN  = wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_CENTER
-
 
 # Max number of points in scan
 MAX_NPTS = 4000
@@ -60,7 +53,8 @@ class GenericScanPanel(scrolled.ScrolledPanel):
                                         name=self.__name__)
         self.Font13 = wx.Font(13, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
         self.Font12 = wx.Font(12, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
-        self.sizer = wx.GridBagSizer(3, 3)
+        self.sizer = wx.GridBagSizer(3, 2)
+        self.SetBackgroundColour(GUIColors.bg)
         self.scantime = -1.0
         self.get_positioners()
         self._initialized = False # used to shunt events while creating windows
@@ -95,11 +89,10 @@ class GenericScanPanel(scrolled.ScrolledPanel):
             self.scandb.set_info('nscans', nscans)
 
     def finish_layout(self, row, with_nscans=True):
-        self.bgcol = self.GetBackgroundColour()
-
         # add bottom panel
         bpanel = wx.Panel(self)
-        bsizer = wx.GridBagSizer(3, 3)
+        self.SetBackgroundColour(GUIColors.bg)
+        bsizer = wx.GridBagSizer(3, 2)
         self.nscans = None
         if with_nscans:
             self.nscans = FloatCtrl(bpanel, precision=0, value=1,
@@ -1131,7 +1124,7 @@ class SlewScanPanel(GenericScanPanel):
 
         jrow = 0
         jcol = 0
-        lsizer = wx.GridBagSizer(2, 6)
+        lsizer = wx.GridBagSizer(3, 2)
         lpanel = wx.Panel(self)
 
         for mapname in (u' 50 x 50 \u03bcm', u'100 x 100 \u03bcm',

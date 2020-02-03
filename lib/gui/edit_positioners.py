@@ -9,10 +9,6 @@ from .gui_utils import (GUIColors, set_font_with_children, YesNo,
                         pack, SimpleText, LCEN, CEN, RCEN,
                         FRAMESTYLE)
 
-LCEN |= wx.ALL
-RCEN |= wx.ALL
-CEN  |= wx.ALL
-
 class PositionerFrame(wx.Frame) :
     """Frame to Setup Scan Positioners"""
     def __init__(self, parent, pos=(-1, -1), scandb=None, _larch=None):
@@ -24,17 +20,14 @@ class PositionerFrame(wx.Frame) :
                           style=FRAMESTYLE)
 
         self.SetFont(Font(9))
-        sizer = wx.GridBagSizer(10, 5)
-        sizer.SetHGap(2)
-        sizer.SetVGap(2)
+        sizer = wx.GridBagSizer(3, 2)
         panel = scrolled.ScrolledPanel(self)
         self.SetMinSize((625, 750))
-        self.colors = GUIColors()
-        panel.SetBackgroundColour(self.colors.bg)
+        panel.SetBackgroundColour(GUIColors.bg)
 
         # title row
         title = SimpleText(panel, 'Positioners Setup',  font=Font(13),
-                           colour=self.colors.title, style=LCEN)
+                           colour=GUIColors.title, style=LCEN)
 
         sizer.Add(title,      (0, 0), (1, 3), LCEN, 5)
 

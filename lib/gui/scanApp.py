@@ -52,7 +52,8 @@ from epics.wx.utils import popup
 
 from .gui_utils import (SimpleText, FloatCtrl, pack, add_button,
                         add_menu, add_choice, add_menu, FileOpen,
-                        CEN, LCEN, FRAMESTYLE, Font)
+                        LEFT, CEN, FRAMESTYLE, FNB_STYLE, Font,
+                        GUIColors)
 
 from ..utils import normalize_pvname, read_oldscanfile, atGSECARS
 
@@ -79,10 +80,6 @@ from .edit_scandefs    import ScandefsFrame
 from .edit_macros      import MacroFrame
 
 ICON_FILE = 'epics_scan.ico'
-ALL_CEN =  wx.ALL|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL
-FNB_STYLE = flat_nb.FNB_NO_X_BUTTON|flat_nb.FNB_SMART_TABS|flat_nb.FNB_NO_NAV_BUTTONS|flat_nb.FNB_NODRAG
-
-is_wxPhoenix = 'phoenix' in wx.PlatformInfo
 
 def compare_scans(scan1, scan2, verbose=False):
     "compare dictionary for 2 scans"
@@ -204,11 +201,10 @@ class ScanFrame(wx.Frame):
         self.SetFont(Font(10))
 
         sizer = wx.BoxSizer(wx.VERTICAL)
-
         self.nb = flat_nb.FlatNotebook(self, wx.ID_ANY, agwStyle=FNB_STYLE)
         self.nb.SetSize((750, 600))
-        self.nb.SetBackgroundColour('#FCFCFA')
-        self.SetBackgroundColour('#F0F0E8')
+        self.nb.SetBackgroundColour(GUIColors.nb_bg)
+        self.SetBackgroundColour(GUIColors.bg)
 
         self.scanpanels = []
         self.scanpanel_types = []
@@ -246,7 +242,7 @@ class ScanFrame(wx.Frame):
             btnsizer.Add(btn, 0, CEN, 8)
         pack(btnpanel, btnsizer)
 
-        sizer.Add(btnpanel, 0, wx.ALIGN_LEFT|wx.ALL, 3)
+        sizer.Add(btnpanel, 0, LEFT, 3)
         self.SetSizer(sizer)
         sizer.Fit(self)
         self.nb.SetSize((750, 675))

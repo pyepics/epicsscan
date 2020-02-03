@@ -11,14 +11,12 @@ import wx.lib.scrolledpanel as scrolled
 from wx.lib.editor import Editor
 import wx.dataview as dv
 
-DVSTYLE = dv.DV_VERT_RULES|dv.DV_ROW_LINES|dv.DV_MULTIPLE
-
 from collections import OrderedDict
 import epics
 from .gui_utils import (GUIColors, set_font_with_children, YesNo,
                         add_menu, add_button, add_choice, pack, SimpleText,
                         FileOpen, FileSave, popup, FloatCtrl,
-                        FRAMESTYLE, Font)
+                        FRAMESTYLE, Font, FNB_STYLE, LEFT, CEN, DVSTYLE, cmp)
 
 from .common_commands  import CommonCommandsFrame, CommonCommandsAdminFrame
 from .edit_sequences   import ScanSequenceFrame
@@ -26,12 +24,6 @@ from ..scandb import InstrumentDB
 
 import larch
 from larch.wxlib.readlinetextctrl import ReadlineTextCtrl
-LEFT = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
-CEN  = wx.ALIGN_CENTER|wx.ALIGN_CENTER_VERTICAL|wx.ALL
-
-ALL_EXP  = wx.ALL|wx.EXPAND
-LEFT_CEN = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL
-FNB_STYLE = flat_nb.FNB_NO_X_BUTTON|flat_nb.FNB_SMART_TABS|flat_nb.FNB_NO_NAV_BUTTONS|flat_nb.FNB_NODRAG
 
 AUTOSAVE_FILE = 'macros_autosave.lar'
 MACRO_HISTORY = 'scan_macro_history.lar'
@@ -40,9 +32,6 @@ COLOR_MSG  = '#0099BB'
 COLOR_OK   = '#0000BB'
 COLOR_WARN = '#BB9900'
 COLOR_ERR  = '#BB0000'
-
-def cmp(a, b):
-    return (a>b)-(b<a)
 
 class ScanDBMessageQueue(object):
     """ScanDB Messages"""
@@ -157,8 +146,7 @@ class PositionCommandFrame(wx.Frame) :
 
         self.SetFont(self.Font10)
         panel = wx.Panel(self, size=(650, -1))
-        self.colors = GUIColors()
-        panel.SetBackgroundColour(self.colors.bg)
+        panel.SetBackgroundColour(GUIColors.bg)
 
 
         self.model = PositionCommandModel(self.scandb)
@@ -176,35 +164,35 @@ class PositionCommandFrame(wx.Frame) :
         self.xrdtime = FloatCtrl(panel, value=10, minval=0, maxval=50000, precision=1)
         self.xrdtime.Disable()
 
-        sizer = wx.GridBagSizer(2, 2)
+        sizer = wx.GridBagSizer(3, 2)
 
         irow = 0
         sizer.Add(add_button(panel, label='Select None', size=(125, -1),
                              action=self.onSelNone),
-                  (irow, 0), (1, 1), LEFT_CEN, 2)
+                  (irow, 0), (1, 1), LEFT, 2)
         sizer.Add(add_button(panel, label='Select All', size=(125, -1),
                              action=self.onSelAll),
-                  (irow, 1), (1, 1), LEFT_CEN, 2)
+                  (irow, 1), (1, 1), LEFT, 2)
         sizer.Add(add_button(panel, label='Select All Above Highlighted', size=(250, -1),
                              action=self.onSelAbove),
-                  (irow, 2), (1, 2), LEFT_CEN, 2)
+                  (irow, 2), (1, 2), LEFT, 2)
 
         irow += 1
-        sizer.Add(SimpleText(panel, 'Command Type:'), (irow, 0), (1, 1), LEFT_CEN, 2)
-        sizer.Add(self.datatype,                      (irow, 1), (1, 1), LEFT_CEN, 2)
-        sizer.Add(SimpleText(panel, 'XRD Time (sec):'), (irow, 2), (1, 1), LEFT_CEN, 2)
-        sizer.Add(self.xrdtime,                       (irow, 3), (1, 1), LEFT_CEN, 2)
+        sizer.Add(SimpleText(panel, 'Command Type:'), (irow, 0), (1, 1), LEFT, 2)
+        sizer.Add(self.datatype,                      (irow, 1), (1, 1), LEFT, 2)
+        sizer.Add(SimpleText(panel, 'XRD Time (sec):'), (irow, 2), (1, 1), LEFT, 2)
+        sizer.Add(self.xrdtime,                       (irow, 3), (1, 1), LEFT, 2)
 
         irow += 1
-        sizer.Add(SimpleText(panel, 'Scan Type:'),    (irow, 0), (1, 1), LEFT_CEN, 2)
-        sizer.Add(self.scantype,                      (irow, 1), (1, 1), LEFT_CEN, 2)
-        sizer.Add(SimpleText(panel, 'Scan Name:'),    (irow, 2), (1, 1), LEFT_CEN, 2)
-        sizer.Add(self.scanname,                      (irow, 3), (1, 1), LEFT_CEN, 2)
+        sizer.Add(SimpleText(panel, 'Scan Type:'),    (irow, 0), (1, 1), LEFT, 2)
+        sizer.Add(self.scantype,                      (irow, 1), (1, 1), LEFT, 2)
+        sizer.Add(SimpleText(panel, 'Scan Name:'),    (irow, 2), (1, 1), LEFT, 2)
+        sizer.Add(self.scanname,                      (irow, 3), (1, 1), LEFT, 2)
 
         irow += 1
         sizer.Add(add_button(panel, label='Add Commands', size=(250, -1),
                              action=self.onInsert),
-                  (irow, 0), (1, 2), LEFT_CEN, 2)
+                  (irow, 0), (1, 2), LEFT, 2)
 
         pack(panel, sizer)
 
@@ -226,8 +214,8 @@ class PositionCommandFrame(wx.Frame) :
             c.Sortable = False
 
         mainsizer = wx.BoxSizer(wx.VERTICAL)
-        mainsizer.Add(panel,    0, LEFT_CEN|wx.GROW|wx.ALL, 1)
-        mainsizer.Add(self.dvc, 1, LEFT_CEN|wx.GROW|wx.ALL, 1)
+        mainsizer.Add(panel,    0, LEFT|wx.GROW, 1)
+        mainsizer.Add(self.dvc, 1, LEFT|wx.GROW, 1)
 
         pack(self, mainsizer)
         self.dvc.EnsureVisible(self.model.GetItem(0))
@@ -345,8 +333,7 @@ class MacroFrame(wx.Frame) :
 
         self.createMenus()
         self.db_messages = ScanDBMessageQueue(self.scandb)
-        self.colors = GUIColors()
-        self.SetBackgroundColour(self.colors.bg)
+        self.SetBackgroundColour(GUIColors.bg)
 
         self.editor = wx.TextCtrl(self, -1, size=(600, 275),
                                   style=wx.TE_MULTILINE|wx.TE_RICH2)
@@ -421,7 +408,7 @@ class MacroFrame(wx.Frame) :
 
     def make_info(self):
         panel = wx.Panel(self)
-        sizer = wx.GridBagSizer(2, 2)
+        sizer = wx.GridBagSizer(3, 2)
 
         self.winfo = OrderedDict()
         opts1 = {'label':' '*250, 'colour': COLOR_OK, 'size': (600, -1), 'style': LEFT}

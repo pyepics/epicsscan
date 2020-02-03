@@ -13,11 +13,43 @@ HAS_NUMPY = True
 
 from wxutils import (fix_filename, FileOpen, FileSave, SelectWorkdir,
                      SimpleText, HyperText, YesNo, FloatCtrl, hms, Font,
-                     RIGHT, LEFT, CEN, LCEN, RCEN, CCEN, FRAMESTYLE, LTEXT,
+                     LCEN, RCEN, CCEN, FRAMESTYLE, LTEXT,
                      GUIColors)
 
+import wx.dataview as dv
+import wx.lib.agw.flatnotebook as flat_nb
+
+LEFT = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
+RIGHT = wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
+CEN  = wx.ALIGN_CENTER|wx.ALIGN_CENTER_VERTICAL|wx.ALL
+LEFT_CEN = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL
 CCEN  = wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_CENTER
 LTEXT = wx.ST_NO_AUTORESIZE|wx.ALIGN_CENTER
+
+FNB_STYLE = flat_nb.FNB_NO_X_BUTTON|flat_nb.FNB_SMART_TABS|flat_nb.FNB_NO_NAV_BUTTONS|flat_nb.FNB_NODRAG
+DVSTYLE = dv.DV_VERT_RULES|dv.DV_ROW_LINES|dv.DV_MULTIPLE
+
+class GUIColors(object):
+    """a container for colour attributes
+         bg
+         nb_active
+         nb_area
+         nb_text
+         nb_activetext
+         title
+         pvname
+    """
+    bg        = wx.Colour(240,240,230)
+    nb_active = wx.Colour(254,254,195)
+    nb_bg     = wx.Colour(252,252,250)
+    nb_area   = wx.Colour(250,250,245)
+    nb_text   = wx.Colour(10,10,180)
+    nb_activetext = wx.Colour(80,10,10)
+    title     = wx.Colour(80,10,10)
+    pvname    = wx.Colour(10,10,80)
+
+def cmp(a, b):
+    return (a>b)-(b<a)
 
 def set_font_with_children(widget, font, dsize=None):
     cfont = widget.GetFont()

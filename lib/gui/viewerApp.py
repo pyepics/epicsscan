@@ -142,7 +142,7 @@ class PlotterFrame(wx.Frame):
         mainpanel = wx.Panel(parent)
         mainsizer = wx.BoxSizer(wx.VERTICAL)
         panel = wx.Panel(mainpanel)
-        sizer = wx.GridBagSizer(8, 7)
+        sizer = wx.GridBagSizer(3, 2)
 
         self.title = SimpleText(panel, 'initializing...')
         ir = 0
@@ -257,7 +257,7 @@ class PlotterFrame(wx.Frame):
                                   choices=('linear', 'error function', 'arctan'))
 
         self.fit_report = wx.StaticText(panel, -1, "", (180, 200))
-        sizer = wx.GridBagSizer(10, 4)
+        sizer = wx.GridBagSizer(3, 2)
         sizer.Add(SimpleText(p, 'Fit Model: '),           (0, 0), (1, 1), LCEN)
         sizer.Add(self.fit_model,                         (0, 1), (1, 1), LCEN)
 
@@ -289,7 +289,7 @@ class PlotterFrame(wx.Frame):
         self.xas_nnor = add_choice(panel, size=(50, -1), choices=('0', '1', '2', '3'))
         self.xas_vict.SetSelection(1)
         self.xas_nnor.SetSelection(2)
-        sizer = wx.GridBagSizer(10, 4)
+        sizer = wx.GridBagSizer(3, 2)
 
         sizer.Add(SimpleText(p, 'Plot XAS as: '),         (0, 0), (1, 1), LCEN)
         sizer.Add(SimpleText(p, 'E0 : '),                 (1, 0), (1, 1), LCEN)
