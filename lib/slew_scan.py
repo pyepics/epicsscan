@@ -423,16 +423,15 @@ class Slew_Scan(StepScan):
 
             if self.larch is not None:
                 now = time.time()
-                prescan_lasttime = float(self.scandb.get_info('map_prescan_lasttime'))
-                prescan_interval = float(self.scandb.get_info('map_prescan_interval'))
-                run_prescan = ((now > prescan_lasttime + prescan_interval) or
-                               ( ((irow % 250) == 0) and (irow > 0) and (irow < 0.9*npts)) )
+                prescan_lasttime = float(self.scandb.get_info('prescan_lasttime'))
+                prescan_interval = float(self.scandb.get_info('prescan_interval'))
+                run_prescan = (now > prescan_lasttime + prescan_interval)
                 if run_prescan:
                     try:
                         self.larch.run("pre_scan_command(row=%i, npts=%i)" % (irow, npts))
                     except:
                         print("Failed to run pre_scan_command(row=%i)" % irow)
-                    self.set_info('map_prescan_lasttime', "%i" % int(now))
+                    self.set_info('prescan_lasttime', "%i" % int(now))
 
             for pv, v1, v2 in self.motor_vals.values():
                 val = v1
