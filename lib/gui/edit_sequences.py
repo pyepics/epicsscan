@@ -21,13 +21,20 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
         self.scandb = scandb
         self.commands = {}
         self.data = []
+        self.ncols = 5
         self.read_data()
 
     def read_data(self):
-        yesterday = datetime.now() - timedelta(hours=24.5)
         self.data = []
         self.commands = {}
-        for cmd in self.scandb.get_commands(requested_since=yesterday):
+        yesterday = datetime.now() - timedelta(hours=26)
+        recent_commands = self.scandb.get_commands(requested_since=yesterday)
+        if len(recent_commands) < 10:
+            week = datetime.now() - timedelta(days=7.5)
+            recent_commands = self.scandb.get_commands(requested_since=week)
+        self.data = []
+        self.commands = {}
+        for cmd in recent_commands:
             self.commands[cmd.id] = cmd
             self.data.append((cmd.command,
                               self.scandb.status_names[cmd.status_id],
@@ -109,7 +116,11 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
         return True
 
     def GetColumnCount(self):
-        return len(self.data[0])
+        try:
+            ncol = len(self.data[0])
+        except:
+            ncol = self.ncols
+        return ncol
 
     def GetCount(self):
         return len(self.data)
@@ -283,6 +294,7 @@ class ScanSequenceFrame(wx.Frame) :
             self.Refresh()
 
     def onCancelAll(self, event=None):
+        self.scandb.set_info('request_abort', 1)
         self.scandb.cancel_remaining_commands()
         self.onAbort()
 
