@@ -1073,14 +1073,13 @@ class ScanDB(object):
     def cancel_remaining_commands(self):
         """cancel all commmands to date"""
         cls, table = self.get_table('commands')
-        cancel = 3
-        for key, val in self.status_codes.items():
-            if key.lower().startswith('cancel'):
-                cancel = val
-                break
-        cmd = self.get_current_command()
-        cmdid = cmd.id
-        table.update(whereclause=text("id>='%i'" % cmdid)).execute(status_id=cancel)
+        requested = self.status_codes['requested']
+        canceled  = self.status_codes['canceled']
+        for r in table.select().where(table.c.status_id==requested
+                                      ).order_by(cls.run_order
+                                      ).execute().fetchall():
+            table.update(whereclause=text("id='%d'" % r.id)
+            ).execute(status_id=canceled)
 
     def test_abort(self, msg='scan abort'):
         """look for abort, raise ScanDBAbort if set"""
