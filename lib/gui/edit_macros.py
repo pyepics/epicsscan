@@ -254,7 +254,7 @@ class PositionCommandFrame(wx.Frame) :
     def onInsert(self, event=None):
         datatype = self.datatype.GetStringSelection()
         buff = ["#commands added at positions"]
-        if datatype == 'xrd':
+        if datatype.lower().startswith('xrd'):
             xrdtime =  self.xrdtime.GetValue()
             command = "xrd_at(%s, t=%.1f)"
             for posname, use, nscans in reversed(self.model.data):
