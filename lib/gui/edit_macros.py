@@ -52,9 +52,12 @@ class ScanDBMessageQueue(object):
             self.last_id = out[-1].id
         return out
 
-def get_positionlist(scandb, instrument='SampleStage'):
+def get_positionlist(scandb, instrument=None):
     """get list of positions for and instrument"""
-    return InstrumentDB(scandb).get_positionlist(instrument, reverse=True)
+    iname = instrument
+    if iname is None:
+        iname = scandb.get_info('samplestage_instrument', 'SampleStage')
+    return InstrumentDB(scandb).get_positionlist(iname, reverse=True)
 
 class PositionCommandModel(dv.DataViewIndexListModel):
     def __init__(self, scandb):
