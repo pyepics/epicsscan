@@ -134,7 +134,11 @@ class QXAFS_ScanWatcher(object):
                 self.qxafs_finish()
                 time.sleep(0.5)
                 self.write("QXAFS scan finished, join abort process: %s" % (time.ctime()))
-                abort_proc.join()
+                abort_proc.join(5.0)
+                if abort_proc.is_alive():
+                    self.write("QXAFS join abort timed-out, trying to terminate")
+                    abort_proc.terminate()
+                    time.sleep(2.0)
                 self.write("QXAFS abort process done: %s" % (time.ctime()))
                 self.scandb.set_info('request_abort', 0)
                 time.sleep(1.0)
