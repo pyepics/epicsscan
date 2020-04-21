@@ -10,11 +10,12 @@ except ImportError:
     HAS_PYFAI = False
 
 MAXVAL = 2**32 - 2**15
+MAXVAL_INT16 = 2**16 - 8
 
 class AD_Integrator(object):
     """1D integrator"""
     def __init__(self,  suffix='h5', mask=None, flip=True,
-                 nqpoints=2048, trim_edges=(3,3,1,1),  **kws):
+                 nqpoints=2048, trim_edges=(3,3,1,1), **kws):
         from epicsscan.scandb import ScanDB
         self.scandb = ScanDB()
         self.folder = ''
@@ -26,6 +27,15 @@ class AD_Integrator(object):
         self.trim_edges = trim_edges
         self.nqpoints = nqpoints
         self.set_state('idle')
+
+    def use_calibrationfile(self, filename='XRD.poni', calname='XRD'):
+        if os.path.exists(filename):
+            calib = read_poni(filename)
+        else:
+            print("No calibration file ", filename)
+        self.scandb.set_detectorconfig(calname, json.dumps(calib))
+        self.scandb.set_info('xrd_calibration', calname)
+
 
     def set_state(self, state):
         self.scandb.set_info('xrd_1dint_status', state.lower())
@@ -81,7 +91,13 @@ class AD_Integrator(object):
             slice1 = slice(None, None, -1)
         for i in range(nframes):
             img = data[i, :, :]
-            img[np.where(img>MAXVAL)] = 0
+            if (img.max() > MAXVAL_INT16) and (img.max() < MAXVAL_INT16 + 64):
+                #probably really 16bit data
+                img[np.where(img>MAXVAL_INT16)] = 0
+            else:
+                img[np.where(img>MAXVAL)] = 0
+
+
             q, x = integrate(img[slice1, :], self.nqpoints, **opts)
             if i == 0:
                 dat.append(q)
