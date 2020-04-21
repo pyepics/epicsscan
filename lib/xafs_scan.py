@@ -52,7 +52,7 @@ class PVSlaveThread(Thread):
         self.offset = offset
         self.wait_time = wait_time
         self.dead_time = dead_time
-        self.last_move_time = time.time() - 100.0
+        self.last_move_time = time.monotonic() - 1000000.0
         self.last = -1
         self.pulse = -1
         self.scan = scan
@@ -99,7 +99,7 @@ class PVSlaveThread(Thread):
     def run(self):
         while self.running:
             time.sleep(0.005)
-            now = time.time()
+            now = time.monotonic()
             if self.pulse > self.last:
                 ready = True
                 if self.ready_pv is not None:
@@ -110,7 +110,7 @@ class PVSlaveThread(Thread):
                     try:
                         print("Put ID To %i  E=%.4f" % (self.pulse, val))
                         self.slave.put(val)
-                        self.last_move_time = time.time()
+                        self.last_move_time = time.monotonic()
                     except:
                         print("PVFollow Put failed: ", self.slave.pvname , val)
                 self.last = self.pulse
@@ -426,7 +426,7 @@ class QXAFS_Scan(XAFS_Scan):
         if comments is not None:
             self.comments = comments
 
-        ts_start = time.time()
+        ts_start = time.monotonic()
         if not self.verify_scan():
             self.write('Cannot execute scan: %s' % self._scangroup.error_message)
             self.set_info('scan_message', 'cannot execute scan')
@@ -545,11 +545,11 @@ class QXAFS_Scan(XAFS_Scan):
         self.cpt = 0
         self.npts = npts
 
-        ts_init = time.time()
+        ts_init = time.monotonic()
         self.inittime = ts_init - ts_start
         start_time = time.strftime('%Y-%m-%d %H:%M:%S')
         dtimer.add('info set')
-        time.sleep(1.0)
+        time.sleep(0.25)
         # out = self.xps.run_trajectory(name='qxafs', save=False)
         # dtimer.add('trajectory run')
 
@@ -558,14 +558,13 @@ class QXAFS_Scan(XAFS_Scan):
                              name='trajectory_thread')
         scan_thread.start()
         dtimer.add('scan trajectory started')
+        join_time = time.monotonic() + estimated_scantime - 5.0
+        time.sleep(2.0)
 
-        xt0 = time.time()
         while scan_thread.is_alive():
-            time.sleep(0.1)
-            if time.time()-xt0 > 0.9*estimated_scantime:
+            time.sleep(1.0)
+            if (time.monotonic() > join_time) or self.look_for_interrupts():
                 # print("Scan nearing end... now joining thread")
-                break
-            if self.look_for_interrupts():
                 break
         scan_thread.join()
         dtimer.add('scan thread joined')
@@ -591,14 +590,14 @@ class QXAFS_Scan(XAFS_Scan):
         [c.read() for c in self.counters]
 
         narr, ix = 0, 0
-        t0  = time.time()
-        while narr < (ne-1) and (time.time()-t0) < 15.0:
+        t0  = time.monotonic()
+        while narr < (ne-1) and (time.monotonic()-t0) < 15.0:
             time.sleep(0.1 + ix*0.1)
             [c.read() for c in self.counters]
             ndat = [len(c.buff) for c in self.counters]
             narr = min(ndat)
 
-        # print("Read QXAFS Data %i points (NE=%i) %.3f secs" % (narr, ne, time.time() - t0))
+        # print("Read QXAFS Data %i points (NE=%i) %.3f secs" % (narr, ne, time.monotonic() - t0))
         # remove hot first pixel AND align to proper energy
         # really, we tested this, comparing to slow XAFS scans!
         for c in self.counters:
@@ -636,7 +635,7 @@ class QXAFS_Scan(XAFS_Scan):
         self.set_info('scan_progress',
                       'scan complete. Wrote %s' % self.datafile.filename)
         self.scandb.set_info('qxafs_running', 0)
-        self.runtime  = time.time() - ts_start
+        self.runtime  = time.monotonic() - ts_start
         dtimer.add('done')
         # dtimer.show()
         return self.datafile.filename

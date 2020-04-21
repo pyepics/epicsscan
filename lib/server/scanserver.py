@@ -127,6 +127,7 @@ class ScanServer():
         self.command_in_progress = True
         self.set_status('starting')
         self.scandb.set_command_status('starting', cmdid=req.id)
+        self.set_scan_message("Executing:  %s" % repr(req.command))
 
         args    = strip_quotes(plain_ascii(req.arguments)).strip()
         notes   = strip_quotes(plain_ascii(req.notes)).strip()
@@ -261,6 +262,7 @@ class ScanServer():
                     self.epicsdb.setTime()
             # if pauses, continue loop
             if self.req_pause:
+                time.sleep(1.0)
                 continue
 
             # get ordered list of requested commands
@@ -273,15 +275,17 @@ class ScanServer():
                     req = reqs[0]
                     self.scandb.set_command_status('aborted', cmdid=req.id)
                     abort_slewscan()
-                time.sleep(0.5)
+                    reqs = []
                 if self.epicsdb is not None:
                     self.epicsdb.Abort = 0
                 self.clear_interrupts()
                 time.sleep(0.5)
 
             # do next command
-            elif len(reqs) > 0:
+            if len(reqs) > 0:
                 self.do_command(reqs[0])
+            else:
+                time.sleep(0.5)
         # mainloop end
         self.finish()
         return None
