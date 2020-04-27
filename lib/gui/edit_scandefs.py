@@ -10,10 +10,9 @@ import wx.dataview as dv
 from datetime import datetime
 from .gui_utils import (GUIColors, set_font_with_children, YesNo, popup,
                         add_button, pack, SimpleText, check, okcancel,
-                        add_subtitle, Font, LCEN, CEN, RCEN, FRAMESTYLE,
+                        add_subtitle, Font, LEFT, FRAMESTYLE,
                         FNB_STYLE)
 
-ALL_CEN =  wx.ALL|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL
 
 class RenameDialog(wx.Dialog):
     """Rename a Scan Name"""
@@ -27,11 +26,11 @@ class RenameDialog(wx.Dialog):
         tlabel = SimpleText(panel, label='New name = ', size=(200, -1))
         self.newname =  wx.TextCtrl(panel, value=oldname, size=(175, -1))
 
-        labstyle  = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
+        labstyle  = LEFT|wx.ALL
         sizer = wx.GridBagSizer(3, 2)
 
-        sizer.Add(tlabel,       (0, 0), (1, 1), LCEN, 1)
-        sizer.Add(self.newname, (0, 1), (1, 1), LCEN, 1)
+        sizer.Add(tlabel,       (0, 0), (1, 1), LEFT, 1)
+        sizer.Add(self.newname, (0, 1), (1, 1), LEFT, 1)
 
         btnsizer = wx.StdDialogButtonSizer()
         btn_ok  = wx.Button(panel, wx.ID_OK)
@@ -40,7 +39,7 @@ class RenameDialog(wx.Dialog):
         btnsizer.AddButton(btn_ok)
         btnsizer.AddButton(btn_cancel)
         btnsizer.Realize()
-        sizer.Add(btnsizer, (1, 0), (1, 2),  wx.ALIGN_CENTER_VERTICAL|wx.ALL, 1)
+        sizer.Add(btnsizer, (1, 0), (1, 2),  wx.ALL, 1)
         pack(panel, sizer)
         sx= wx.BoxSizer(wx.VERTICAL)
         sx.Add(panel, 0, 0, 0)
@@ -122,7 +121,7 @@ class ScanDefPanel(wx.Panel):
         self.make_titles()
 
         sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(self.dvc, 1, wx.ALIGN_LEFT)
+        sizer.Add(self.dvc, 1, LEFT)
         self.dvc.SetMinSize((775, 450))
 
         bpanel = wx.Panel(self)
@@ -133,7 +132,7 @@ class ScanDefPanel(wx.Panel):
         bsizer.Add(add_button(bpanel, label='Done',        action=self.onDone))
 
         pack(bpanel, bsizer)
-        sizer.Add(bpanel, 0, LCEN, 5)
+        sizer.Add(bpanel, 0, LEFT, 5)
         self.SetAutoLayout(True)
         self.SetSizer(sizer)
         self.Fit()
@@ -149,14 +148,13 @@ class ScanDefPanel(wx.Panel):
         self.dvc.AssociateModel(self.model)
 
 
-
     def make_titles(self):
         icol = 0
         for title, width in self.colLabels:
             self.dvc.AppendTextColumn(title, icol, width=width)
             col = self.dvc.Columns[icol]
             col.Sortable = True
-            col.Alignment = wx.ALIGN_LEFT
+            col.Alignment = LEFT
             icol += 1
 
     def _getscans(self, orderby='last_used_time'):
@@ -404,8 +402,8 @@ class ScandefsFrame(wx.Frame) :
 
         sizer.Add(SimpleText(panel, 'Scan Definitions',
                              font=Font(13),
-                             colour=GUIColors.title, style=LCEN),
-                  0, LCEN, 5)
+                             colour=GUIColors.title, style=LEFT),
+                  0, LEFT, 5)
 
         rsizer = wx.BoxSizer(wx.HORIZONTAL)
 
@@ -419,15 +417,15 @@ class ScandefsFrame(wx.Frame) :
         self.show_dunder.Bind(wx.EVT_CHECKBOX,self.onToggleDunder)
 
         rsizer.Add(SimpleText(panel, "Filter: ",
-                             font=Font(12), style=LCEN), 0, LCEN, 5)
-        rsizer.Add(self.searchstring, 1, LCEN, 2)
+                             font=Font(12), style=LEFT), 0, LEFT, 5)
+        rsizer.Add(self.searchstring, 1, LEFT, 2)
 
         rsizer.Add(add_button(panel, label='Apply', size=(70, -1),
-                              action=self.onSearch), 0, LCEN, 3)
+                              action=self.onSearch), 0, LEFT, 3)
         rsizer.Add(add_button(panel, label='Clear',  size=(70, -1),
-                              action=self.onClearSearch), 0, LCEN, 3)
+                              action=self.onClearSearch), 0, LEFT, 3)
 
-        rsizer.Add(self.show_dunder, 1, LCEN, 6)
+        rsizer.Add(self.show_dunder, 1, LEFT, 6)
         sizer.Add(rsizer)
 
         self.tables = []

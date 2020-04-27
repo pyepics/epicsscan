@@ -37,7 +37,7 @@ from ..file_utils import fix_filename
 
 from .gui_utils import (SimpleText, FloatCtrl, pack, add_button,
                         add_menu, add_choice, add_menu, check,
-                        CEN, RCEN, LCEN, FRAMESTYLE, Font)
+                        LEFT, RIGHT, CEN,  FRAMESTYLE, Font)
 
 CEN |=  wx.ALL
 FILE_WILDCARDS = "Scan Data Files(*.0*,*.dat,*.xdi)|*.0*;*.dat;*.xdi|All files (*.*)|*.*"
@@ -146,7 +146,7 @@ class PlotterFrame(wx.Frame):
 
         self.title = SimpleText(panel, 'initializing...')
         ir = 0
-        sizer.Add(self.title, (ir, 0), (1, 6), LCEN, 2)
+        sizer.Add(self.title, (ir, 0), (1, 6), LEFT, 2)
         # x-axis
 
         self.xarr = add_choice(panel, choices=[],
@@ -158,7 +158,7 @@ class PlotterFrame(wx.Frame):
         sizer.Add(SimpleText(panel, 'X = '), (ir, 0), (1, 1), CEN, 0)
         sizer.Add(self.xop,                  (ir, 1), (1, 1), CEN, 0)
         sizer.Add(SimpleText(panel, '('),    (ir, 2), (1, 1), CEN, 0)
-        sizer.Add(self.xarr,                 (ir, 3), (1, 1), RCEN, 0)
+        sizer.Add(self.xarr,                 (ir, 3), (1, 1), RIGHT, 0)
         sizer.Add(SimpleText(panel, ')'),    (ir, 4), (1, 1), CEN, 0)
 
         self.yops = [[],[]]
@@ -190,13 +190,13 @@ class PlotterFrame(wx.Frame):
             sizer.Add(self.yarr[i][0],           (ir, 3), (1, 1), CEN, 0)
             sizer.Add(self.yops[i][1],           (ir, 4), (1, 1), CEN, 0)
             sizer.Add(self.yarr[i][1],           (ir, 5), (1, 1), CEN, 0)
-            sizer.Add(SimpleText(panel, ')'),    (ir, 6), (1, 1), LCEN, 0)
+            sizer.Add(SimpleText(panel, ')'),    (ir, 6), (1, 1), LEFT, 0)
             sizer.Add(self.yops[i][2],           (ir, 7), (1, 1), CEN, 0)
             sizer.Add(self.yarr[i][2],           (ir, 8), (1, 1), CEN, 0)
-            sizer.Add(SimpleText(panel, ']'),    (ir, 9), (1, 1), LCEN, 0)
+            sizer.Add(SimpleText(panel, ']'),    (ir, 9), (1, 1), LEFT, 0)
         ir += 1
-        # sizer.Add(SimpleText(panel, ' New Plot: '),  (ir,   0), (1, 3), LCEN, 0)
-        # sizer.Add(SimpleText(panel, ' Over Plot: '), (ir+1, 0), (1, 3), LCEN, 0)
+        # sizer.Add(SimpleText(panel, ' New Plot: '),  (ir,   0), (1, 3), LEFT, 0)
+        # sizer.Add(SimpleText(panel, ' Over Plot: '), (ir+1, 0), (1, 3), LEFT, 0)
 
         for jr, ic, dc, opt, ttl in ((0, 0, 4, 'win old',    'New Plot, This Window'),
                                      (0, 4, 2, 'win new',    'New Plot, New Window'),
@@ -204,13 +204,13 @@ class PlotterFrame(wx.Frame):
                                      (1, 4, 2, 'over right', 'Over Plot, Right Axis')):
             sizer.Add(add_button(panel, ttl, size=(165, -1),
                                  action=partial(self.onPlot, opt=opt)),
-                      (ir+jr, ic), (1, dc), LCEN, 2)
+                      (ir+jr, ic), (1, dc), LEFT, 2)
 
         ir += 2
         self.dtcorr   = check(panel, default=True, label='correct deadtime?')
-        sizer.Add(self.dtcorr,  (ir,   0), (1, 3), LCEN, 0)
+        sizer.Add(self.dtcorr,  (ir,   0), (1, 3), LEFT, 0)
         ir += 1
-        sizer.Add(SimpleText(panel, ''), (ir,   0), (1, 3), LCEN, 0)
+        sizer.Add(SimpleText(panel, ''), (ir,   0), (1, 3), LEFT, 0)
 
         pack(panel, sizer)
 
@@ -229,7 +229,7 @@ class PlotterFrame(wx.Frame):
 #         self.nb.AddPage(self.fit_panel, ' General Analysis ', True)
 #         self.nb.AddPage(self.xas_panel, ' XAS Processing ',   True)
 
-        mainsizer.Add(panel,   0, LCEN|wx.EXPAND, 2)
+        mainsizer.Add(panel,   0, LEFT|wx.EXPAND, 2)
         self.plotpanel = PlotPanel(mainpanel, size=(500, 670))
         self.plotpanel.messenger = self.write_message
 
@@ -239,7 +239,7 @@ class PlotterFrame(wx.Frame):
 
         mainsizer.Add(self.plotpanel, 1, wx.GROW|wx.ALL, 1)
 
-        # mainsizer.Add(self.nb, 1, LCEN|wx.EXPAND, 2)
+        # mainsizer.Add(self.nb, 1, LEFT|wx.EXPAND, 2)
         pack(mainpanel, mainsizer)
 
         return mainpanel
@@ -258,17 +258,17 @@ class PlotterFrame(wx.Frame):
 
         self.fit_report = wx.StaticText(panel, -1, "", (180, 200))
         sizer = wx.GridBagSizer(3, 2)
-        sizer.Add(SimpleText(p, 'Fit Model: '),           (0, 0), (1, 1), LCEN)
-        sizer.Add(self.fit_model,                         (0, 1), (1, 1), LCEN)
+        sizer.Add(SimpleText(p, 'Fit Model: '),           (0, 0), (1, 1), LEFT)
+        sizer.Add(self.fit_model,                         (0, 1), (1, 1), LEFT)
 
-        sizer.Add(SimpleText(p, 'Background: '),          (1, 0), (1, 1), LCEN)
-        sizer.Add(self.fit_bkg,                           (1, 1), (1, 1), LCEN)
+        sizer.Add(SimpleText(p, 'Background: '),          (1, 0), (1, 1), LEFT)
+        sizer.Add(self.fit_bkg,                           (1, 1), (1, 1), LEFT)
 
-        sizer.Add(SimpleText(p, 'Step Function Form: '),  (2, 0), (1, 1), LCEN)
-        sizer.Add(self.fit_step,                          (2, 1), (1, 1), LCEN)
+        sizer.Add(SimpleText(p, 'Step Function Form: '),  (2, 0), (1, 1), LEFT)
+        sizer.Add(self.fit_step,                          (2, 1), (1, 1), LEFT)
         sizer.Add(add_button(panel, 'Show Fit', size=(100, -1),
-                             action=self.onFitPeak),       (3, 0), (1, 1), LCEN)
-        sizer.Add(self.fit_report,                         (0, 2), (4, 2), LCEN, 3)
+                             action=self.onFitPeak),       (3, 0), (1, 1), LEFT)
+        sizer.Add(self.fit_report,                         (0, 2), (4, 2), LEFT, 3)
         pack(panel, sizer)
         return panel
 
@@ -291,29 +291,29 @@ class PlotterFrame(wx.Frame):
         self.xas_nnor.SetSelection(2)
         sizer = wx.GridBagSizer(3, 2)
 
-        sizer.Add(SimpleText(p, 'Plot XAS as: '),         (0, 0), (1, 1), LCEN)
-        sizer.Add(SimpleText(p, 'E0 : '),                 (1, 0), (1, 1), LCEN)
-        sizer.Add(SimpleText(p, 'Edge Step: '),           (2, 0), (1, 1), LCEN)
-        sizer.Add(SimpleText(p, 'Pre-edge range: '),      (3, 0), (1, 1), LCEN)
-        sizer.Add(SimpleText(p, 'Normalization range: '), (4, 0), (1, 1), LCEN)
+        sizer.Add(SimpleText(p, 'Plot XAS as: '),         (0, 0), (1, 1), LEFT)
+        sizer.Add(SimpleText(p, 'E0 : '),                 (1, 0), (1, 1), LEFT)
+        sizer.Add(SimpleText(p, 'Edge Step: '),           (2, 0), (1, 1), LEFT)
+        sizer.Add(SimpleText(p, 'Pre-edge range: '),      (3, 0), (1, 1), LEFT)
+        sizer.Add(SimpleText(p, 'Normalization range: '), (4, 0), (1, 1), LEFT)
 
-        sizer.Add(self.xas_op,                 (0, 1), (1, 1), LCEN)
-        sizer.Add(self.xas_e0,                 (1, 1), (1, 1), LCEN)
-        sizer.Add(self.xas_step,               (2, 1), (1, 1), LCEN)
-        sizer.Add(self.xas_pre1,               (3, 1), (1, 1), LCEN)
-        sizer.Add(SimpleText(p, ':'),          (3, 2), (1, 1), LCEN)
-        sizer.Add(self.xas_pre2,               (3, 3), (1, 1), LCEN)
-        sizer.Add(self.xas_nor1,               (4, 1), (1, 1), LCEN)
-        sizer.Add(SimpleText(p, ':'),          (4, 2), (1, 1), LCEN)
-        sizer.Add(self.xas_nor2,               (4, 3), (1, 1), LCEN)
+        sizer.Add(self.xas_op,                 (0, 1), (1, 1), LEFT)
+        sizer.Add(self.xas_e0,                 (1, 1), (1, 1), LEFT)
+        sizer.Add(self.xas_step,               (2, 1), (1, 1), LEFT)
+        sizer.Add(self.xas_pre1,               (3, 1), (1, 1), LEFT)
+        sizer.Add(SimpleText(p, ':'),          (3, 2), (1, 1), LEFT)
+        sizer.Add(self.xas_pre2,               (3, 3), (1, 1), LEFT)
+        sizer.Add(self.xas_nor1,               (4, 1), (1, 1), LEFT)
+        sizer.Add(SimpleText(p, ':'),          (4, 2), (1, 1), LEFT)
+        sizer.Add(self.xas_nor2,               (4, 3), (1, 1), LEFT)
 
-        sizer.Add(self.xas_autoe0,             (1, 2), (1, 2), LCEN)
-        sizer.Add(self.xas_autostep,           (2, 2), (1, 2), LCEN)
+        sizer.Add(self.xas_autoe0,             (1, 2), (1, 2), LEFT)
+        sizer.Add(self.xas_autostep,           (2, 2), (1, 2), LEFT)
 
-        sizer.Add(SimpleText(p, 'Victoreen:'), (3, 4), (1, 1), LCEN)
-        sizer.Add(self.xas_vict,               (3, 5), (1, 1), LCEN)
-        sizer.Add(SimpleText(p, 'PolyOrder:'), (4, 4), (1, 1), LCEN)
-        sizer.Add(self.xas_nnor,               (4, 5), (1, 1), LCEN)
+        sizer.Add(SimpleText(p, 'Victoreen:'), (3, 4), (1, 1), LEFT)
+        sizer.Add(self.xas_vict,               (3, 5), (1, 1), LEFT)
+        sizer.Add(SimpleText(p, 'PolyOrder:'), (4, 4), (1, 1), LEFT)
+        sizer.Add(self.xas_nnor,               (4, 5), (1, 1), LEFT)
 
         pack(panel, sizer)
         return panel

@@ -30,7 +30,7 @@ from ..file_utils import fix_filename, fix_varname
 
 from .gui_utils import (SimpleText, FloatCtrl, pack, add_button,
                         add_menu, add_choice, add_menu, check, hline,
-                        CEN, RCEN, LCEN, FRAMESTYLE, Font, hms, popup, GUIColors)
+                        CEN, RIGHT, LEFT, FRAMESTYLE, Font, hms, popup, GUIColors)
 
 CEN |=  wx.ALL
 FILE_WILDCARDS = "Scan Data Files(*.0*,*.dat,*.xdi)|*.0*;*.dat;*.xdi|All files (*.*)|*.*"
@@ -243,9 +243,9 @@ class ScanViewerFrame(wx.Frame):
 
         # place widgets
         sizer = wx.GridBagSizer(3, 2)
-        sizer.Add(self.title,                  (0, 1), (1, 6), LCEN, 2)
+        sizer.Add(self.title,                  (0, 1), (1, 6), LEFT, 2)
         sizer.Add(SimpleText(panel, '  X ='),  (1, 0), (1, 1), CEN, 0)
-        sizer.Add(self.xarr,                   (1, 3), (1, 1), RCEN, 0)
+        sizer.Add(self.xarr,                   (1, 3), (1, 1), RIGHT, 0)
 
         ir = 1
         for i in range(2):
@@ -257,10 +257,10 @@ class ScanViewerFrame(wx.Frame):
             sizer.Add(self.yarr[i][0],           (ir, 3), (1, 1), CEN, 0)
             sizer.Add(self.yops[i][1],           (ir, 4), (1, 1), CEN, 0)
             sizer.Add(self.yarr[i][1],           (ir, 5), (1, 1), CEN, 0)
-            sizer.Add(SimpleText(panel, ')'),    (ir, 6), (1, 1), LCEN, 0)
+            sizer.Add(SimpleText(panel, ')'),    (ir, 6), (1, 1), LEFT, 0)
             sizer.Add(self.yops[i][2],           (ir, 7), (1, 1), CEN, 0)
             sizer.Add(self.yarr[i][2],           (ir, 8), (1, 1), CEN, 0)
-            sizer.Add(SimpleText(panel, ']'),    (ir, 9), (1, 1), LCEN, 0)
+            sizer.Add(SimpleText(panel, ']'),    (ir, 9), (1, 1), LEFT, 0)
         ir += 1
         sizer.Add(hline(panel),   (ir, 0), (1, 12), CEN|wx.GROW|wx.ALL, 0)
         pack(panel, sizer)
@@ -284,7 +284,7 @@ class ScanViewerFrame(wx.Frame):
         btnsizer.Add(self.moveto_btn)
         pack(btnpanel, btnsizer)
 
-        mainsizer.Add(panel,   0, LCEN|wx.EXPAND, 2)
+        mainsizer.Add(panel,   0, LEFT|wx.EXPAND, 2)
         mainsizer.Add(self.plotpanel, 1, wx.GROW|wx.ALL, 1)
         mainsizer.Add(btnpanel, 0, wx.GROW|wx.ALL, 1)
 

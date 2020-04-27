@@ -18,7 +18,7 @@ from epics.wx import EpicsFunction, PVText, PVStaticText
 
 from .gui_utils import (GUIColors, SimpleText, FloatCtrl, HyperText,
                         pack, add_choice, hms, check, LEFT, RIGHT,
-                        CEN, LCEN, RCEN, CCEN)
+                        CEN)
 
 from .. import etok, ktoe, XAFS_Scan, StepScan, Positioner, Counter
 from ..utils import normalize_pvname, atGSECARS
@@ -107,14 +107,14 @@ class GenericScanPanel(scrolled.ScrolledPanel):
 
         irow = 0
         if with_nscans:
-            bsizer.Add(SimpleText(bpanel, "Number of Scans:"), (irow, 0), (1, 1), LCEN)
-            bsizer.Add(self.nscans,     (irow, 1), (1, 1), LCEN, 2)
+            bsizer.Add(SimpleText(bpanel, "Number of Scans:"), (irow, 0), (1, 1), LEFT)
+            bsizer.Add(self.nscans,     (irow, 1), (1, 1), LEFT, 2)
             irow += 1
 
-        bsizer.Add(SimpleText(bpanel, "File Name:"), (irow, 0),   (1, 1), LCEN)
-        bsizer.Add(self.filename,                    (irow, 1),   (1, 2), LCEN, 2)
-        bsizer.Add(SimpleText(bpanel, "Comments:"),  (irow+1, 0), (1, 1), LCEN)
-        bsizer.Add(self.user_comms,                  (irow+1, 1), (1, 2), LCEN, 2)
+        bsizer.Add(SimpleText(bpanel, "File Name:"), (irow, 0),   (1, 1), LEFT)
+        bsizer.Add(self.filename,                    (irow, 1),   (1, 2), LEFT, 2)
+        bsizer.Add(SimpleText(bpanel, "Comments:"),  (irow+1, 0), (1, 1), LEFT)
+        bsizer.Add(self.user_comms,                  (irow+1, 1), (1, 2), LEFT, 2)
 
         bpanel.SetSizer(bsizer)
         bsizer.Fit(bpanel)
@@ -123,8 +123,8 @@ class GenericScanPanel(scrolled.ScrolledPanel):
                                        font=self.Font12, colour='#991111')
 
         self.sizer.Add(self.scan_message, (row, 0),   (1, 8), LEFT, 3)
-        self.sizer.Add(self.hline(),      (row+1, 0), (1, 8), wx.ALIGN_CENTER, 2)
-        self.sizer.Add(bpanel,            (row+2, 0), (1, 8), wx.ALIGN_LEFT|wx.ALL, 2)
+        self.sizer.Add(self.hline(),      (row+1, 0), (1, 8), CEN, 2)
+        self.sizer.Add(bpanel,            (row+2, 0), (1, 8), LEFT|wx.ALL, 2)
 
         pack(self, self.sizer)
         self.SetupScrolling()
@@ -341,7 +341,7 @@ class LinearScanPanel(GenericScanPanel):
         sizer = self.sizer
         ir = self.top_widgets('Linear Step Scan')
 
-        sizer.Add(self.hline(), (ir, 0), (1, 8), wx.ALIGN_CENTER)
+        sizer.Add(self.hline(), (ir, 0), (1, 8), CEN)
         ir += 1
         for ic, txt in enumerate((" Role", " Positioner", " Units",
                                   " Current", " Start",
@@ -367,9 +367,9 @@ class LinearScanPanel(GenericScanPanel):
             pos.SetSelection(idefault)
             role  = wx.StaticText(self, -1, label=lab)
             units = wx.StaticText(self, -1, label='', size=(40, -1),
-                                  style=wx.ALIGN_CENTER)
+                                  style=CEN)
             cur   = PVStaticText(self, pv=None, size=(100, -1),
-                                 style=wx.ALIGN_CENTER)
+                                 style=CEN)
             start, stop, step, npts = self.StartStopStepNpts(i, with_npts=(i==0))
             self.pos_settings.append((pos, units, cur, start, stop, step, npts))
             if i > 0:
@@ -509,14 +509,14 @@ class XAFSScanPanel(GenericScanPanel):
 
         sizer = self.sizer
         ir = self.top_widgets('XAFS Scan')
-        sizer.Add(self.hline(),  (ir, 0), (1, 8), wx.ALIGN_CENTER)
+        sizer.Add(self.hline(),  (ir, 0), (1, 8), CEN)
 
         nregs = self.nregs_wid.GetValue()
         ir += 1
         sizer.Add(self.make_e0panel(),   (ir,   0), (1, 8), LEFT)
         ir += 1
 
-        sizer.Add(self.hline(),    (ir, 0), (1, 8), wx.ALIGN_CENTER)
+        sizer.Add(self.hline(),    (ir, 0), (1, 8), CEN)
         ir += 1
         for ic, lab in enumerate((" Region", " Start", " Stop", " Step",
                                   " Npts", " Time (s)", " Units")):
@@ -560,7 +560,7 @@ class XAFSScanPanel(GenericScanPanel):
             sizer.Add(units, (ir, 6), (1, 1), wx.ALL, 2)
 
         ir += 1
-        sizer.Add(self.hline(), (ir, 0), (1, 7), wx.ALIGN_CENTER)
+        sizer.Add(self.hline(), (ir, 0), (1, 7), CEN)
 
         self.kwtimechoice = add_choice(self, ('0', '1', '2', '3'), size=(70, -1),
                                      action=partial(self.onVal, label='kwpow'))
@@ -743,16 +743,16 @@ class XAFSScanPanel(GenericScanPanel):
                                      action=self.onEdgeChoice)
 
         s.Add(SimpleText(p, " Edge Energy:", size=(120, -1),
-                         style=wx.ALIGN_LEFT), 0, CEN, 2)
+                         style=LEFT), 0, CEN, 2)
         s.Add(self.e0,   0, LEFT, 2)
         s.Add(SimpleText(p, "   Element:  "),  0, LEFT, 3)
         s.Add(self.elemchoice,                 0, LEFT, 3)
         s.Add(SimpleText(p, "    Edge:  "),    0, LEFT, 3)
         s.Add(self.edgechoice,                 0, LEFT, 3)
         s.Add(SimpleText(p, "   Current Energy:", size=(170, -1),
-                         style=wx.ALIGN_LEFT), 0, CEN, 2)
+                         style=LEFT), 0, CEN, 2)
         self.energy_pv = PVStaticText(p, pv=None, size=(100, -1),
-                                      style=wx.ALIGN_CENTER)
+                                      style=CEN)
         s.Add(self.energy_pv, 0, CEN, 2)
         pack(p, s)
         return p
@@ -942,7 +942,7 @@ class MeshScanPanel(GenericScanPanel):
         sizer = self.sizer
 
         ir = self.top_widgets('Mesh Scan (Slow Map)')
-        sizer.Add(self.hline(), (ir, 0), (1, 8), wx.ALIGN_CENTER)
+        sizer.Add(self.hline(), (ir, 0), (1, 8), CEN)
         ir += 1
 
         for ic, lab in enumerate((" Loop", " Positioner", " Units",
@@ -962,7 +962,7 @@ class MeshScanPanel(GenericScanPanel):
             pos.SetSelection(i)
             units = wx.StaticText(self, -1, size=(40, -1), label='')
             cur   = PVStaticText(self, pv=None, size=(100, -1),
-                                 style=wx.ALIGN_CENTER)
+                                 style=CEN)
             start, stop, step, npts = self.StartStopStepNpts(i,
                                                     initvals=(-1, 1, 0.1, 11))
 
@@ -1070,7 +1070,7 @@ class SlewScanPanel(GenericScanPanel):
         sizer.Add(SimpleText(self, ' Dimension:'), (ir-1, 6), (1, 1), CEN)
         sizer.Add(self.dimchoice,                  (ir-1, 7), (1, 2), CEN)
 
-        sizer.Add(self.hline(), (ir, 0), (1, 8), wx.ALIGN_CENTER)
+        sizer.Add(self.hline(), (ir, 0), (1, 8), CEN)
         ir += 1
         for ic, lab in enumerate((" Loop", " Positioner", " Units",
                                   " Current", " Start", " Stop", " Step", " Npts")):
@@ -1092,9 +1092,9 @@ class SlewScanPanel(GenericScanPanel):
                              action=partial(self.onPos, index=i))
             pos.SetSelection(i)
             units = wx.StaticText(self, -1, size=(40, -1), label='',
-                                  style=wx.ALIGN_CENTER)
+                                  style=CEN)
             cur   = PVStaticText(self, pv=None, size=(100, -1),
-                                 style=wx.ALIGN_CENTER)
+                                 style=CEN)
             start, stop, step, npts = self.StartStopStepNpts(i,
                                             initvals=(-0.25, 0.25, 0.002, 251))
             self.pos_settings.append((pos, units, cur, start, stop, step, npts))

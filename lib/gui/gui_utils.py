@@ -4,7 +4,7 @@
 This is a collection of general purpose utility functions and classes,
 especially useful for wx functionality
 """
-import wx
+LCEimport wx
 import os
 import array
 
@@ -13,17 +13,14 @@ HAS_NUMPY = True
 
 from wxutils import (fix_filename, FileOpen, FileSave, SelectWorkdir,
                      SimpleText, HyperText, YesNo, FloatCtrl, hms, Font,
-                     LCEN, RCEN, CCEN, FRAMESTYLE, LTEXT,
-                     GUIColors)
+                     LEFT, RIGHT, CEN, FRAMESTYLE, LTEXT, GUIColors)
 
 import wx.dataview as dv
 import wx.lib.agw.flatnotebook as flat_nb
 
-LEFT = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
-RIGHT = wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
-CEN  = wx.ALIGN_CENTER|wx.ALIGN_CENTER_VERTICAL|wx.ALL
-LEFT_CEN = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL
-CCEN  = wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_CENTER
+LEFT |= wx.ALL
+RIGHT |= wx.ALL
+CEN |= wx.ALL
 LTEXT = wx.ST_NO_AUTORESIZE|wx.ALIGN_CENTER
 
 FNB_STYLE = flat_nb.FNB_NO_X_BUTTON|flat_nb.FNB_SMART_TABS|flat_nb.FNB_NO_NAV_BUTTONS|flat_nb.FNB_NODRAG
@@ -66,8 +63,8 @@ def set_font_with_children(widget, font, dsize=None):
 def add_subtitle(panel, text, colour='#222288'):
     p = wx.Panel(panel)
     s = wx.BoxSizer(wx.HORIZONTAL)
-    s.Add(wx.StaticLine(p, size=(50, 5), style=wx.LI_HORIZONTAL), 0, LCEN, 5)
-    s.Add(SimpleText(p, text,  colour=colour),  0, LCEN, 5)
+    s.Add(wx.StaticLine(p, size=(50, 5), style=wx.LI_HORIZONTAL), 0, LEFT, 5)
+    s.Add(SimpleText(p, text,  colour=colour),  0, LEFT, 5)
     pack(p, s)
     return p
 
@@ -239,7 +236,7 @@ class TextInput(wx.TextCtrl):
     "simple text control"
     def __init__(self, parent, value, action=None,
                  font=None, colour=None, bgcolour=None,
-                 style=wx.ALIGN_CENTRE,  **kws):
+                 style=CEN,  **kws):
 
         wx.TextCtrl.__init__(self, parent, -1,
                                label=label, style=style, **kws)

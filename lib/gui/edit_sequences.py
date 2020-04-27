@@ -8,7 +8,7 @@ from collections import OrderedDict, namedtuple
 
 from .gui_utils import (GUIColors, set_font_with_children, YesNo, popup,
                         add_button, pack, SimpleText, check, okcancel,
-                        add_subtitle, Font, FRAMESTYLE, LEFT, CEN, DVSTYLE, cmp)
+                        add_subtitle, Font, FRAMESTYLE, LEFT, DVSTYLE, cmp)
 
 import wx.dataview as dv
 
@@ -200,7 +200,7 @@ class ScanSequenceFrame(wx.Frame) :
         self.dvc.AssociateModel(self.model)
 
         sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(self.dvc, 1, wx.ALIGN_LEFT|wx.ALL|wx.GROW)
+        sizer.Add(self.dvc, 1, LEFT|wx.ALL|wx.GROW)
         pack(spanel, sizer)
 
         spanel.SetupScrolling()
@@ -236,7 +236,7 @@ class ScanSequenceFrame(wx.Frame) :
             self.dvc.AppendTextColumn(title, icol, width=width)
             col = self.dvc.Columns[icol]
             col.Sortable = title != 'Command'
-            col.Alignment = wx.ALIGN_LEFT
+            col.Alignment = LEFT
         self.dvc.EnsureVisible(self.model.GetItem(0))
 
         self.Bind(wx.EVT_CLOSE, self.onClose)

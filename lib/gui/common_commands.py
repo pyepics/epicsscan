@@ -11,17 +11,10 @@ import wx.lib.scrolledpanel as scrolled
 import numpy as np
 
 from .gui_utils import (SimpleText, FloatCtrl, HyperText,
-                        pack, add_choice, add_button,  check)
+                        pack, add_choice, add_button,  check, CEN, LEFT, RIGHT)
 
 from ..scandb import InstrumentDB
 from ..utils import normalize_pvname, atGSECARS
-
-CEN = wx.ALIGN_CENTER|wx.ALIGN_CENTER_VERTICAL
-LEFT = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL
-RIGHT = wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL
-LCEN  = wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_LEFT
-RCEN  = wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT
-CCEN  = wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_CENTER
 
 LINWID = 700
 # from ..scan_panels import ELEM_LIST
@@ -54,7 +47,7 @@ class CommonCommandsAdminFrame(wx.Frame):
         self._larch.load_macros()
         self.macros = self._larch.get_macros()
 
-        labstyle  = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
+        labstyle = LEFT|wx.ALL
         font11 = wx.Font(11, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
         font12 = wx.Font(12, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
 
@@ -215,7 +208,7 @@ class CommonCommandsFrame(wx.Frame):
         self._larch.load_macros()
         macros = self._larch.get_macros()
 
-        labstyle  = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.ALL
+        labstyle  = LEFT|wx.ALL
         font11 = wx.Font(11, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
         font12 = wx.Font(12, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
 
