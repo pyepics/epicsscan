@@ -17,13 +17,11 @@ from .positioner import Positioner
 from .saveable import Saveable
 from .file_utils import fix_varname, new_filename
 from .utils import ScanDBAbort, hms
-from .detectors import Struck, TetrAMM, Xspress3, Counter
 from .debugtime import debugtime
 XAFS_K2E = 3.809980849311092
 HC       = 12398.4193
 RAD2DEG  = 180.0/np.pi
 MAXPTS   = 8192
-
 
 class PVSlaveThread(Thread):
     """
@@ -508,19 +506,7 @@ class QXAFS_Scan(XAFS_Scan):
             det_start_delay = max(det_start_delay, det.start_delay)
 
         time.sleep(det_arm_delay)
-
         dtimer.add('detectors armed')
-        ## need to use self.rois to re-load ROI arrays
-        ## names like  MCA1ROI:N:TSTotal
-        _counters = []
-        for c in self.counters:
-            pvname = c.pv.pvname
-            found = any([pref in pvname for pref in det_prefixes])
-            if found:
-                _counters.append((pvname, c.label))
-
-        self.counters = [Counter(pv, label=lab) for pv, lab in _counters]
-
         self.init_scandata()
         dtimer.add('init scandata')
         for det in self.detectors:
