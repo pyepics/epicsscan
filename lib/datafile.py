@@ -330,7 +330,10 @@ class ASCIIScanFile(ScanFile):
                 if units in (None, 'None', ''):
                     units = objunits
                 lab = fix_filename(obj.label)
-                pvn = obj.pv.pvname
+                try:
+                    pvn = obj.pv.pvname
+                except:
+                    pvn = ''
                 sthis = "%s: %s %s %s %s" %(key, lab, units, SEP, pvn)
                 out.append(sthis)
                 cols.append(lab)
