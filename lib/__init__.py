@@ -4,9 +4,9 @@ __version__ = '0.6'
 import sys
 
 from .scandb import ScanDB, InstrumentDB
-from .detectors import Trigger, Counter, MotorCounter, get_detector
-from .detectors import (SimpleDetector, ScalerDetector, McaDetector,
-                       MultiMcaDetector, AreaDetector)
+from .detectors import (get_detector, Trigger, Counter, MotorCounter,
+                        ROISumCounter, SimpleDetector, ScalerDetector,
+                        McaDetector, MultiMcaDetector, AreaDetector)
 from .positioner import Positioner
 from .datafile import ASCIIScanFile
 from .scan import StepScan

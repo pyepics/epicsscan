@@ -154,27 +154,13 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
                                'scaler': scaler_pvname}
 
     scan.rois = rois
-    # print  "Made Detectors: shim=",  scaler_shim, scandb, scantype, scan.scantype
-    # scandet_master / others are used to make sure that the
-    # first scaler detector found is used first -- typically this
-    # is the "clock master", and may need to be started **last**
-    scandet_master = None
-    scandet_others = []
-
     for dpars in detectors:
         dpars['rois'] = scan.rois
         dpars['mode'] = scan.detmode
         dpars['scandb'] = scandb
         if dpars['kind'] == 'scaler' and scaler_shim is not None:
             dpars.update(scaler_shim)
-        thisdet = get_detector(**dpars)
-        if dpars['kind'] == 'scaler' and scandet_master is None:
-            scan.add_detector(thisdet)
-            scandet_master = thisdet
-        else:
-            scandet_others.append(thisdet)
-    for det in scandet_others:
-        scan.add_detector(det)
+        scan.add_detector(get_detector(**dpars))
 
     # extra counters (not-triggered things to count)
     if counters is not None:
