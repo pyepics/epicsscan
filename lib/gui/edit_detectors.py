@@ -10,7 +10,7 @@ from ..detectors import DET_DEFAULT_OPTS, AD_FILE_PLUGINS
 from .gui_utils import (GUIColors, set_font_with_children, YesNo,
                         add_button, add_choice, pack, check, Font,
                         SimpleText, FloatCtrl, okcancel, add_subtitle,
-                        CEN, RCEN, LEFT, FRAMESTYLE)
+                        CEN, RIGHT, LEFT, FRAMESTYLE)
 
 from ..utils import strip_quotes
 
@@ -140,7 +140,7 @@ class DetectorDetailsFrame(wx.Frame):
         i = 0
         for titleword in (' Setting ', 'Value'):
             txt =SimpleText(self, titleword,
-                            minsize=(100, -1),   style=RCEN)
+                            minsize=(100, -1),   style=RIGHT)
             sizer.Add(txt, (0, i), (1, 1), LEFT, 1)
             i += 1
 
@@ -185,7 +185,7 @@ class DetectorDetailsFrame(wx.Frame):
             else:
                 wid = wx.TextCtrl(self, value=val, size=(150, -1))
             sizer.Add(label, (irow, 0), (1, 1), LEFT,  2)
-            sizer.Add(wid,   (irow, 1), (1, 1), RCEN,  2)
+            sizer.Add(wid,   (irow, 1), (1, 1), RIGHT,  2)
             self.wids[key] = wid
             irow  += 1
 

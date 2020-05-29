@@ -5,7 +5,7 @@ import wx.lib.scrolledpanel as scrolled
 
 from .gui_utils import (GUIColors, set_font_with_children, YesNo,
                         add_button, pack, SimpleText, check, okcancel,
-                        add_subtitle, Font, LCEN, CEN, RCEN,
+                        add_subtitle, Font, LEFT, CEN, RIGHT,
                         FRAMESTYLE)
 
 class ExtraPVsFrame(wx.Frame) :
@@ -25,19 +25,19 @@ class ExtraPVsFrame(wx.Frame) :
 
         # title row
         title = SimpleText(panel, 'Extra PVs Setup',  font=Font(13),
-                           colour=GUIColors.title, style=LCEN)
+                           colour=GUIColors.title, style=LEFT)
 
-        sizer.Add(title,        (0, 0), (1, 3), LCEN, 5)
+        sizer.Add(title,        (0, 0), (1, 3), LEFT, 5)
 
         ir = 1
         sizer.Add(SimpleText(panel, label='PV Name', size=(200, -1)),
-                  (ir, 0), (1, 1), LCEN, 2)
+                  (ir, 0), (1, 1), LEFT, 2)
         sizer.Add(SimpleText(panel, label='Description', size=(200, -1)),
-                  (ir, 1), (1, 1), LCEN, 2)
+                  (ir, 1), (1, 1), LEFT, 2)
         sizer.Add(SimpleText(panel, label='Use?'),
-                  (ir, 2), (1, 1), LCEN, 2)
+                  (ir, 2), (1, 1), LEFT, 2)
         sizer.Add(SimpleText(panel, label='Erase?', size=(60, -1)),
-                  (ir, 3), (1, 1), LCEN, 2)
+                  (ir, 3), (1, 1), LEFT, 2)
 
         self.widlist = []
         for this in self.scandb.getall('extrapvs'):
@@ -47,10 +47,10 @@ class ExtraPVsFrame(wx.Frame) :
             delpv  = YesNo(panel, defaultyes=False)
 
             ir +=1
-            sizer.Add(pvctrl, (ir, 0), (1, 1), RCEN, 2)
-            sizer.Add(desc,   (ir, 1), (1, 1), LCEN, 2)
-            sizer.Add(usepv,  (ir, 2), (1, 1), LCEN, 2)
-            sizer.Add(delpv,  (ir, 3), (1, 1), LCEN, 2)
+            sizer.Add(pvctrl, (ir, 0), (1, 1), RIGHT, 2)
+            sizer.Add(desc,   (ir, 1), (1, 1), LEFT, 2)
+            sizer.Add(usepv,  (ir, 2), (1, 1), LEFT, 2)
+            sizer.Add(delpv,  (ir, 3), (1, 1), LEFT, 2)
             self.widlist.append((this, pvctrl, desc, usepv, delpv))
 
         for i in range(3):
@@ -58,18 +58,18 @@ class ExtraPVsFrame(wx.Frame) :
             desc   = wx.TextCtrl(panel, -1, value='', size=(200, -1))
             usepv  = check(panel, default=False)
             ir +=1
-            sizer.Add(pvctrl,   (ir, 0), (1, 1), RCEN, 2)
-            sizer.Add(desc, (ir, 1), (1, 1), LCEN, 2)
-            sizer.Add(usepv,  (ir, 2), (1, 1), LCEN, 2)
+            sizer.Add(pvctrl,   (ir, 0), (1, 1), RIGHT, 2)
+            sizer.Add(desc, (ir, 1), (1, 1), LEFT, 2)
+            sizer.Add(usepv,  (ir, 2), (1, 1), LEFT, 2)
             self.widlist.append((None, pvctrl, desc, usepv, None))
 
         ir += 1
         sizer.Add(wx.StaticLine(panel, size=(350, 3), style=wx.LI_HORIZONTAL),
-                  (ir, 0), (1, 4), LCEN, 3)
+                  (ir, 0), (1, 4), LEFT, 3)
         #
         ir += 1
         sizer.Add(okcancel(panel, self.onOK, self.onClose),
-                  (ir, 0), (1, 2), LCEN, 3)
+                  (ir, 0), (1, 2), LEFT, 3)
 
         pack(panel, sizer)
 

@@ -213,7 +213,7 @@ class PositionCommandFrame(wx.Frame) :
                 kws['mode'] = mode
             method(label, icol, width=width, **kws)
             c = self.dvc.Columns[icol]
-            c.Alignment = wx.ALIGN_LEFT
+            c.Alignment = LEFT
             c.Sortable = False
 
         mainsizer = wx.BoxSizer(wx.VERTICAL)
@@ -360,8 +360,7 @@ class MacroFrame(wx.Frame) :
         sizer.Add(self.output, 1, CEN|wx.GROW|wx.ALL, 3)
 
 
-        sizer.Add(self.InputPanel(),  0, border=2,
-                  flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL|wx.EXPAND)
+        sizer.Add(self.InputPanel(),  0, border=2, flag=wx.ALL|wx.EXPAND)
 
 
         self._stimer = wx.Timer(self)
@@ -451,12 +450,10 @@ class MacroFrame(wx.Frame) :
         # self.restart_btn = add_button(panel, label='Restart Server',
         # action=self.onRestartServer)
 
-        sizer.Add(self.start_btn,  0, wx.ALIGN_LEFT, 2)
-        sizer.Add(self.pause_btn,  0, wx.ALIGN_LEFT, 2)
-        sizer.Add(self.resume_btn, 0, wx.ALIGN_LEFT, 2)
-        sizer.Add(self.cancel_btn, 0, wx.ALIGN_LEFT, 2)
-        # sizer.Add(self.abort_btn,  0, wx.ALIGN_LEFT, 2)
-        # sizer.Add(self.restart_btn, 0, wx.ALIGN_LEFT, 2)
+        sizer.Add(self.start_btn,  0, LEFT, 2)
+        sizer.Add(self.pause_btn,  0, LEFT, 2)
+        sizer.Add(self.resume_btn, 0, LEFT, 2)
+        sizer.Add(self.cancel_btn, 0, LEFT, 2)
         pack(panel, sizer)
         return panel
 
@@ -495,17 +492,17 @@ class MacroFrame(wx.Frame) :
     def InputPanel(self):
         panel = wx.Panel(self, -1)
         self.prompt = wx.StaticText(panel, -1, ' >>>', size = (30,-1),
-                                    style=wx.ALIGN_CENTER|wx.ALIGN_RIGHT)
+                                    style=RIGHT)
         self.histfile = os.path.join(larch.site_config.usr_larchdir, MACRO_HISTORY)
         self.input = ReadlineTextCtrl(panel, -1,  '', size=(525,-1),
                                       historyfile=self.histfile,
-                                      style=wx.ALIGN_LEFT|wx.TE_PROCESS_ENTER)
+                                      style=LEFT|wx.TE_PROCESS_ENTER)
 
         self.input.Bind(wx.EVT_TEXT_ENTER, self.onText)
         sizer = wx.BoxSizer(wx.HORIZONTAL)
 
         sizer.Add(self.prompt,  0, wx.BOTTOM|wx.CENTER)
-        sizer.Add(self.input,   1, wx.ALIGN_LEFT|wx.ALIGN_CENTER|wx.EXPAND)
+        sizer.Add(self.input,   1, LEFT|wx.EXPAND)
         panel.SetSizer(sizer)
         sizer.Fit(panel)
         return panel

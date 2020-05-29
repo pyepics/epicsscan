@@ -6,7 +6,7 @@ import wx.lib.scrolledpanel as scrolled
 
 from .gui_utils import (GUIColors, set_font_with_children, YesNo,
                         add_button, add_subtitle, okcancel, Font,
-                        pack, SimpleText, LCEN, CEN, RCEN,
+                        pack, SimpleText, LEFT, CEN, RIGHT,
                         FRAMESTYLE)
 
 class PositionerFrame(wx.Frame) :
@@ -27,9 +27,9 @@ class PositionerFrame(wx.Frame) :
 
         # title row
         title = SimpleText(panel, 'Positioners Setup',  font=Font(13),
-                           colour=GUIColors.title, style=LCEN)
+                           colour=GUIColors.title, style=LEFT)
 
-        sizer.Add(title,      (0, 0), (1, 3), LCEN, 5)
+        sizer.Add(title,      (0, 0), (1, 3), LEFT, 5)
 
 
         desc = wx.StaticText(panel, -1, label='Positioner Settling Time (sec): ',
@@ -38,21 +38,21 @@ class PositionerFrame(wx.Frame) :
         self.settle_time = wx.TextCtrl(panel, size=(75, -1),
                             value=self.scandb.get_info('pos_settle_time', '0.001'))
         sizer.Add(desc,              (1, 0), (1, 2), CEN,  1)
-        sizer.Add(self.settle_time,  (1, 2), (1, 1), LCEN, 1)
+        sizer.Add(self.settle_time,  (1, 2), (1, 1), LEFT, 1)
 
 
         ir = 2
         sizer.Add(add_subtitle(panel, 'Linear/Mesh Scan Positioners'),
-                  (ir, 0),  (1, 4),  LCEN, 1)
+                  (ir, 0),  (1, 4),  LEFT, 1)
         ir += 1
         sizer.Add(SimpleText(panel, label='Description', size=(175, -1)),
-                  (ir, 0), (1, 1), RCEN, 1)
+                  (ir, 0), (1, 1), RIGHT, 1)
         sizer.Add(SimpleText(panel, label='Drive PV', size=(175, -1)),
-                  (ir, 1), (1, 1), RCEN, 1)
+                  (ir, 1), (1, 1), RIGHT, 1)
         sizer.Add(SimpleText(panel, label='Readback PV', size=(175, -1)),
-                  (ir, 2), (1, 1), LCEN, 1)
+                  (ir, 2), (1, 1), LEFT, 1)
         sizer.Add(SimpleText(panel, label='Erase?', size=(60, -1)),
-                  (ir, 3), (1, 1), LCEN, 1)
+                  (ir, 3), (1, 1), LEFT, 1)
 
         self.widlist = []
         poslist = []
@@ -63,10 +63,10 @@ class PositionerFrame(wx.Frame) :
             rdctrl = wx.TextCtrl(panel, value=pos.readpv,  size=(175, -1))
             delpv  = YesNo(panel, defaultyes=False)
             ir +=1
-            sizer.Add(desc,   (ir, 0), (1, 1), RCEN, 1)
-            sizer.Add(pvctrl, (ir, 1), (1, 1), LCEN, 1)
-            sizer.Add(rdctrl, (ir, 2), (1, 1), LCEN, 1)
-            sizer.Add(delpv,  (ir, 3), (1, 1), LCEN, 1)
+            sizer.Add(desc,   (ir, 0), (1, 1), RIGHT, 1)
+            sizer.Add(pvctrl, (ir, 1), (1, 1), LEFT, 1)
+            sizer.Add(rdctrl, (ir, 2), (1, 1), LEFT, 1)
+            sizer.Add(delpv,  (ir, 3), (1, 1), LEFT, 1)
             self.widlist.append(('line', pos, desc, pvctrl, rdctrl, delpv))
 
         for i in range(2):
@@ -74,29 +74,29 @@ class PositionerFrame(wx.Frame) :
             pvctrl = wx.TextCtrl(panel, value='', size=(175, -1))
             rdctrl = wx.TextCtrl(panel, value='', size=(175, -1))
             ir +=1
-            sizer.Add(desc,   (ir, 0), (1, 1), RCEN, 1)
-            sizer.Add(pvctrl, (ir, 1), (1, 1), LCEN, 1)
-            sizer.Add(rdctrl, (ir, 2), (1, 1), LCEN, 1)
+            sizer.Add(desc,   (ir, 0), (1, 1), RIGHT, 1)
+            sizer.Add(pvctrl, (ir, 1), (1, 1), LEFT, 1)
+            sizer.Add(rdctrl, (ir, 2), (1, 1), LEFT, 1)
             self.widlist.append(('line', None, desc, pvctrl, rdctrl, None))
 
         # xafs
         ir += 1
         sizer.Add(add_subtitle(panel, 'Positioner for XAFS Scans'),
-                  (ir, 0),  (1, 4),  LCEN, 1)
+                  (ir, 0),  (1, 4),  LEFT, 1)
 
         energy = self.scandb.get_info('xafs_energy')
         desc   = wx.StaticText(panel, -1, label='Energy Positioner', size=(175, -1))
         pvctrl = wx.Choice(panel, choices=poslist, size=(175, -1))
         pvctrl.SetStringSelection(energy)
         ir +=1
-        sizer.Add(desc,   (ir, 0), (1, 1), RCEN, 1)
-        sizer.Add(pvctrl, (ir, 1), (1, 2), LCEN, 1)
+        sizer.Add(desc,   (ir, 0), (1, 1), RIGHT, 1)
+        sizer.Add(pvctrl, (ir, 1), (1, 2), LEFT, 1)
         self.widlist.append(('xafs', None, desc, pvctrl, None, None))
 
         # slew scans
         ir += 1
         sizer.Add(add_subtitle(panel, 'Slew Scan Positioners'),
-                  (ir, 0),  (1, 4),  LCEN, 1)
+                  (ir, 0),  (1, 4),  LEFT, 1)
 
         for pos in self.scandb.getall('slewscanpositioners'):
             desc   = wx.TextCtrl(panel, -1, value=pos.name, size=(175, -1))
@@ -104,10 +104,10 @@ class PositionerFrame(wx.Frame) :
             rdctrl = wx.TextCtrl(panel, value=pos.readpv,  size=(175, -1))
             delpv  = YesNo(panel, defaultyes=False)
             ir +=1
-            sizer.Add(desc,   (ir, 0), (1, 1), RCEN, 1)
-            sizer.Add(pvctrl, (ir, 1), (1, 1), LCEN, 1)
-            sizer.Add(rdctrl, (ir, 2), (1, 1), LCEN, 1)
-            sizer.Add(delpv,  (ir, 3), (1, 1), LCEN, 1)
+            sizer.Add(desc,   (ir, 0), (1, 1), RIGHT, 1)
+            sizer.Add(pvctrl, (ir, 1), (1, 1), LEFT, 1)
+            sizer.Add(rdctrl, (ir, 2), (1, 1), LEFT, 1)
+            sizer.Add(delpv,  (ir, 3), (1, 1), LEFT, 1)
             self.widlist.append(('slew', pos, desc, pvctrl, rdctrl, delpv))
 
         for i in range(1):
@@ -115,18 +115,18 @@ class PositionerFrame(wx.Frame) :
             pvctrl = wx.TextCtrl(panel, value='', size=(175, -1))
             rdctrl = wx.TextCtrl(panel, value='', size=(175, -1))
             ir +=1
-            sizer.Add(desc,   (ir, 0), (1, 1), RCEN, 1)
-            sizer.Add(pvctrl, (ir, 1), (1, 1), LCEN, 1)
-            sizer.Add(rdctrl, (ir, 2), (1, 1), LCEN, 1)
+            sizer.Add(desc,   (ir, 0), (1, 1), RIGHT, 1)
+            sizer.Add(pvctrl, (ir, 1), (1, 1), LEFT, 1)
+            sizer.Add(rdctrl, (ir, 2), (1, 1), LEFT, 1)
             self.widlist.append(('slew', None, desc, pvctrl, rdctrl, None))
 
         ir += 1
         sizer.Add(wx.StaticLine(panel, size=(350, 3), style=wx.LI_HORIZONTAL),
-                  (ir, 0), (1, 4), LCEN, 3)
+                  (ir, 0), (1, 4), LEFT, 3)
         #
         ir += 1
         sizer.Add(okcancel(panel, self.onOK, self.onClose),
-                  (ir, 0), (1, 2), LCEN, 1)
+                  (ir, 0), (1, 2), LEFT, 1)
 
         pack(panel, sizer)
         panel.SetupScrolling()

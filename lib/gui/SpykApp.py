@@ -25,7 +25,7 @@ is_wxPhoenix = 'phoenix' in wx.PlatformInfo
 
 from wxutils import (SimpleText, pack, Button, HLine, FileSave,
                      Choice,  Check, MenuItem, GUIColors, GridPanel,
-                     CEN, RCEN, LCEN, FRAMESTYLE, Font)
+                     CEN, LEFT, RIGHT, FRAMESTYLE, Font)
 
 from larch import Interpreter, Group, site_config
 from larch.larchlib import read_workdir, save_workdir
@@ -39,8 +39,6 @@ from larch_plugins.wx.icons import get_icon
 
 from epicsscan import ScanDB
 
-
-LCEN = wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL
 CEN |=  wx.ALL
 FILE_WILDCARDS = "Data Files(*.0*,*.dat,*.xdi,*.prj)|*.0*;*.dat;*.xdi;*.prj|All files (*.*)|*.*"
 FNB_STYLE = flat_nb.FNB_NO_X_BUTTON|flat_nb.FNB_NODRAG|flat_nb.FNB_NO_NAV_BUTTONS
@@ -347,9 +345,9 @@ class SpykFrame(wx.Frame):
         # info panel
         isizer = wx.BoxSizer(wx.VERTICAL)
         s = wx.StaticText(self.info_panel, -1, ' Status info ',
-                          size=(125,-1), style=LCEN)
+                          size=(125,-1), style=LEFT)
 
-        isizer.Add(s, 0, LCEN, 2)
+        isizer.Add(s, 0, LEFT, 2)
 
         # output:
         self.output = wx.TextCtrl(splitter, -1,  '', size=(400, -1),
@@ -362,21 +360,21 @@ class SpykFrame(wx.Frame):
         ipanel = wx.Panel(self, -1)
 
         self.prompt = wx.StaticText(ipanel, -1, 'Larch>', size=(65,-1),
-                                    style=wx.ALIGN_CENTER|wx.ALIGN_RIGHT)
+                                    style=RIGHT)
 
         self.input = ReadlineTextCtrl(ipanel, -1,  '', size=(525,-1),
                                       historyfile=historyfile,
-                                      style=wx.ALIGN_LEFT|wx.TE_PROCESS_ENTER)
+                                      style=LEFT|wx.TE_PROCESS_ENTER)
 
         self.input.Bind(wx.EVT_TEXT_ENTER, self.onText)
         isizer = wx.BoxSizer(wx.HORIZONTAL)
         isizer.Add(self.prompt,  0, wx.BOTTOM|wx.CENTER)
-        isizer.Add(self.input,   1, wx.ALIGN_LEFT|wx.ALIGN_CENTER|wx.EXPAND)
+        isizer.Add(self.input,   1, LEFT|wx.EXPAND)
 
         ipanel.SetSizer(isizer)
         isizer.Fit(ipanel)
 
-        opts = dict(flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL|wx.EXPAND, border=2)
+        opts = dict(flag=wx.ALL|wx.EXPAND, border=2)
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(splitter,  1, **opts)
         sizer.Add(ipanel, 0, **opts)

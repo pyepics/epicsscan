@@ -7,7 +7,7 @@ import wx
 import wx.lib.scrolledpanel as scrolled
 
 from .gui_utils import (GUIColors, add_button, pack, SimpleText, check,
-                        okcancel, add_subtitle, LCEN, Font)
+                        okcancel, add_subtitle, LEFT, Font)
 
 class SettingsFrame(wx.Frame) :
     """Frame for Setup General Settings:
@@ -32,8 +32,8 @@ class SettingsFrame(wx.Frame) :
 
         # title row
         title = SimpleText(panel, ' General Settings',  font=Font(13),
-                           colour=GUIColors.title, style=LCEN)
-        sizer.Add(title,    (0, 0), (1, 3), LCEN|wx.ALL, 2)
+                           colour=GUIColors.title, style=LEFT)
+        sizer.Add(title,    (0, 0), (1, 3), LEFT|wx.ALL, 2)
         ir = 0
         self.wids = {}
         for sect, vars in (('User Setup',
@@ -50,7 +50,7 @@ class SettingsFrame(wx.Frame) :
                            ):
 
             ir += 1
-            sizer.Add(add_subtitle(panel, '%s:' % sect),  (ir, 0),  (1, 4), LCEN, 1)
+            sizer.Add(add_subtitle(panel, '%s:' % sect),  (ir, 0),  (1, 4), LEFT, 1)
             for vname, as_bool in vars:
                 row = self.scandb.get_info(vname, full_row=True)
                 _desc = row.notes or vname
@@ -67,16 +67,16 @@ class SettingsFrame(wx.Frame) :
                     ctrl = wx.TextCtrl(panel, value=val,  size=(250, -1))
                 self.wids[vname] = ctrl
                 ir += 1
-                sizer.Add(desc,  (ir, 0), (1, 1), LCEN|wx.ALL, 1)
-                sizer.Add(ctrl,  (ir, 1), (1, 1), LCEN|wx.ALL, 1)
+                sizer.Add(desc,  (ir, 0), (1, 1), LEFT|wx.ALL, 1)
+                sizer.Add(ctrl,  (ir, 1), (1, 1), LEFT|wx.ALL, 1)
 
 
         ir += 1
         sizer.Add(wx.StaticLine(panel, size=(350, 3), style=wx.LI_HORIZONTAL),
-                  (ir, 0), (1, 4), LCEN|wx.ALL, 1)
+                  (ir, 0), (1, 4), LEFT|wx.ALL, 1)
         ir += 1
         sizer.Add(okcancel(panel, self.onOK, self.onClose),
-                  (ir, 0), (1, 3), LCEN|wx.ALL, 1)
+                  (ir, 0), (1, 3), LEFT|wx.ALL, 1)
 
         pack(panel, sizer)
 
