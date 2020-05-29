@@ -271,6 +271,8 @@ class StepScan(object):
     def add_detector(self, det):
         """ add a Detector -- needs to be derived from Detector_Mixin"""
         if det.extra_pvs is None: # not fully connected!
+            det.mode = self.detmode
+            det.rois = self.rois
             det.connect_counters()
 
         self.add_extra_pvs(det.extra_pvs)
@@ -475,17 +477,23 @@ class StepScan(object):
                                          units=units, notes='positioner')
                 names.append(name)
         for c in self.counters:
-            try:
-                units = c.pv.units
-            except:
+            units = getattr(c, 'units', None)
+            if units is None and hasattr(c, 'pv'):
+                try:
+                    units = c.pv.units
+                except:
+                    units = None
+            if units is None:
                 units = 'counts'
 
-            name = fix_varname(c.label)
+            name = pvname = fix_varname(c.label)
             if name in names:
                 name += '_2'
             if name not in names:
+                if hasattr(c, 'pv'):
+                    pvname = c.pv.pvname
                 self.scandb.add_scandata(name, [],
-                                         pvname=c.pv.pvname,
+                                         pvname=pvname,
                                          units=units, notes='counter')
                 names.append(name)
         self.scandb.commit()
@@ -536,7 +544,6 @@ class StepScan(object):
             self.write('Cannot execute scan: %s\n' % self._scangroup.error_message)
             self.set_info('scan_message', 'cannot execute scan')
             return
-
         userdir = '.'
         if self.scandb is not None:
             userdir = self.scandb.get_info('user_folder')
@@ -549,7 +556,6 @@ class StepScan(object):
         self.check_outputs(out, msg='move to start')
 
         npts = self.npts = len(self.positioners[0].array)
-
         for det in self.detectors:
             det.arm(mode=SCALER_MODE, fnum=1, numframes=1)
             fname = fix_varname(fix_filename("%s_%s" % (self.filename, det.label)))
@@ -581,7 +587,7 @@ class StepScan(object):
         if self.scandb is not None:
             self.set_info('scan_progress', 'preparing scan')
 
-        out = self.pre_scan()
+        out = self.pre_scan(mode=self.detmode)
         self.check_outputs(out, msg='pre scan')
 
         self.datafile = self.open_output_file(filename=self.filename,
@@ -589,7 +595,6 @@ class StepScan(object):
 
         self.datafile.write_data(breakpoint=0)
         self.filename = self.datafile.filename
-
         self.clear_data()
         if self.scandb is not None:
             self.init_scandata()
@@ -607,12 +612,14 @@ class StepScan(object):
         self.publish_thread.start()
         self.cpt = 0
         self.npts = npts
-
         out = [p.move_to_start(wait=True) for p in self.positioners]
         self.check_outputs(out, msg='move to start, wait=True')
         [p.current() for p in self.positioners]
-        [d.pv.get() for d in self.counters]
+        for d in self.counters:
+            d.read()
+            d.clear()
         self.dtimer.add('PRE: start scan')
+
 
     def run(self, filename=None, comments=None, debug=False):
         """ run a stepscan:
