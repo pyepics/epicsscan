@@ -15,12 +15,14 @@ from threading import Thread
 import numpy as np
 from epics import caget, caput, PV, get_pv
 from epics.ca import CASeverityException
-
 from epicsscan.scandb import ScanDB
 from epicsscan.utils import hms, tstamp
 from newportxps import NewportXPS
 
 from optparse import OptionParser
+
+from . import Counter, ROISumCounter
+
 
 # minimum ID energy to put
 MIN_ID_ENERGY =   2.0
@@ -83,13 +85,14 @@ class QXAFS_ScanWatcher(object):
         self.counters = []
         time.sleep(0.1)
         pvs = []
-        for c in self.scandb.get_scandata():
-            pv = get_pv(c.pvname)
-            pvs.append((c.name, pv))
-        time.sleep(0.1)
-        for cname, pv in pvs:
-            pv.connect()
-            self.counters.append((cname, pv))
+        for row in self.scandb.get_scandata():
+            if row.pvname.startswith('@@ROISum'):
+                counter = eval(row.pvname[2:])
+            else:
+                counter = Counter(row.pvname, label=row.label, units=row.units)
+            print("COUNTER : ", counter)
+            self.counters.append(counter)
+        time.sleep(0.05)
         if self.verbose:
             self.write("QXAFS_connect_counters %i counters" % (len(self.counters)))
 
@@ -203,13 +206,16 @@ class QXAFS_ScanWatcher(object):
                     self.scandb.set_info('scan_progress',  msg)
                     self.scandb.set_info('heartbeat', tstamp())
                     msg_counter += 1
-                for name, pv in self.counters:
+                for counter in self.counters:
                     try:
-                        value = pv.get()
-                        if pv.nelm > 1:
-                            self.scandb.set_scandata(name, value)
-                        else:
-                            self.scandb.append_scandata(name, value)
+                        val = counter.read()
+                        if isinstance(val, np.ndarray):
+                            val = val.tolist()
+                        elif isinstance(val, (list, tuple)):
+                            val = list(val)
+                        self.scandb.set_scandata(name, val)
+                        # else:
+                        #    self.scandb.append_scandata(name, value)
                     except:
                         self.write( "Could not set scandata for %s: %i, %s" % (name, pv))
                 self.scandb.commit()
