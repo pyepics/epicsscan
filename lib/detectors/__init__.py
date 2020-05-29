@@ -16,7 +16,9 @@ from ..file_utils import fix_filename
 
 from .xrd_calibration import read_poni, write_poni
 from .trigger import Trigger
-from .counter import Counter, DummyCounter, DeviceCounter, MotorCounter
+from .counter import (Counter, DummyCounter, DeviceCounter,
+                      MotorCounter, ROISumCounter)
+
 from .base  import DetectorMixin, SimpleDetector, MotorDetector
 from .base  import SCALER_MODE, ROI_MODE, NDARRAY_MODE
 from .mca import McaDetector, MultiMcaDetector
