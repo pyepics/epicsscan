@@ -4,10 +4,11 @@ Quantum Xspress3 detector
 import time
 from collections import namedtuple
 from six.moves.configparser import ConfigParser
-
+import numpy as np
 from epics import get_pv, caput, caget, Device, poll
 from epics.devices.ad_mca import ADMCA
-from .counter import Counter, DummyCounter, DeviceCounter
+from .counter import (Counter, DummyCounter, DeviceCounter, Saveable,
+                      ROISumCounter)
 from .base import DetectorMixin, SCALER_MODE, NDARRAY_MODE, ROI_MODE
 from .areadetector import ADFileMixin, get_adversion
 from ..debugtime import debugtime
@@ -144,6 +145,8 @@ class Xspress3(Device, ADFileMixin):
         for mca in self.mcas:
             mca.set_rois(roidat)
 
+
+
 class Xspress3Counter(DeviceCounter):
     """Counters for Xspress3-1-10"""
     sca_labels = ('Clock', 'ResetTicks', 'ResetCounts',
@@ -183,11 +186,11 @@ class Xspress3Counter(DeviceCounter):
     def _get_counters(self):
         prefix = self.prefix
         if self.mode is None:
-            self.mode == SCALER_MODE
+            self.mode = SCALER_MODE
         self.counters = []
         t0 = time.time()
-        def add_counter(pv, lab):
-            self.counters.append(Counter(pv, label=lab))
+        def add_counter(pv, lab, units='counts'):
+            self.counters.append(Counter(pv, label=lab, units=units))
 
         if 'outputcounts' not in [r.lower() for r in self.rois]:
             self.rois.append('OutputCounts')
@@ -202,13 +205,13 @@ class Xspress3Counter(DeviceCounter):
                 break
 
         scaf = get_scaformats(self.ad_version) # ('acq', 'npts', 'valform', 'tsform')
-        roi_format = '%sMCA%iROI:%i:Total_RBV'
+        roi_format = '%sMCA%dROI:%i:Total_RBV'
         sca_format = '%s' + scaf.valform
         time.sleep(0.01)
 
         scas2save = (0, )
         save_dtcorrect = True
-        # print("Xspress3 Counters" , self.mode == ROI_MODE, self.ad_version)
+        # print("Xspress3 Counters" , self.mode == ROI_MODE, self.mode, self.ad_version)
 
         if self.ad_version == 2:
             scas2save = (0, 8)
@@ -216,10 +219,29 @@ class Xspress3Counter(DeviceCounter):
 
         if self.mode == ROI_MODE:
             save_dtcorrect = False
-            roi_format = '%sMCA%iROI:%i:TSTotal'
+            roi_format = '%sMCA%dROI:%d:TSTotal'
             sca_format = '%s' + scaf.tsform
             if self.ad_version == 3:
                 scas2save = (0, 9)  # 0=Clock, 9=DTFactor
+
+        # dt-corrected sum rois
+        for dtcorr in (True, False):
+            for roiname in self.rois:
+                lname = roiname.lower()
+                if lname in current_rois:
+                    iroi = current_rois[lname]
+                    CMCA = '97531'
+                    # note we trick formatting with MCA
+                    roifmt = roi_format % (prefix, int(CMCA), iroi)
+                    roifmt = roifmt.replace(CMCA, '%d')
+                    dtcfmt = '1'
+                    if dtcfmt:
+                        dtc_sca = 9
+                        dtcfmt = sca_format % (prefix, int(CMCA), dtc_sca)
+                        dtcfmt = dtcfmt.replace(CMCA, '%d')
+                    self.counters.append(ROISumCounter(roiname, roifmt,
+                                                       dtcfmt, self.nmcas))
+
 
         for roiname in self.rois:
             lname = roiname.lower()
@@ -241,11 +263,11 @@ class Xspress3Counter(DeviceCounter):
             for imca in range(1, self.nmcas+1):
                 _pvname = '%sC%i:DTFactor_RBV' % (prefix, imca)
                 _label = 'DTFactor mca%i' % (imca)
-                add_counter(_pvname, _label)
+                add_counter(_pvname, _label, units='scale')
 
         if self.use_full:
             for imca in range(1, self.nmcas+1):
-                pv = '%sMCA%i.ArrayData' % (prefix, imca)
+                pv = '%sMCA%d.ArrayData' % (prefix, imca)
                 add_counter(pv, 'spectra%i' % imca)
 
 class Xspress3Detector(DetectorMixin):
@@ -285,7 +307,7 @@ class Xspress3Detector(DetectorMixin):
         if self.label is None:
             self.label = self.prefix
         self.arm_delay   = 0.05
-        self.start_delay = 0.40
+        self.start_delay = 0.45
         self._counter = None
         self.counters = []
         self._repr_extra = self.repr_fmt % (nmcas, nrois,
@@ -311,7 +333,9 @@ class Xspress3Detector(DetectorMixin):
         return e
 
     def connect_counters(self):
+        # print("Xspress3 connect counters ", self.prefix, self.mode, self._connect_args)
         self._counter = Xspress3Counter(self.prefix, **self._connect_args)
+        self._counter._get_counters()
         self.counters = self._counter.counters
         self.extra_pvs = self._counter.extra_pvs
 
@@ -327,7 +351,6 @@ class Xspress3Detector(DetectorMixin):
     def pre_scan(self, mode=None, npulses=None, dwelltime=None,
                  filename=None, **kws):
         "run just prior to scan"
-
         dt = debugtime()
 
         if mode is not None:
@@ -370,10 +393,9 @@ class Xspress3Detector(DetectorMixin):
             self.connect_counters()
         dt.add('xspress3: connect counters')
         self._counter.mode = mode
-        self._counter._get_counters()
-
-        self.counters = self._counter.counters
-        self.extra_pvs = self._counter.extra_pvs
+        # self._counter._get_counters()
+        # self.counters = self._counter.counters
+        # self.extra_pvs = self._counter.extra_pvs
         dt.add('xspress3: done')
         # dt.show()
 
