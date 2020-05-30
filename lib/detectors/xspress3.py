@@ -225,22 +225,17 @@ class Xspress3Counter(DeviceCounter):
                 scas2save = (0, 9)  # 0=Clock, 9=DTFactor
 
         # dt-corrected sum rois
-        for dtcorr in (True, False):
-            for roiname in self.rois:
-                lname = roiname.lower()
-                if lname in current_rois:
-                    iroi = current_rois[lname]
-                    CMCA = '97531'
-                    # note we trick formatting with MCA
-                    roifmt = roi_format % (prefix, int(CMCA), iroi)
-                    roifmt = roifmt.replace(CMCA, '%d')
-                    dtcfmt = '1'
-                    if dtcfmt:
-                        dtc_sca = 9
-                        dtcfmt = sca_format % (prefix, int(CMCA), dtc_sca)
-                        dtcfmt = dtcfmt.replace(CMCA, '%d')
-                    self.counters.append(ROISumCounter(roiname, roifmt,
-                                                       dtcfmt, self.nmcas))
+        for roiname in self.rois:
+            lname = roiname.lower()
+            if lname in current_rois:
+                iroi = current_rois[lname]
+                dtc_sca = 9  # DTFactor
+                # note we trick formatting with MCA
+                CMCA = '97531'
+                roifmt = (roi_format % (prefix, int(CMCA), iroi)).replace(CMCA, '%d')
+                dtcfmt = (sca_format % (prefix, int(CMCA), dtc_sca)).replace(CMCA, '%d')
+                self.counters.append(ROISumCounter(roiname, roifmt,
+                                                   dtcfmt, self.nmcas))
 
 
         for roiname in self.rois:
