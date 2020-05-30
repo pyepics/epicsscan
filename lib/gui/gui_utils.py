@@ -4,7 +4,7 @@
 This is a collection of general purpose utility functions and classes,
 especially useful for wx functionality
 """
-LCEimport wx
+import wx
 import os
 import array
 
