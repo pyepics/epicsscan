@@ -210,15 +210,12 @@ class ScanViewerFrame(wx.Frame):
         cols_lower = [yc.lower() for yc in y2cols]
         roinames = json.loads(self.get_info('rois', default=['[]']))
         sumname = fix_varname('Sum_' + roinames[-1]).lower()
-        print("roinames ", roinames, sumname)
-        print("cols : ", cols_lower, sumname in cols_lower)
         col_roi = cols_lower.index(sumname) if sumname in cols_lower else n0
         for i0name in ('monitor', 'mon', 'io', 'i0'):
             if i0name in cols_lower:
                 col_i0 = cols_lower.index(i0name)
 
         defs = [(col_roi, col_i0, n0), (n0, n0, n0)]
-        print("Setting Column Names ", roinames, defs)
         for i in range(2):
             for j in range(3):
                 ycur = self.yarr[i][j].GetStringSelection()
