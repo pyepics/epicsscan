@@ -120,10 +120,13 @@ class ScanViewerFrame(wx.Frame):
             return
         if msg is None:
             return
+        npts = 1e200
         try:
             # npts = len(sdata[-1].data)
-            nptsall = [len(s.data) for s in sdata]
-            npts = min(nptsall)
+            for s in sdata:
+                n = len(s.data)
+                if n > 0:
+                    npts = min(npts, n)
         except:
             npts = 0
         if npts <= 0 or msg.lower().startswith('preparing'):
@@ -196,26 +199,34 @@ class ScanViewerFrame(wx.Frame):
             if s.notes.lower().startswith('pos'):
                 xcols.append(nam)
                 self.positioner_pvs[nam] = s.pvname
-        # print("SET COLUMN NAMES", xcols, self.positioner_pvs)
 
         y2cols = ycols[:] + ['1.0', '0.0', '']
         xarr_old = self.xarr.GetStringSelection()
         self.xarr.SetItems(xcols)
-
         ix = xcols.index(xarr_old) if xarr_old in xcols else 0
         self.xarr.SetSelection(ix)
+
+        n0 = len(y2cols) - 1
+        clower = [yc.lower() for yc in y2cols]
+        col_roi, col_i0 = n0, n0
+        roiname = self.get_info('rois', default=[''])[-1]
+        sumname = fix_varname('Sum_' + roiname).lower()
+        if sumname in colnames_lower:
+            col_roi = colnames.lower.index(sumname)
+
+        for i0name in ('monitor', 'mon', 'io', 'i0'):
+            if i0name in colnames_lower:
+                col_i0 = colnames_lower.index(i0name)
+
+        defs = [(col_roi, col_i0, nc), (nc, nc, nc)]
+
         for i in range(2):
             for j in range(3):
-                yold = self.yarr[i][j].GetStringSelection()
-                idef, cols = 0, y2cols
-                if i == 0 and j == 0:
-                    idef, cols = 1, ycols
-                self.yarr[i][j].SetItems(cols)
-                # print(i, j, yold, yold in cols)
-                iy = cols.index(yold) if yold in cols else idef
+                ycur = self.yarr[i][j].GetStringSelection()
+                iy = y2cols.index(yold) if ycur in y2cols else defs[i][j]
+                self.yarr[i][j].SetItems(y2cols)
                 self.yarr[i][j].SetSelection(iy)
-        time.sleep(0.75)
-
+        time.sleep(0.5)
 
     def createMainPanel(self):
         mainpanel = wx.Panel(self)
