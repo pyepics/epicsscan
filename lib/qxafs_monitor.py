@@ -115,6 +115,7 @@ class QXAFS_ScanWatcher(object):
             else:
                 counter = Counter(pvname, label=name, units=row.units)
             self.counters.append(counter)
+            # print("QX counter ", counter)
         time.sleep(0.05)
         if self.verbose:
             self.write("QXAFS_connect_counters %i counters" % (len(self.counters)))
