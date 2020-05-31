@@ -16,7 +16,7 @@ import epics
 from .gui_utils import (GUIColors, set_font_with_children, YesNo,
                         add_menu, add_button, add_choice, pack, SimpleText,
                         FileOpen, FileSave, popup, FloatCtrl,
-                        FRAMESTYLE, Font, FNB_STYLE, LEFT, CEN, DVSTYLE, cmp)
+                        FRAMESTYLE, Font, FNB_STYLE, LEFT, RIGHT, CEN, DVSTYLE, cmp)
 
 from .common_commands  import CommonCommandsFrame, CommonCommandsAdminFrame
 from .edit_sequences   import ScanSequenceFrame
