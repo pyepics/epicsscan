@@ -489,7 +489,7 @@ class QXAFS_Scan(XAFS_Scan):
         self.xps.arm_trajectory('qxafs')
         dtimer.add('traj armed')
         out = self.pre_scan(npulses=traj['npulses'],
-                            dweltims=dtime,
+                            dwelltime=dtime,
                             mode='roi', filename=self.filename)
         self.check_outputs(out, msg='pre scan')
         dtimer.add('prescan ran')
@@ -593,7 +593,7 @@ class QXAFS_Scan(XAFS_Scan):
         dtimer.add('set scan data')
         for val, pos in zip(orig_positions, self.positioners):
             pos.move_to(val, wait=False)
-            print("move  pos :: ", pos, val)
+            # print("move  pos :: ", pos, val)
 
         self.datafile.write_data(breakpoint=-1, close_file=True, clear=False)
 
