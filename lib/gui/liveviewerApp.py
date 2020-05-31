@@ -218,7 +218,8 @@ class ScanViewerFrame(wx.Frame):
                 col_i0 = cols_lower.index(i0name)
 
         defs = [(col_roi, col_i0, 0), (0, 0, 0)]
-        print("Setting Column Names ", roinames, col_roi, col_i0)
+        print("Setting Column Names ", roinames, defs)
+        print(" --  ",  y2col)
         for i in range(2):
             for j in range(3):
                 ycur = self.yarr[i][j].GetStringSelection()
