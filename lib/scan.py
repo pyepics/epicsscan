@@ -486,12 +486,11 @@ class StepScan(object):
             if units is None:
                 units = 'counts'
 
-            name = pvname = fix_varname(c.label)
+            name = fix_varname(c.label)
+            pvname = getattr(c, 'pvname', name)
             if name in names:
                 name += '_2'
             if name not in names:
-                if hasattr(c, 'pv'):
-                    pvname = c.pv.pvname
                 self.scandb.add_scandata(name, [],
                                          pvname=pvname,
                                          units=units, notes='counter')
