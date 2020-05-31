@@ -21,7 +21,7 @@ from newportxps import NewportXPS
 
 from optparse import OptionParser
 
-from . import Counter, ROISumCounter
+from .detectors.counter import Counter, ROISumCounter, EVAL4PLOT
 
 
 # minimum ID energy to put
@@ -29,6 +29,22 @@ MIN_ID_ENERGY =   2.0
 MAX_ID_ENERGY = 200.0
 
 DEFAULT_PIDFILE = os.path.join(os.path.expanduser('~'), 'qxafs_monitor.pid')
+
+class EnergyCounter(object):
+    "special 'energy' counter to not overwrite Energy values during scan"
+    def __init__(self, name, pvname):
+        self.name = name
+        self.pvname = pvname
+        self.pv = get_pv(pvname)
+        self.clear()
+
+    def clear(self):
+        self.buff = []
+
+    def read(self, **kws):
+        val = self.pv.read(**kws)
+        self.buff.append(val)
+        return val
 
 class QXAFS_ScanWatcher(object):
     def __init__(self, verbose=False, pidfile=None,
@@ -86,11 +102,18 @@ class QXAFS_ScanWatcher(object):
         time.sleep(0.1)
         pvs = []
         for row in self.scandb.get_scandata():
-            if row.pvname.startswith('@@ROISum'):
-                counter = eval(row.pvname[2:])
+            # do not set energy values during scan
+            if row.notes.strip().startswith('positioner'):
+                continue
+            pvname = row.pvname.strip()
+            name = row.name.strip()
+            lname = name.lower()
+            if lname.startswith('energy'):
+                counter = EnergyCounter(name, pvname)
+            if row.pvname.startswith(EVAL4PLOT):
+                counter = eval(pvname[len(EVAL4PLOT):])
             else:
-                counter = Counter(row.pvname, label=row.label, units=row.units)
-            print("COUNTER : ", counter)
+                counter = Counter(pvname, label=name, units=row.units)
             self.counters.append(counter)
         time.sleep(0.05)
         if self.verbose:
@@ -209,15 +232,12 @@ class QXAFS_ScanWatcher(object):
                 for counter in self.counters:
                     try:
                         val = counter.read()
-                        if isinstance(val, np.ndarray):
-                            val = val.tolist()
-                        elif isinstance(val, (list, tuple)):
-                            val = list(val)
-                        self.scandb.set_scandata(name, val)
-                        # else:
-                        #    self.scandb.append_scandata(name, value)
+                        if isinstance(counter, EnergyCounter):
+                            self.scandb.append_scandata(counter.label, val)
+                        else:
+                            self.scandb.set_scandata(counter.label, val)
                     except:
-                        self.write( "Could not set scandata for %s: %i, %s" % (name, pv))
+                        self.write("Could not set scandata for %r" % (counter))
                 self.scandb.commit()
         if self.pulsecount_pv is not None:
             self.pulsecount_pv.put("%i" % self.pulse)
@@ -239,7 +259,6 @@ class QXAFS_ScanWatcher(object):
         return -1
 
     def kill_old_process(self):
-        print("kill old ", self.heartbeat_pv)
         if self.heartbeat_pv is not None:
             self.heartbeat_pv.put("-1")
 
