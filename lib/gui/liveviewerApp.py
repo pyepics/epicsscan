@@ -210,6 +210,8 @@ class ScanViewerFrame(wx.Frame):
         cols_lower = [yc.lower() for yc in y2cols]
         roinames = self.get_info('rois', default=[''])
         sumname = fix_varname('Sum_' + roinames[-1]).lower()
+        print("roinames ", roinames, sumname)
+        print("cols : ", cols_lower, sumname in cols_lower)
         col_roi = cols_lower.index(sumname) if sumname in cols_lower else 0
 
         col_roi = 0
