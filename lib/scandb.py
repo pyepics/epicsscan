@@ -646,6 +646,8 @@ class ScanDB(object):
         cls, tab = self.get_table('scandata')
         if isinstance(value, np.ndarray):
             value = value.tolist()
+        elif isinstance(value, tuple):
+            val = list(value)
         if isinstance(value, (int, float)):
             value = [value]
         where = "name='%s'" % name
@@ -654,7 +656,7 @@ class ScanDB(object):
             update.execute(data=json_encode(value))
         else:
             update.values({tab.c.data: value}).execute()
-        self.commit()
+        # self.commit()
 
     def append_scandata(self, name, val):
         cls, tab = self.get_table('scandata')
