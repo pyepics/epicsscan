@@ -207,18 +207,18 @@ class ScanViewerFrame(wx.Frame):
         self.xarr.SetSelection(ix)
 
         n0 = len(y2cols) - 1
-        clower = [yc.lower() for yc in y2cols]
+        cols_lower = [yc.lower() for yc in y2cols]
         col_roi, col_i0 = n0, n0
         roiname = self.get_info('rois', default=[''])[-1]
         sumname = fix_varname('Sum_' + roiname).lower()
-        if sumname in colnames_lower:
-            col_roi = colnames.lower.index(sumname)
+        if sumname in cols_lower:
+            col_roi = cols_lower.index(sumname)
 
         for i0name in ('monitor', 'mon', 'io', 'i0'):
-            if i0name in colnames_lower:
-                col_i0 = colnames_lower.index(i0name)
+            if i0name in cols_lower:
+                col_i0 = cols_lower.index(i0name)
 
-        defs = [(col_roi, col_i0, nc), (nc, nc, nc)]
+        defs = [(col_roi, col_i0, 0), (0, 0, 0)]
 
         for i in range(2):
             for j in range(3):
