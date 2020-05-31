@@ -314,27 +314,21 @@ class ASCIIScanFile(ScanFile):
                 icol += 1
                 key = '%s Column.%i' % (COM1, icol)
                 typ, units =  objtype, objunits
+                pv = getattr(obj, 'pv', None)
+                pvname = getattr(obj, 'pvname', None)
+                if pvname is None and pv is not None:
+                    pvname = pv.pvname
+                if pvname is None:
+                    pvname = ''
                 if obj.units in (None, 'None', ''):
-                    try:
-                        units = obj.pv.units
-                    except KeyboardInterrupt:
-                        return
-                    except TypeError:
-                        time.sleep(0.02)
-                        try:
-                            units = obj.pv.units
-                        except:
-                            pass
+                    if pv is not None:
+                        units = getattr(pv, 'units', None)
                 else:
                     units = obj.units
                 if units in (None, 'None', ''):
                     units = objunits
                 lab = fix_filename(obj.label)
-                try:
-                    pvn = obj.pv.pvname
-                except:
-                    pvn = ''
-                sthis = "%s: %s %s %s %s" %(key, lab, units, SEP, pvn)
+                sthis = "%s: %s %s %s %s" %(key, lab, units, SEP, pvname)
                 out.append(sthis)
                 cols.append(lab)
 
