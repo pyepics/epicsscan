@@ -208,7 +208,7 @@ class ScanViewerFrame(wx.Frame):
 
         n0 = len(y2cols) - 1
         cols_lower = [yc.lower() for yc in y2cols]
-        roinames = self.get_info('rois', default=[''])
+        roinames = json.loads(self.get_info('rois', default=['[]']))
         sumname = fix_varname('Sum_' + roinames[-1]).lower()
         print("roinames ", roinames, sumname)
         print("cols : ", cols_lower, sumname in cols_lower)
@@ -225,7 +225,9 @@ class ScanViewerFrame(wx.Frame):
         for i in range(2):
             for j in range(3):
                 ycur = self.yarr[i][j].GetStringSelection()
-                iy = y2cols.index(ycur) if ycur in y2cols else defs[i][j]
+                iy = defs[i][j]
+                if ycur not in (None, '', 'None') and ycur in y2cols:
+                    iy = y2cols.index(ycur)
                 self.yarr[i][j].SetItems(y2cols)
                 self.yarr[i][j].SetSelection(iy)
         time.sleep(0.5)
