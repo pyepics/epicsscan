@@ -208,12 +208,11 @@ class ScanViewerFrame(wx.Frame):
 
         n0 = len(y2cols) - 1
         cols_lower = [yc.lower() for yc in y2cols]
-        col_roi, col_i0 = n0, n0
         roiname = self.get_info('rois', default=[''])[-1]
         sumname = fix_varname('Sum_' + roiname).lower()
-        if sumname in cols_lower:
-            col_roi = cols_lower.index(sumname)
+        col_roi = cols_lower.index(sumname) if sumname in cols_lower else 0
 
+        col_roi = 0
         for i0name in ('monitor', 'mon', 'io', 'i0'):
             if i0name in cols_lower:
                 col_i0 = cols_lower.index(i0name)
@@ -223,7 +222,7 @@ class ScanViewerFrame(wx.Frame):
         for i in range(2):
             for j in range(3):
                 ycur = self.yarr[i][j].GetStringSelection()
-                iy = y2cols.index(yold) if ycur in y2cols else defs[i][j]
+                iy = y2cols.index(ycur) if ycur in y2cols else defs[i][j]
                 self.yarr[i][j].SetItems(y2cols)
                 self.yarr[i][j].SetSelection(iy)
         time.sleep(0.5)
