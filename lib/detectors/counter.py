@@ -6,7 +6,9 @@ from collections import OrderedDict
 from epics import get_pv, caget, poll
 
 from ..saveable import Saveable
+from ..file_utils import fix_varname
 
+EVAL4PLOT= '@@'
 class Counter(Saveable):
     """simple scan counter object
     a value that will be counted at each point
@@ -14,6 +16,7 @@ class Counter(Saveable):
     """
     def __init__(self, pvname, label=None, units=''):
         Saveable.__init__(self, pvname, label=label, units=units)
+        self.pvname = pvname
         self.pv = get_pv(pvname)
         if label is None:
             label = pvname
@@ -26,6 +29,7 @@ class Counter(Saveable):
 
     def read(self, **kws):
         "read counter to internal buffer"
+        # print("  Counter.read " , self.label, self.pv, kws)
         val = self.pv.get(**kws)
         if isinstance(val, np.ndarray):
             self.buff = val.tolist()
@@ -33,7 +37,7 @@ class Counter(Saveable):
             self.buff = list(val)
         else:
             self.buff.append(val)
-        return val
+        return self.buff
 
     def clear(self):
         "clear counter"
@@ -89,18 +93,15 @@ class ROISumCounter(Saveable):
     def __init__(self, label, roifmt, dtcfmt, nmcas, units='counts'):
         Saveable.__init__(self, label=label, roifmt=roifmt, dtcfmt=dtcfmt,
                           nmcas=nmcas, units=units)
-
-        self.label = label
         self.dtcorr = dtcfmt != '1'
         if not self.dtcorr:
-            self.label = label + ' no_dtc'
+            label = label + ' no_dtc'
+        self.label = fix_varname(label)
         self.nmcas = nmcas
         self.roifmt = roifmt
         self.dtcfmt = dtcfmt
         self.units = units
-
-        self.pvname = '@@' + self.__repr__()
-
+        self.pvname = EVAL4PLOT + self.__repr__()
         self.roi_pvs = []
         self.dtc_pvs = []
 
@@ -118,26 +119,30 @@ class ROISumCounter(Saveable):
 
     def read(self, **kws):
         vals = [pv.get(**kws) for pv in self.roi_pvs]
-        dtc = [1.0]*len(vals)
-        if self.dtcorr:
-            dtc = [pv.get(**kws) for pv in self.dtc_pvs]
-        val = 0.0
-        for v, d in zip(vals, dtc):
-            if isinstance(d, np.ndarray):
-                if len(d) == 0:
-                    d = 1
-                elif len(d) == 1:
-                    d = max(1.0, d[0])
-                elif len(d) < len(v):
-                    dx = np.ones[len(v)]
-                    dx[:len(d)] = d
-                    d = dx[:]
-                    d[np.where(d<0.99999)] = 1.0
-            else:
-                d = max(1.0, d)
-            val += v*d
-        self.buff = val
-        return val
+        val, npts = 0.0, None
+        for v in vals:
+            try:
+                nv = len(v)
+            except:
+                nv = 1
+            if npts is None:
+                npts = nv
+            npts = min(npts, nv)
+
+        for i, v in enumerate(vals):
+            dx, nd = 1.0, 0
+            dtc = np.ones(npts)
+            if self.dtcorr:
+                try:
+                    dx = self.dtc_pvs[i].get()
+                    dx[np.where(dx<0.999)] = 1.0
+                    nd = min(npts, len(dx))
+                    dtc[:nd] = dx[:nd]
+                except:
+                    pass
+            val += v[:npts]*dtc[:npts]
+        self.buff = val.tolist()
+        return self.buff
 
     def clear(self):
         "clear counter"
