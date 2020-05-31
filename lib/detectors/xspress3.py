@@ -234,9 +234,8 @@ class Xspress3Counter(DeviceCounter):
                 CMCA = '97531'
                 roifmt = (roi_format % (prefix, int(CMCA), iroi)).replace(CMCA, '%d')
                 dtcfmt = (sca_format % (prefix, int(CMCA), dtc_sca)).replace(CMCA, '%d')
-                self.counters.append(ROISumCounter(roiname, roifmt,
+                self.counters.append(ROISumCounter('Sum_%s' % roiname, roifmt,
                                                    dtcfmt, self.nmcas))
-
 
         for roiname in self.rois:
             lname = roiname.lower()
