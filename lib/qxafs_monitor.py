@@ -30,21 +30,6 @@ MAX_ID_ENERGY = 200.0
 
 DEFAULT_PIDFILE = os.path.join(os.path.expanduser('~'), 'qxafs_monitor.pid')
 
-class EnergyCounter(object):
-    "special 'energy' counter to not overwrite Energy values during scan"
-    def __init__(self, name, pvname):
-        self.name = name
-        self.pvname = pvname
-        self.pv = get_pv(pvname)
-        self.clear()
-
-    def clear(self):
-        self.buff = []
-
-    def read(self, **kws):
-        val = self.pv.read(**kws)
-        self.buff.append(val)
-        return val
 
 class QXAFS_ScanWatcher(object):
     def __init__(self, verbose=False, pidfile=None,
@@ -108,8 +93,8 @@ class QXAFS_ScanWatcher(object):
             pvname = row.pvname.strip()
             name = row.name.strip()
             lname = name.lower()
-            if lname.startswith('energy'):
-                counter = EnergyCounter(name, pvname)
+            if lname.startswith('energy'): # skip Energy readback
+                pass
             if row.pvname.startswith(EVAL4PLOT):
                 counter = eval(pvname[len(EVAL4PLOT):])
             else:
@@ -232,11 +217,8 @@ class QXAFS_ScanWatcher(object):
                     msg_counter += 1
                 for counter in self.counters:
                     try:
-                        val = counter.read()
-                        if isinstance(counter, EnergyCounter):
-                            self.scandb.append_scandata(counter.label, val)
-                        else:
-                            self.scandb.set_scandata(counter.label, val)
+                        self.scandb.set_scandata(counter.label,
+                                                 counter.read())
                     except:
                         self.write("Could not set scandata for %r" % (counter))
                 self.scandb.commit()
