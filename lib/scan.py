@@ -270,9 +270,9 @@ class StepScan(object):
 
     def add_detector(self, det):
         """ add a Detector -- needs to be derived from Detector_Mixin"""
+        det.rois = self.rois
         if det.extra_pvs is None: # not fully connected!
             det.mode = self.detmode
-            det.rois = self.rois
             det.connect_counters()
 
         self.add_extra_pvs(det.extra_pvs)
