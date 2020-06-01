@@ -266,9 +266,10 @@ class QXAFS_Scan(XAFS_Scan):
         self.with_id = False
         self.xps = None
         XAFS_Scan.__init__(self, label=label, energy_pv=energy_pv,
-                           read_pv=read_pv, e0=e0, scandb=scandb,
+                           read_pv=None, e0=e0, scandb=scandb,
                            extra_pvs=extra_pvs, elem=elem, edge=edge, **kws)
-        self.set_energy_pv(energy_pv, read_pv=read_pv, extra_pvs=extra_pvs)
+        self.read_pv = None
+        self.set_energy_pv(energy_pv, read_pv=None, extra_pvs=extra_pvs)
         self.scantype = 'xafs'
         self.detmode  = 'roi'
         self.config = None
