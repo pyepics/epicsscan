@@ -88,6 +88,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
             scan.add_region(start, stop, npts=npts, e0=e0, **kws)
     else:
         scan = StepScan(filename=filename, comments=comments)
+        scan.detmode = 'scaler'
         if scantype == 'linear' and positioners is not None:
             for pos in positioners:
                 label, pvs, start, stop, npts = pos
