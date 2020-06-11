@@ -65,9 +65,9 @@ class ROIFrame(wx.Frame):
         if self.det is None:
             return
 
-        sizer = wx.GridBagSizer(3, 2)
-        sizer.SetHGap(3)
-        sizer.SetVGap(3)
+        sizer = wx.GridBagSizer(2, 2)
+        sizer.SetHGap(2)
+        sizer.SetVGap(2)
         # title row
         irow = 0
         txt =SimpleText(self, ' Use ROI', minsize=(150, -1), style=LEFT)
@@ -101,7 +101,7 @@ class ROIFrame(wx.Frame):
 
         pack(self, sizer)
         wx.CallAfter(self.connect_epics)
-        self.SetSize((350, 425))
+        self.SetSize((475, 525))
         self.Show()
         self.Raise()
 
