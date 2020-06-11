@@ -494,15 +494,15 @@ class MacroFrame(wx.Frame) :
         self.prompt = wx.StaticText(panel, -1, ' >>>', size = (30,-1),
                                     style=RIGHT)
         self.histfile = os.path.join(larch.site_config.usr_larchdir, MACRO_HISTORY)
-        self.input = ReadlineTextCtrl(panel, -1,  '', size=(525,-1),
+        self.input = ReadlineTextCtrl(panel, -1,  '', size=(525, -1),
                                       historyfile=self.histfile,
-                                      style=LEFT|wx.TE_PROCESS_ENTER)
+                                      style=wx.ALIGN_LEFT|wx.TE_PROCESS_ENTER)
 
         self.input.Bind(wx.EVT_TEXT_ENTER, self.onText)
         sizer = wx.BoxSizer(wx.HORIZONTAL)
 
         sizer.Add(self.prompt,  0, wx.BOTTOM|wx.CENTER)
-        sizer.Add(self.input,   1, LEFT|wx.EXPAND)
+        sizer.Add(self.input,   1, wx.ALIGN_LEFT|wx.EXPAND)
         panel.SetSizer(sizer)
         sizer.Fit(panel)
         return panel
