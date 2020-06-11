@@ -271,9 +271,9 @@ class StepScan(object):
     def add_detector(self, det):
         """ add a Detector -- needs to be derived from Detector_Mixin"""
         det.rois = self.rois
-        if det.extra_pvs is None: # not fully connected!
-            det.mode = self.detmode
-            det.connect_counters()
+        # if det.extra_pvs is None: # not fully connected!
+        det.mode = self.detmode
+        det.connect_counters()
 
         self.add_extra_pvs(det.extra_pvs)
         self.at_break_methods.append(det.at_break)
@@ -309,6 +309,7 @@ class StepScan(object):
         self.set_info('scan_progress', 'running pre_scan routines')
         for (desc, pv) in self.extra_pvs:
             pv.connect(timeout=0.1)
+
         # dtimer.add('pre_scan connect to extra pvs')
         if filename is None:
             filename = self.filename
