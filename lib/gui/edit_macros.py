@@ -213,7 +213,7 @@ class PositionCommandFrame(wx.Frame) :
                 kws['mode'] = mode
             method(label, icol, width=width, **kws)
             c = self.dvc.Columns[icol]
-            c.Alignment = LEFT
+            c.Alignment = wx.ALIGN_LEFT
             c.Sortable = False
 
         mainsizer = wx.BoxSizer(wx.VERTICAL)

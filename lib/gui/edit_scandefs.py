@@ -154,7 +154,7 @@ class ScanDefPanel(wx.Panel):
             self.dvc.AppendTextColumn(title, icol, width=width)
             col = self.dvc.Columns[icol]
             col.Sortable = True
-            col.Alignment = LEFT
+            col.Alignment = wx.ALIGN_LEFT
             icol += 1
 
     def _getscans(self, orderby='last_used_time'):

@@ -231,12 +231,12 @@ class ScanSequenceFrame(wx.Frame) :
                                     ('Status',   100),
                                     ('Request',  100),
                                     ('Update',   100),
-                                    ('ID',        25))):
+                                    ('ID',        75))):
             title, width = dat
             self.dvc.AppendTextColumn(title, icol, width=width)
             col = self.dvc.Columns[icol]
             col.Sortable = title != 'Command'
-            col.Alignment = LEFT
+            col.Alignment = wx.ALIGN_LEFT
         self.dvc.EnsureVisible(self.model.GetItem(0))
 
         self.Bind(wx.EVT_CLOSE, self.onClose)
