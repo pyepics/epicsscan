@@ -29,7 +29,6 @@ class Counter(Saveable):
 
     def read(self, **kws):
         "read counter to internal buffer"
-        # print("  Counter.read " , self.label, self.pv, kws)
         val = self.pv.get(**kws)
         if isinstance(val, np.ndarray):
             self.buff = val.tolist()
@@ -128,20 +127,29 @@ class ROISumCounter(Saveable):
             if npts is None:
                 npts = nv
             npts = min(npts, nv)
-
         for i, v in enumerate(vals):
             dx, nd = 1.0, 0
-            dtc = np.ones(npts)
             if self.dtcorr:
                 try:
                     dx = self.dtc_pvs[i].get()
+                except:
+                    dx = 1.0
+                if npts == 1:
+                    dtc = dx
+                else:
+                    dtc = np.ones(npts)
                     dx[np.where(dx<0.999)] = 1.0
                     nd = min(npts, len(dx))
                     dtc[:nd] = dx[:nd]
-                except:
-                    pass
-            val += v[:npts]*dtc[:npts]
-        self.buff = val.tolist()
+
+            if npts == 1:
+                val += v*dtc
+            else:
+                val += v[:npts]*dtc[:npts]
+        if npts == 1:
+            self.buff.append(val)
+        else:
+            self.buff = val.tolist()
         return self.buff
 
     def clear(self):
