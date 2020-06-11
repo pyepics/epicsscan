@@ -119,7 +119,7 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         bpanel.SetSizer(bsizer)
         bsizer.Fit(bpanel)
 
-        self.scan_message = SimpleText(self, " ", style=LEFT,
+        self.scan_message = SimpleText(self, " ", style=LEFT, size=(300, -1),
                                        font=self.Font12, colour='#991111')
 
         self.sizer.Add(self.scan_message, (row, 0),   (1, 8), LEFT, 3)
