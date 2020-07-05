@@ -161,6 +161,8 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
         dpars['scandb'] = scandb
         if dpars['kind'] == 'scaler' and scaler_shim is not None:
             dpars.update(scaler_shim)
+        if not hasattr(dpars, 'label'):
+            dpars['label'] = dpars['kind']
         scan.add_detector(get_detector(**dpars))
 
     # extra counters (not-triggered things to count)
