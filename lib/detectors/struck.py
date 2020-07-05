@@ -66,9 +66,11 @@ class Struck(Device):
 
         here, `None` means "do not change from current value"
         """
-        out = self.put('ChannelAdvance', 1)  # external
+        t0 = time.time()
         if self.scaler is not None:
-            self.scaler.put('CONT', 0, wait=True)
+            self.scaler.put('CONT', 0)
+
+        out = self.put('ChannelAdvance', 1)  # external
         if realtime is not None:
             self.put('PresetReal', realtime)
         if prescale is not None:
@@ -94,10 +96,8 @@ class Struck(Device):
 
     def set_dwelltime(self, val):
         "Set Dwell Time"
-        # print("Struck DwellTime ", self._pvs['Dwell'], val)
         if isinstance(val, (list, tuple, numpy.ndarray)):
             val = val[0]
-
         if val is not None:
             self.put('Dwell', val)
 
@@ -156,7 +156,6 @@ class Struck(Device):
            as it can lead to inconsistent data arrays.
 
         """
-        # print("Struck ArrayMode ", dwelltime, numframes)
         if numframes is not None:
             self.put('NuseAll', numframes)
         if dwelltime is not None:
@@ -164,7 +163,8 @@ class Struck(Device):
         self._mode = NDARRAY_MODE
 
         time.sleep(0.01)
-        self.ExternalMode(trigger_width=trigger_width, countonstart=countonstart)
+        self.ExternalMode(trigger_width=trigger_width,
+                          countonstart=countonstart)
 
     def ROIMode(self, dwelltime=None, numframes=None, countonstart=True,
                 trigger_width=None):
@@ -176,7 +176,7 @@ class Struck(Device):
     def start(self, wait=False):
         "Start Struck"
         if self.scaler is not None:
-            self.scaler.put('CONT', 0, wait=True)
+            self.scaler.put('CONT', 0) # , wait=True)
         return self.put('EraseStart', 1, wait=wait)
 
     def stop(self):
@@ -331,6 +331,11 @@ class StruckCounter(DeviceCounter):
         if scaler is not None:
             for i in range(1, nchan+1):
                 label = caget('%s.NM%i' % (scaler, i))
+                if label is None:
+                    time.sleep(0.1)
+                    label = caget('%s.NM%i' % (scaler, i))
+                    if label is None:
+                        label = ''
                 if len(label) > 0 or use_unlabeled:
                     suff = 'mca%i' % (i)
                     fields.append((suff, label))
@@ -358,7 +363,6 @@ class StruckDetector(DetectorMixin):
 
     def pre_scan(self, mode=None, npulses=None, dwelltime=None, **kws):
         "run just prior to scan"
-        # print("Struck PreScan: arm ")
         self.arm(mode=mode, numframes=npulses)
         self.counters = self._counter.counters
         if dwelltime is not None:
@@ -369,7 +373,8 @@ class StruckDetector(DetectorMixin):
 
     def post_scan(self, **kws):
         "run just after scan"
-        pass
+        self.struck.InternalMode()
+        self.struck.ScalerMode()
 
     def arm(self, mode=None, fnum=None, wait=True, numframes=None):
         "arm detector, ready to collect with optional mode"
@@ -395,6 +400,7 @@ class StruckDetector(DetectorMixin):
 
     def start(self, mode=None, arm=False, wait=True):
         "start detector, optionally arming and waiting"
+        t0 = time.time()
         if arm:
             self.arm(mode=mode, wait=wait)
         self.struck.start(wait=wait)
