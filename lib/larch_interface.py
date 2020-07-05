@@ -13,8 +13,8 @@ from . import scandb
 
 import epics
 
-LARCH_SCANDB = '_scan._scandb'
-LARCH_INSTDB = '_scan._instdb'
+LARCH_SCANDB = '_scandb'
+LARCH_INSTDB = '_instdb'
 
 HAS_LARCH = False
 try:
@@ -22,6 +22,8 @@ try:
     HAS_LARCH = True
 except:
     larch = None
+
+
 
 class LarchScanDBWriter(object):
     """Writer for Larch Interface that writes to both Stdout
@@ -64,10 +66,8 @@ class LarchScanDBServer(object):
             self.larch  = larch.Interpreter(writer=self.writer)
             connect_scandb(scandb, _larch=self.larch)
             self.symtab = self.larch.symtable
-            # self.symtab.set_symbol(LARCH_SCANDB, self.scandb)
-            # self.symtab.set_symbol(LARCH_INSTDB, InstrumentDB(self.scandb))
-            # self.symtab._sys.color_exceptions = False
-            self.enable_abort()
+            self.symtab.set_symbol(LARCH_SCANDB, self.scandb)
+            self.symtab.set_symbol(LARCH_INSTDB, InstrumentDB(self.scandb))
 
     def check_abort_pause(self, msg='at caget'):
         if self.scandb.test_abort(msg):
@@ -75,28 +75,6 @@ class LarchScanDBServer(object):
         self.scandb.wait_for_pause(timeout=86400.0)
         return True
 
-    def enable_abort(self):
-        """this replaces several larch functions with
-        functions that support raising ScanDBAbort exceptions
-        """
-        def caget(pvname, _larch=None, **kws):
-            amsg = "at caget('%s')" % pvname
-            if self.check_abort_pause(msg=amsg):
-                return epics.caget(pvname, **kws)
-
-        def caput(pvname, value, _larch=None, **kws):
-            amsg = "at caput('%s', %s)" % (pvname, repr(value))
-            if self.check_abort_pause(msg=amsg):
-                return epics.caput(pvname, value, **kws)
-
-        def PV(pvname, _larch=None, **kws):
-            amsg = "at PV('%s')" % pvname
-            if self.check_abort_pause(msg=amsg):
-                return epics.get_pv(pvname, **kws)
-
-        self.symtab.set_symbol('_epics.caget', caget)
-        self.symtab.set_symbol('_epics.caput', caput)
-        self.symtab.set_symbol('_epics.PV', PV)
 
     def load_macros(self, macro_dir=None, verbose=False):
         """read latest larch macros / modules"""
