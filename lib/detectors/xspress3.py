@@ -407,9 +407,9 @@ class Xspress3Detector(DetectorMixin):
         1. The Xspress3 doesn't support true continuous mode, so this sets
         the dwelltime to 0.25 and NumImages to 16384
            """
-        self.ScalerMode(dwelltime=dwelltime, numframes=numframes)
+        self.ScalerMode(dwelltime=dwelltime, numframes=numframes, erase=True)
 
-    def ScalerMode(self, dwelltime=None, numframes=1):
+    def ScalerMode(self, dwelltime=None, numframes=1, erase=True):
         """ set to scaler mode: ready for step scanning
 
     Arguments:
@@ -419,9 +419,9 @@ class Xspress3Detector(DetectorMixin):
     Notes:
         1. numframes should be 1, unless you know what you're doing.
         """
-
         self._xsp3.put('TriggerMode', 1) # Internal
-        self._xsp3.put('ERASE', 1)
+        if erase:
+            self._xsp3.put('ERASE', 1)
         if numframes is not None:
             self._xsp3.put('NumImages', numframes)
         if dwelltime is not None:
@@ -443,8 +443,6 @@ class Xspress3Detector(DetectorMixin):
         2. setting dwelltime or numframes to None is discouraged,
            as it can lead to inconsistent data arrays.
         """
-        # print("Xspress3 ROI Mode ", dwelltime, numframes)
-
         self._xsp3.put('TriggerMode', 3) # External, TTL Veto
 
         if numframes is None:
