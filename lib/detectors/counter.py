@@ -89,7 +89,7 @@ class ROISumCounter(Saveable):
     ROI Sum counter as for Xspress3 ROIs or using AD ROIstats plugin
     use dtcfmt='1' to mean no deadtime correction
     """
-    def __init__(self, label, roifmt, dtcfmt, nmcas, units='counts'):
+    def __init__(self, label, roifmt, dtcfmt, nmcas, units='counts', data=None):
         Saveable.__init__(self, label=label, roifmt=roifmt, dtcfmt=dtcfmt,
                           nmcas=nmcas, units=units)
         self.dtcorr = dtcfmt != '1'
@@ -103,7 +103,7 @@ class ROISumCounter(Saveable):
         self.pvname = EVAL4PLOT + self.__repr__()
         self.roi_pvs = []
         self.dtc_pvs = []
-
+        self.data = data
         for imca in range(1, nmcas+1):
             self.roi_pvs.append(get_pv(roifmt % imca))
             if self.dtcorr:
@@ -117,7 +117,10 @@ class ROISumCounter(Saveable):
                                              self.dtcfmt, self.nmcas)
 
     def read(self, **kws):
-        vals = [pv.get(**kws) for pv in self.roi_pvs]
+        if self.data is not None:
+            vals = [self.data[pv.pvname] for pv in self.roi_pvs]
+        else:
+            vals = [pv.get(**kws) for pv in self.roi_pvs]
         val, npts = 0.0, None
         for v in vals:
             try:
@@ -130,10 +133,13 @@ class ROISumCounter(Saveable):
         for i, v in enumerate(vals):
             dx, nd = 1.0, 0
             if self.dtcorr:
-                try:
-                    dx = self.dtc_pvs[i].get()
-                except:
-                    dx = 1.0
+                if self.data is not None:
+                    dx = self.data[self.dtc_pvs[i].pvname]
+                else:
+                    try:
+                        dx = self.dtc_pvs[i].get()
+                    except:
+                        dx = 1.0
                 if npts == 1:
                     dtc = dx
                 else:
@@ -203,6 +209,7 @@ class DeviceCounter(object):
 
     def read(self, **kws):
         "read counters"
+        print("DeviceCounter.read ", self.prefix, kws)
         for counter in self.counters:
             counter.read(**kws)
         self.postvalues()
