@@ -18,6 +18,8 @@ from .saveable import Saveable
 from .file_utils import fix_varname, new_filename
 from .utils import ScanDBAbort, hms
 from .debugtime import debugtime
+from .detectors.counter import ROISumCounter, EVAL4PLOT
+
 XAFS_K2E = 3.809980849311092
 HC       = 12398.4193
 RAD2DEG  = 180.0/np.pi
@@ -269,7 +271,6 @@ class QXAFS_Scan(XAFS_Scan):
         qconf = self.config
         caput(qconf['id_track_pv'],  1)
         caput(qconf['y2_track_pv'],  1)
-        time.sleep(0.1)
 
     def gathering2energy(self, text):
         """read gathering file, calculate and return
@@ -372,7 +373,7 @@ class QXAFS_Scan(XAFS_Scan):
 
         self.xps.arm_trajectory('qxafs')
         dtimer.add('traj armed')
-        out = self.pre_scan(npulses=traj['npulses'],
+        out = self.pre_scan(npulses=1+traj['npulses'],
                             dwelltime=dtime,
                             mode='roi', filename=self.filename)
         self.check_outputs(out, msg='pre scan')
@@ -382,18 +383,18 @@ class QXAFS_Scan(XAFS_Scan):
 
         det_arm_delay = det_start_delay = 0.05
         det_prefixes = []
-        for det in self.detectors:
+        for det in reversed(self.detectors):
             det_prefixes.append(det.prefix)
-            det.arm(mode='roi', numframes=traj['npulses'], fnum=0, wait=False)
+            det.arm(mode='roi', numframes=1+traj['npulses'], fnum=0, wait=False)
             det.config_filesaver(path=userdir)
-            det_arm_delay = max(det_arm_delay, det.arm_delay)
+            # det_arm_delay = max(det_arm_delay, det.arm_delay)
             det_start_delay = max(det_start_delay, det.start_delay)
+            time.sleep(det.arm_delay)
 
-        time.sleep(2*det_arm_delay)
-        dtimer.add('detectors armed')
+        dtimer.add('detectors armed %.4f / %.4f' % (det_arm_delay, det_start_delay))
         self.init_scandata()
         dtimer.add('init scandata')
-        for det in self.detectors:
+        for det in reversed(self.detectors):
             det.start(arm=False, wait=False)
 
         time.sleep(det_start_delay)
@@ -420,7 +421,7 @@ class QXAFS_Scan(XAFS_Scan):
         self.inittime = ts_init - ts_start
         start_time = time.strftime('%Y-%m-%d %H:%M:%S')
         dtimer.add('info set')
-        time.sleep(0.10)
+        time.sleep(1.000)
 
         with_scan_thread = False
         dtimer.add('trajectory run %r' % (with_scan_thread))
@@ -436,7 +437,6 @@ class QXAFS_Scan(XAFS_Scan):
             while scan_thread.is_alive():
                 time.sleep(1.0)
                 if (time.monotonic() > join_time) or self.look_for_interrupts():
-                    # print("Scan nearing end... now joining thread")
                     break
             scan_thread.join()
             dtimer.add('scan thread joined')
@@ -444,17 +444,17 @@ class QXAFS_Scan(XAFS_Scan):
             out = self.xps.run_trajectory(name='qxafs', save=False)
         dtimer.add('trajectory finished')
         self.set_info('scan_progress', 'reading data')
+
         for det in self.detectors:
             det.stop()
+
         dtimer.add('detectors stopped')
-
-        time.sleep(0.1)
-
         self.finish_qscan()
         dtimer.add('scan finished')
         out = self.post_scan()
+
         dtimer.add('post scan finished')
-        caput(qconf['energy_pv'], energy_orig-5.0)
+        caput(qconf['energy_pv'], energy_orig-1.0)
         self.check_outputs(out, msg='post scan')
 
         #
@@ -466,43 +466,74 @@ class QXAFS_Scan(XAFS_Scan):
            self.pos_actual.append([e])
         ne = len(energy)
         #
-
         [c.read() for c in self.counters]
         ndat = [len(c.buff) for c in self.counters]
         narr = min(ndat)
-        # print('read all counters (%d, %d, %d) ' % (narr, ne, len(self.counters)))
+        # print('read counters (%d, %d, %d) ' % (narr, ne, len(self.counters)))
         t0  = time.monotonic()
+
         while narr < (ne-1) and (time.monotonic()-t0) < 15.0:
             time.sleep(0.05)
             [c.read() for c in self.counters]
             ndat = [len(c.buff) for c in self.counters]
             narr = min(ndat)
 
+        mca_offsets = {}
+        counter_buffers = []
+        for c in self.counters:
+            label = c.label.lower()
+            if 'mca' in label and 'clock' in label:
+                buff = np.array(c.read())
+                offset = 1
+                if buff[0] == 0 and buff[1] > 1.10*(buff[2:-1].mean()):
+                    offset = 2
+                key = label.replace('clock', '').strip()
+                mca_offsets[key] = offset
+
         # print("Read QXAFS Data %i points (NE=%i) %.3f secs" % (narr, ne, time.monotonic() - t0))
         dtimer.add('read all counters (done)')
         # remove hot first pixel AND align to proper energy
         # really, we tested this, comparing to slow XAFS scans!
+        data4calcs = {}
         for c in self.counters:
-            c.buff = c.buff[1:]
+            offset = 1
+            label = c.label.lower()
+            if 'mca' in label:
+                words = label.split()
+                key = ' '
+                for word in words:
+                    if word.startswith('mca'):
+                        key = word
+                offset = mca_offsets.get(key, 1)
+            c.buff = c.buff[offset:]
+            c.buff = c.buff[:ne]
+            print("-> ", c.label, offset, len(c.buff), c.buff[:3], c.buff[-2:])
+
+            data4calcs[c.pvname] = np.array(c.buff)
+
+        for c in self.counters:
+            if c.pvname.startswith(EVAL4PLOT):
+                _counter = eval(c.pvname[len(EVAL4PLOT):])
+                _counter.data = data4calcs
+                c.buff = _counter.read()
 
         self.set_all_scandata()
         dtimer.add('set scan data')
         for val, pos in zip(orig_positions, self.positioners):
             pos.move_to(val, wait=False)
-            # print("move  pos :: ", pos, val)
 
         self.datafile.write_data(breakpoint=-1, close_file=True, clear=False)
 
         # print("QXAFS Done ", qconf['energy_pv'], qconf['id_drive_pv'])
-        caput(qconf['energy_pv'], energy_orig+2.5)
+        caput(qconf['energy_pv'], energy_orig)
         if self.with_id:
             try:
                 caput(qconf['id_drive_pv'], idenergy_orig)
             except CASeverityException:
                 pass
-        time.sleep(0.1)
+        time.sleep(0.05)
 
-        caput(qconf['energy_pv'], energy_orig, wait=True)
+        # caput(qconf['energy_pv'], energy_orig, wait=True)
 
         if self.look_for_interrupts():
             self.write("scan aborted at point %i of %i." % (self.cpt, self.npts))
@@ -518,7 +549,7 @@ class QXAFS_Scan(XAFS_Scan):
         self.scandb.set_info('qxafs_running', 0)
         self.runtime  = time.monotonic() - ts_start
         dtimer.add('done')
-        dtimer.show()
+        # dtimer.show()
         print("scan done at %s %.3f" % (time.ctime(), time.time()))
         return self.datafile.filename
         ##
