@@ -521,7 +521,7 @@ class Slew_Scan(StepScan):
                 if self.look_for_interrupts():
                     break
 
-            scan_thread.join()
+            scan_thread.join(timeout=self.rowtime/2.0)
             dtimer.add('scan thread joined')
             if self.look_for_interrupts():
                 if mappref is not None:
@@ -589,15 +589,15 @@ class Slew_Scan(StepScan):
                     nxrd = xrddet.get_numcaptured()
                     time.sleep(0.01)
                 xrddet.stop()
+                dtimer.add('saved XRD data')
 
-            dtimer.add('saved XRD data')
+            pos_saver_thread.join(timeout=30)
+            dtimer.add('saved XPS data')
 
             rowdata_ok = (rowdata_ok and
                           (npts_sca >= npulses-1) and
-                          (nxrf >= npulses-2))
-
-            pos_saver_thread.join()
-            dtimer.add('saved XPS data')
+                          (nxrf >= npulses-2) and
+                          (not pos_saver_thread.is_alive()))
 
             if debug:
                 print("#== Row %d nXPS=%d, nSIS=%d, nXRF=%d, nXRD=%d  npulses=%d, OK=%s" %
