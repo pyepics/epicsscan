@@ -421,7 +421,7 @@ class QXAFS_Scan(XAFS_Scan):
         self.inittime = ts_init - ts_start
         start_time = time.strftime('%Y-%m-%d %H:%M:%S')
         dtimer.add('info set')
-        time.sleep(1.000)
+        time.sleep(0.500)
 
         with_scan_thread = False
         dtimer.add('trajectory run %r' % (with_scan_thread))
@@ -507,7 +507,7 @@ class QXAFS_Scan(XAFS_Scan):
                 offset = mca_offsets.get(key, 1)
             c.buff = c.buff[offset:]
             c.buff = c.buff[:ne]
-            print("-> ", c.label, offset, len(c.buff), c.buff[:3], c.buff[-2:])
+            # print("-> ", c.label, offset, len(c.buff), c.buff[:3], c.buff[-2:])
 
             data4calcs[c.pvname] = np.array(c.buff)
 
