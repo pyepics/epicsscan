@@ -205,7 +205,7 @@ class AD_Eiger(AreaDetector):
         AreaDetector.__init__(self, prefix, label=label, mode=mode,
                               filesaver=filesaver, roistat=roistat,
                               fileroot=fileroot, **kws)
-
+        self.label = 'eiger'
         self.simplon = None
         if url is not None:
             self.simplon = EigerSimplon(url, prefix)
@@ -240,7 +240,7 @@ class AD_Eiger(AreaDetector):
         self.ad.setFileTemplate("%s%s_%4.4d.h5")
         if self.filesaver.startswith('HDF'):
             self.ad.filePut('Compression', 'zlib')
-            self.ad.filePut('ZLevel', 4)
+            self.ad.filePut('ZLevel', 1)
 
         self.cam.put('FWCompression', 'Disabled')
         self.cam.put('FWEnable', 'No')
@@ -434,6 +434,7 @@ class AD_Eiger(AreaDetector):
     def config_filesaver(self, path=None, **kws):
         if path is not None:
             self.datadir = path
+        kws.update(name='eiger')
         self.ad.config_filesaver(path=path, **kws)
 
     def get_next_filename(self):
