@@ -156,7 +156,7 @@ class Xspress3Counter(DeviceCounter):
 
     def __init__(self, prefix, outpvs=None, nmcas=4, nrois=32, rois=None,
                  nscas=1, ad_version=2, use_unlabeled=False, use_full=False,
-                 mode=None):
+                 mode=None, scandb=None):
 
         # ROI #8 for DTFactor is a recent addition,
         # here we get ready to test if it is connected.
@@ -166,6 +166,7 @@ class Xspress3Counter(DeviceCounter):
             self.sca8 = get_pv("%s%s" % (prefix, (scaf.valform % 8)))
 
         self.mode = mode
+        self.scandb = scandb
         self.nmcas, self.nrois = int(nmcas), int(nrois)
         self.nscas = int(nscas)
         self.use_full = use_full
@@ -196,14 +197,30 @@ class Xspress3Counter(DeviceCounter):
             self.rois.append('OutputCounts')
 
         # build list of current ROI names
-        current_rois = {}
-        for iroi in range(1, self.nrois+1):
-            label = caget("%sMCA1ROI:%i:Name" % (prefix, iroi))
-            if label is not None and len(label) > 0:
-                current_rois[label.strip().lower()] = iroi
-            else:
-                break
+        def get_rois():
+            current_rois = {}
+            for iroi in range(1, self.nrois+1):
+                label = caget("%sMCA1ROI:%i:Name" % (prefix, iroi))
+                if label is not None and len(label) > 0:
+                    current_rois[label.strip().lower()] = iroi
+                else:
+                    break
+            return current_rois
 
+        current_rois = get_rois()
+
+        if len(current_rois) < 1:
+            print("Warning: ROIs are missing, will restart Xspress3, ", time.ctime())
+            self.scandb.set_info('xspress3_needs_reboot', 1)
+            time.sleep(10)
+            label,t0 = None, time.monotonic()
+            while label is None and time.monotonic() < t0 + 120:
+                label = caget("%sMCA1ROI:1:Name" % (prefix))
+                time.sleep(1.0)
+            current_rois = get_rois()
+
+        print("Xspress3: finding ROIS: ", len(self.rois),  len(current_rois),
+              self.mode, self.scandb, time.ctime())
         scaf = get_scaformats(self.ad_version) # ('acq', 'npts', 'valform', 'tsform')
         roi_format = '%sMCA%dROI:%i:Total_RBV'
         sca_format = '%s' + scaf.valform
@@ -211,7 +228,6 @@ class Xspress3Counter(DeviceCounter):
 
         scas2save = (0, )
         save_dtcorrect = True
-        # print("Xspress3 Counters" , self.mode == ROI_MODE, self.mode, self.ad_version)
 
         if self.ad_version == 2:
             scas2save = (0, 8)
@@ -285,7 +301,7 @@ class Xspress3Detector(DetectorMixin):
         self.ad_version = get_adversion(prefix, cam='det1:')
 
 
-        DetectorMixin.__init__(self, prefix, label=label)
+        DetectorMixin.__init__(self, prefix, label=label, **kws)
         self._xsp3 = Xspress3(prefix, nmcas=nmcas,
                               fileroot=fileroot,
                               filesaver=filesaver,
@@ -310,6 +326,7 @@ class Xspress3Detector(DetectorMixin):
         self._connect_args = dict(nmcas=nmcas, nrois=nrois, rois=rois,
                                   mode=mode, use_unlabeled=use_unlabeled,
                                   use_full=use_full,
+                                  scandb=self.scandb,
                                   ad_version=int(self.ad_version[0]))
         self.connect_counters()
 
@@ -351,6 +368,10 @@ class Xspress3Detector(DetectorMixin):
         self._xsp3.put('Acquire', 0, wait=True)
         poll(0.05, 0.5)
         self._xsp3.put('ERASE', 1)
+        poll(0.01)
+        self._xsp3.put('ERASE', 1) # erase again to clear SUM
+
+
         dt.add('xspress3: clear, erase')
         if filename is None:
             filename = ''
@@ -374,6 +395,7 @@ class Xspress3Detector(DetectorMixin):
         if npulses is not None:
             self._xsp3.put('NumImages', npulses)
 
+
         dt.add('xspress3: set dtime, npulses')
         self.config_filesaver(number=1,
                               name=fix_varname(filename),
@@ -395,6 +417,8 @@ class Xspress3Detector(DetectorMixin):
     def post_scan(self, **kws):
         "run just after scan"
         self.ContinuousMode()
+        time.sleep(0.025)
+
 
     def ContinuousMode(self, dwelltime=0.25, numframes=16384):
         """set to continuous mode: use for live reading
@@ -421,7 +445,7 @@ class Xspress3Detector(DetectorMixin):
         """
         self._xsp3.put('TriggerMode', 1) # Internal
         if erase:
-            self._xsp3.put('ERASE', 1)
+            pass # self._xsp3.put('ERASE', 1)
         if numframes is not None:
             self._xsp3.put('NumImages', numframes)
         if dwelltime is not None:
@@ -507,7 +531,7 @@ class Xspress3Detector(DetectorMixin):
             self.mode = mode
         if self._xsp3.DetectorState_RBV > 0:
             self._xsp3.put('Acquire', 0)
-        self._xsp3.put('ERASE',   1) #, wait=True)
+        # self._xsp3.put('ERASE',   1) #, wait=True)
 
         if fnum is not None:
             self.fnum = fnum
