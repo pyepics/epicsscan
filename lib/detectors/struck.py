@@ -373,8 +373,9 @@ class StruckDetector(DetectorMixin):
 
     def post_scan(self, **kws):
         "run just after scan"
-        self.struck.InternalMode()
-        self.struck.ScalerMode()
+        pass
+        # self.struck.InternalMode()
+        # self.struck.ScalerMode()
 
     def arm(self, mode=None, fnum=None, wait=True, numframes=None):
         "arm detector, ready to collect with optional mode"
