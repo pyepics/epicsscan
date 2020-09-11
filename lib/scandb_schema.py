@@ -42,6 +42,7 @@ def hasdb_pg(dbname, create=False,
     dbname = dbname.lower()
     conn_str= 'postgresql://%s:%s@%s:%i/%s'
     query = "select datname from pg_database"
+    port = int(port)
     engine = create_engine(conn_str % (user, password,
                                        host, port, 'postgres'))
     conn = engine.connect()
@@ -65,12 +66,14 @@ def get_dbengine(dbname, server='sqlite', create=False,
         conn_str= 'mysql+mysqldb://%s:%s@%s:%i/%s'
         if port is None:
             port = 3306
+        port = int(port)
         return create_engine(conn_str % (user, password, host, port, dbname))
 
     elif server.startswith('p'):
         conn_str= 'postgresql://%s:%s@%s:%i/%s'
         if port is None:
             port = 5432
+        port = int(port)
         hasdb = hasdb_pg(dbname, create=create, user=user, password=password,
                          host=host, port=port)
         return create_engine(conn_str % (user, password, host, port, dbname))
