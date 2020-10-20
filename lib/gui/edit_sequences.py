@@ -266,7 +266,7 @@ class ScanSequenceFrame(wx.Frame) :
         if ((cmdid != self.cmdid) or
             (status != self.cmdstatus) or
             ((now - self.last_refresh) > 300)):
-            self.onRefresh()
+            self.refresh_display(show_top=True)
             self.cmdid = cmdid
             self.cmdstatus = status
 
@@ -280,18 +280,19 @@ class ScanSequenceFrame(wx.Frame) :
             val = self.cmd_insert.GetValue().strip()
             if len(val) > 0 and not (val.startswith('<') and val.endswith('>')):
                 self.model.insert_before(self.dvc.GetSelection(), val)
-            val = self.cmd_insert.SetValue('<new command>')
-            self.Refresh()
+            val = self.cmd_insert.SetValue(' ')
+            self.refresh_display()
 
     def onMoveDown(self, event=None):
         if self.dvc.HasSelection():
             self.model.move_item(self.dvc.GetSelection(), direction='down')
-            self.Refresh()
+        self.refresh_display()
 
     def onCancelSelected(self, event=None):
         if self.dvc.HasSelection():
             self.model.cancel_item(self.dvc.GetSelection())
-            self.Refresh()
+        self.refresh_display()
+
 
     def onCancelAll(self, event=None):
         self.scandb.set_info('request_abort', 1)
@@ -303,11 +304,15 @@ class ScanSequenceFrame(wx.Frame) :
         self.scandb.commit()
         time.sleep(1.0)
 
-    def onRefresh(self, event=None):
+    def refresh_display(self, show_top=False):
+        time.sleep(0.01)
         self.model.read_data()
         self.Refresh()
         self.last_refresh = time.monotonic()
-        self.dvc.EnsureVisible(self.model.GetItem(0))
+        if show_top:
+            self.dvc.EnsureVisible(self.model.GetItem(0))
 
     def onDone(self, event=None):
         self.parent.Destroy()
+        
+    
