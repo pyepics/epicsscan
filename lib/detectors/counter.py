@@ -133,8 +133,12 @@ class ROISumCounter(Saveable):
         for i, v in enumerate(vals):
             dx, nd = 1.0, 0
             if self.dtcorr:
-                if self.data is not None:
-                    dx = self.data[self.dtc_pvs[i].pvname]
+                dtc_pvname = self.dtc_pvs[i].pvname
+                if self.data is not None and dtc_pvname in self.data:
+                    try:
+                        dx = self.data[dtc_pvname]
+                    except:
+                        dx = 1.0
                 else:
                     try:
                         dx = self.dtc_pvs[i].get()
