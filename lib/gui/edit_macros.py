@@ -342,7 +342,7 @@ class MacroFrame(wx.Frame) :
                                   style=wx.TE_MULTILINE|wx.TE_RICH2)
         self.editor.SetBackgroundColour('#FFFFFF')
 
-        text = """## Edit Macro text here\n#\n"""
+        text = """# Edit Macro text here\n#\n"""
         self.editor.SetValue(text)
         self.editor.SetInsertionPoint(len(text)-2)
         self.ReadMacroFile(AUTOSAVE_FILE)
@@ -597,17 +597,24 @@ class MacroFrame(wx.Frame) :
         # self.start_btn.Disable()
         lines = self.editor.GetValue().split('\n')
         self.scandb.set_info('request_pause',  1)
-
+        out = ['# macro submitted  %s' % (time.ctime())]
         for lin in lines:
-            if '#' in lin:
-                icom = lin.index('#')
-                lin = lin[:icom]
-            lin = lin.strip()
+            if lin.startswith('#'):
+                out.append(lin)
+            else:
+                out.append('#%s' % lin)
+                
+            lin = lin.split('#', 1)[0].strip()
             if len(lin) > 0:
                 self.scandb.add_command(lin)
         self.scandb.commit()
         self.scandb.set_info('request_abort',  0)
         self.scandb.set_info('request_pause',  0)
+        
+        out = '\n'.join(out)
+        self.editor.SetValue(out)
+        self.editor.SetInsertionPoint(len(out)-1)
+       
 
     def onPause(self, event=None):
         self.scandb.set_info('request_pause', 1)

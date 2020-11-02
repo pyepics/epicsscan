@@ -480,7 +480,7 @@ class ScanFrame(wx.Frame):
 
     def show_subframe(self, name, frameclass):
         shown = False
-
+        
         if name in self.subframes:
             try:
                 self.subframes[name].Raise()

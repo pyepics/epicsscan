@@ -1071,7 +1071,12 @@ class ScanDB(object):
     def cancel_command(self, cmdid):
         """cancel command"""
         self.set_command_status('canceled', cmdid)
+        cls, table = self.get_table('commands')
+        canceled  = self.status_codes['canceled']
+        table.update(whereclause=text("id='%d'" % cmdid)
+        ).execute(status_id=canceled)
 
+        
     def cancel_remaining_commands(self):
         """cancel all commmands to date"""
         cls, table = self.get_table('commands')
