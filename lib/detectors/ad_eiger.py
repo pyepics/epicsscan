@@ -434,7 +434,7 @@ class AD_Eiger(AreaDetector):
     def config_filesaver(self, path=None, **kws):
         if path is not None:
             self.datadir = path
-        kws.update(name='eiger')
+        # kws.update(name='eiger')
         self.ad.config_filesaver(path=path, **kws)
 
     def get_next_filename(self):
