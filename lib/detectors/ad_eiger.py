@@ -346,10 +346,13 @@ class AD_Eiger(AreaDetector):
         self.cam.put('AcquireTime',   dwelltime-self.readout_time)
         self.cam.put('AcquirePeriod', dwelltime)
 
-    def ContinuousMode(self, dwelltime=0.25, numframes=64000):
-        self.ScalerMode(dwelltime=dwelltime, numframes=numframes)
+    def ContinuousMode(self, dwelltime=0.3, numframes=62000):
+        # print("putting Eiger into continuous mode ", numframes, dwelltime)
+        self.ScalerMode(dwelltime=dwelltime, numframes=numframes-10)
         self.cam.put('FWEnable', 0)
-        time.sleep(0.05)
+        time.sleep(0.5)
+        self.ScalerMode(dwelltime=dwelltime, numframes=numframes+10)
+        time.sleep(0.5)
         self.cam.put('NumImages', numframes, wait=True)
 
 
@@ -371,6 +374,7 @@ class AD_Eiger(AreaDetector):
         self.ad.FileCaptureOff()
         if numframes is not None:
             self.cam.put('NumImages', numframes)
+            time.sleep(0.05)
             self.cam.put('NumTriggers', 1)
         if dwelltime is not None:
             self.set_dwelltime(dwelltime)
