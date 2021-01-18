@@ -15,7 +15,7 @@ MAXVAL_INT16 = 2**16 - 8
 class AD_Integrator(object):
     """1D integrator"""
     def __init__(self,  suffix='h5', mask=None, flip=True,
-                 nqpoints=2048, trim_edges=(3,3,1,1), **kws):
+                 nqpoints=2048, trim_edges=None, **kws):
         from epicsscan.scandb import ScanDB
         self.scandb = ScanDB()
         self.folder = ''
@@ -75,8 +75,11 @@ class AD_Integrator(object):
 
         if self.mask is not None:
             data = data * self.mask
-        x1, x2, y1, y2 = self.trim_edges
-        data = data[:, x1:-x2, y1:-y2]
+        if trim_edges is not None:
+            x1, x2, y1, y2 = self.trim_edges
+            data = data[:. x1:-x2, y1:-y2]
+        else:
+            data = data[()]
 
         nframes, nx, ny = data.shape
         xrdfile.close()
