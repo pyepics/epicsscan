@@ -77,7 +77,7 @@ class AD_Integrator(object):
             data = data * self.mask
         if trim_edges is not None:
             x1, x2, y1, y2 = self.trim_edges
-            data = data[:. x1:-x2, y1:-y2]
+            data = data[:, x1:-x2, y1:-y2]
         else:
             data = data[()]
 
