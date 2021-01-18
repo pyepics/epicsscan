@@ -336,6 +336,8 @@ class ScanViewerFrame(wx.Frame):
         new_plot = self.force_newplot or npts < 3
         lgroup, gname = self.lgroup, SCANGROUP
 
+        if lgroup is None or not hasattr(lgroup, 'array_units'):
+            return
         ix = self.xarr.GetSelection()
         x  = self.xarr.GetStringSelection()
         self.x_label = x
