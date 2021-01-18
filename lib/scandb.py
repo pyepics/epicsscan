@@ -256,7 +256,6 @@ class ScanDB(object):
         "connect to an existing database"
         creds = dict(user=user, password=password, host=host,
                      port=port, server=server)
-
         self.dbname = dbname
         if not self.isScanDB(dbname,  **creds) and create:
             engine, meta = create_scandb(dbname, create=True, **creds)
@@ -350,9 +349,8 @@ class ScanDB(object):
             q = q.order_by(getattr(cls, orderby))
         return q.execute().fetchall()
 
-    def get_info(self, key=None, default=None,
-                 as_int=False, as_bool=False,
-                 full_row=False):
+    def get_info(self, key=None, default=None, prefix=None,
+                 as_int=False, as_bool=False, full_row=False):
         """get a value for an entry in the info table,
         if this key doesn't exist, it will be added with the default
         value and the default value will be returned.
@@ -362,7 +360,16 @@ class ScanDB(object):
         errmsg = "get_info expected 1 or None value for name='%s'"
         cls, table = self.get_table('info')
         if key is None:
-            return self.query(table).all()
+            all = self.query(table).all()
+            if prefix is None:
+                return all
+            else:
+                out = []
+                for row in all:
+                    if row.key.startswith(prefix):
+                        out.append(row)
+                return out
+
 
         vals = self.query(cls).filter(cls.key==key).all()
         thisrow = None_or_one(vals, errmsg % key)
@@ -1076,7 +1083,7 @@ class ScanDB(object):
         table.update(whereclause=text("id='%d'" % cmdid)
         ).execute(status_id=canceled)
 
-        
+
     def cancel_remaining_commands(self):
         """cancel all commmands to date"""
         cls, table = self.get_table('commands')
