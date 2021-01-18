@@ -11,7 +11,7 @@ import array
 import numpy
 HAS_NUMPY = True
 
-from wxutils import (fix_filename, FileOpen, FileSave, SelectWorkdir,
+from wxutils import (fix_filename, FileOpen, FileSave, SelectWorkdir, TextCtrl,
                      SimpleText, HyperText, YesNo, FloatCtrl, hms, Font,
                      LEFT, RIGHT, CEN, FRAMESTYLE, LTEXT, GUIColors)
 
