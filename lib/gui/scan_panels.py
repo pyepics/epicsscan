@@ -18,7 +18,7 @@ from epics.wx import EpicsFunction, PVText, PVStaticText
 
 from .gui_utils import (GUIColors, SimpleText, FloatCtrl, HyperText,
                         pack, add_choice, hms, check, LEFT, RIGHT,
-                        CEN)
+                        CEN, add_button)
 
 from .. import etok, ktoe, XAFS_Scan, StepScan, Positioner, Counter
 from ..utils import normalize_pvname, atGSECARS
@@ -48,6 +48,7 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         self.scandb = scandb
         self.pvlist = pvlist
         self.larch = larch
+        self.parent = parent
         scrolled.ScrolledPanel.__init__(self, parent,
                                         size=size, style=style,
                                         name=self.__name__)
@@ -88,47 +89,64 @@ class GenericScanPanel(scrolled.ScrolledPanel):
             nscans   = int(self.nscans.GetValue())
             self.scandb.set_info('nscans', nscans)
 
-    def finish_layout(self, row, with_nscans=True):
-        # add bottom panel
+    def add_startscan(self, with_nscans=True):
+        # add bottom panel with "Start Scan")
         bpanel = wx.Panel(self)
-        self.SetBackgroundColour(GUIColors.bg)
-        bsizer = wx.GridBagSizer(3, 2)
+        bpanel.SetBackgroundColour(GUIColors.bg)
+        bsizer = wx.GridBagSizer(2, 2)
         self.nscans = None
+        self.filename = wx.TextCtrl(bpanel, -1,
+                                    self.scandb.get_info('filename', default=''),
+                                    size=(450, -1))
+
+        self.user_comms = wx.TextCtrl(bpanel, -1, "", style=wx.TE_MULTILINE,
+                                      size=(450, 75))
+
+        bsizer.Add(SimpleText(bpanel, "File Name:"), (0, 0),   (1, 1), LEFT)
+        bsizer.Add(self.filename,                    (0, 1),   (1, 1), LEFT)
+
         if with_nscans:
             self.nscans = FloatCtrl(bpanel, precision=0, value=1,
-                                    minval=1, maxval=10000, size=(45, -1),
+                                    minval=1, maxval=99999, size=(45, -1),
                                     action=self.onSetNScans)
+            bsizer.Add(SimpleText(bpanel, "Number of Scans:"), (0, 2), (1, 1), LEFT)
+            bsizer.Add(self.nscans,     (0, 3), (1, 1), LEFT, 2)
 
-        self.filename = wx.TextCtrl(bpanel, -1,
-                                    self.scandb.get_info('filename', default=''))
-        self.filename.SetMinSize((400, 25))
-        self.user_comms = wx.TextCtrl(bpanel, -1, "", style=wx.TE_MULTILINE)
-        self.user_comms.SetMinSize((400, 75))
+        bsizer.Add(SimpleText(bpanel, "Comments:"),  (1, 0), (1, 1), LEFT)
+        bsizer.Add(self.user_comms,                  (1, 1), (2, 1), LEFT)
 
-        irow = 0
-        if with_nscans:
-            bsizer.Add(SimpleText(bpanel, "Number of Scans:"), (irow, 0), (1, 1), LEFT)
-            bsizer.Add(self.nscans,     (irow, 1), (1, 1), LEFT, 2)
-            irow += 1
+        start_btn = add_button(bpanel, "Start Scan", size=(120, -1),
+                               action=partial(self.parent.onCtrlScan, cmd='Start'))
 
-        bsizer.Add(SimpleText(bpanel, "File Name:"), (irow, 0),   (1, 1), LEFT)
-        bsizer.Add(self.filename,                    (irow, 1),   (1, 2), LEFT, 2)
-        bsizer.Add(SimpleText(bpanel, "Comments:"),  (irow+1, 0), (1, 1), LEFT)
-        bsizer.Add(self.user_comms,                  (irow+1, 1), (1, 2), LEFT, 2)
+        abort_btn = add_button(bpanel, "Abort Scan", size=(120, -1),
+                               action=partial(self.parent.onCtrlScan, cmd='Abort'))
+
+
+        pause_btn = add_button(bpanel, "Pause Scan", size=(120, -1),
+                               action=partial(self.parent.onCtrlScan, cmd='Pause'))
+
+        resume_btn = add_button(bpanel, "Resume Scan", size=(120, -1),
+                               action=partial(self.parent.onCtrlScan, cmd='Resume'))
+
+        bsizer.Add(start_btn,                  (1, 2), (1, 1), LEFT)
+        bsizer.Add(abort_btn,                  (1, 3), (1, 1), LEFT)
+        bsizer.Add(pause_btn,                  (2, 2), (1, 1), LEFT)
+        bsizer.Add(resume_btn,                 (2, 3), (1, 1), LEFT)
 
         bpanel.SetSizer(bsizer)
         bsizer.Fit(bpanel)
-
-        self.scan_message = SimpleText(self, " ", style=LEFT, size=(500, -1),
-                                       font=self.Font12, colour='#991111')
-
-        self.sizer.Add(self.scan_message, (row,   0), (1, 8), LEFT, 3)
-        self.sizer.Add(self.hline(),      (row+1, 0), (1, 8), LEFT, 3)
-        self.sizer.Add(bpanel,            (row+2, 0), (1, 8), LEFT|wx.ALL, 2)
-
-        pack(self, self.sizer)
-        self.SetupScrolling()
-        self._initialized = True
+        return bpanel
+#
+#         self.scan_message = SimpleText(self, " ", style=LEFT, size=(500, -1),
+#                                        font=self.Font12, colour='#991111')
+#
+#         self.sizer.Add(self.scan_message, (row,   0), (1, 8), LEFT, 3)
+#         self.sizer.Add(self.hline(),      (row+1, 0), (1, 8), LEFT, 3)
+#         self.sizer.Add(bpanel,            (row+2, 0), (1, 8), LEFT|wx.ALL, 2)
+#
+#         pack(self, self.sizer)
+#         self.SetupScrolling()
+#         self._initialized = True
 
     def set_scan_message(self, text, timeout=30):
         self.scan_message.SetLabel(text)
@@ -388,7 +406,19 @@ class LinearScanPanel(GenericScanPanel):
             sizer.Add(step,  (ir, 6), (1, 1), wx.ALL, 2)
             sizer.Add(npts,  (ir, 7), (1, 1), wx.ALL, 2)
 
-        self.finish_layout(ir+1, with_nscans=True)
+        bot_panel = self.add_startscan(with_nscans=True)
+
+        self.scan_message = SimpleText(self, " ", style=LEFT, size=(500, -1),
+                                       font=self.Font12, colour='#991111')
+
+        ir +=1
+        self.sizer.Add(self.scan_message, (ir,   0), (1, 8), LEFT)
+        self.sizer.Add(self.hline(),      (ir+1, 0), (1, 8), LEFT)
+        self.sizer.Add(bot_panel,         (ir+2, 0), (1, 8), LEFT|wx.ALL)
+
+        pack(self, self.sizer)
+        self.SetupScrolling()
+        self._initialized = True
         self.update_position_from_pv(0)
 
     def load_scandict(self, scan):
@@ -576,7 +606,21 @@ class XAFSScanPanel(GenericScanPanel):
         sizer.Add(SimpleText(self, "Max Time:"),  (ir, 4,), (1, 1), CEN, 3)
         sizer.Add(self.kwtimemax, (ir, 5), (1, 1), LEFT, 2)
 
-        self.finish_layout(ir+1, with_nscans=True)
+        bot_panel = self.add_startscan(with_nscans=True)
+
+        self.scan_message = SimpleText(self, " ", style=LEFT, size=(500, -1),
+                                       font=self.Font12, colour='#991111')
+
+        ir +=1
+        self.sizer.Add(self.scan_message, (ir,   0), (1, 8), LEFT)
+        self.sizer.Add(self.hline(),      (ir+1, 0), (1, 8), LEFT)
+        self.sizer.Add(bot_panel,         (ir+2, 0), (1, 8), LEFT)
+
+        pack(self, self.sizer)
+        self.SetupScrolling()
+        self._initialized = True
+        self.update_position_from_pv(0)
+
         self.inittimer = wx.Timer(self)
         self.initcounter = 0
         self.Bind(wx.EVT_TIMER, self.display_energy, self.inittimer)
@@ -731,6 +775,7 @@ class XAFSScanPanel(GenericScanPanel):
 
     def make_e0panel(self):
         p = wx.Panel(self)
+        p.SetBackgroundColour(GUIColors.bg)
         s = wx.BoxSizer(wx.HORIZONTAL)
         self.e0 = FloatCtrl(p, precision=2, value=7112.0, minval=0, maxval=1e7,
                             size=(80, -1), act_on_losefocus=True,
@@ -979,7 +1024,23 @@ class MeshScanPanel(GenericScanPanel):
             sizer.Add(step,  (ir, 6), (1, 1), wx.ALL, 2)
             sizer.Add(npts,  (ir, 7), (1, 1), wx.ALL, 2)
 
-        self.finish_layout(ir+1, with_nscans=True)
+
+
+        bot_panel = self.add_startscan(with_nscans=True)
+
+        self.scan_message = SimpleText(self, " ", style=LEFT, size=(500, -1),
+                                       font=self.Font12, colour='#991111')
+        ir += 1
+        self.sizer.Add(self.scan_message, (ir,   0), (1, 8), LEFT)
+        self.sizer.Add(self.hline(),      (ir+1, 0), (1, 8), LEFT)
+        self.sizer.Add(bot_panel,         (ir+2, 0), (1, 8), LEFT)
+
+        pack(self, self.sizer)
+        self.SetupScrolling()
+        self._initialized = True
+        self.update_position_from_pv(0)
+
+
 
     def load_scandict(self, scan):
         """load scan for mesh scan from scan dictionary
@@ -1146,9 +1207,21 @@ class SlewScanPanel(GenericScanPanel):
         ir += 1
         pack(lpanel, lsizer)
         sizer.Add(lpanel, (ir, 1), (2, 7), wx.ALL, 2)
-        ir += 2
 
-        self.finish_layout(ir+1, with_nscans=False)
+        bot_panel = self.add_startscan(with_nscans=False)
+
+        self.scan_message = SimpleText(self, " ", style=LEFT, size=(500, -1),
+                                       font=self.Font12, colour='#991111')
+        ir +=2
+        self.sizer.Add(self.scan_message, (ir,   0), (1, 8), LEFT)
+        self.sizer.Add(self.hline(),      (ir+1, 0), (1, 8), LEFT)
+        self.sizer.Add(bot_panel,         (ir+2, 0), (1, 8), LEFT)
+
+        pack(self, self.sizer)
+        self.SetupScrolling()
+        self._initialized = True
+        self.update_position_from_pv(0)
+
 
     def onDefinedMap(self, label=None, event=None):
         words = label.split()
