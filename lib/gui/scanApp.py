@@ -64,7 +64,7 @@ from ..file_utils import new_filename, nativepath, fix_filename
 from ..scandb import ScanDB
 
 from .scan_panels import (LinearScanPanel, MeshScanPanel,
-                          SlewScanPanel,   XAFSScanPanel)
+                          SlewScanPanel,  XAFSScanPanel)
 
 from ..larch_interface import LarchScanDBServer, larch
 from ..positioner import Positioner
@@ -74,7 +74,7 @@ from ..detectors import (SimpleDetector, ScalerDetector, McaDetector,
 from .liveviewerApp    import ScanViewerFrame
 from .edit_positioners import PositionerFrame
 from .edit_detectors   import DetectorFrame, ROIFrame
-from .edit_general     import SettingsFrame
+from .edit_general     import SettingsFrame, SettingsPanel
 from .edit_extrapvs    import ExtraPVsFrame
 from .edit_scandefs    import ScandefsFrame
 from .edit_macros      import MacroFrame
@@ -182,7 +182,8 @@ class ScanFrame(wx.Frame):
             pass
 
         for span in self.scanpanels:
-            span.initialize_positions()
+            if hasattr(span, 'initialize_positions'):
+                span.initialize_positions()
             span.larch = self._larch
 
         self.statusbar.SetStatusText('', 0)
@@ -207,26 +208,21 @@ class ScanFrame(wx.Frame):
         self.SetBackgroundColour(GUIColors.bg)
 
         self.scanpanels = []
-        self.scanpanel_types = []
-        self.scanpanels_nid = {}
+        # self.scanpanel_types = []
         inb  = 0
         # Notebooks   scantype   title   panel
-        creators = {'slew': SlewScanPanel,
-                    'xafs': XAFSScanPanel,
-                    'linear': LinearScanPanel}
+        notebooks = {'Settings': SettingsPanel,
+                     'Map Scans': SlewScanPanel,
+                     'XAFS Scans': XAFSScanPanel,
+                     'Linear Scans': LinearScanPanel}
 
-        self.notebooks = (('slew', 'Map Scans'),
-                          ('xafs', 'XAFS Scans'),
-                          ('linear', 'Linear Scans'),
-                          # ('commands', 'Common Commands')
-        )
-
-        for stype, title in self.notebooks:
-            span = creators[stype](self, scandb=self.scandb,
-                                   pvlist=self.pvlist)
+        for title, creator in notebooks.items():
+            span = creator(self, scandb=self.scandb, title=title,
+                           pvlist=self.pvlist)
+            print("CREATOR ", title, creator, span)
             self.nb.AddPage(span, title, True)
             self.scanpanels.append(span)
-            self.scanpanel_types.append(stype)
+            # self.scanpanel_types.append(stype)
 
         self.nb.SetSelection(0)
         sizer.Add(self.nb, 1, wx.ALL|wx.EXPAND)
@@ -419,9 +415,7 @@ class ScanFrame(wx.Frame):
                              ("Quit\tCtrl+Q",
                               "Quit program", self.onClose))
 
-        menu_dat['Setup'] = (("General Settings",
-                              "General Setup", self.onEditSettings),
-                             ('Change &Working Folder\tCtrl+W',
+        menu_dat['Setup'] = (('Change &Working Folder\tCtrl+W',
                               "Choose working directory",  self.onFolderSelect),
                              ('Show Plot Window\tCtrl+P',
                               "Show Window for Plotting Scan", self.onShowPlot),
@@ -480,7 +474,7 @@ class ScanFrame(wx.Frame):
 
     def show_subframe(self, name, frameclass):
         shown = False
-        
+
         if name in self.subframes:
             try:
                 self.subframes[name].Raise()
@@ -606,8 +600,9 @@ class ScanFrame(wx.Frame):
         _alltypes  = self.scandb.get_info('scandefs_load_showalltypes',
                                           as_bool=True, default=0)
         stype = None
+        print("READ SCAN DEF ", self.nb.GetSelection())
         if not _alltypes:
-            stype = self.scanpanel_types[self.nb.GetSelection()]
+            pass # stype = self.scanpanel_types[self.nb.GetSelection()]
         snames = []
         for sdef in self.scandb.getall('scandefs', orderby='last_used_time'):
             if sdef.type is None:
@@ -651,7 +646,8 @@ class ScanFrame(wx.Frame):
             scandict = {'type': None}
 
         stype = scandict['type'].lower()
-        iscan = self.scanpanel_types.index(stype)
+        print("READ SCAN TYPE ", stype)
+        # iscan = self.scanpanel_types.index(stype)
         self.nb.SetSelection(iscan)
         self.scanpanels[iscan].load_scandict(scan)
 
@@ -709,7 +705,8 @@ class ScanFrame(wx.Frame):
         stype = scan['type'].lower()
         if stype == 'qxafs':
             stype = 'xafs'
-        iscan = self.scanpanel_types.index(stype)
+        print("SCAN PANEL ", stype)
+        # iscan = self.scanpanel_types.index(stype)
         self.nb.SetSelection(iscan)
         self.scanpanels[iscan].load_scandict(scan)
 

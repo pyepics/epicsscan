@@ -43,7 +43,7 @@ ELEM_LIST = ('H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na',
 class GenericScanPanel(scrolled.ScrolledPanel):
     __name__ = 'genericScan'
     def __init__(self, parent, scandb=None, pvlist=None, larch=None,
-                 size=(760, 380), style=wx.GROW|wx.TAB_TRAVERSAL):
+                 title='?', size=(760, 380), style=wx.GROW|wx.TAB_TRAVERSAL):
 
         self.scandb = scandb
         self.pvlist = pvlist
@@ -188,7 +188,8 @@ class GenericScanPanel(scrolled.ScrolledPanel):
                                                   label='dwelltime'))
 
         self.est_time  = SimpleText(self, '  00:00:00  ')
-        title  =  SimpleText(self, " %s" % title, style=LEFT,
+        titlex =  SimpleText(self, " %s" % title, style=LEFT,
+                             size=(250, -1),
                              font=self.Font13, colour='#880000')
         alabel = SimpleText(self, ' Mode: ', size=(60, -1))
         dlabel = SimpleText(self, ' Time/Point (sec):')
@@ -196,7 +197,7 @@ class GenericScanPanel(scrolled.ScrolledPanel):
 
         sizer = self.sizer
 
-        sizer.Add(title,          (0, 0), (1, 3), LEFT,  3)
+        sizer.Add(titlex,         (0, 0), (1, 3), LEFT,  3)
         sizer.Add(tlabel,         (0, 4), (1, 2), RIGHT, 3)
         sizer.Add(self.est_time,  (0, 6), (1, 2), CEN,   3)
         sizer.Add(alabel,         (1, 0), (1, 1), LEFT,  3)
@@ -702,8 +703,9 @@ class XAFSScanPanel(GenericScanPanel):
                                    action=partial(self.onVal, label='nreg'))
         nregs = self.nregs_wid.GetValue()
 
-        title  =  SimpleText(self, " %s" % title, style=LEFT,
-                             font=self.Font13, colour='#880000')
+        titlex  =  SimpleText(self, " %s" % title, style=LEFT,
+                              size=(250, -1),
+                              font=self.Font13, colour='#880000')
 
         alabel = SimpleText(self, ' Mode: ', size=(60, -1))
         dlabel = SimpleText(self, ' Time/Pt (s):')
@@ -712,7 +714,7 @@ class XAFSScanPanel(GenericScanPanel):
 
         sizer = self.sizer
 
-        sizer.Add(title,          (0, 0), (1, 3), LEFT,  3)
+        sizer.Add(titlex,         (0, 0), (1, 3), LEFT,  3)
         sizer.Add(tlabel,         (0, 4), (1, 2), RIGHT, 3)
         sizer.Add(self.est_time,  (0, 6), (1, 2), CEN,   3)
         sizer.Add(alabel,         (1, 0), (1, 1), LEFT,  3)
@@ -1062,7 +1064,7 @@ class SlewScanPanel(GenericScanPanel):
 
         sizer = self.sizer
 
-        ir = self.top_widgets('Slew Scan (Fast Map)', with_absrel=False,
+        ir = self.top_widgets('Map Scan (slewscan)', with_absrel=False,
                               dwell_value=0.050)
 
         self.dimchoice = add_choice(self, ('1', '2'), action = self.onDim)

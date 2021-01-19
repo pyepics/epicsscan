@@ -2,12 +2,71 @@
 # general parameter frame
 import sys
 import time
-
+from functools import partial
 import wx
 import wx.lib.scrolledpanel as scrolled
 
-from .gui_utils import (GUIColors, add_button, pack, SimpleText, check,
-                        okcancel, add_subtitle, LEFT, Font)
+from .gui_utils import (GUIColors, add_button, pack, SimpleText, TextCtrl,
+                        HLine, check, okcancel, add_subtitle, LEFT, Font)
+
+class SettingsPanel(scrolled.ScrolledPanel):
+    __name__ = 'General Settings'
+    def __init__(self, parent, scandb=None, pvlist=None, title='foo',
+                 size=(760, 380), style=wx.GROW|wx.TAB_TRAVERSAL):
+
+        self.scandb = scandb
+        scrolled.ScrolledPanel.__init__(self, parent,
+                                        size=size, style=style,
+                                        name=self.__name__)
+        print("settings panel ", self.__name__)
+        self.Font13 = wx.Font(13, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
+        self.Font12 = wx.Font(12, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
+        self.sizer = wx.GridBagSizer(3, 2)
+        self.SetBackgroundColour(GUIColors.bg)
+        self._initialized = False # used to shunt events while creating windows
+
+        self.SetFont(Font(9))
+        sizer = wx.GridBagSizer(3, 2)
+
+        # title row
+        title = SimpleText(self, ' General Settings',  font=Font(13),
+                           size=(250, -1),
+                           colour=GUIColors.title, style=LEFT)
+        sizer.Add(title,                      (0, 0), (1, 3), LEFT|wx.ALL)
+        sizer.Add(HLine(self, size=(600, 3)), (1, 0), (1, 3), LEFT)
+
+        ir = 2
+        expt_fields = ['experiment_username',
+                       'experiment_id',
+                       'experiment_monoxtal',
+                       'experiment_beamsize',
+                       'experiment_xrfdet',
+                       'experiment_xrffilter',
+                       'experiment_xrddet',
+                       'experiment_analyzer',
+                       'experiment_analyzed_energy']
+
+        expt_info = scandb.get_info(prefix='experiment_')
+        expt_data = {r.key: (r.value, r.notes) for r in expt_info}
+        for row in expt_info:
+            if row.key not in expt_fields:
+                expt_fields.append(row.key)
+
+        for key in expt_fields:
+            ir += 1
+            val, desc = expt_data[key]
+            label = SimpleText(self, " %s" % desc, size=(200, -1))
+            value = TextCtrl(self, value=val, size=(250, -1),
+                             action=partial(self.onSetValue, label=key))
+            sizer.Add(label, (ir, 0),  (1, 1), LEFT)
+            sizer.Add(value, (ir, 1),  (1, 1), LEFT)
+        pack(self, sizer)
+
+    def onSetValue(self, value, label=None, **kws):
+        if label is not None and len(label) > 0:
+            self.scandb.set_info(label, value)
+
+
 
 class SettingsFrame(wx.Frame) :
     """Frame for Setup General Settings:
@@ -31,7 +90,7 @@ class SettingsFrame(wx.Frame) :
         panel.SetBackgroundColour(GUIColors.bg)
 
         # title row
-        title = SimpleText(panel, ' General Settings',  font=Font(13),
+        title = SimpleText(panel, 'Options',  font=Font(13),
                            colour=GUIColors.title, style=LEFT)
         sizer.Add(title,    (0, 0), (1, 3), LEFT|wx.ALL, 2)
         ir = 0

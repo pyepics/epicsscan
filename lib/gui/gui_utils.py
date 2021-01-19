@@ -12,7 +12,7 @@ import numpy
 HAS_NUMPY = True
 
 from wxutils import (fix_filename, FileOpen, FileSave, SelectWorkdir, TextCtrl,
-                     SimpleText, HyperText, YesNo, FloatCtrl, hms, Font,
+                     SimpleText, HyperText, YesNo, FloatCtrl, hms, Font, HLine,
                      LEFT, RIGHT, CEN, FRAMESTYLE, LTEXT, GUIColors)
 
 import wx.dataview as dv
