@@ -13,6 +13,8 @@ from .gui_utils import (GUIColors, set_font_with_children, YesNo, popup,
                         add_subtitle, Font, LEFT, FRAMESTYLE,
                         FNB_STYLE)
 
+def cmp(x, y): return (x>y)-(y>x)
+
 
 class RenameDialog(wx.Dialog):
     """Rename a Scan Name"""
@@ -158,7 +160,6 @@ class ScanDefPanel(wx.Panel):
             icol += 1
 
     def _getscans(self, orderby='last_used_time'):
-
         if self.name_filter is  None or len(self.name_filter) < 1:
             self.name_filter = ''
 
@@ -170,7 +171,8 @@ class ScanDefPanel(wx.Panel):
         if self.name_filter not in (None, 'None', ''):
             q = q.where(table.c.name.ilike('%%%s%%' % self.name_filter))
 
-        out = q.order_by(orderby).execute().fetchall()
+        out = list(reversed(q.order_by(orderby).execute().fetchall()))
+
         if not self.show_dunder:
             tmp = []
             for row in out:
@@ -416,7 +418,7 @@ class ScandefsFrame(wx.Frame) :
                                  size=(40, -1))
         self.show_dunder.Bind(wx.EVT_CHECKBOX,self.onToggleDunder)
 
-        rsizer.Add(SimpleText(panel, "Filter: ",
+        rsizer.Add(SimpleText(panel, "Filter: ", size=(100, -1),
                              font=Font(12), style=LEFT), 0, LEFT, 5)
         rsizer.Add(self.searchstring, 1, LEFT, 2)
 
@@ -433,11 +435,11 @@ class ScandefsFrame(wx.Frame) :
         creators = {'xafs': XAFSScanDefs,
                    'slew': SlewScanDefs,
                    'linear': LinearScanDefs}
-        for stype, title in self.parent.notebooks:
-            table = creators[stype](self, self.scandb)
+        for label, defclass in creators.items():
+            table = defclass(self, self.scandb)
             self.tables.append(table)
-            self.nb.AddPage(table, title)
-            self.nblabels.append((stype, table))
+            self.nb.AddPage(table, "%s scans" % label)
+            self.nblabels.append((label, table))
 
         self.nb.SetSelection(0)
         sizer.Add(self.nb, 1, wx.ALL|wx.EXPAND, 5)
