@@ -15,7 +15,7 @@ from collections import OrderedDict
 import epics
 from .gui_utils import (GUIColors, set_font_with_children, YesNo,
                         add_menu, add_button, add_choice, pack, SimpleText,
-                        FileOpen, FileSave, popup, FloatCtrl,
+                        FileOpen, FileSave, popup, FloatCtrl, HLine,
                         FRAMESTYLE, Font, FNB_STYLE, LEFT, RIGHT, CEN, DVSTYLE, cmp)
 
 from .common_commands  import CommonCommandsFrame, CommonCommandsAdminFrame
@@ -25,7 +25,7 @@ from ..scandb import InstrumentDB
 import larch
 from larch.wxlib.readlinetextctrl import ReadlineTextCtrl
 
-AUTOSAVE_FILE = 'macros_autosave.lar'
+
 MACRO_HISTORY = 'scan_macro_history.lar'
 LONG_AGO = datetime.now()-timedelta(2000)
 COLOR_MSG  = '#0099BB'
@@ -255,6 +255,10 @@ class PositionCommandFrame(wx.Frame) :
         self.scanname.SetSelection(0)
 
     def onInsert(self, event=None):
+        editor = self.parent.get_editor()
+        if editor is None:
+            return
+
         datatype = self.datatype.GetStringSelection()
         buff = ["#commands added at positions"]
         if datatype.lower().startswith('xrd'):
@@ -271,7 +275,7 @@ class PositionCommandFrame(wx.Frame) :
                     buff.append(command % (repr(posname), repr(scanname), nscans))
         buff.append("#\n")
         try:
-            self.parent.subframes['macro'].editor.AppendText("\n".join(buff))
+            editor.AppendText("\n".join(buff))
         except:
             print("No editor?")
 
@@ -301,80 +305,136 @@ class PositionCommandFrame(wx.Frame) :
         self.Refresh()
         self.dvc.EnsureVisible(self.model.GetItem(0))
 
-
-
-class MacroFrame(wx.Frame) :
-    """Edit/Manage Macros (Larch Code)"""
+class CommandsPanel(scrolled.ScrolledPanel):
     output_colors = {'error_message': COLOR_ERR,
                      'scan_message':COLOR_OK}
     output_fields = ('error_message', 'scan_message')
-
     info_mapping = {'FileName': 'filename',
                     'Command': 'current_command',
                     'Status': 'scan_status',
                     'Progress': 'scan_progress',
                     'Time': 'heartbeat'}
 
-    def __init__(self, parent, scandb=None, _larch=None,
-                 pos=(-1, -1), size=(850, 600)):
+    def __init__(self, parent, scandb=None, pvlist=None, title='Settings',
+                 size=(760, 380), style=wx.GROW|wx.TAB_TRAVERSAL):
 
-        self.parent = parent
-        self.scandb = parent.scandb if scandb is None else scandb
-        self.subframes = {}
-        self.winfo = OrderedDict()
+        self.scandb = scandb
         self.output_stats = {}
         self.last_heartbeat = LONG_AGO
         self.last_start_request = 0
         for key in self.output_fields:
             self.output_stats[key] = LONG_AGO
 
-        wx.Frame.__init__(self, None, -1,  title='Epics Scanning: Macro',
-                          style=FRAMESTYLE, size=size)
+        scrolled.ScrolledPanel.__init__(self, parent, size=size,
+                                        name='Macro', style=style)
 
-        self.SetFont(Font(10))
-        sizer = wx.BoxSizer(wx.VERTICAL)
-
-        self.createMenus()
-        self.db_messages = ScanDBMessageQueue(self.scandb)
+        self.Font13 = wx.Font(13, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
+        self.Font12 = wx.Font(12, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
         self.SetBackgroundColour(GUIColors.bg)
+        self._initialized = False # used to shunt events while creating windows
+        self.SetFont(Font(9))
 
-        self.editor = wx.TextCtrl(self, -1, size=(600, 275),
+        self.db_messages = ScanDBMessageQueue(self.scandb)
+
+        # title row
+        title = SimpleText(self, 'Commands and Macros',  font=Font(13),
+                           size=(250, -1),
+                           colour=GUIColors.title, style=LEFT)
+
+        info_panel = self.make_info_panel()
+
+        self.editor = wx.TextCtrl(self, -1, size=(650, 225),
                                   style=wx.TE_MULTILINE|wx.TE_RICH2)
         self.editor.SetBackgroundColour('#FFFFFF')
-
         text = """# Edit Macro text here\n#\n"""
         self.editor.SetValue(text)
         self.editor.SetInsertionPoint(len(text)-2)
-        self.ReadMacroFile(AUTOSAVE_FILE)
+
+        buttonpanel = wx.Panel(self)
+        buttonpanel.SetBackgroundColour(GUIColors.bg)
+        bsizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.start_btn  = add_button(buttonpanel, label='Submit',  action=self.onStart)
+        self.pause_btn  = add_button(buttonpanel, label='Pause',  action=self.onPause)
+        self.resume_btn = add_button(buttonpanel, label='Resume',  action=self.onResume)
+        self.cancel_btn = add_button(buttonpanel, label='Cancel All', action=self.onCancelAll)
+        bsizer.Add(self.start_btn)
+        bsizer.Add(self.pause_btn)
+        bsizer.Add(self.resume_btn)
+        bsizer.Add(self.cancel_btn)
+        pack(buttonpanel, bsizer)
 
         sfont = wx.Font(11,  wx.SWISS, wx.NORMAL, wx.BOLD, False)
-        self.output = wx.TextCtrl(self, -1,  '## Output Buffer\n', size=(600, 275),
+        self.output = wx.TextCtrl(self, -1,  '## Output Buffer\n', size=(650, 200),
                                   style=wx.TE_MULTILINE|wx.TE_RICH|wx.TE_READONLY)
         self.output.CanCopy()
         self.output.SetInsertionPointEnd()
         self.output.SetDefaultStyle(wx.TextAttr('black', 'white', sfont))
 
-        sizer.Add(self.make_info(),    0, LEFT|wx.GROW|wx.ALL, 3)
-        sizer.Add(self.make_buttons(), 0, LEFT|wx.GROW|wx.ALL, 3)
-        sizer.Add(self.editor, 1, CEN|wx.GROW|wx.ALL, 3)
-        sizer.Add(self.output, 1, CEN|wx.GROW|wx.ALL, 3)
+        input_panel = self.make_input_panel()
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(title, 0, LEFT)
+        sizer.Add(info_panel,  0, LEFT|wx.ALL)
+        sizer.Add(self.editor, 1, LEFT|wx.GROW)
+        sizer.Add(buttonpanel, 0, LEFT, 2)
+        sizer.Add(self.output, 1, LEFT|wx.GROW)
+        sizer.Add(input_panel, 0, LEFT|wx.GROW, 2)
 
-
-        sizer.Add(self.InputPanel(),  0, border=2, flag=wx.ALL|wx.EXPAND)
-
-
+        self.SetBackgroundColour(GUIColors.bg)
         self._stimer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.update_info, self._stimer)
         self._stimer.Start(500)
 
-        self.Bind(wx.EVT_CLOSE, self.onClose)
-        self.SetMinSize((600, 520))
         pack(self, sizer)
-        self.Show()
-        self.Raise()
 
-    def reload_macros(self):
-        self.scandb.add_command('load_macros()')
+    def make_input_panel(self):
+        panel = wx.Panel(self)
+        panel.SetBackgroundColour(GUIColors.bg)
+        self.prompt = wx.StaticText(panel, -1, 'Command>', size = (95,-1),
+                                    style=RIGHT)
+        self.histfile = os.path.join(larch.site_config.usr_larchdir, MACRO_HISTORY)
+        self.input = ReadlineTextCtrl(panel, -1,  '', size=(525, -1),
+                                      historyfile=self.histfile,
+                                      style=wx.ALIGN_LEFT|wx.TE_PROCESS_ENTER)
+
+        self.input.Bind(wx.EVT_TEXT_ENTER, self.onText)
+        sizer = wx.BoxSizer(wx.HORIZONTAL)
+
+        sizer.Add(self.prompt,  0, wx.BOTTOM|wx.CENTER)
+        sizer.Add(self.input,   1, wx.ALIGN_LEFT|wx.EXPAND)
+        panel.SetSizer(sizer)
+        sizer.Fit(panel)
+        return panel
+
+    def make_info_panel(self):
+        sizer = wx.GridBagSizer(2, 2)
+        panel = wx.Panel(self)
+        panel.SetBackgroundColour(GUIColors.bg)
+
+        self.winfo = OrderedDict()
+
+        opts1 = {'label':' '*250, 'colour': COLOR_OK, 'size': (600, -1), 'style': LEFT}
+        opts2 = {'label':' '*50, 'colour': COLOR_OK, 'size': (200, -1), 'style': LEFT}
+        self.winfo['FileName'] = SimpleText(panel, **opts1)
+        self.winfo['Command']  = SimpleText(panel, **opts1)
+        self.winfo['Progress'] = SimpleText(panel, **opts1)
+        self.winfo['Status']   = SimpleText(panel, **opts2)
+        self.winfo['Time']     = SimpleText(panel, **opts2)
+
+        stat_label  = SimpleText(panel, "Status:", size=(100, -1), style=LEFT)
+        time_label  = SimpleText(panel, "Time:"  , size=(100, -1), style=LEFT)
+        sizer.Add(stat_label,            (0, 0), (1, 1), LEFT, 1)
+        sizer.Add(self.winfo['Status'],  (0, 1), (1, 1), LEFT, 1)
+        sizer.Add(time_label,            (0, 2), (1, 1), LEFT, 1)
+        sizer.Add(self.winfo['Time'],    (0, 3), (1, 1), LEFT, 1)
+
+        irow = 1
+        for attr in ('Command', 'FileName', 'Progress'):
+            lab  = SimpleText(panel, "%s:" % attr, size=(100, -1), style=LEFT)
+            sizer.Add(lab,               (irow, 0), (1, 1), LEFT, 1)
+            sizer.Add(self.winfo[attr],  (irow, 1), (1, 3), LEFT, 1)
+            irow += 1
+        pack(panel, sizer)
+        return panel
 
     def update_info(self, evt=None):
         paused = self.scandb.get_info('request_pause', as_bool=True)
@@ -408,116 +468,6 @@ class MacroFrame(wx.Frame) :
             col = COLOR_ERR
         self.winfo['Time'].SetForegroundColour(col)
 
-    def make_info(self):
-        panel = wx.Panel(self)
-        sizer = wx.GridBagSizer(3, 2)
-
-        self.winfo = OrderedDict()
-        opts1 = {'label':' '*250, 'colour': COLOR_OK, 'size': (600, -1), 'style': LEFT}
-        opts2 = {'label':' '*50, 'colour': COLOR_OK, 'size': (200, -1), 'style': LEFT}
-        self.winfo['FileName'] = SimpleText(panel, **opts1)
-        self.winfo['Command']  = SimpleText(panel, **opts1)
-        self.winfo['Progress'] = SimpleText(panel, **opts1)
-        self.winfo['Status']   = SimpleText(panel, **opts2)
-        self.winfo['Time']     = SimpleText(panel, **opts2)
-
-        irow, icol = 0, 0
-        for attr in ('Status', 'Time'):
-            lab  = SimpleText(panel, "%s:" % attr, size=(100, -1), style=LEFT)
-            sizer.Add(lab,               (irow, icol),   (1, 1), LEFT, 1)
-            sizer.Add(self.winfo[attr],  (irow, icol+1), (1, 1), LEFT, 1)
-            icol +=2
-
-        irow += 1
-        icol = 0
-        for attr in ('Command', 'FileName', 'Progress'):
-            lab  = SimpleText(panel, "%s:" % attr, size=(100, -1), style=LEFT)
-            sizer.Add(lab,               (irow, 0), (1, 1), LEFT, 1)
-            sizer.Add(self.winfo[attr],  (irow, 1), (1, 3), LEFT, 1)
-            irow += 1
-
-        pack(panel, sizer)
-        return panel
-
-    def make_buttons(self):
-        panel = wx.Panel(self)
-        sizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.start_btn  = add_button(panel, label='Submit',  action=self.onStart)
-        self.pause_btn  = add_button(panel, label='Pause',  action=self.onPause)
-        self.resume_btn = add_button(panel, label='Resume',  action=self.onResume)
-        self.cancel_btn = add_button(panel, label='Cancel All', action=self.onCancelAll)
-        # self.abort_btn  = add_button(panel, label='Abort Command',  action=self.onAbort)
-        # self.restart_btn = add_button(panel, label='Restart Server',
-        # action=self.onRestartServer)
-
-        sizer.Add(self.start_btn,  0, LEFT, 2)
-        sizer.Add(self.pause_btn,  0, LEFT, 2)
-        sizer.Add(self.resume_btn, 0, LEFT, 2)
-        sizer.Add(self.cancel_btn, 0, LEFT, 2)
-        pack(panel, sizer)
-        return panel
-
-    def createMenus(self):
-        self.menubar = wx.MenuBar()
-        # file
-        fmenu = wx.Menu()
-        add_menu(self, fmenu, "Read Macro\tCtrl+R",
-                 "Read Macro", self.onReadMacro)
-
-        add_menu(self, fmenu, "Save Macro\tCtrl+S",
-                 "Save Macro", self.onSaveMacro)
-
-        fmenu.AppendSeparator()
-        add_menu(self, fmenu, "Quit\tCtrl+Q",
-                 "Quit Macro", self.onClose)
-
-        # commands
-        pmenu = wx.Menu()
-        add_menu(self, pmenu, "Show Command Sequence",  "Show Queue of Commands",
-                 self.onEditSequence)
-        add_menu(self, pmenu, "Add Common Commands",
-                 "Common Commands", self.onCommonCommands)
-        add_menu(self, pmenu, "Scan at Selected Positions",
-                 "Position Scans", self.onBuildPosScan)
-        pmenu.AppendSeparator()
-        add_menu(self, pmenu, "Admin Common Commands",
-                 "Admin Common Commands", self.onCommonCommandsAdmin)
-
-        smenu = wx.Menu()
-
-        self.menubar.Append(fmenu, "&File")
-        self.menubar.Append(pmenu, "Commands and Sequence")
-        self.SetMenuBar(self.menubar)
-
-    def InputPanel(self):
-        panel = wx.Panel(self, -1)
-        self.prompt = wx.StaticText(panel, -1, ' >>>', size = (30,-1),
-                                    style=RIGHT)
-        self.histfile = os.path.join(larch.site_config.usr_larchdir, MACRO_HISTORY)
-        self.input = ReadlineTextCtrl(panel, -1,  '', size=(525, -1),
-                                      historyfile=self.histfile,
-                                      style=wx.ALIGN_LEFT|wx.TE_PROCESS_ENTER)
-
-        self.input.Bind(wx.EVT_TEXT_ENTER, self.onText)
-        sizer = wx.BoxSizer(wx.HORIZONTAL)
-
-        sizer.Add(self.prompt,  0, wx.BOTTOM|wx.CENTER)
-        sizer.Add(self.input,   1, wx.ALIGN_LEFT|wx.EXPAND)
-        panel.SetSizer(sizer)
-        sizer.Fit(panel)
-        return panel
-
-    def onText(self, event=None):
-        text = event.GetString().strip()
-        if len(text) < 1:
-            return
-        self.input.Clear()
-        self.input.AddToHistory(text)
-        out = self.scandb.add_command(text)
-        self.scandb.commit()
-        time.sleep(0.01)
-        self.writeOutput(text)
-
     def writeOutput(self, text, color=None, with_nl=True):
         pos0 = self.output.GetLastPosition()
         if with_nl and not text.endswith('\n'):
@@ -532,61 +482,46 @@ class MacroFrame(wx.Frame) :
         self.output.SetInsertionPoint(self.output.GetLastPosition())
         self.output.Refresh()
 
-    def onBuildPosScan(self, event=None):
-        # self.parent.show_subframe('buildposmacro', PosScanMacroBuilder)
-        self.parent.show_subframe('buildposmacro', PositionCommandFrame)
 
-    def onBuildPosXRD(self, event=None):
-        self.parent.show_subframe('buildxrdsmacro', PosXRDMacroBuilder)
+    def onText(self, event=None):
+        print("on Text")
+        text = event.GetString().strip()
+        if len(text) < 1:
+            return
+        self.input.Clear()
+        self.input.AddToHistory(text)
+        out = self.scandb.add_command(text)
+        self.scandb.commit()
+        time.sleep(0.01)
+        self.writeOutput(text)
 
-    def onCommonCommands(self, evt=None):
-        self.parent.show_subframe('commands', CommonCommandsFrame)
+    def onPanelExposed(self, evt=None):
+        pass
 
-    def onCommonCommandsAdmin(self, evt=None):
-        self.parent.show_subframe('commands_admin', CommonCommandsAdminFrame)
+    def onPause(self, event=None):
+        self.scandb.set_info('request_pause', 1)
+        self.scandb.commit()
+        self.pause_btn.Disable()
+        self.resume_btn.SetBackgroundColour("#D1D122")
 
-    def onEditSequence(self, evt=None):
-        self.parent.show_subframe('sequence', ScanSequenceFrame)
+    def onResume(self, event=None):
+        self.scandb.set_info('request_pause', 0)
+        self.scandb.commit()
+        self.pause_btn.Enable()
+        fg = self.pause_btn.GetBackgroundColour()
+        self.resume_btn.SetBackgroundColour(fg)
 
-    def onReadMacro(self, event=None):
-        wcard = 'Scan files (*.lar)|*.lar|All files (*.*)|*.*'
-        fname = FileOpen(self, "Read Macro from File",
-                         default_file='macro.lar',
-                         wildcard=wcard)
-        if fname is not None:
-            self.ReadMacroFile(fname)
+    def onAbort(self, event=None):
+        self.scandb.set_info('request_abort', 1)
+        self.scandb.commit()
+        time.sleep(1.0)
 
-    def ReadMacroFile(self, fname):
-        if os.path.exists(fname):
-            try:
-                text = open(fname, 'r').read()
-            except:
-                logging.exception('could not read MacroFile %s' % fname)
-            finally:
-                self.editor.SetValue(text)
-                self.editor.SetInsertionPoint(len(text)-2)
-
-    def onSaveMacro(self, event=None):
-        wcard = 'Scan files (*.lar)|*.lar|All files (*.*)|*.*'
-        fname = FileSave(self, 'Save Macro to File',
-                         default_file='macro.lar', wildcard=wcard)
-        fname = os.path.join(os.getcwd(), fname)
-        if fname is not None:
-            if os.path.exists(fname):
-                ret = popup(self, "Overwrite Macro File '%s'?" % fname,
-                            "Really Overwrite Macro File?",
-                            style=wx.YES_NO|wx.NO_DEFAULT|wx.ICON_QUESTION)
-                if ret != wx.ID_YES:
-                    return
-            self.SaveMacroFile(fname)
-
-    def SaveMacroFile(self, fname):
-        try:
-            fh = open(fname, 'w')
-            fh.write('%s\n' % self.editor.GetValue())
-            fh.close()
-        except:
-            print('could not save MacroFile %s' % fname)
+    def onCancelAll(self, event=None):
+        self.onPause()
+        self.scandb.set_info('request_abort', 1)
+        self.scandb.cancel_remaining_commands()
+        time.sleep(1.0)
+        self.onResume()
 
     def onStart(self, event=None):
         now = time.time()
@@ -603,65 +538,14 @@ class MacroFrame(wx.Frame) :
                 out.append(lin)
             else:
                 out.append('#%s' % lin)
-                
+
             lin = lin.split('#', 1)[0].strip()
             if len(lin) > 0:
                 self.scandb.add_command(lin)
         self.scandb.commit()
         self.scandb.set_info('request_abort',  0)
         self.scandb.set_info('request_pause',  0)
-        
+
         out = '\n'.join(out)
         self.editor.SetValue(out)
         self.editor.SetInsertionPoint(len(out)-1)
-       
-
-    def onPause(self, event=None):
-        self.scandb.set_info('request_pause', 1)
-        self.scandb.commit()
-        self.pause_btn.Disable()
-        # self.start_btn.Disable()
-        self.resume_btn.SetBackgroundColour("#D1D122")
-
-    def onResume(self, event=None):
-        self.scandb.set_info('request_pause', 0)
-        self.scandb.commit()
-        self.pause_btn.Enable()
-        # self.start_btn.Enable()
-        fg = self.pause_btn.GetBackgroundColour()
-        self.resume_btn.SetBackgroundColour(fg)
-
-    def onAbort(self, event=None):
-        self.scandb.set_info('request_abort', 1)
-        self.scandb.commit()
-        time.sleep(1.0)
-
-    def onCancelAll(self, event=None):
-        self.onPause()
-        self.scandb.set_info('request_abort', 1)
-        self.scandb.cancel_remaining_commands()
-        time.sleep(1.0)
-        self.onResume()
-
-    def onRestartServer(self, event=None):
-        self.onPause()
-        self.scandb.cancel_remaining_commands()
-        self.onAbort()
-        time.sleep(0.5)
-        self.onResume()
-        print(" on restart server ")
-        epv = self.scandb.get_info('epics_status_prefix', default=None)
-        if epv is not None:
-            shutdownpv = epics.PV(epv + 'Shutdown')
-            time.sleep(.1)
-            print("Shutdown PV ", shutdownpv)
-            shutdownpv.put(1)
-
-    def onClose(self, event=None):
-        self.SaveMacroFile(AUTOSAVE_FILE)
-        self._stimer.Stop()
-
-        time.sleep(0.25)
-        self.input.SaveHistory(self.histfile)
-        time.sleep(0.25)
-        self.Destroy()
