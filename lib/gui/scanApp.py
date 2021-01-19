@@ -77,11 +77,15 @@ from .edit_detectors   import DetectorFrame, ROIFrame
 from .edit_general     import SettingsFrame, SettingsPanel
 from .edit_extrapvs    import ExtraPVsFrame
 from .edit_scandefs    import ScandefsFrame
-from .edit_macros      import MacroFrame
+from .edit_macros      import CommandsPanel, PositionCommandFrame
+from .common_commands  import CommonCommandsFrame, CommonCommandsAdminFrame
+from .edit_sequences   import ScanSequenceFrame
+
 
 ICON_FILE = 'epics_scan.ico'
 
 SCANTYPES = ('slew', 'xafs', 'linear')
+AUTOSAVE_FILE = 'macros_autosave.lar'
 
 def compare_scans(scan1, scan2, verbose=False):
     "compare dictionary for 2 scans"
@@ -192,10 +196,8 @@ class ScanFrame(wx.Frame):
         self.onFolderSelect()
 
         self.onShowPlot()
-        self.onEditMacro()
         self.connect_epics()
-        # self.restart_server()
-
+        self.ReadMacroFile(AUTOSAVE_FILE, show=False)
 
     def createMainPanel(self):
         self.SetTitle("Epics Scans")
@@ -208,11 +210,13 @@ class ScanFrame(wx.Frame):
         NB_PANELS = {'Settings': SettingsPanel,
                      'Map Scans': SlewScanPanel,
                      'XAFS Scans': XAFSScanPanel,
-                     'Linear Scans': LinearScanPanel}
+                     'Linear Scans': LinearScanPanel,
+                     'Commands': CommandsPanel}
 
         self.nb = flatnotebook(self, NB_PANELS,
                                panelkws=dict(scandb=self.scandb,
-                                             pvlist=self.pvlist),
+                                             pvlist=self.pvlist,
+                                         ),
                                on_change=self.onNBChanged)
 
         self.nb.SetSize((750, 600))
@@ -221,23 +225,8 @@ class ScanFrame(wx.Frame):
 
         self.nb.SetSelection(0)
         sizer.Add(self.nb, 1, wx.ALL|wx.EXPAND)
-        sizer.Add(wx.StaticLine(self, size=(675, 3),
-                                style=wx.LI_HORIZONTAL), 0, wx.EXPAND)
-
-        btnsizer = wx.BoxSizer(wx.HORIZONTAL)
-        btnpanel = wx.Panel(self)
-        bnames = ("Start", "Abort", "Pause", "Resume")
-        for ibtn, label in enumerate(bnames):
-            btn = add_button(btnpanel, "%s Scan" % label, size=(120, -1),
-                             action=partial(self.onCtrlScan, cmd=label))
-            btnsizer.Add(btn, 0, CEN, 8)
-        pack(btnpanel, btnsizer)
-
-        sizer.Add(btnpanel, 0, LEFT, 3)
-        self.SetSizer(sizer)
-        sizer.Fit(self)
-        self.nb.SetSize((750, 675))
-        self.SetSize((775, 700))
+        pack(self, sizer)
+        self.SetSize((850, 750))
         self._icon = None
 
     def get_nbpage(self, name):
@@ -408,32 +397,48 @@ class ScanFrame(wx.Frame):
             self.scandb.set_info('request_pause', 1)
         elif cmd.startswith('resume'):
             self.scandb.set_info('request_pause', 0)
-        time.sleep(0.5)
+        time.sleep(0.25)
 
     def createMenus(self):
         self.menubar = wx.MenuBar()
         menu_dat = OrderedDict()
-        menu_dat['&File'] = (("Read Scan Definition\tCtrl+O",
-                              "Read Scan Defintion", self.onReadScanDef),
-                             ("Save Scan Definition\tCtrl+S",
-                              "Save Scan Definition", self.onSaveScanDef),
+        menu_dat['&File'] = (
+
+                             ('Change &Working Folder\tCtrl+W',
+                              "Choose working directory",  self.onFolderSelect),
+                             ('Show Plot Window\tCtrl+P',
+                              "Show Window for Plotting Scan", self.onShowPlot),
+                             ("<separator>", "", None),
+                             ("Restart Scan Server",
+                              "Try to Restart Server",  self.onRestartServer),
                              ("<separator>", "", None),
                              ("Quit\tCtrl+Q",
                               "Quit program", self.onClose))
 
-        menu_dat['Setup'] = (('Change &Working Folder\tCtrl+W',
-                              "Choose working directory",  self.onFolderSelect),
-                             ('Show Plot Window\tCtrl+P',
-                              "Show Window for Plotting Scan", self.onShowPlot),
-                             ("Show Macro/Command Window\tCtrl+M",
-                              "Edit Macros, Run Commands",  self.onEditMacro),
-                             ("Restart Scan Server",
-                              "Try to Restart Server",  self.onRestartServer),
-                             )
+        menu_dat['Scans'] = (("Read Scan Definition\tCtrl+O",
+                              "Read Scan Defintion", self.onReadScanDef),
+                             ("Save Scan Definition\tCtrl+S",
+                              "Save Scan Definition", self.onSaveScanDef),
+                             ("Browse All Scan Definitions\tCtrl+D",
+                              "Browse and Manage Saved Scans", self.onEditScans),)
+
+        menu_dat['Commands'] = (("Read Commands File", "Read Commands from File",
+                                 self.onReadMacro),
+                                ("Save Commands File", "Save Commands to File",
+                                self.onSaveMacro),
+                                ("<separator>", "", None),
+                                ("Add Position Scans",
+                                 "Scan at Selected Positions",
+                                 self.onAddPositionScans),
+                                ("Add Commands", "Add non-scanning Commands",
+                                 self.onAddCommands),
+                                ("Show Command Queue", "Show Commands",
+                                 self.onShowCommandQueue),
+                                ("<separator>", "", None),
+                                ("Admin Commands", "Configure Common Commands",
+                                 self.onAdminCommands))
 
 
-        menu_dat['Scans'] = (("Scan Definitions\tCtrl+D",
-                              "Browsn and Manage Saved Scans", self.onEditScans),)
 
 
 
@@ -460,6 +465,18 @@ class ScanFrame(wx.Frame):
             self.menubar.Append(menu, key)
         self.SetMenuBar(self.menubar)
 
+    def onAddPositionScans(self, evt=None):
+        self.show_subframe('buildposmacro', PositionCommandFrame)
+
+    def onAddCommands(self, evt=None):
+        self.show_subframe('commands', CommonCommandsFrame)
+
+    def onShowCommandQueue(self, evt=None):
+        self.show_subframe('sequence', ScanSequenceFrame)
+
+    def onAdminCommands(self, evt=None):
+        self.show_subframe('commands_admin', CommonCommandsAdminFrame)
+
     def onAbout(self,evt):
         dlg = wx.MessageDialog(self, self._about,"About Epics StepScan",
                                wx.OK | wx.ICON_INFORMATION)
@@ -477,6 +494,55 @@ class ScanFrame(wx.Frame):
                 except:
                     pass
             self.Destroy()
+
+    def get_editor(self, show=True):
+        "make sure macro text window is shown"
+        idx, pan = self.get_nbpage('command')
+        editor = getattr(pan, 'editor', None)
+        if editor is None:
+            return None
+        if show:
+            self.nb.SetSelection(idx)
+        return pan.editor
+
+    def onReadMacro(self, event=None):
+        wcard = 'Scan files (*.lar)|*.lar|All files (*.*)|*.*'
+        fname = FileOpen(self, "Read Macro from File",
+                         default_file='macro.lar',
+                         wildcard=wcard)
+        if fname is not None:
+            self.ReadMacroFile(fname)
+
+    def ReadMacroFile(self, fname, show=True):
+        if os.path.exists(fname):
+            try:
+                text = open(fname, 'r').read()
+            except:
+                logging.exception('could not read MacroFile %s' % fname)
+            finally:
+                editor = self.get_editor(show=show)
+                editor.SetValue(text)
+                editor.SetInsertionPoint(len(text)-2)
+
+    def onSaveMacro(self, event=None):
+        wcard = 'Scan files (*.lar)|*.lar|All files (*.*)|*.*'
+        fname = FileSave(self, 'Save Macro to File',
+                         default_file='macro.lar', wildcard=wcard)
+        fname = os.path.join(os.getcwd(), fname)
+        if fname is not None and os.path.exists(fname):
+            if wx.ID_YES == popup(self, "Overwrite Macro File '%s'?" % fname,
+                                  "Really Overwrite Macro File?",
+                                  style=wx.YES_NO|wx.NO_DEFAULT|wx.ICON_QUESTION):
+                self.SaveMacroFile(fname)
+
+    def SaveMacroFile(self, fname):
+        editor = self.get_editor()
+        try:
+            fh = open(fname, 'w')
+            fh.write('%s\n' % editor.GetValue())
+            fh.close()
+        except:
+            print('could not save MacroFile %s' % fname)
 
     def show_subframe(self, name, frameclass):
         shown = False
@@ -515,8 +581,7 @@ class ScanFrame(wx.Frame):
     def onEditSettings(self, evt=None):
         self.show_subframe('settings', SettingsFrame)
 
-    def onEditMacro(self, evt=None):
-        self.show_subframe('macro', MacroFrame)
+
 
     def onRestartServer(self, evt=None):
         try:
