@@ -42,7 +42,6 @@ from datetime import timedelta
 from threading import Thread
 
 import wx
-import wx.lib.agw.flatnotebook as flat_nb
 import wx.lib.scrolledpanel as scrolled
 import wx.lib.mixins.inspection
 
@@ -53,7 +52,7 @@ from epics.wx.utils import popup
 from .gui_utils import (SimpleText, FloatCtrl, pack, add_button,
                         add_menu, add_choice, add_menu, FileOpen,
                         LEFT, CEN, FRAMESTYLE, FNB_STYLE, Font,
-                        GUIColors)
+                        GUIColors, flatnotebook)
 
 from ..utils import normalize_pvname, read_oldscanfile, atGSECARS
 
@@ -67,6 +66,7 @@ from .scan_panels import (LinearScanPanel, MeshScanPanel,
                           SlewScanPanel,  XAFSScanPanel)
 
 from ..larch_interface import LarchScanDBServer, larch
+
 from ..positioner import Positioner
 from ..detectors import (SimpleDetector, ScalerDetector, McaDetector,
                          MultiMcaDetector, AreaDetector, get_detector)
@@ -80,6 +80,8 @@ from .edit_scandefs    import ScandefsFrame
 from .edit_macros      import MacroFrame
 
 ICON_FILE = 'epics_scan.ico'
+
+SCANTYPES = ('slew', 'xafs', 'linear')
 
 def compare_scans(scan1, scan2, verbose=False):
     "compare dictionary for 2 scans"
@@ -180,11 +182,10 @@ class ScanFrame(wx.Frame):
             self.SetIcon(self._icon)
         except:
             pass
-
-        for span in self.scanpanels:
+        for span in self.nb.pagelist:
             if hasattr(span, 'initialize_positions'):
                 span.initialize_positions()
-            span.larch = self._larch
+                span.larch = self._larch
 
         self.statusbar.SetStatusText('', 0)
         self.statusbar.SetStatusText('Ready', 1)
@@ -202,27 +203,21 @@ class ScanFrame(wx.Frame):
         self.SetFont(Font(10))
 
         sizer = wx.BoxSizer(wx.VERTICAL)
-        self.nb = flat_nb.FlatNotebook(self, wx.ID_ANY, agwStyle=FNB_STYLE)
-        self.nb.SetSize((750, 600))
-        self.nb.SetBackgroundColour(GUIColors.nb_bg)
-        self.SetBackgroundColour(GUIColors.bg)
 
-        self.scanpanels = []
-        # self.scanpanel_types = []
-        inb  = 0
         # Notebooks   scantype   title   panel
-        notebooks = {'Settings': SettingsPanel,
+        NB_PANELS = {'Settings': SettingsPanel,
                      'Map Scans': SlewScanPanel,
                      'XAFS Scans': XAFSScanPanel,
                      'Linear Scans': LinearScanPanel}
 
-        for title, creator in notebooks.items():
-            span = creator(self, scandb=self.scandb, title=title,
-                           pvlist=self.pvlist)
-            print("CREATOR ", title, creator, span)
-            self.nb.AddPage(span, title, True)
-            self.scanpanels.append(span)
-            # self.scanpanel_types.append(stype)
+        self.nb = flatnotebook(self, NB_PANELS,
+                               panelkws=dict(scandb=self.scandb,
+                                             pvlist=self.pvlist),
+                               on_change=self.onNBChanged)
+
+        self.nb.SetSize((750, 600))
+        self.nb.SetBackgroundColour(GUIColors.nb_bg)
+        self.SetBackgroundColour(GUIColors.bg)
 
         self.nb.SetSelection(0)
         sizer.Add(self.nb, 1, wx.ALL|wx.EXPAND)
@@ -245,6 +240,18 @@ class ScanFrame(wx.Frame):
         self.SetSize((775, 700))
         self._icon = None
 
+    def get_nbpage(self, name):
+        "get nb page by name"
+        name = name.lower()
+        for i, page in enumerate(self.nb.pagelist):
+            if name in page.__class__.__name__.lower():
+                return (i, page)
+        return (1, self.nb.GetCurrentPage())
+
+    def onNBChanged(self, event=None):
+        callback = getattr(self.nb.GetCurrentPage(), 'onPanelExposed', None)
+        if callable(callback):
+            callback()
 
     @EpicsFunction
     def connect_epics(self):
@@ -385,8 +392,7 @@ class ScanFrame(wx.Frame):
         if status == 'idle' and self.scan_started:
             self.scan_started = False
             fname = self.scandb.get_info('filename')
-            scanpage = self.nb.GetCurrentPage()
-            scanpage.filename.SetValue(new_filename(fname))
+            self.nb.GetCurrentPage().filename.SetValue(new_filename(fname))
             self.scantimer.Stop()
 
 
@@ -600,9 +606,11 @@ class ScanFrame(wx.Frame):
         _alltypes  = self.scandb.get_info('scandefs_load_showalltypes',
                                           as_bool=True, default=0)
         stype = None
-        print("READ SCAN DEF ", self.nb.GetSelection())
         if not _alltypes:
-            pass # stype = self.scanpanel_types[self.nb.GetSelection()]
+            panelname = self.nb.GetCurrentPage().__class__.__name__.lower()
+            panelname = panelname.replace('scanpanel', '')
+            if panelname in SCANTYPES:
+                stype = panelname
         snames = []
         for sdef in self.scandb.getall('scandefs', orderby='last_used_time'):
             if sdef.type is None:
@@ -623,34 +631,6 @@ class ScanFrame(wx.Frame):
         if sname is not None:
             self.load_scan(sname)
 
-
-    def onReadOldScanFile(self, evt=None):
-        "read old scan file"
-
-        wcard = 'Scan files (*.scn)|*.scn|All files (*.*)|*.*'
-        dlg = wx.FileDialog(self,
-                            message="Open old scan file",
-                            wildcard=wcard,
-                            style=wx.FD_OPEN|wx.FD_CHANGE_DIR)
-
-        scanfile = None
-        if dlg.ShowModal() == wx.ID_OK:
-            scanfile = os.path.abspath(dlg.GetPath())
-        dlg.Destroy()
-
-        if scanfile is None:
-            return
-        try:
-            scandict = read_oldscanfile(scanfile)
-        except:
-            scandict = {'type': None}
-
-        stype = scandict['type'].lower()
-        print("READ SCAN TYPE ", stype)
-        # iscan = self.scanpanel_types.index(stype)
-        self.nb.SetSelection(iscan)
-        self.scanpanels[iscan].load_scandict(scan)
-
     def load_scan(self, scanname):
         """load scan definition from dictionary, as stored
         in scandb scandef.text field
@@ -659,7 +639,6 @@ class ScanFrame(wx.Frame):
 
         sdb = self.scandb
         scan = json.loads(sdb.get_scandef(scanname).text)
-
         sdb.set_info('det_settle_time', scan['det_settle_time'])
         sdb.set_info('pos_settle_time', scan['pos_settle_time'])
 
@@ -705,10 +684,9 @@ class ScanFrame(wx.Frame):
         stype = scan['type'].lower()
         if stype == 'qxafs':
             stype = 'xafs'
-        print("SCAN PANEL ", stype)
-        # iscan = self.scanpanel_types.index(stype)
-        self.nb.SetSelection(iscan)
-        self.scanpanels[iscan].load_scandict(scan)
+        ipan, pan = self.get_nbpage(stype)
+        pan.load_scandict(scan)
+        self.nb.SetSelection(ipan)
 
 
 class ScanApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
