@@ -307,6 +307,10 @@ class CommonCommandsFrame(wx.Frame):
     def onCommand(self, event=None, label=None):
         if label is None:
             return
+        editor = self.parent.get_editor()
+        if editor is None:
+            return
+
         args = []
         macsig = self.wids[label][0]
         cmd = "%s()" % (label)
@@ -327,6 +331,6 @@ class CommonCommandsFrame(wx.Frame):
                     args.append("%s=%s" % (pname, val))
                 cmd = "%s(%s)" % (label, ', '.join(args))
         try:
-            self.parent.subframes['macro'].editor.AppendText("%s\n" % cmd)
+            editor.AppendText("%s\n" % cmd)
         except:
             print("No editor ?")
