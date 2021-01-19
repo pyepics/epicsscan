@@ -10,15 +10,14 @@ from .gui_utils import (GUIColors, add_button, pack, SimpleText, TextCtrl,
                         HLine, check, okcancel, add_subtitle, LEFT, Font)
 
 class SettingsPanel(scrolled.ScrolledPanel):
-    __name__ = 'General Settings'
-    def __init__(self, parent, scandb=None, pvlist=None, title='foo',
+    def __init__(self, parent, scandb=None, pvlist=None, title='Settings',
                  size=(760, 380), style=wx.GROW|wx.TAB_TRAVERSAL):
 
         self.scandb = scandb
-        scrolled.ScrolledPanel.__init__(self, parent,
-                                        size=size, style=style,
-                                        name=self.__name__)
-        print("settings panel ", self.__name__)
+
+        scrolled.ScrolledPanel.__init__(self, parent, size=size,
+                                        name='Settings', style=style)
+
         self.Font13 = wx.Font(13, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
         self.Font12 = wx.Font(12, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
         self.sizer = wx.GridBagSizer(3, 2)
@@ -40,11 +39,11 @@ class SettingsPanel(scrolled.ScrolledPanel):
                        'experiment_id',
                        'experiment_monoxtal',
                        'experiment_beamsize',
-                       'experiment_xrfdet',
-                       'experiment_xrffilter',
-                       'experiment_xrddet',
                        'experiment_analyzer',
-                       'experiment_analyzed_energy']
+                       'experiment_analyzed_energy',
+                       'experiment_xrddet',
+                       'experiment_xrfdet',
+                       'experiment_xrffilter']
 
         expt_info = scandb.get_info(prefix='experiment_')
         expt_data = {r.key: (r.value, r.notes) for r in expt_info}
@@ -52,20 +51,27 @@ class SettingsPanel(scrolled.ScrolledPanel):
             if row.key not in expt_fields:
                 expt_fields.append(row.key)
 
+        self.wids = {}
         for key in expt_fields:
             ir += 1
             val, desc = expt_data[key]
             label = SimpleText(self, " %s" % desc, size=(200, -1))
-            value = TextCtrl(self, value=val, size=(250, -1),
+            ctext = TextCtrl(self, value=val, size=(250, -1),
                              action=partial(self.onSetValue, label=key))
+            self.wids[key] = ctext
             sizer.Add(label, (ir, 0),  (1, 1), LEFT)
-            sizer.Add(value, (ir, 1),  (1, 1), LEFT)
+            sizer.Add(ctext, (ir, 1),  (1, 1), LEFT)
         pack(self, sizer)
 
     def onSetValue(self, value, label=None, **kws):
         if label is not None and len(label) > 0:
             self.scandb.set_info(label, value)
 
+    def onPanelExposed(self, evt=None):
+        expt_info = self.scandb.get_info(prefix='experiment_')
+        for row in expt_info:
+            if row.key in self.wids:
+                self.wids[row.key].SetValue(row.value)
 
 
 class SettingsFrame(wx.Frame) :
