@@ -55,7 +55,8 @@ class SettingsPanel(scrolled.ScrolledPanel):
         for key in expt_fields:
             ir += 1
             val, desc = expt_data[key]
-            label = SimpleText(self, " %s" % desc, size=(200, -1))
+            desc = ' %s: %s' %(desc.title(), ' '*100)
+            label = SimpleText(self, desc, size=(250, -1))
             ctext = TextCtrl(self, value=val, size=(250, -1),
                              action=partial(self.onSetValue, label=key))
             self.wids[key] = ctext

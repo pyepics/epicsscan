@@ -343,7 +343,7 @@ class CommandsPanel(scrolled.ScrolledPanel):
 
         info_panel = self.make_info_panel()
 
-        self.editor = wx.TextCtrl(self, -1, size=(650, 225),
+        self.editor = wx.TextCtrl(self, -1, size=(675, 225),
                                   style=wx.TE_MULTILINE|wx.TE_RICH2)
         self.editor.SetBackgroundColour('#FFFFFF')
         text = """# Edit Macro text here\n#\n"""
@@ -364,7 +364,7 @@ class CommandsPanel(scrolled.ScrolledPanel):
         pack(buttonpanel, bsizer)
 
         sfont = wx.Font(11,  wx.SWISS, wx.NORMAL, wx.BOLD, False)
-        self.output = wx.TextCtrl(self, -1,  '## Output Buffer\n', size=(650, 200),
+        self.output = wx.TextCtrl(self, -1,  '## Output Buffer\n', size=(675, 225),
                                   style=wx.TE_MULTILINE|wx.TE_RICH|wx.TE_READONLY)
         self.output.CanCopy()
         self.output.SetInsertionPointEnd()

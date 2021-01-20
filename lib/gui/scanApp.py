@@ -51,8 +51,8 @@ from epics.wx.utils import popup
 
 from .gui_utils import (SimpleText, FloatCtrl, pack, add_button,
                         add_menu, add_choice, add_menu, FileOpen,
-                        LEFT, CEN, FRAMESTYLE, FNB_STYLE, Font,
-                        GUIColors, flatnotebook)
+                        FileSave, LEFT, CEN, FRAMESTYLE, FNB_STYLE,
+                        Font, GUIColors, flatnotebook)
 
 from ..utils import normalize_pvname, read_oldscanfile, atGSECARS
 
@@ -148,7 +148,6 @@ class ScanFrame(wx.Frame):
         wx.Frame.__init__(self, None, -1, style=FRAMESTYLE, **kws)
 
         self.pvlist = {}
-        self.SetSize((775, 625))
         self.subframes = {}
         self._larch = None
 
@@ -201,9 +200,7 @@ class ScanFrame(wx.Frame):
 
     def createMainPanel(self):
         self.SetTitle("Epics Scans")
-        self.SetSize((750, 750))
         self.SetFont(Font(10))
-
         sizer = wx.BoxSizer(wx.VERTICAL)
 
         # Notebooks   scantype   title   panel
@@ -211,22 +208,22 @@ class ScanFrame(wx.Frame):
                      'Map Scans': SlewScanPanel,
                      'XAFS Scans': XAFSScanPanel,
                      'Linear Scans': LinearScanPanel,
-                     'Commands': CommandsPanel}
+                     'Commands and Macros': CommandsPanel}
 
         self.nb = flatnotebook(self, NB_PANELS,
                                panelkws=dict(scandb=self.scandb,
-                                             pvlist=self.pvlist,
-                                         ),
+                                             pvlist=self.pvlist),
                                on_change=self.onNBChanged)
-
-        self.nb.SetSize((750, 600))
+        self.nb.SetSize((725, 650))
         self.nb.SetBackgroundColour(GUIColors.nb_bg)
         self.SetBackgroundColour(GUIColors.bg)
 
         self.nb.SetSelection(0)
         sizer.Add(self.nb, 1, wx.ALL|wx.EXPAND)
         pack(self, sizer)
-        self.SetSize((850, 750))
+        self.SetMinSize((750, 725))
+        self.SetSize((775, 725))
+
         self._icon = None
 
     def get_nbpage(self, name):
@@ -422,15 +419,15 @@ class ScanFrame(wx.Frame):
                              ("Browse All Scan Definitions\tCtrl+D",
                               "Browse and Manage Saved Scans", self.onEditScans),)
 
-        menu_dat['Commands'] = (("Read Commands File", "Read Commands from File",
+        menu_dat['Commands'] = (("Read Macro Commands File", "Read Commands from File",
                                  self.onReadMacro),
-                                ("Save Commands File", "Save Commands to File",
+                                ("Save Macro Commands File", "Save Commands to File",
                                 self.onSaveMacro),
                                 ("<separator>", "", None),
                                 ("Add Position Scans",
                                  "Scan at Selected Positions",
                                  self.onAddPositionScans),
-                                ("Add Commands", "Add non-scanning Commands",
+                                ("Add Other Commands", "Add non-scanning Commands",
                                  self.onAddCommands),
                                 ("Show Command Queue", "Show Commands",
                                  self.onShowCommandQueue),
@@ -529,11 +526,14 @@ class ScanFrame(wx.Frame):
         fname = FileSave(self, 'Save Macro to File',
                          default_file='macro.lar', wildcard=wcard)
         fname = os.path.join(os.getcwd(), fname)
-        if fname is not None and os.path.exists(fname):
-            if wx.ID_YES == popup(self, "Overwrite Macro File '%s'?" % fname,
+        if fname is None:
+            return
+        if os.path.exists(fname):
+            if wx.ID_YES != popup(self, "Overwrite Macro File '%s'?" % fname,
                                   "Really Overwrite Macro File?",
                                   style=wx.YES_NO|wx.NO_DEFAULT|wx.ICON_QUESTION):
-                self.SaveMacroFile(fname)
+                return
+        self.SaveMacroFile(fname)
 
     def SaveMacroFile(self, fname):
         editor = self.get_editor()
@@ -670,7 +670,7 @@ class ScanFrame(wx.Frame):
                                           as_bool=True, default=0)
         _alltypes  = self.scandb.get_info('scandefs_load_showalltypes',
                                           as_bool=True, default=0)
-        stype = None
+        stype = ''
         if not _alltypes:
             panelname = self.nb.GetCurrentPage().__class__.__name__.lower()
             panelname = panelname.replace('scanpanel', '')

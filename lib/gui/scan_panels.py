@@ -102,19 +102,24 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         self.user_comms = wx.TextCtrl(bpanel, -1, "", style=wx.TE_MULTILINE,
                                       size=(450, 75))
 
-        bsizer.Add(SimpleText(bpanel, "File Name:"), (0, 0),   (1, 1), LEFT)
-        bsizer.Add(self.filename,                    (0, 1),   (1, 1), LEFT)
-
+        ir = 0
         if with_nscans:
             self.nscans = FloatCtrl(bpanel, precision=0, value=1,
                                     minval=1, maxval=99999, size=(45, -1),
                                     action=self.onSetNScans)
-            bsizer.Add(SimpleText(bpanel, "Number of Scans:"), (0, 2), (1, 1), LEFT)
-            bsizer.Add(self.nscans,     (0, 3), (1, 1), LEFT, 2)
+            bsizer.Add(SimpleText(bpanel, "Number of Scans:"), (ir, 0), (1, 1), LEFT)
+            bsizer.Add(self.nscans,     (ir, 1), (1, 1), LEFT, 2)
+            ir += 1
 
-        bsizer.Add(SimpleText(bpanel, "Comments:"),  (1, 0), (1, 1), LEFT)
-        bsizer.Add(self.user_comms,                  (1, 1), (2, 1), LEFT)
+        bsizer.Add(SimpleText(bpanel, "File Name:"), (ir, 0),   (1, 1), LEFT)
+        bsizer.Add(self.filename,                    (ir, 1),   (1, 3), LEFT)
 
+        ir += 1
+        bsizer.Add(SimpleText(bpanel, "Comments:"),  (ir, 0), (1, 1), LEFT)
+        bsizer.Add(self.user_comms,                  (ir, 1), (2, 3), LEFT)
+
+        ir += 2
+        
         start_btn = add_button(bpanel, "Start Scan", size=(120, -1),
                                action=partial(self.parent.onCtrlScan, cmd='Start'))
 
@@ -128,10 +133,10 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         resume_btn = add_button(bpanel, "Resume Scan", size=(120, -1),
                                action=partial(self.parent.onCtrlScan, cmd='Resume'))
 
-        bsizer.Add(start_btn,                  (1, 2), (1, 1), LEFT)
-        bsizer.Add(abort_btn,                  (1, 3), (1, 1), LEFT)
-        bsizer.Add(pause_btn,                  (2, 2), (1, 1), LEFT)
-        bsizer.Add(resume_btn,                 (2, 3), (1, 1), LEFT)
+        bsizer.Add(start_btn,                  (ir, 0), (1, 1), LEFT)
+        bsizer.Add(abort_btn,                  (ir, 1), (1, 1), LEFT)
+        bsizer.Add(pause_btn,                  (ir, 2), (1, 1), LEFT)
+        bsizer.Add(resume_btn,                 (ir, 3), (1, 1), LEFT)
 
         bpanel.SetSizer(bsizer)
         bsizer.Fit(bpanel)
@@ -360,7 +365,7 @@ class LinearScanPanel(GenericScanPanel):
         sizer = self.sizer
         ir = self.top_widgets('Linear Step Scan')
 
-        sizer.Add(self.hline(), (ir, 0), (1, 8), CEN)
+        sizer.Add(self.hline(), (ir, 0), (1, 8), LEFT)
         ir += 1
         for ic, txt in enumerate((" Role", " Positioner", " Units",
                                   " Current", " Start",
@@ -540,14 +545,14 @@ class XAFSScanPanel(GenericScanPanel):
 
         sizer = self.sizer
         ir = self.top_widgets('XAFS Scan')
-        sizer.Add(self.hline(),  (ir, 0), (1, 8), CEN)
+        sizer.Add(self.hline(),  (ir, 0), (1, 8), LEFT)
 
         nregs = self.nregs_wid.GetValue()
         ir += 1
         sizer.Add(self.make_e0panel(),   (ir,   0), (1, 8), LEFT)
         ir += 1
 
-        sizer.Add(self.hline(),    (ir, 0), (1, 8), CEN)
+        sizer.Add(self.hline(),    (ir, 0), (1, 8), LEFT)
         ir += 1
         for ic, lab in enumerate((" Region", " Start", " Stop", " Step",
                                   " Npts", " Time (s)", " Units")):
@@ -591,7 +596,7 @@ class XAFSScanPanel(GenericScanPanel):
             sizer.Add(units, (ir, 6), (1, 1), wx.ALL, 2)
 
         ir += 1
-        sizer.Add(self.hline(), (ir, 0), (1, 7), CEN)
+        sizer.Add(self.hline(), (ir, 0), (1, 7), LEFT)
 
         self.kwtimechoice = add_choice(self, ('0', '1', '2', '3'), size=(70, -1),
                                      action=partial(self.onVal, label='kwpow'))
@@ -789,16 +794,16 @@ class XAFSScanPanel(GenericScanPanel):
         self.edgechoice = add_choice(p, self.edges_list, size=(50, -1),
                                      action=self.onEdgeChoice)
 
-        s.Add(SimpleText(p, " Edge Energy:", size=(120, -1),
+        s.Add(SimpleText(p, " Edge Energy:", size=(110, -1),
                          style=LEFT), 0, CEN, 2)
         s.Add(self.e0,   0, LEFT, 2)
-        s.Add(SimpleText(p, "   Element:  "),  0, LEFT, 3)
-        s.Add(self.elemchoice,                 0, LEFT, 3)
-        s.Add(SimpleText(p, "    Edge:  "),    0, LEFT, 3)
-        s.Add(self.edgechoice,                 0, LEFT, 3)
-        s.Add(SimpleText(p, "   Current Energy:", size=(170, -1),
+        s.Add(SimpleText(p, "  Element: "), 0, LEFT, 3)
+        s.Add(self.elemchoice,              0, LEFT, 3)
+        s.Add(SimpleText(p, "  Edge: "),    0, LEFT, 3)
+        s.Add(self.edgechoice,              0, LEFT, 3)
+        s.Add(SimpleText(p, "   Energy: ", size=(120, -1),
                          style=LEFT), 0, CEN, 2)
-        self.energy_pv = PVStaticText(p, pv=None, size=(100, -1),
+        self.energy_pv = PVStaticText(p, pv=None, size=(90, -1),
                                       style=CEN)
         s.Add(self.energy_pv, 0, CEN, 2)
         pack(p, s)
@@ -989,7 +994,7 @@ class MeshScanPanel(GenericScanPanel):
         sizer = self.sizer
 
         ir = self.top_widgets('Mesh Scan (Slow Map)')
-        sizer.Add(self.hline(), (ir, 0), (1, 8), CEN)
+        sizer.Add(self.hline(), (ir, 0), (1, 8), LEFT)
         ir += 1
 
         for ic, lab in enumerate((" Loop", " Positioner", " Units",
@@ -1133,7 +1138,7 @@ class SlewScanPanel(GenericScanPanel):
         sizer.Add(SimpleText(self, ' Dimension:'), (ir-1, 6), (1, 1), CEN)
         sizer.Add(self.dimchoice,                  (ir-1, 7), (1, 2), CEN)
 
-        sizer.Add(self.hline(), (ir, 0), (1, 8), CEN)
+        sizer.Add(self.hline(), (ir, 0), (1, 8), LEFT)
         ir += 1
         for ic, lab in enumerate((" Loop", " Positioner", " Units",
                                   " Current", " Start", " Stop", " Step", " Npts")):
