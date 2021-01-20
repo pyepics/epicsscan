@@ -405,8 +405,18 @@ class StepScan(object):
             raise Warning('error on output: %s' % msg)
 
     def read_extra_pvs(self):
-        "read values for extra PVs"
+        "read values for extra PVs and 'extra_pvs' values from database"
         out = []
+        if cpt < 4 and self.scandb is not None:
+            self.scandb.set_filename(self.filename)
+
+        db_prefix = self.scandb.get_info('extra_pvs_prefix')
+        if len(db_prefix) > 0:
+            prefix = fix_varname(db_prefix).title()
+            for row in self.scandb.get_info(prefix=db_prefix):
+                desc = prefix + '.' + fix_varname(row.notes.title())
+                out.append((desc, row.key, row.value))
+
         for desc, pv in self.extra_pvs:
             out.append((desc, pv.pvname, pv.get(as_string=True)))
         return out
