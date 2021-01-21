@@ -350,7 +350,8 @@ class ScanDB(object):
         return q.execute().fetchall()
 
     def get_info(self, key=None, default=None, prefix=None,
-                 as_int=False, as_bool=False, full_row=False):
+                 as_int=False, as_bool=False, orderby='modify_time',
+                 full_row=False):
         """get a value for an entry in the info table,
         if this key doesn't exist, it will be added with the default
         value and the default value will be returned.
@@ -359,19 +360,17 @@ class ScanDB(object):
         """
         errmsg = "get_info expected 1 or None value for name='%s'"
         cls, table = self.get_table('info')
+        q = self.query(table)
+        if orderby is not None and hasattr(cls, orderby):
+            q = q.order_by(getattr(cls, orderby))
+
+        if prefix is not None:
+            return q.filter(cls.key.startswith(prefix)).all()
+
         if key is None:
-            all = self.query(table).all()
-            if prefix is None:
-                return all
-            else:
-                out = []
-                for row in all:
-                    if row.key.startswith(prefix):
-                        out.append(row)
-                return out
+            return q.all()
 
-
-        vals = self.query(cls).filter(cls.key==key).all()
+        vals = q.filter(cls.key==key).all()
         thisrow = None_or_one(vals, errmsg % key)
         if thisrow is None:
             out = default
@@ -1057,7 +1056,7 @@ class ScanDB(object):
     def set_filename(self, filename):
         """set filename for info and command"""
         self.set_info('filename', filename)
-        ufolder = self.get_info('user_folder', '')
+        ufolder = self.get_info('user_folder', default='')
         self.set_command_filename(os.path.join(ufolder, filename))
 
 
