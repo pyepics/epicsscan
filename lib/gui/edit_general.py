@@ -33,30 +33,17 @@ class SettingsPanel(scrolled.ScrolledPanel):
                            colour=GUIColors.title, style=LEFT)
         sizer.Add(title,                      (0, 0), (1, 3), LEFT|wx.ALL)
         sizer.Add(HLine(self, size=(600, 3)), (1, 0), (1, 3), LEFT)
-
         ir = 2
-        expt_fields = ['experiment_username',
-                       'experiment_id',
-                       'experiment_monoxtal',
-                       'experiment_beamsize',
-                       'experiment_analyzer',
-                       'experiment_analyzed_energy',
-                       'experiment_xrddet',
-                       'experiment_xrfdet',
-                       'experiment_xrffilter']
 
-        expt_info = scandb.get_info(prefix='experiment_')
-        expt_data = {r.key: (r.value, r.notes) for r in expt_info}
-        for row in expt_info:
-            if row.key not in expt_fields:
-                expt_fields.append(row.key)
-
+        expt_data = {}
+        for row in scandb.get_info(prefix='experiment_', orderby='display_order'):
+            expt_data[row.key] = (row.value, row.notes)
         self.wids = {}
-        for key in expt_fields:
+        for key, dat in expt_data.items():
             ir += 1
-            val, desc = expt_data[key]
-            desc = ' %s: %s' %(desc.title(), ' '*100)
-            label = SimpleText(self, desc, size=(250, -1))
+            val, desc = dat
+            desc = ' %s:  '% desc.title()
+            label = SimpleText(self, desc, size=(225, -1), style=LEFT)
             ctext = TextCtrl(self, value=val, size=(250, -1),
                              action=partial(self.onSetValue, label=key))
             self.wids[key] = ctext
