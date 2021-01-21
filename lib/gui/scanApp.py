@@ -155,7 +155,7 @@ class ScanFrame(wx.Frame):
         self.scan_started = False
 
         self.scandb = ScanDB()
-
+        self.scantype = 'slew'
         print('Connected ScanDB  ', self.scandb.engine)
 
         self.Bind(wx.EVT_CLOSE, self.onClose)
@@ -335,6 +335,7 @@ class ScanFrame(wx.Frame):
         self.scandb.add_command(command)
         self.statusbar.SetStatusText('Waiting....', 0)
 
+        self.scantype = scan.scantype
         self.scan_started = False
         self.scantimer.Start(100)
 
@@ -344,7 +345,7 @@ class ScanFrame(wx.Frame):
         fname  = scan.get('filename', 'scan.001')
         nscans = int(scan.get('nscans', 1))
         comments = scan.get('comments', '')
-
+        self.scantype = scan.scantype
         self.scandb.set_info('request_abort', 0)
         self.scandb.set_info('request_pause', 0)
         self.scandb.set_info('nscans', nscans)
@@ -377,10 +378,13 @@ class ScanFrame(wx.Frame):
 
         if status == 'idle' and self.scan_started:
             self.scan_started = False
+            ipan, pan = self.get_nbpage(self.scantype)
             fname = self.scandb.get_info('filename')
-            self.nb.GetCurrentPage().filename.SetValue(new_filename(fname))
+            try:
+                pan.filename.SetValue(new_filename(fname))
+            except:
+                pass
             self.scantimer.Stop()
-
 
     def onCtrlScan(self, evt=None, cmd=''):
         cmd = cmd.lower()
