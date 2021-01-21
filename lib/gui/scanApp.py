@@ -335,7 +335,7 @@ class ScanFrame(wx.Frame):
         self.scandb.add_command(command)
         self.statusbar.SetStatusText('Waiting....', 0)
 
-        self.scantype = scan.scantype
+        self.scantype = scan.get('scantype', 'linear')
         self.scan_started = False
         self.scantimer.Start(100)
 
