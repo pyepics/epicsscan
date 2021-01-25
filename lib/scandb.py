@@ -1059,7 +1059,6 @@ class ScanDB(object):
         ufolder = self.get_info('user_folder', default='')
         self.set_command_filename(os.path.join(ufolder, filename))
 
-
     def set_command_filename(self, filename, cmdid=None):
         """set filename for command"""
         if cmdid is None:
@@ -1073,6 +1072,14 @@ class ScanDB(object):
             cmdid  = self.get_current_command_id()
         cls, table = self.get_table('commands')
         table.update(whereclause=text("id='%i'" % cmdid)).execute(output_value=repr(value))
+
+    def replace_command(self, cmdid, new_command):
+        """replace requested  command"""
+        cls, table = self.get_table('commands')
+        row = table.select().where(table.c.id==cmdid).execute().fetchone()
+        if self.status_names[row.status_id].lower() == 'requested':
+            table.update(whereclause=text("id='%i'" % cmdid)).execute(command=new_command)
+        
 
     def cancel_command(self, cmdid):
         """cancel command"""

@@ -52,7 +52,7 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
     def cancel_selected(self):
         for cmd, stat, sel, treq, tuse, cmd_id in self.data:
             if sel and status == 'requested':
-                self.scandb.cancel_command(in(cmd_id))
+                self.scandb.cancel_command(int(cmd_id))
         
         
     def insert_before(self, item, cmdstring):
