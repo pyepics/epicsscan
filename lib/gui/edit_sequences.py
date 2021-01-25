@@ -36,20 +36,28 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
         self.commands = {}
         for cmd in recent_commands:
             self.commands[cmd.id] = cmd
-            self.data.append((cmd.command,
+            self.data.append([cmd.command,
                               self.scandb.status_names[cmd.status_id],
+                              False, 
                               tfmt(cmd.request_time),
                               tfmt(cmd.modify_time),
-                              repr(cmd.id)))
+                              repr(cmd.id)])
         self.data.reverse()
         self.Reset(len(self.data))
 
     def cancel_item(self, item):
-        cmd_id = int(self.GetValue(item, 4))
+        cmd_id = int(self.GetValue(item, 5))
         self.scandb.cancel_command(cmd_id)
 
+    def cancel_selected(self):
+        for cmd, stat, sel, treq, tuse, cmd_id in self.data:
+            if sel and status == 'requested':
+                self.scandb.cancel_command(in(cmd_id))
+        
+        
     def insert_before(self, item, cmdstring):
-        cmd_id = int(self.GetValue(item, 4))
+        print(" insert before ", cmdstring, item, self.GetValue(item, 5), self.GetValue(item, 0))        
+        cmd_id = int(self.GetValue(item, 5))
         status = self.GetValue(item, 1)
         if status != 'requested':
             print('can only insert before requested commands')
@@ -79,7 +87,8 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
         self.read_data()
 
     def move_item(self, item, direction='up'):
-        cmd_id = int(self.GetValue(item, 4))
+        print(" move item ", item, self.GetValue(item, 5), self.GetValue(item, 0))
+        cmd_id = int(self.GetValue(item, 5))
         status = self.GetValue(item, 1)
         if status != 'requested':
             print('can only move requested commands')
@@ -112,7 +121,20 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
         return self.data[row][col]
 
     def SetValueByRow(self, value, row, col):
-        self.data[row][col] = value
+        print("SetValueBy Row ", value, row, col)
+        print("this row ", self.data[row])
+        cmd, status, selected, treq, tup, cmdi_id = self.data[row]
+        
+        if col == 0:
+            if  status != 'requested':
+                print('cannot change a completed command')
+                return False
+            else:
+                print(" will update command ", cmd_id , value)
+                self.data[row][col] = value
+                self.scandb.replace_command(int(cmd_id), value)
+        else:
+            self.data[row][col] = value
         return True
 
     def GetColumnCount(self):
@@ -176,7 +198,7 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
 
 class ScanSequenceFrame(wx.Frame) :
     """Edit/Manage/Run/View Sequences"""
-    def __init__(self, parent, scandb, pos=(-1, -1), size=(850, 400), _larch=None):
+    def __init__(self, parent, scandb, pos=(-1, -1), size=(950, 400), _larch=None):
         self.parent = parent
         self.scandb = scandb
         self.last_refresh = time.monotonic() - 100.0
@@ -194,7 +216,7 @@ class ScanSequenceFrame(wx.Frame) :
         spanel = scrolled.ScrolledPanel(self, size=(850, 425))
         spanel.SetBackgroundColour(GUIColors.bg)
         self.dvc = dv.DataViewCtrl(spanel, style=DVSTYLE)
-        self.dvc.SetMinSize((825, 250))
+        self.SetMinSize((825, 250))
 
         self.model = ScanSequenceModel(self.scandb)
         self.dvc.AssociateModel(self.model)
@@ -227,15 +249,23 @@ class ScanSequenceFrame(wx.Frame) :
         mainsizer.Add(npan, 0, wx.GROW|wx.ALL, 1)
         pack(self, mainsizer)
 
-        for icol, dat in enumerate((('Command',  500),
-                                    ('Status',   100),
-                                    ('Request',  100),
-                                    ('Update',   100),
-                                    ('ID',        75))):
-            title, width = dat
-            self.dvc.AppendTextColumn(title, icol, width=width)
+        for icol, dat in enumerate((('Command', 600, 'text'),
+                                    ('Status',  100, 'static'),
+                                    ('Select',   75, 'bool'),
+                                    ('Request', 100, 'static'),
+                                    ('Update',  100, 'static'),
+                                    ('ID',       50, 'static'))):
+            title, width, mode = dat
+            kws = {'width': width}
+            add_col = self.dvc.AppendTextColumn
+            if mode == 'text':
+                kws['mode'] = dv.DATAVIEW_CELL_EDITABLE
+            elif mode == 'bool':
+                add_col = self.dvc.AppendToggleColumn                
+                kws['mode'] = dv.DATAVIEW_CELL_ACTIVATABLE
+            add_col(title, icol, **kws)
             col = self.dvc.Columns[icol]
-            col.Sortable = title != 'Command'
+            col.Sortable = False
             col.Alignment = wx.ALIGN_LEFT
         self.dvc.EnsureVisible(self.model.GetItem(0))
 
@@ -289,10 +319,8 @@ class ScanSequenceFrame(wx.Frame) :
         self.refresh_display()
 
     def onCancelSelected(self, event=None):
-        if self.dvc.HasSelection():
-            self.model.cancel_item(self.dvc.GetSelection())
+        self.model.cancel_selected()
         self.refresh_display()
-
 
     def onCancelAll(self, event=None):
         self.scandb.set_info('request_abort', 1)
