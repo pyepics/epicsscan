@@ -124,16 +124,12 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
         return self.data[row][col]
 
     def SetValueByRow(self, value, row, col):
-        print("SetValueBy Row ", value, row, col)
-        print("this row ", self.data[row])
-        cmd, status, selected, treq, tup, cmdi_id = self.data[row]
-        
+        cmd, status, selected, treq, tup, cmd_id = self.data[row]
         if col == 0:
-            if  status != 'requested':
+            if status != 'requested':
                 print('cannot change a completed command')
                 return False
-            else:
-                print(" will update command ", cmd_id , value)
+            else: # really change the command
                 self.data[row][col] = value
                 self.scandb.replace_command(int(cmd_id), value)
         else:
