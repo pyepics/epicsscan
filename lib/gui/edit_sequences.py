@@ -238,8 +238,9 @@ class ScanSequenceFrame(wx.Frame) :
         npan = wx.Panel(self)
         nsiz = wx.BoxSizer(wx.HORIZONTAL)
         self.cmd_insert = wx.TextCtrl(npan, value='<new command>', size=(400, -1))
-        nsiz.Add(add_button(npan, label='Insert Before Selected Command:', action=self.onInsert))
+        nsiz.Add(SimpleText(npan, label='Command to Insert Before Highlighted Command: '))
         nsiz.Add(self.cmd_insert)
+        nsiz.Add(add_button(npan, label='Insert', action=self.onInsert))
         pack(npan, nsiz)
 
         mainsizer = wx.BoxSizer(wx.VERTICAL)
