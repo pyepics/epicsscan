@@ -44,7 +44,7 @@ class SettingsPanel(scrolled.ScrolledPanel):
             val, desc = dat
             if desc is None or len(desc) < 1:
                 desc = key
-            desc = ' %s:  '% desc.title()
+            desc = ' %s:  '% desc
             label = SimpleText(self, desc, size=(225, -1), style=LEFT)
             ctext = TextCtrl(self, value=val, size=(250, -1),
                              action=partial(self.onSetValue, label=key))
