@@ -219,8 +219,8 @@ class Xspress3Counter(DeviceCounter):
                 time.sleep(1.0)
             current_rois = get_rois()
 
-        print("Xspress3: finding ROIS: ", len(self.rois),  len(current_rois),
-              self.mode, self.scandb, time.ctime())
+        # print("Xspress3: finding ROIS: ", len(self.rois),  len(current_rois),
+        #       self.mode, self.scandb, time.ctime())
         scaf = get_scaformats(self.ad_version) # ('acq', 'npts', 'valform', 'tsform')
         roi_format = '%sMCA%dROI:%i:Total_RBV'
         sca_format = '%s' + scaf.valform
