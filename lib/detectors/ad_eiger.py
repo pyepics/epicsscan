@@ -242,13 +242,13 @@ class AD_Eiger(AreaDetector):
             self.ad.filePut('Compression', 'zlib')
             self.ad.filePut('ZLevel', 1)
 
-        self.cam.put('FWCompression', 'Disabled')
-        self.cam.put('FWEnable', 'No')
-        self.cam.put('SaveFiles', 'No')
-        self.cam.put('FWAutoRemove', 'No')
+        self.cam.put('FWCompression', 'Disable')
+        self.cam.put('FWEnable', 'Disable')
+        self.cam.put('SaveFiles', 'Disable')
+        self.cam.put('FWAutoRemove', 'Disable')
         self.cam.put('DataSource', 'Stream')
         self.cam.put('ArrayCallbacks', 'Enable')
-        self.cam.put('StreamEnable', 'Yes')
+        self.cam.put('StreamEnable', 'Enable')
         self.cam.put('ShutterMode', 'None')
         if self.mode in (ROI_MODE, SCALER_MODE):
             old_counters = [c for c in self.counters]
