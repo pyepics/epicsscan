@@ -116,7 +116,7 @@ class ScanServer():
             self.epicsdb.workdir = plain_ascii(workdir)
 
         command = plain_ascii(req.command)
-        if len(command) < 1 or command is 'None':
+        if len(command) < 1 or command == 'None':
             return
 
         if not command_complete(command):
