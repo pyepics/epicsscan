@@ -37,6 +37,7 @@ class AD_Integrator(object):
         self.scandb.set_info('xrd_calibration', calname)
 
 
+
     def set_state(self, state):
         self.scandb.set_info('xrd_1dint_status', state.lower())
 
@@ -57,16 +58,21 @@ class AD_Integrator(object):
 
     def save_1dint(self, h5file, outfile):
         t0 = time.time()
+        # print("SAVE 1D ", h5file, outfile, HAS_PYFAI,  os.path.exists(h5file))
+
         if not HAS_PYFAI or not os.path.exists(h5file):
             return
+
         if os.stat(h5file).st_mtime > (t0-5.0):
             time.sleep(self.sleep_time)
             return
+
         try:
             xrdfile = h5py.File(h5file, 'r')
         except IOError:
             time.sleep(self.sleep_time)
             return
+
         try:
             data = xrdfile['/entry/data/data']
         except KeyError:
@@ -75,12 +81,11 @@ class AD_Integrator(object):
 
         if self.mask is not None:
             data = data * self.mask
-        if trim_edges is not None:
+        if self.trim_edges is not None:
             x1, x2, y1, y2 = self.trim_edges
             data = data[:, x1:-x2, y1:-y2]
         else:
             data = data[()]
-
         nframes, nx, ny = data.shape
         xrdfile.close()
         integrate = self.integrator.integrate1d
@@ -89,6 +94,7 @@ class AD_Integrator(object):
                     polarization_factor=0.999)
 
         dat = []
+        # print("SAVE 1D opts ", nframes, self.flip, opts)
         slice1 = slice(None, None, None)
         if self.flip:
             slice1 = slice(None, None, -1)
@@ -99,7 +105,6 @@ class AD_Integrator(object):
                 img[np.where(img>MAXVAL_INT16)] = 0
             else:
                 img[np.where(img>MAXVAL)] = 0
-
 
             q, x = integrate(img[slice1, :], self.nqpoints, **opts)
             if i == 0:
@@ -121,13 +126,12 @@ class AD_Integrator(object):
                 try:
                     self.save_1dint(xfile, outfile)
                 except:
-                    pass
+                    print("Could not save ", outfile)
 
     def run(self):
         while True:
             time.sleep(self.sleep_time)
             state = self.get_state()
-            # print(state, self.folder)
             if state.startswith('starting'):
                 self.read_config()
                 self.set_state('running')
@@ -141,6 +145,7 @@ class AD_Integrator(object):
                 time.sleep(5*self.sleep_time)
             elif state.startswith('quit'):
                 return
+
 
 def read_poni(fname):
     """read XRD calibration from pyFAI poni file"""
