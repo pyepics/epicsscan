@@ -346,14 +346,15 @@ class AD_Eiger(AreaDetector):
         self.cam.put('AcquireTime',   dwelltime-self.readout_time)
         self.cam.put('AcquirePeriod', dwelltime)
 
-    def ContinuousMode(self, dwelltime=0.3, numframes=62000):
+    def ContinuousMode(self, dwelltime=.50, numframes=63000):
         # print("putting Eiger into continuous mode ", numframes, dwelltime)
-        self.ScalerMode(dwelltime=dwelltime, numframes=numframes-10)
-        self.cam.put('FWEnable', 0)
-        time.sleep(0.5)
-        self.ScalerMode(dwelltime=dwelltime, numframes=numframes+10)
-        time.sleep(0.5)
-        self.cam.put('NumImages', numframes, wait=True)
+        self.ScalerMode(dwelltime=dwelltime, numframes=numframes-5)
+        for i in range(3):
+            self.cam.put('FWEnable', 0)
+            time.sleep(0.1)
+            self.ScalerMode(dwelltime=dwelltime, numframes=numframes+2+2*i)
+            time.sleep(0.1)
+            self.cam.put('NumImages', numframes)
 
 
     def ScalerMode(self, dwelltime=0.25, numframes=1):
