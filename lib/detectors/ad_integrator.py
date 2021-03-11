@@ -26,7 +26,7 @@ class AD_Integrator(object):
         self.flip = flip
         self.trim_edges = trim_edges
         self.nqpoints = nqpoints
-        self.set_state('idle')
+        self.set_state('starting')
 
     def use_calibrationfile(self, filename='XRD.poni', calname='XRD'):
         if os.path.exists(filename):
@@ -35,7 +35,6 @@ class AD_Integrator(object):
             print("No calibration file ", filename)
         self.scandb.set_detectorconfig(calname, json.dumps(calib))
         self.scandb.set_info('xrd_calibration', calname)
-
 
 
     def set_state(self, state):
@@ -120,13 +119,16 @@ class AD_Integrator(object):
             self.read_config()
         fname = '%s*.%s' % (self.label, self.suffix)
         xrdfiles = glob.glob(os.path.join(self.folder, fname))
+        nconverted = 0
         for xfile in sorted(xrdfiles):
             outfile = xfile.replace(self.suffix, 'npy')
             if not os.path.exists(outfile):
                 try:
                     self.save_1dint(xfile, outfile)
+                    nconverted += 1
                 except:
                     print("Could not save ", outfile)
+        return nconverted
 
     def run(self):
         while True:
@@ -136,7 +138,10 @@ class AD_Integrator(object):
                 self.read_config()
                 self.set_state('running')
             elif state.startswith('running'):
-                self.integrate()
+                n = self.integrate()
+                print('#integrated %d files at %s' % (n, time.ctime()))
+                if n == 0:
+                    time.sleep(5*self.sleep_time)
             elif state.startswith('finishing'):
                 self.integrate()
                 self.set_state('idle')
