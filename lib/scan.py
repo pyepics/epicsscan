@@ -163,6 +163,7 @@ class StepScan(object):
         self.pos_maxmove_time = 3600.0
         self.det_maxcount_time = 86400.0
         self.dwelltime = None
+        self.dwelltime_varys = False
         self.comments = comments
         self.filename = filename
         self.auto_increment = auto_increment
@@ -541,6 +542,31 @@ class StepScan(object):
         self.set_info('request_abort', 0)
         self.set_info('request_pause', 0)
         self.set_info('request_resume', 0)
+
+
+    def estimate_scan_time(self):
+        "estimate scan time"
+        self.pos_settle_time = max(MIN_POLL_TIME, self.pos_settle_time)
+        self.det_settle_time = max(MIN_POLL_TIME, self.det_settle_time)
+        npts = self.npts = len(self.positioners[0].array)
+        print('est time ', npts, self.dwelltime)
+        self.dwelltime_varys = False
+        if self.dwelltime is not None:
+            self.min_dwelltime = self.dwelltime
+            self.max_dwelltime = self.dwelltime
+            if isinstance(self.dwelltime, (list, tuple)):
+                self.dwelltime = np.array(self.dwelltime)
+            if isinstance(self.dwelltime, np.ndarray):
+                self.min_dwelltime = min(self.dwelltime)
+                self.max_dwelltime = max(self.dwelltime)
+                self.dwelltime_varys = True
+
+        time_est = npts*(self.pos_settle_time + self.det_settle_time)
+        if self.dwelltime_varys:
+            time_est += self.dwelltime.sum()
+        else:
+            time_est += npts*self.dwelltime
+        return time_est
 
 
     def prepare_scan(self):
