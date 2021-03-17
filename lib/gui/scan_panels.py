@@ -696,7 +696,6 @@ class XAFSScanPanel(GenericScanPanel):
         self.kwtimemax.Enable(step_xafs)
         self.kwtimechoice.Enable(step_xafs)
 
-
         herfd_det_name = self.scandb.get_info('xas_herfd_detector', None)
         use_herfd = False
         for det in scan['detectors']:
@@ -744,7 +743,7 @@ class XAFSScanPanel(GenericScanPanel):
         self.absrel.SetSelection(1)
 
         self.use_herfd = check(self, default=False,
-                               label='Collect HERFD Channels',
+                               label='Collect HERFD ROIs',
                                action=self.onUseHERFD)
 
         self.qxafs = check(self, default=True,
@@ -1005,6 +1004,13 @@ class XAFSScanPanel(GenericScanPanel):
              'nscans': 1
              }
 
+        # make sure HERFD detector follows the checkbox
+        herfd_det_name = self.scandb.get_info('xas_herfd_detector', None)
+        for det in self.scandb.get_detectors():
+            if det.name == herfd_det_name:
+                det.use = 1 if self.use_herfd.IsChecked() else 0
+
+
         if self.nscans is not None:
             s['nscans'] = int(self.nscans.GetValue())
 
@@ -1171,7 +1177,7 @@ class SlewScanPanel(GenericScanPanel):
         sizer = self.sizer
 
         ir = self.top_widgets('Map Scan (slewscan)', with_absrel=False,
-                              dwell_value=0.050)
+                              dwell_value=0.020)
 
         self.dimchoice = add_choice(self, ('1', '2'), action = self.onDim)
         self.dimchoice.SetStringSelection('2')
@@ -1227,14 +1233,14 @@ class SlewScanPanel(GenericScanPanel):
 
         zfm = self.scandb.get_info('zero_finemotors_beforemap',
                                    as_bool=True, default=0)
-        self.xrdchoice = check(self, default=False,
-                               label='Collect XRD with Map?',
-                               action=self.onSelectXRD)
+        self.use_xrd = check(self, default=False,
+                             label='Collect XRD with Map?',
+                             action=self.onSelectXRD)
 
         sizer.Add(self.zfmchoice, (ir, 1), (1, 3), wx.ALL, 2)
 
         ir += 1
-        sizer.Add(self.xrdchoice, (ir, 1), (1, 3), wx.ALL, 2)
+        sizer.Add(self.use_xrd, (ir, 1), (1, 3), wx.ALL, 2)
 
         ir += 1
         sizer.Add(SimpleText(self, 'Select from Common Square Maps:'),
@@ -1310,7 +1316,7 @@ class SlewScanPanel(GenericScanPanel):
         for det in scan['detectors']:
             if det['label'] == xrd_det_name:
                 use_xrd = True
-        self.xrdchoice.SetValue(use_xrd)
+        self.use_xrd.SetValue(use_xrd)
 
 
     def update_positioners(self):
@@ -1392,6 +1398,11 @@ class SlewScanPanel(GenericScanPanel):
              'comments': self.user_comms.GetValue(),
              'nscans': 1    }
 
+        # make sure XRD detector follows the XRD checkbox
+        xrd_det_name = self.scandb.get_info('xrd_detector', None)
+        for det in self.scandb.get_detectors():
+            if det.name == xrd_det_name:
+                det.use = 1 if self.use_xrd.IsChecked() else 0
 
         for i, wids in enumerate(self.pos_settings):
             pos, u, cur, start, stop, dx, wnpts = wids
@@ -1410,4 +1421,6 @@ class SlewScanPanel(GenericScanPanel):
                         start.SetValue(p1)
                         stop.SetValue(p2)
                 s[mname] = [name, pvnames, p1, p2, npts]
+
+
         return s
