@@ -381,7 +381,8 @@ class QXAFS_Scan(XAFS_Scan):
 
         userdir = self.scandb.get_info('user_folder')
 
-        det_arm_delay = det_start_delay = 0.05
+        det_arm_delay = 0.1
+        det_start_delay = 0.5
         det_prefixes = []
         for det in reversed(self.detectors):
             det_prefixes.append(det.prefix)
