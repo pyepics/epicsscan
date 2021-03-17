@@ -186,7 +186,7 @@ class EigerSimplon:
             time.sleep(0.5)
             caput(prefix + 'AcquireTime',   0.25, wait=True)
             caput(prefix + 'AcquirePeriod', 0.25, wait=True)
-            caput(prefix + 'NumImages',     64000, wait=True)
+            caput(prefix + 'NumImages',     64300, wait=True)
             caput(prefix + 'FWEnable',      0, wait=True)
         print("Restart Done.")
 
@@ -223,7 +223,7 @@ class AD_Eiger(AreaDetector):
         self.readout_time = 5.0e-5
         self.stop_delay = 0.05
         self.arm_delay = 0.25
-        self.start_delay = 0.1
+        self.start_delay = 0.5
         self.dwelltime = None
         self.datadir = ''
         self.ad.FileCaptureOff()
@@ -231,7 +231,7 @@ class AD_Eiger(AreaDetector):
     def custom_pre_scan(self, row=0, dwelltime=None, **kws):
         # t0 = time.time()
         # self.simplon.clear_disk()
-        # print(" Ad Eiger pre-scan ", row, dwelltime, kws, self.filesaver)
+        # print(" Ad Eiger pre-scan ", row, dwelltime, kws, self.filesaver, self.mode)
 
         if self.cam.get('Acquire') != 0:
             self.cam.put('Acquire', 0, wait=True)
@@ -346,13 +346,14 @@ class AD_Eiger(AreaDetector):
         self.cam.put('AcquireTime',   dwelltime-self.readout_time)
         self.cam.put('AcquirePeriod', dwelltime)
 
-    def ContinuousMode(self, dwelltime=.50, numframes=63000):
+    def ContinuousMode(self, dwelltime=.50, numframes=64300):
         # print("putting Eiger into continuous mode ", numframes, dwelltime)
-        self.ScalerMode(dwelltime=dwelltime, numframes=numframes-5)
-        for i in range(3):
+        # print("AD Eiger Continuous Mode ", numframes)
+        self.ScalerMode(dwelltime=dwelltime, numframes=numframes+1)
+        for i in range(2):
             self.cam.put('FWEnable', 0)
             time.sleep(0.1)
-            self.ScalerMode(dwelltime=dwelltime, numframes=numframes+2+2*i)
+            self.ScalerMode(dwelltime=dwelltime, numframes=numframes+i)
             time.sleep(0.1)
             self.cam.put('NumImages', numframes)
 
@@ -368,15 +369,19 @@ class AD_Eiger(AreaDetector):
         1. numframes should be 1, unless you know what you're doing.
         2. Files will be saved by the file saver
         """
+        # print("AD Eiger Scaler Mode ", dwelltime, numframes)
         try:
             self.cam.put('TriggerMode', 'Internal Series') # Internal Mode
         except ValueError:
             pass
         self.ad.FileCaptureOff()
-        if numframes is not None:
-            self.cam.put('NumImages', numframes)
-            time.sleep(0.05)
-            self.cam.put('NumTriggers', 1)
+        time.sleep(0.5)
+        self.cam.put('NumTriggers', 1)
+        if numframes is None:
+            numframes = MAX_FRAMES
+        time.sleep(0.5)
+        self.cam.put('NumImages', numframes)
+
         if dwelltime is not None:
             self.set_dwelltime(dwelltime)
         self.mode = SCALER_MODE
@@ -423,7 +428,7 @@ class AD_Eiger(AreaDetector):
         2. setting dwelltime or numframes to None is discouraged,
            as it can lead to inconsistent data arrays.
         """
-
+        # print("AD Eiger NDArray Mode ", dwelltime, numframes)
         self.cam.put('TriggerMode', 'External Enable')
         self.cam.put('Acquire', 0, wait=True)
         self.cam.put('NumImages', 1)
