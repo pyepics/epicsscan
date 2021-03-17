@@ -43,7 +43,7 @@ ELEM_LIST = ('H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na',
 class GenericScanPanel(scrolled.ScrolledPanel):
     __name__ = 'genericScan'
     def __init__(self, parent, scandb=None, pvlist=None, larch=None,
-                 title='?', size=(760, 380), style=wx.GROW|wx.TAB_TRAVERSAL):
+                 title='?', size=(800, 425), style=wx.GROW|wx.TAB_TRAVERSAL):
 
         self.scandb = scandb
         self.pvlist = pvlist
@@ -54,7 +54,7 @@ class GenericScanPanel(scrolled.ScrolledPanel):
                                         name=self.__name__)
         self.Font13 = wx.Font(13, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
         self.Font12 = wx.Font(12, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
-        self.sizer = wx.GridBagSizer(3, 2)
+        self.sizer = wx.GridBagSizer(2, 2)
         self.SetBackgroundColour(GUIColors.bg)
         self.scantime = -1.0
         self.get_positioners()
@@ -119,7 +119,7 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         bsizer.Add(self.user_comms,                  (ir, 1), (2, 3), LEFT)
 
         ir += 2
-        
+
         start_btn = add_button(bpanel, "Start Scan", size=(120, -1),
                                action=partial(self.parent.onCtrlScan, cmd='Start'))
 
@@ -538,7 +538,7 @@ class XAFSScanPanel(GenericScanPanel):
     units_list = ('eV', u'1/\u212B')
 
     def __init__(self, parent, **kws):
-        kws['size'] = (750, 425)
+        kws['size'] = (800, 425)
         GenericScanPanel.__init__(self, parent, **kws)
         self.reg_settings = []
         self.ev_units = []
@@ -578,7 +578,7 @@ class XAFSScanPanel(GenericScanPanel):
                 units = add_choice(self, self.units_list,
                                    action=partial(self.onVal, label='units', index=i))
             self.ev_units.append(True)
-
+            dtime.Disable()
             self.reg_settings.append((start, stop, step, npts, dtime, units))
             if i >= nregs:
                 start.Disable()
@@ -595,8 +595,6 @@ class XAFSScanPanel(GenericScanPanel):
             sizer.Add(dtime, (ir, 5), (1, 1), wx.ALL, 2)
             sizer.Add(units, (ir, 6), (1, 1), wx.ALL, 2)
 
-        ir += 1
-        sizer.Add(self.hline(), (ir, 0), (1, 7), LEFT)
 
         self.kwtimechoice = add_choice(self, ('0', '1', '2', '3'), size=(70, -1),
                                      action=partial(self.onVal, label='kwpow'))
@@ -610,6 +608,8 @@ class XAFSScanPanel(GenericScanPanel):
         sizer.Add(self.kwtimechoice, (ir, 3), (1, 1), LEFT, 2)
         sizer.Add(SimpleText(self, "Max Time:"),  (ir, 4,), (1, 1), CEN, 3)
         sizer.Add(self.kwtimemax, (ir, 5), (1, 1), LEFT, 2)
+        self.kwtimemax.Disable()
+        self.kwtimechoice.Disable()
 
         bot_panel = self.add_startscan(with_nscans=True)
 
@@ -688,7 +688,21 @@ class XAFSScanPanel(GenericScanPanel):
             step_xafs = (max(dtimes) > qxafs_ttime or dtimes_vary)
         else:
             step_xafs = 'step' in scanmode
-        self.qxafs.SetSelection({True:0, False:1}[step_xafs])
+        self.qxafs.SetValue(not step_xafs)
+        for ireg, reg in enumerate(scan['regions']):
+            start, stop, step, npts, dtime, units = self.reg_settings[ireg]
+            if start.Enabled:
+                dtime.Enable(step_xafs)
+        self.kwtimemax.Enable(step_xafs)
+        self.kwtimechoice.Enable(step_xafs)
+
+
+        herfd_det_name = self.scandb.get_info('xas_herfd_detector', None)
+        use_herfd = False
+        for det in scan['detectors']:
+            if det['label'] == herfd_det_name:
+                use_herfd = True
+        self.use_herfd.SetValue(use_herfd)
 
 
     def setScanTime(self):
@@ -707,7 +721,7 @@ class XAFSScanPanel(GenericScanPanel):
                 dtimes.append((nx, dx))
 
         # qxafs: ignore settling time and k-weighting of time
-        if self.qxafs.GetSelection() == 1:
+        if self.qxafs.IsChecked():
             etime  = 0
             kwt_pow = 0
 
@@ -729,14 +743,18 @@ class XAFSScanPanel(GenericScanPanel):
         self.absrel_value = 1
         self.absrel.SetSelection(1)
 
-        self.qxafs = add_choice(self, ('StepScan', 'Continuous'),
-                                size=(125, -1), action=self.onQXAFS)
+        self.use_herfd = check(self, default=False,
+                               label='Collect HERFD Channels',
+                               action=self.onUseHERFD)
 
-        self.qxafs.SetSelection(0)
+        self.qxafs = check(self, default=True,
+                           label='Continuous XAFS Scan',
+                           action=self.onQXAFS)
+
         qxafs_time_threshold = float(self.scandb.get_info('qxafs_time_threshold',
                                                           default=0))
         if dwell_value < qxafs_time_threshold:
-            self.qxafs.SetSelection(1)
+            self.qxafs.SetValue(True)
 
         self.dwelltime = FloatCtrl(self, precision=dwell_prec,
                                    value=dwell_value,
@@ -756,6 +774,8 @@ class XAFSScanPanel(GenericScanPanel):
                               size=(250, -1),
                               font=self.Font13, colour='#880000')
 
+
+        olabel = SimpleText(self, ' Options:', size=(70, -1))
         alabel = SimpleText(self, ' Mode: ', size=(60, -1))
         dlabel = SimpleText(self, ' Time/Pt (s):')
         tlabel = SimpleText(self, ' Estimated Scan Time:  ')
@@ -766,17 +786,20 @@ class XAFSScanPanel(GenericScanPanel):
         sizer.Add(titlex,         (0, 0), (1, 3), LEFT,  3)
         sizer.Add(tlabel,         (0, 4), (1, 2), RIGHT, 3)
         sizer.Add(self.est_time,  (0, 6), (1, 2), CEN,   3)
-        sizer.Add(alabel,         (1, 0), (1, 1), LEFT,  3)
-        sizer.Add(self.absrel,    (1, 1), (1, 1), LEFT,  3)
-        sizer.Add(rlabel,         (1, 2), (1, 1), RIGHT, 3)
-        sizer.Add(self.nregs_wid, (1, 3), (1, 1), LEFT,  3)
-        sizer.Add(dlabel,         (1, 4), (1, 1), RIGHT, 3)
-        sizer.Add(self.dwelltime, (1, 5), (1, 1), LEFT,  3)
-        sizer.Add(self.qxafs,     (1, 6), (1, 1), LEFT,  3)
 
+        sizer.Add(olabel,         (1, 0), (1, 1), LEFT,  3)
+        sizer.Add(self.qxafs,     (1, 1), (1, 2), LEFT,  3)
+        sizer.Add(self.use_herfd, (1, 3), (1, 3), LEFT,  3)
+
+        sizer.Add(alabel,         (2, 0), (1, 1), LEFT,  3)
+        sizer.Add(self.absrel,    (2, 1), (1, 1), LEFT,  3)
+        sizer.Add(rlabel,         (2, 2), (1, 1), RIGHT, 3)
+        sizer.Add(self.nregs_wid, (2, 3), (1, 1), LEFT,  3)
+        sizer.Add(dlabel,         (2, 4), (1, 1), RIGHT, 3)
+        sizer.Add(self.dwelltime, (2, 5), (1, 1), LEFT,  3)
 
         # return next row for sizer
-        return 2
+        return 3
 
     def make_e0panel(self):
         p = wx.Panel(self)
@@ -788,10 +811,9 @@ class XAFSScanPanel(GenericScanPanel):
 
         self.elemchoice = add_choice(p, ELEM_LIST,
                                      action=self.onEdgeChoice, size=(70, -1))
-        self.elemchoice.SetMaxSize((60, 25))
         self.elemchoice.SetStringSelection('Fe')
 
-        self.edgechoice = add_choice(p, self.edges_list, size=(50, -1),
+        self.edgechoice = add_choice(p, self.edges_list, size=(75, -1),
                                      action=self.onEdgeChoice)
 
         s.Add(SimpleText(p, " Edge Energy:", size=(110, -1),
@@ -853,16 +875,15 @@ class XAFSScanPanel(GenericScanPanel):
             for wid in self.reg_settings:
                 wid[4].SetValue(value)
 
-            if value < qxafs_time_threshold:
-                self.qxafs.SetSelection(1)
+            self.qxafs.SetValue(value < qxafs_time_threshold)
         elif label == 'dtime':
             equal_times = True
             for ireg, reg in enumerate(self.reg_settings):
                 if reg[4].Enabled:
                     rtime = float(reg[4].GetValue())
                     equal_times = equal_times and abs(value -rtime)  < 0.01
-            if not equal_times:
-                self.qxafs.SetSelection(0)
+
+            self.qxafs.SetValue(not equal_times)
         elif label == 'nreg':
             nregs = value
             for ireg, reg in enumerate(self.reg_settings):
@@ -908,15 +929,27 @@ class XAFSScanPanel(GenericScanPanel):
         """continuous/step scans """
         # note: save qxafs selection, because setting the
         # per-region time may auto-set the qxafs selection to 'step'
-        sel = self.qxafs.GetSelection()
+        use_qxafs = evt.IsChecked()
         dtime = float(self.dwelltime.GetValue())
         equal_times = True
         for ireg, reg in enumerate(self.reg_settings):
-            if reg[4].Enabled:
-                reg[4].SetValue(dtime)
+            if reg[1].Enabled:
+                reg[4].Enable(not use_qxafs)
+                if not use_qxafs:
+                    reg[4].SetValue(dtime)
 
-        self.qxafs.SetSelection(sel)
+        self.kwtimemax.Enable(not use_qxafs)
+        self.kwtimechoice.Enable(not use_qxafs)
+        self.qxafs.SetValue(use_qxafs)
+
         self.setScanTime()
+
+    def onUseHERFD(self, evt=None):
+        herfd_det_name = self.scandb.get_info('xas_herfd_detector', None)
+        for det in self.scandb.get_detectors():
+            if det.name == herfd_det_name:
+                det.use = 1 if evt.IsChecked() else 0
+
 
     def onAbsRel(self, evt=None):
         """xafs abs/rel"""
@@ -951,7 +984,7 @@ class XAFSScanPanel(GenericScanPanel):
         enpos = self.scandb.get_positioner(enpos)
         scantype = 'xafs'
         scanmode = 'step'
-        if self.qxafs.GetSelection() == 1:
+        if self.qxafs.IsChecked():
             scanmode = 'slew'
         s = {'type': scantype,
              'scanmode': scanmode,
@@ -1061,6 +1094,13 @@ class MeshScanPanel(GenericScanPanel):
             stop.SetValue(posdat[3])
             npts.SetValue(posdat[4])
             self.update_position_from_pv(irow)
+
+        print("Mesh load scandict ", scan)
+        for det in scan['detectors']:
+            print(det)
+        print("??")
+
+
 
     def update_positioners(self):
         """meant to be overwritten"""
@@ -1184,7 +1224,17 @@ class SlewScanPanel(GenericScanPanel):
                                label='Zero Fine Motors before Map?',
                                action=self.onZeroFineMotors)
 
+
+        zfm = self.scandb.get_info('zero_finemotors_beforemap',
+                                   as_bool=True, default=0)
+        self.xrdchoice = check(self, default=False,
+                               label='Collect XRD with Map?',
+                               action=self.onSelectXRD)
+
         sizer.Add(self.zfmchoice, (ir, 1), (1, 3), wx.ALL, 2)
+
+        ir += 1
+        sizer.Add(self.xrdchoice, (ir, 1), (1, 3), wx.ALL, 2)
 
         ir += 1
         sizer.Add(SimpleText(self, 'Select from Common Square Maps:'),
@@ -1255,6 +1305,13 @@ class SlewScanPanel(GenericScanPanel):
                 npts.SetValue(posdat[4])
                 self.update_position_from_pv(irow)
 
+        xrd_det_name = self.scandb.get_info('xrd_detector', None)
+        use_xrd = False
+        for det in scan['detectors']:
+            if det['label'] == xrd_det_name:
+                use_xrd = True
+        self.xrdchoice.SetValue(use_xrd)
+
 
     def update_positioners(self):
         """meant to be overwritten"""
@@ -1292,6 +1349,12 @@ class SlewScanPanel(GenericScanPanel):
     def onZeroFineMotors(self, evt=None):
         zfm = self.zfmchoice.IsChecked()
         self.scandb.set_info('zero_finemotors_beforemap', int(zfm))
+
+    def onSelectXRD(self, evt=None):
+        xrd_det_name = self.scandb.get_info('xrd_detector', None)
+        for det in self.scandb.get_detectors():
+            if det.name == xrd_det_name:
+                det.use = 1 if evt.IsChecked() else 0
 
     def onPos(self, evt=None, index=0):
         self.update_position_from_pv(index)
