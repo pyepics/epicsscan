@@ -315,8 +315,8 @@ class Xspress3Detector(DetectorMixin):
         self.label = label
         if self.label is None:
             self.label = self.prefix
-        self.arm_delay   = 0.05
-        self.start_delay = 0.50
+        self.arm_delay   = 0.10
+        self.start_delay = 1.00
         self._counter = None
         self.counters = []
         self._repr_extra = self.repr_fmt % (nmcas, nrois,
