@@ -305,11 +305,11 @@ class DetectorFrame(wx.Frame) :
             self.widlist.append(('old_det', det, desc, pvctrl, use, kind, erase))
 
         # select a new detector
-        for i in range(2):
+        for i in range(1):
             ir +=1
             desc   = wx.TextCtrl(panel, value='',   size=(125, -1))
             pvctrl = wx.TextCtrl(panel, value='',   size=(175, -1))
-            use    = check(panel, default=True)
+            use    = check(panel, default=False)
             kind = add_choice(panel, DET_CHOICES, size=(110, -1))
             kind.SetStringSelection(DET_CHOICES[0])
             sizer.Add(desc,   (ir, 0), (1, 1), CEN, 1)
@@ -350,7 +350,7 @@ class DetectorFrame(wx.Frame) :
         for i in range(2):
             desc   = wx.TextCtrl(panel, -1, value='', size=(125, -1))
             pvctrl = wx.TextCtrl(panel, value='', size=(175, -1))
-            use    = check(panel, default=True)
+            use    = check(panel, default=False)
             ir +=1
             sizer.Add(desc,   (ir, 0), (1, 1), CEN, 1)
             sizer.Add(pvctrl, (ir, 1), (1, 1), LEFT, 1)
@@ -392,7 +392,6 @@ class DetectorFrame(wx.Frame) :
             use    = use.IsChecked()
             name   = name.GetValue().strip()
             pvname = pvname.GetValue().strip()
-
             if len(name) < 1 or len(pvname) < 1:
                 continue
             # print wtype, obj, name, pvname, use
@@ -405,7 +404,6 @@ class DetectorFrame(wx.Frame) :
                     delete = self.scan.del_counter
                 delete(obj.name)
             elif obj is not None:
-                # print ' -> use ', use, int(use), obj, obj.use
                 obj.use    = int(use)
                 obj.name   = name
                 obj.pvname = pvname
