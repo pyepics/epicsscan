@@ -608,8 +608,8 @@ class XAFSScanPanel(GenericScanPanel):
         sizer.Add(self.kwtimechoice, (ir, 3), (1, 1), LEFT, 2)
         sizer.Add(SimpleText(self, "Max Time:"),  (ir, 4,), (1, 1), CEN, 3)
         sizer.Add(self.kwtimemax, (ir, 5), (1, 1), LEFT, 2)
-        self.kwtimemax.Disable()
-        self.kwtimechoice.Disable()
+        # self.kwtimemax.Disable()
+        # self.kwtimechoice.Disable()
 
         bot_panel = self.add_startscan(with_nscans=True)
 
@@ -691,10 +691,10 @@ class XAFSScanPanel(GenericScanPanel):
         self.qxafs.SetValue(not step_xafs)
         for ireg, reg in enumerate(scan['regions']):
             start, stop, step, npts, dtime, units = self.reg_settings[ireg]
-            if start.Enabled:
-                dtime.Enable(step_xafs)
-        self.kwtimemax.Enable(step_xafs)
-        self.kwtimechoice.Enable(step_xafs)
+            # if start.Enabled:
+            #     dtime.Enable(step_xafs)
+        # self.kwtimemax.Enable(step_xafs)
+        # self.kwtimechoice.Enable(step_xafs)
 
         herfd_det_name = self.scandb.get_info('xas_herfd_detector', None)
         use_herfd = False
@@ -933,12 +933,12 @@ class XAFSScanPanel(GenericScanPanel):
         equal_times = True
         for ireg, reg in enumerate(self.reg_settings):
             if reg[1].Enabled:
-                reg[4].Enable(not use_qxafs)
-                if not use_qxafs:
-                    reg[4].SetValue(dtime)
+                #reg[4].Enable(not use_qxafs)
+                #if not use_qxafs:
+                reg[4].SetValue(dtime)
 
-        self.kwtimemax.Enable(not use_qxafs)
-        self.kwtimechoice.Enable(not use_qxafs)
+        # self.kwtimemax.Enable(not use_qxafs)
+        # self.kwtimechoice.Enable(not use_qxafs)
         self.qxafs.SetValue(use_qxafs)
 
         self.setScanTime()
