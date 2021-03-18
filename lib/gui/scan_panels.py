@@ -578,7 +578,7 @@ class XAFSScanPanel(GenericScanPanel):
                 units = add_choice(self, self.units_list,
                                    action=partial(self.onVal, label='units', index=i))
             self.ev_units.append(True)
-            dtime.Disable()
+            # dtime.Disable()
             self.reg_settings.append((start, stop, step, npts, dtime, units))
             if i >= nregs:
                 start.Disable()
