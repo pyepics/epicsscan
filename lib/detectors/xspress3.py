@@ -315,8 +315,8 @@ class Xspress3Detector(DetectorMixin):
         self.label = label
         if self.label is None:
             self.label = self.prefix
-        self.arm_delay   = 0.10
-        self.start_delay = 1.00
+        self.arm_delay   = 0.1
+        self.start_delay = 0.50
         self._counter = None
         self.counters = []
         self._repr_extra = self.repr_fmt % (nmcas, nrois,
@@ -540,6 +540,7 @@ class Xspress3Detector(DetectorMixin):
         if numframes is not None:
             self._xsp3.put('NumImages', numframes)
 
+        self.start_delay = 0.50
         if self.mode == NDARRAY_MODE:
             self._xsp3.FileCaptureOn(verify_rbv=True)
         elif self.mode == SCALER_MODE:
@@ -547,6 +548,7 @@ class Xspress3Detector(DetectorMixin):
         elif self.mode == ROI_MODE:
             self._xsp3.FileCaptureOff()
             self._xsp3.set_timeseries('start', numframes)
+            self.start_delay = 1.50
         if self._xsp3.DetectorState_RBV > 0:
             self._xsp3.put('Acquire', 0, wait=True)
         if wait:
