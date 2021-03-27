@@ -880,7 +880,7 @@ class ScanDB(object):
         ismon = {False:0, True:1}[monitor]
         if len(vals) < 1:
             table.insert().execute(name=name, notes=notes, is_monitor=ismon)
-        elif notes is not '':
+        elif notes != '':
             where = "name='%s'" % name
             table.update(whereclause=text(where)).execute(notes=notes,
                                                     is_monitor=ismon)
