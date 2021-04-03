@@ -14,7 +14,7 @@ from .areadetector import ADFileMixin, get_adversion
 from ..debugtime import debugtime
 from ..file_utils import fix_varname
 
-MAX_ROIS = 32
+MAX_ROIS = 48
 MAX_FRAMES = 16384
 
 SCAFormats = namedtuple('SCAFormats', ('acq', 'npts', 'valform', 'tsform'))
@@ -154,7 +154,7 @@ class Xspress3Counter(DeviceCounter):
                   'Pileup', 'Event Width', 'DTFactor', 'DT Percent')
     scas2save = (0,)
 
-    def __init__(self, prefix, outpvs=None, nmcas=4, nrois=32, rois=None,
+    def __init__(self, prefix, outpvs=None, nmcas=4, nrois=48, rois=None,
                  nscas=1, ad_version=2, use_unlabeled=False, use_full=False,
                  mode=None, scandb=None):
 
@@ -286,7 +286,7 @@ class Xspress3Detector(DetectorMixin):
     repr_fmt = 'nmcas=%i, nrois=%i, use_dtc=%s, use_full=%s'
 
     def __init__(self, prefix, label=None, nmcas=4, mode='scaler',
-                 rois=None, nrois=32, pixeltime=0.1, use_dtc=False,
+                 rois=None, nrois=48, pixeltime=0.1, use_dtc=False,
                  use=True, use_unlabeled=False, use_full=False,
                  filesaver='HDF1:', fileroot='/home/xspress3/data', **kws):
 

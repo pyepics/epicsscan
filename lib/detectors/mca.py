@@ -25,7 +25,7 @@ class McaCounter(DeviceCounter):
     """Simple MCA Counter: saves all ROIs (total or net) and, optionally full spectra
     """
     invalid_device_msg = 'McaCounter must use an Epics MCA'
-    def __init__(self, prefix, outpvs=None, nrois=32, rois=None,
+    def __init__(self, prefix, outpvs=None, nrois=48, rois=None,
                  use_net=False, use_unlabeled=False, use_full=False):
         nrois = int(nrois)
         DeviceCounter.__init__(self, prefix, rtype='mca', outpvs=outpvs)
@@ -55,7 +55,7 @@ class MultiMcaCounter(DeviceCounter):
     invalid_device_msg = 'McaCounter must use an Epics Multi-Element MCA'
     _dxp_fields = (('InputCountRate', 'ICR'),
                    ('OutputCountRate', 'OCR'))
-    def __init__(self, prefix, outpvs=None, nmcas=4, nrois=32,
+    def __init__(self, prefix, outpvs=None, nmcas=4, nrois=48,
                  rois=None, search_all=False, use_net=False,
                  use_unlabeled=False, use_full=False):
 
@@ -133,7 +133,7 @@ class MultiMcaCounter(DeviceCounter):
 class McaDetector(DetectorMixin):
     trigger_suffix = 'EraseStart'
     repr_fmt = ', nrois=%i, use_net=%s, use_full=%s'
-    def __init__(self, prefix, nrois=32, rois=None,
+    def __init__(self, prefix, nrois=48, rois=None,
                  use_net=False, use_full=False, **kws):
         nrois = int(nrois)
         DetectorMixin.__init__(self, prefix, **kws)
@@ -369,7 +369,7 @@ class MultiMcaDetector(DetectorMixin):
     collect_mode = 'CollectMode'
     repr_fmt = ', nmcas=%i, nrois=%i, use_net=%s, use_full=%s'
 
-    def __init__(self, prefix, label=None, nmcas=4, nrois=32, rois=None,
+    def __init__(self, prefix, label=None, nmcas=4, nrois=48, rois=None,
                  mode='scalar', search_all=False, use_net=False,
                  use_unlabeled=False, use_full=False, **kws):
         DetectorMixin.__init__(self, prefix, label=label)
