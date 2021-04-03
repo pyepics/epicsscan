@@ -78,8 +78,8 @@ class ROIFrame(wx.Frame):
 
         self.wids = []
         self.prefix = self.det.pvname
-        self.nrois  = int(json.loads(self.det.options).get('nrois', 32))
-        nrows = self.nrois/2
+        self.nrois  = int(json.loads(self.det.options).get('nrois', 48))
+        nrows = self.nrois/3
         col = 0
         for i in range(self.nrois):
             use = check(self, default=False, label=' <unused>', size=(150, -1))
