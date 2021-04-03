@@ -74,23 +74,25 @@ class ROIFrame(wx.Frame):
         sizer.Add(txt, (0, 0),   (1, 1), LEFT, 2)
         txt =SimpleText(self, ' Use ROI', minsize=(150, -1), style=LEFT)
         sizer.Add(txt, (0, 1),   (1, 1), LEFT, 2)
+        txt =SimpleText(self, ' Use ROI', minsize=(150, -1), style=LEFT)
+        sizer.Add(txt, (0, 2),   (1, 1), LEFT, 2)
 
 
         self.wids = []
         self.prefix = self.det.pvname
-        self.nrois  = int(json.loads(self.det.options).get('nrois', 48))
+        self.nrois  = 48 # int(json.loads(self.det.options).get('nrois', 48))
         ncols = 3
-        nrows = self.nrois//ncols
+        nrows = 16 # self.nrois//ncols
         col = 0
         for i in range(self.nrois):
-            irow = 1 + i //nrows
-            icol = i % nrows
+            icol = i //nrows
+            irow = 1 + i % nrows
             use = check(self, default=False, label=' <unused>', size=(150, -1))
             use.Disable()
             self.wids.append(use)
-            sizer.Add(use, (irow, col), (1, 1), LEFT, 2)
+            sizer.Add(use, (irow, icol), (1, 1), LEFT, 2)
 
-        irow += 1
+        irow = nrows+1
         sizer.Add(wx.StaticLine(self, size=(475, -1), style=wx.LI_HORIZONTAL),
                   (irow, 0), (1, 4), CEN, 2)
         irow += 1
