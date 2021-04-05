@@ -459,13 +459,13 @@ class Slew_Scan(StepScan):
             self.xps.arm_trajectory(trajname)
             if irow < 2 or not lastrow_ok:
                 time.sleep(0.25)
-            # dtimer.add('outer pos move')
+            dtimer.add('outer pos move')
             dtimer.add('trajectory armed')
 
             for p in self.positioners:
                 p.move_to_pos(irow-1, wait=True)
 
-            # dtimer.add('inner pos move(2)')
+            dtimer.add('inner pos move(2)')
             for pv, v1, v2 in self.motor_vals.values():
                 val = v1
                 if trajname == 'backward': val = v2
@@ -536,7 +536,7 @@ class Slew_Scan(StepScan):
 
             if irow < npts-1:
                 for p in self.positioners:
-                    p.move_to_pos(irow, wait=True)
+                    p.move_to_pos(irow, wait=False)
 
             dtimer.add('start read')
 
@@ -559,18 +559,18 @@ class Slew_Scan(StepScan):
                 t0 = time.time()
                 write_complete = xrfdet.file_write_complete()
                 ntry = 0
-                while not write_complete and (time.time()-t0 < 1.0):
+                while not write_complete and (time.time()-t0 < 15.0):
                     write_complete = xrfdet.file_write_complete()
-                    time.sleep(0.1)
+                    time.sleep(0.05)
                     ntry = ntry + 1
                 nxrf = xrfdet.get_numcaptured()
                 if (nxrf < npulses-1) or not write_complete:
-                    time.sleep(0.50)
+                    time.sleep(0.250)
                     xrfdet.finish_capture()
                     nxrf = xrfdet.get_numcaptured()
                     write_complete = xrfdet.file_write_complete()
                 if (nxrf < npulses-1) or not write_complete:
-                    time.sleep(0.50)
+                    time.sleep(0.250)
                     xrfdet.finish_capture()
                     nxrf = xrfdet.get_numcaptured()
                     write_complete = xrfdet.file_write_complete()
@@ -579,7 +579,7 @@ class Slew_Scan(StepScan):
                           npulses, ntry)
                     rowdata_ok = False
                     xrfdet.stop()
-                    time.sleep(0.25)
+                    time.sleep(0.1)
             dtimer.add('saved XRF data')
 
             if xrddet is not None:
@@ -609,6 +609,10 @@ class Slew_Scan(StepScan):
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
                 time.sleep(0.25)
 
+            elif irow < npts-1:
+                for p in self.positioners:
+                    p.move_to_pos(irow, wait=True)
+
             # check again for pause, resume, and abort
             self.look_for_interrupts()
             while self.pause:
@@ -621,7 +625,7 @@ class Slew_Scan(StepScan):
                 break
             if debug:
                 dtimer.show()
-            time.sleep(0.025)
+            time.sleep(0.01)
 
         if mappref is not None:
             caput('%sstatus' % (mappref), 'Finishing')
