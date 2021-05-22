@@ -85,21 +85,26 @@ class Xspress3(Device, ADFileMixin):
         poll(0.003, 0.25)
 
 
-    def set_timeseries(self, mode='stop', nframes=MAX_FRAMES):
+    def set_timeseries(self, mode='stop', numframes=MAX_FRAMES, enable=True):
         scaf = get_scaformats(self._ad_version) # ('acq', 'npts', 'valform', 'tsform')
 
         # ROI stats:  0=Erase/Start, 1=Start, 2=Stop
         # SCA TS:     0=Done, 1=Acquire
+
         roi_val, sca_val = 0, 1 # start!
         if mode.lower().startswith('stop'):
             roi_val, sca_val = 2, 0 # stop
 
+        enable_val = 1 if enable else 0
+        for i in range(1, self.nmcas+1):
+            self.put('MCA%dROI:EnableCallbacks' % i, enable_val)
+
         for i in range(1, self.nmcas+1):
             self.put('MCA%dROI:TSControl' % i, roi_val)
             self.put('MCA%dROI:BlockingCallbacks' % i, 1)
-            self.put('MCA%dROI:TSNumPoints' % i, nframes)
+            self.put('MCA%dROI:TSNumPoints' % i, numframes)
             self.put("C%dSCA:%s" % (i, scaf.acq), sca_val)
-            self.put("C%dSCA:%s" % (i, scaf.npts), nframes)
+            self.put("C%dSCA:%s" % (i, scaf.npts), numframes)
 
     def set_dwelltime(self, dwelltime):
         """set dwell time in seconds
@@ -452,7 +457,7 @@ class Xspress3Detector(DetectorMixin):
             self._xsp3.put('NumImages', numframes)
         if dwelltime is not None:
             self.set_dwelltime(dwelltime)
-        self._xsp3.set_timeseries('stop')
+        self._xsp3.set_timeseries(mode='stop', enable=True)
         self.mode = SCALER_MODE
 
     def ROIMode(self, dwelltime=None, numframes=None):
@@ -475,7 +480,7 @@ class Xspress3Detector(DetectorMixin):
             numframes = MAX_FRAMES
 
         self._xsp3.put('NumImages', numframes)
-        self._xsp3.set_timeseries('stop', numframes)
+        self._xsp3.set_timeseries(mode='stop', numframes=numframes, enable=True)
         if dwelltime is not None:
             self.set_dwelltime(dwelltime)
         self.mode = ROI_MODE
@@ -496,7 +501,7 @@ class Xspress3Detector(DetectorMixin):
         """
         # print("Xspress3 NDArrayMode ", dwelltime, numframes)
         self._xsp3.put('TriggerMode', 3)
-        self._xsp3.set_timeseries('stop')
+        self._xsp3.set_timeseries(mode='stop', enable=False)
 
         if numframes is not None:
             self._xsp3.put('NumImages', numframes)
@@ -549,7 +554,7 @@ class Xspress3Detector(DetectorMixin):
             self._xsp3.FileCaptureOff()
         elif self.mode == ROI_MODE:
             self._xsp3.FileCaptureOff()
-            self._xsp3.set_timeseries('start', numframes)
+            self._xsp3.set_timeseries(mode='start', numframes=numframes, enable=True)
             self.start_delay = self.start_delay_roimode
         if self._xsp3.DetectorState_RBV > 0:
             self._xsp3.put('Acquire', 0, wait=True)
@@ -579,7 +584,7 @@ class Xspress3Detector(DetectorMixin):
         if disarm:
             self.disarm()
 
-    def save_arraydata(self, filename=None):
+    def save_arraydata(self, filenasme=None):
         pass
 
     def file_write_complete(self):
