@@ -657,7 +657,7 @@ class ScanDB(object):
         if isinstance(value, (int, float)):
             value = [value]
         where = "name='%s'" % name
-        update = tab.update().where(whereclause=text(where))
+        update = tab.update(whereclause=text(where))
         if self.server.startswith('sqli'):
             update.execute(data=json_encode(value))
         else:
@@ -668,7 +668,7 @@ class ScanDB(object):
         cls, tab = self.get_table('scandata')
         where = "name='%s'" % name
         tselect = tab.select(whereclause=text(where))
-        tupdate = tab.update().where(whereclause=text(where))
+        tupdate = tab.update(whereclause=text(where))
         if self.server.startswith('sqli'):
             data = json.loads(tselect.execute().fetchone().data)
             data.append(val)
@@ -1079,7 +1079,7 @@ class ScanDB(object):
         row = table.select().where(table.c.id==cmdid).execute().fetchone()
         if self.status_names[row.status_id].lower() == 'requested':
             table.update(whereclause=text("id='%i'" % cmdid)).execute(command=new_command)
-        
+
 
     def cancel_command(self, cmdid):
         """cancel command"""
