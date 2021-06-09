@@ -311,8 +311,7 @@ class QXAFS_Scan(XAFS_Scan):
 
         ts_start = time.monotonic()
         if not self.verify_scan():
-            self.write('Cannot execute scan: %s' % self._scangroup.error_message)
-            self.set_info('scan_message', 'cannot execute scan')
+            self.write('Cannot execute scan: %s\n' % self.last_error_msg)
             return
 
         dtimer.add('scan verified')
