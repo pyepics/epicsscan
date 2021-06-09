@@ -217,8 +217,7 @@ class QXAFS_ScanWatcher(object):
                     msg_counter += 1
                 for counter in self.counters:
                     try:
-                        self.scandb.set_scandata(counter.label,
-                                                 counter.read())
+                        self.scandb.set_scandata(counter.label, counter.read())
                     except:
                         self.write("Could not set scandata for %r" % (counter))
                 self.scandb.commit()

@@ -181,7 +181,7 @@ class StepScan(object):
         self.looptime = 0 # time to run scan loop (even if aborted)
         self.exittime = 0 # time to complete scan (post_scan, return positioners, complete i/o)
         self.runtime  = 0 # inittime + looptime + exittime
-
+        self.last_error_msg = ''
         self.messenger = messenger or sys.stdout.write
         self.data_callback = data_callback
         self.publish_thread = None
@@ -509,6 +509,7 @@ class StepScan(object):
 
     def set_error(self, msg):
         """set scan error message"""
+        self.last_error_msg = msg
         if self.scandb is not None:
             self.set_info('last_error', msg)
 
@@ -575,7 +576,7 @@ class StepScan(object):
         self.det_settle_time = max(MIN_POLL_TIME, self.det_settle_time)
 
         if not self.verify_scan():
-            self.write('Cannot execute scan: %s\n' % self._scangroup.error_message)
+            self.write('Cannot execute scan: %s\n' % self.last_error_msg)
             self.set_info('scan_message', 'cannot execute scan')
             return
         userdir = '.'
