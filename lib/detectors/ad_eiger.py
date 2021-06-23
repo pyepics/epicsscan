@@ -219,27 +219,24 @@ class AD_Eiger(AreaDetector):
         self.cam.PV('DetectorState_RBV')
         self.cam.PV('AcquireBusy')
         self.mode = mode
+        self.roi_datatype_pv = get_pv("%sROI1:DataTypeOut")
 
         self.readout_time = 5.0e-5
         self.stop_delay = 0.05
-        self.arm_delay = 0.25
-        self.start_delay = 0.5
+        self.arm_delay = 0.1
+        self.start_delay = 0.6
         self.dwelltime = None
         self.datadir = ''
         self.ad.FileCaptureOff()
 
     def custom_pre_scan(self, row=0, dwelltime=None, **kws):
-        # t0 = time.time()
-        # self.simplon.clear_disk()
-        # print(" Ad Eiger pre-scan ", row, dwelltime, kws, self.filesaver, self.mode)
-
         if self.cam.get('Acquire') != 0:
             self.cam.put('Acquire', 0, wait=True)
             time.sleep(5*self.arm_delay)
 
         self.ad.setFileTemplate("%s%s_%4.4d.h5")
         if self.filesaver.startswith('HDF'):
-            self.ad.filePut('Compression', 'zlib')
+            self.ad.filePut('Compression', 'BSLZ4')
             self.ad.filePut('ZLevel', 1)
 
         self.cam.put('FWCompression', 'Disable')
@@ -250,6 +247,11 @@ class AD_Eiger(AreaDetector):
         self.cam.put('ArrayCallbacks', 'Enable')
         self.cam.put('StreamEnable', 'Enable')
         self.cam.put('ShutterMode', 'None')
+        # if dwelltime < 0.015:
+        #     self.roi_datatype_pv.put('Int16')
+        # else:
+        #     self.roi_datatype_pv.put('Int32')
+
         if self.mode in (ROI_MODE, SCALER_MODE):
             old_counters = [c for c in self.counters]
             self.counters = []
@@ -290,19 +292,23 @@ class AD_Eiger(AreaDetector):
             self.fnum = fnum
             self.ad.setFileNumber(fnum)
 
-        if self.mode == SCALER_MODE:
+        if self.mode == SCALER_MODE or numframes is None:
             numframes = 1
-
-        if numframes is not None:
-            self.cam.put('NumImages', numframes)
-            self.ad.setFileNumCapture(numframes)
 
         self.ad.setFileWriteMode(2) # Stream
         if self.mode == ROI_MODE:
             self.cam.put('NumTriggers', numframes)
+            self.cam.put('NumImages', numframes)
+            self.ad.setFileNumCapture(numframes)
             self.roistat.arm(numframes=numframes)
             time.sleep(0.25)
             self.roistat.start(erase=True)
+
+        elif self.mode == NDARRAY_MODE:
+            self.cam.put('NumTriggers', numframes)
+            self.cam.put('NumImages', 1)
+
+
         # print("AD EIGER ARM ", mode)
         if self.mode in (ROI_MODE, NDARRAY_MODE):
             self.ad.FileCaptureOn(verify_rbv=True)
@@ -345,6 +351,7 @@ class AD_Eiger(AreaDetector):
         self.dwelltime = dwelltime
         self.cam.put('AcquireTime',   dwelltime-self.readout_time)
         self.cam.put('AcquirePeriod', dwelltime)
+
 
     def ContinuousMode(self, dwelltime=.50, numframes=64300):
         # print("putting Eiger into continuous mode ", numframes, dwelltime)
@@ -400,9 +407,11 @@ class AD_Eiger(AreaDetector):
            as it can lead to inconsistent data arrays.
         """
         # print("AD Eiger ROI Mode ", dwelltime, numframes)
-        self.cam.put('TriggerMode', 'External Enable')
         self.cam.put('Acquire', 0, wait=True)
-        self.cam.put('NumImages', 1)
+        self.cam.put('NumImages', 1, wait=True)
+        time.sleep(0.1)
+
+        self.cam.put('TriggerMode', 'External Enable')
 
         if numframes is None:
             numframes = MAX_FRAMES
@@ -428,14 +437,25 @@ class AD_Eiger(AreaDetector):
         2. setting dwelltime or numframes to None is discouraged,
            as it can lead to inconsistent data arrays.
         """
+
         # print("AD Eiger NDArray Mode ", dwelltime, numframes)
-        self.cam.put('TriggerMode', 'External Enable')
+        if numframes is None:
+            numframes = 1
+
         self.cam.put('Acquire', 0, wait=True)
-        self.cam.put('NumImages', 1)
+        self.cam.put('NumImages', 1, wait=True)
+        time.sleep(0.1)
 
-        if numframes is not None:
-            self.cam.put('NumTriggers', numframes)
 
+        self.cam.put('TriggerMode', 'External Enable', wait=True)
+
+        print("AD Eiger NDArray Mode ", dwelltime, numframes)
+        print(" NumImages_RBV , TriggerMode_RBV ",
+              self.cam.get('NumImages_RBV'),
+              self.cam.get('TriggerMode_RBV'))
+
+
+        self.cam.put('NumTriggers', numframes)
         if dwelltime is not None:
             dwelltime = self.dwelltime
         self.set_dwelltime(dwelltime)
