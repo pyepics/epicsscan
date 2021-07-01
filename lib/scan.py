@@ -697,6 +697,9 @@ class StepScan(object):
                 if self.dwelltime_varys:
                     for d in self.detectors:
                         d.set_dwelltime(self.dwelltime[i])
+                for d in self.detectors:
+                    d.arm()
+
                 # move to next position
                 [p.move_to_pos(i) for p in self.positioners]
                 self.dtimer.add('Pt %i : move_to_pos (%i)' % (i, len(self.positioners)))
