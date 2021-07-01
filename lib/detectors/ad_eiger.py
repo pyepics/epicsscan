@@ -205,7 +205,8 @@ class AD_Eiger(AreaDetector):
         AreaDetector.__init__(self, prefix, label=label, mode=mode,
                               filesaver=filesaver, roistat=roistat,
                               fileroot=fileroot, **kws)
-        self.label = 'eiger'
+        self.label = label
+        self.prefix = prefix
         self.simplon = None
         if url is not None:
             self.simplon = EigerSimplon(url, prefix)
@@ -449,11 +450,10 @@ class AD_Eiger(AreaDetector):
 
         self.cam.put('TriggerMode', 'External Enable', wait=True)
 
-        print("AD Eiger NDArray Mode ", dwelltime, numframes)
-        print(" NumImages_RBV , TriggerMode_RBV ",
-              self.cam.get('NumImages_RBV'),
-              self.cam.get('TriggerMode_RBV'))
-
+        # print("AD Eiger NDArray Mode ", dwelltime, numframes)
+        # print(" NumImages_RBV , TriggerMode_RBV ",
+        #       self.cam.get('NumImages_RBV'),
+        #       self.cam.get('TriggerMode_RBV'))
 
         self.cam.put('NumTriggers', numframes)
         if dwelltime is not None:
@@ -464,7 +464,6 @@ class AD_Eiger(AreaDetector):
     def config_filesaver(self, path=None, **kws):
         if path is not None:
             self.datadir = path
-        # kws.update(name='eiger')
         self.ad.config_filesaver(path=path, **kws)
 
     def get_next_filename(self):
