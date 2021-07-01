@@ -538,7 +538,7 @@ class Xspress3Detector(DetectorMixin):
             self.mode = mode
         if self._xsp3.DetectorState_RBV > 0:
             self._xsp3.put('Acquire', 0)
-        # self._xsp3.put('ERASE',   1) #, wait=True)
+        self._xsp3.put('ERASE',   1, wait=True)
 
         if fnum is not None:
             self.fnum = fnum
@@ -574,6 +574,8 @@ class Xspress3Detector(DetectorMixin):
             self.mode = mode
         if arm:
             self.arm(mode=mode, wait=wait)
+        if mode == SCALER_MODE:
+            self._xsp3.put('ERASE', 1, wait=True)
         self._xsp3.put('Acquire', 1, wait=False)
         if wait:
             time.sleep(self.start_delay)
