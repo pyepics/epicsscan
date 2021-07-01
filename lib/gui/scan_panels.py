@@ -1311,7 +1311,7 @@ class SlewScanPanel(GenericScanPanel):
                 npts.SetValue(posdat[4])
                 self.update_position_from_pv(irow)
 
-        xrd_det_name = self.scandb.get_info('xrd_detector', None)
+        xrd_det_name = self.scandb.get_info('xrdmap_detector', None)
         use_xrd = False
         for det in scan['detectors']:
             if det['label'] == xrd_det_name:
@@ -1357,7 +1357,7 @@ class SlewScanPanel(GenericScanPanel):
         self.scandb.set_info('zero_finemotors_beforemap', int(zfm))
 
     def onSelectXRD(self, evt=None):
-        xrd_det_name = self.scandb.get_info('xrd_detector', None)
+        xrd_det_name = self.scandb.get_info('xrdmap_detector', None)
         for det in self.scandb.get_detectors():
             if det.name == xrd_det_name:
                 det.use = 1 if evt.IsChecked() else 0
@@ -1399,7 +1399,7 @@ class SlewScanPanel(GenericScanPanel):
              'nscans': 1    }
 
         # make sure XRD detector follows the XRD checkbox
-        xrd_det_name = self.scandb.get_info('xrd_detector', None)
+        xrd_det_name = self.scandb.get_info('xrdmap_detector', None)
         for det in self.scandb.get_detectors():
             if det.name == xrd_det_name:
                 det.use = 1 if self.use_xrd.IsChecked() else 0
