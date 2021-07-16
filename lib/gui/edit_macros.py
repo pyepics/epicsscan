@@ -23,7 +23,7 @@ from .edit_sequences   import ScanSequenceFrame
 from ..scandb import InstrumentDB
 
 import larch
-from larch.wxlib.readlinetextctrl import ReadlineTextCtrl
+from wxutils.readlinetextctrl import ReadlineTextCtrl
 
 
 MACRO_HISTORY = 'scan_macro_history.lar'
@@ -392,7 +392,7 @@ class CommandsPanel(scrolled.ScrolledPanel):
         self.prompt = wx.StaticText(panel, -1, 'Command>', size = (95,-1),
                                     style=RIGHT)
         self.histfile = os.path.join(larch.site_config.user_larchdir, MACRO_HISTORY)
-        self.input = ReadlineTextCtrl(panel, value='', size=(525, -1),
+        self.input = ReadlineTextCtrl(panel, id=-1, value='', size=(525, -1),
                                       historyfile=self.histfile,
                                       style=wx.ALIGN_LEFT|wx.TE_PROCESS_ENTER)
 
