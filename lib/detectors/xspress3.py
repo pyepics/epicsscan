@@ -321,8 +321,8 @@ class Xspress3Detector(DetectorMixin):
         if self.label is None:
             self.label = self.prefix
         self.arm_delay   = 0.025
-        self.start_delay = 0.35
-        self.start_delay_arraymode = 0.35
+        self.start_delay = 0.10
+        self.start_delay_arraymode = 0.10
         self.start_delay_roimode   = 1.25
         self._counter = None
         self.counters = []
@@ -538,7 +538,8 @@ class Xspress3Detector(DetectorMixin):
             self.mode = mode
         if self._xsp3.DetectorState_RBV > 0:
             self._xsp3.put('Acquire', 0)
-        self._xsp3.put('ERASE',   1, wait=True)
+        erase_pv = self._xsp3._pvs['ERASE']
+        erase_pv.put(1, wait=False, use_complete=True)
 
         if fnum is not None:
             self.fnum = fnum
@@ -560,7 +561,11 @@ class Xspress3Detector(DetectorMixin):
             self._xsp3.put('Acquire', 0, wait=True)
         if wait:
             time.sleep(self.arm_delay)
-        # print("Xspress3 arm " , mode, fnum, numframes, time.time()-t0)
+
+        while not erase_pv.put_complete:
+            time.sleep(0.01)
+
+        # print("Xspress3 arm " , mode, fnum, numframes, wait, time.time()-t0, time.time()-t1)
 
     def disarm(self, mode=None, wait=True):
         if mode is not None:
