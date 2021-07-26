@@ -372,7 +372,7 @@ class Slew_Scan(StepScan):
                 scadet = det
             elif dlabel in ('xspress3', 'multimca')  or 'mca' in dlabel:
                 xrfdet = det
-            elif dlabel in ('xrd', 'eiger'):
+            elif dlabel.startswith('xrd') or dlabel.startswith('eiger'):
                 xrddet = det
             det.NDArrayMode(numframes=npulses)
 
@@ -445,8 +445,8 @@ class Slew_Scan(StepScan):
             txd0 = time.time()
             for det in ordered_dets:
                 det.arm(mode='ndarray', numframes=npulses, fnum=irow, wait=False)
-                # print("arm det=%s %.3f" % (det.label, time.time()-txd0), irow, npulses)
             time.sleep(det_arm_delay)
+
 
             dtimer.add('detectors armed %.3f' % det_arm_delay)
             for det in ordered_dets:
