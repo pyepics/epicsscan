@@ -64,6 +64,9 @@ class DetectorMixin(Saveable):
         "arm detector, ready to collect with optional mode"
         pass
 
+    def arm_complete(self):
+        return True
+
     def disarm(self, mode=None, wait=False):
         "disarm detector, ready to not collect, from mode"
         pass
