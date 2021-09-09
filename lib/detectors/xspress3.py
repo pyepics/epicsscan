@@ -482,21 +482,21 @@ class Xspress3Detector(DetectorMixin):
         2. setting dwelltime or numframes to None is discouraged,
            as it can lead to inconsistent data arrays.
         """
-        d = debugtime()
+        dt = debugtime()
         self._xsp3.put('TriggerMode', 3) # External, TTL Veto
-        d.add('xspress3 ROIMode, trigger mode')
+        dt.add('xspress3 ROIMode, trigger mode')
         if numframes is None:
             numframes = MAX_FRAMES
 
         self._xsp3.put('NumImages', numframes)
-        d.add('xspress3 ROIMode, numframes')
+        dt.add('xspress3 ROIMode, numframes')
         self._xsp3.set_timeseries(mode='stop', numframes=numframes, enable=True)
-        d.add('xspress3 ROIMode, timeseries')
+        dt.add('xspress3 ROIMode, timeseries')
         if dwelltime is not None:
             self.set_dwelltime(dwelltime)
-        d.add('xspress3 ROIMode, dwelltime')
+        dt.add('xspress3 ROIMode, dwelltime')
         self.mode = ROI_MODE
-        # d.show()
+        # dt.show()
 
 
     def NDArrayMode(self, dwelltime=None, numframes=None):
@@ -546,7 +546,6 @@ class Xspress3Detector(DetectorMixin):
         time.sleep(0.1)
 
     def arm(self, mode=None, fnum=None, wait=True, numframes=None):
-        print("XSPRESS3 Arm!  wait ", wait)
         if mode is not None:
             self.mode = mode
         if self._xsp3.DetectorState_RBV > 0:
