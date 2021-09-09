@@ -387,7 +387,6 @@ class Slew_Scan(StepScan):
         if xrfdet is not None:
             ordered_dets.append(xrfdet)
         for det in self.detectors:
-            # det.arm(mode='ndarray', numframes=npulses, fnum=0, wait=False)
             det_arm_delay = max(det_arm_delay, det.arm_delay)
             det_start_delay = max(det_start_delay, det.start_delay)
             if det not in ordered_dets:
@@ -442,19 +441,22 @@ class Slew_Scan(StepScan):
             rowdata_ok = True
 
             dtimer.add('inner pos move started irow=%i' % irow)
-            txd0 = time.time()
             for det in ordered_dets:
                 det.arm(mode='ndarray', numframes=npulses, fnum=irow, wait=False)
             time.sleep(det_arm_delay)
 
+            # wait for detectors to be armed
+            tout = time.time()+5.0
+            while not all([det.arm_complete for det in ordered_dets]):
+                if time.time() > tout:
+                    break
+                time.sleep(0.01)
 
             dtimer.add('detectors armed %.3f' % det_arm_delay)
             for det in ordered_dets:
                 det.start(arm=False, wait=False)
-                # print("start det=%s %.3f" % (det.label, time.time()-txd0))
-            time.sleep(det_start_delay)
-            # print("det delays ", det_arm_delay, det_start_delay)
 
+            time.sleep(det_start_delay)
             dtimer.add('detectors started  %.3f' % det_start_delay)
             self.xps.arm_trajectory(trajname)
             if irow < 2 or not lastrow_ok:
