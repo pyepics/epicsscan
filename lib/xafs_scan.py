@@ -315,7 +315,7 @@ class QXAFS_Scan(XAFS_Scan):
             return
 
         dtimer.add('scan verified')
-        self.scandb.set_info('qxafs_running', 1) # preparing
+        self.scandb.set_info('qxafs_running', 1)
         self.connect_qxafs()
         qconf = self.config
 
@@ -387,9 +387,16 @@ class QXAFS_Scan(XAFS_Scan):
             det_prefixes.append(det.prefix)
             det.arm(mode='roi', numframes=1+traj['npulses'], fnum=0, wait=False)
             det.config_filesaver(path=userdir)
-            # det_arm_delay = max(det_arm_delay, det.arm_delay)
+            det_arm_delay = max(det_arm_delay, det.arm_delay)
             det_start_delay = max(det_start_delay, det.start_delay)
-            time.sleep(det.arm_delay)
+        time.sleep(det_arm_delay)
+
+        # wait for detectors to be armed
+        tout = time.time()+5.0
+        while not all([det.arm_complete for det in self.detectors]):
+            if time.time() > tout:
+                break
+            time.sleep(0.01)
 
         dtimer.add('detectors armed %.4f / %.4f' % (det_arm_delay, det_start_delay))
         self.init_scandata()
