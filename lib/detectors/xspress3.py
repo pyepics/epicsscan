@@ -41,7 +41,7 @@ class Xspress3(Device, ADFileMixin):
     det_attrs = ('NumImages', 'NumImages_RBV', 'Acquire', 'Acquire_RBV',
                  'ArrayCounter_RBV', 'ERASE', 'UPDATE', 'AcquireTime',
                  'TriggerMode', 'StatusMessage_RBV', 'DetectorState_RBV',
-                 'CTRL_DTC')
+                 'EraseOnStart')
 
     _nonpvs = ('_prefix', '_pvs', '_delim', 'filesaver', 'fileroot',
                'pathattrs', '_nonpvs', 'nmcas', 'mcas', '_chans',
@@ -73,6 +73,8 @@ class Xspress3(Device, ADFileMixin):
             self.mcas.append(mca)
             attrs.append("MCA%dROI:TSControl" % (imca))
             attrs.append("MCA%dROI:TSNumPoints" % (imca))
+            attrs.append("MCA%dROI:EnableCallbacks" % (imca))
+            attrs.append("MCA%dROI:BlockingCallbacks" % (imca))
             attrs.append("C%dSCA:%s" % (imca, scaf.acq))
             attrs.append("C%dSCA:%s" % (imca, scaf.npts))
         Device.__init__(self, prefix, attrs=attrs, delim='')
@@ -86,8 +88,10 @@ class Xspress3(Device, ADFileMixin):
 
 
     def set_timeseries(self, mode='stop', numframes=MAX_FRAMES, enable=True):
+        dt = debugtime()
+        dt.add('set_timeseries')
         scaf = get_scaformats(self._ad_version) # ('acq', 'npts', 'valform', 'tsform')
-
+        dt.add('set_timeseries scaf')
         # ROI stats:  0=Erase/Start, 1=Start, 2=Stop
         # SCA TS:     0=Done, 1=Acquire
 
@@ -98,13 +102,15 @@ class Xspress3(Device, ADFileMixin):
         enable_val = 1 if enable else 0
         for i in range(1, self.nmcas+1):
             self.put('MCA%dROI:EnableCallbacks' % i, enable_val)
-
+        dt.add('set_timeseries enable callbacks')
         for i in range(1, self.nmcas+1):
             self.put('MCA%dROI:TSControl' % i, roi_val)
             self.put('MCA%dROI:BlockingCallbacks' % i, 1)
             self.put('MCA%dROI:TSNumPoints' % i, numframes)
             self.put("C%dSCA:%s" % (i, scaf.acq), sca_val)
             self.put("C%dSCA:%s" % (i, scaf.npts), numframes)
+        dt.add('set_timeseries done %d ' % self.nmcas)
+        # dt.show()
 
     def set_dwelltime(self, dwelltime):
         """set dwell time in seconds
@@ -151,7 +157,6 @@ class Xspress3(Device, ADFileMixin):
             mca.set_rois(roidat)
 
 
-
 class Xspress3Counter(DeviceCounter):
     """Counters for Xspress3-1-10"""
     sca_labels = ('Clock', 'ResetTicks', 'ResetCounts',
@@ -194,7 +199,6 @@ class Xspress3Counter(DeviceCounter):
         if self.mode is None:
             self.mode = SCALER_MODE
         self.counters = []
-        t0 = time.time()
         def add_counter(pv, lab, units='counts'):
             self.counters.append(Counter(pv, label=lab, units=units))
 
@@ -218,8 +222,8 @@ class Xspress3Counter(DeviceCounter):
             print("Warning: ROIs are missing, will restart Xspress3, ", time.ctime())
             self.scandb.set_info('xspress3_needs_reboot', 1)
             time.sleep(10)
-            label,t0 = None, time.monotonic()
-            while label is None and time.monotonic() < t0 + 120:
+            label, tout = None, time.time()+120
+            while label is None and time.time() < tout:
                 label = caget("%sMCA1ROI:1:Name" % (prefix))
                 time.sleep(1.0)
             current_rois = get_rois()
@@ -320,10 +324,10 @@ class Xspress3Detector(DetectorMixin):
         self.label = label
         if self.label is None:
             self.label = self.prefix
-        self.arm_delay   = 0.025
-        self.start_delay = 0.10
-        self.start_delay_arraymode = 0.10
-        self.start_delay_roimode   = 1.25
+        self.arm_delay   = 0.05
+        self.start_delay = 0.25
+        self.start_delay_arraymode = 0.25
+        self.start_delay_roimode   = 1.00
         self._counter = None
         self.counters = []
         self._repr_extra = self.repr_fmt % (nmcas, nrois,
@@ -368,18 +372,17 @@ class Xspress3Detector(DetectorMixin):
     def pre_scan(self, mode=None, npulses=None, dwelltime=None,
                  filename=None, **kws):
         "run just prior to scan"
+        # print("Xspress3 PreScan ", mode, npulses, dwelltime)
         dt = debugtime()
 
         if mode is not None:
             self.mode = mode
         self._xsp3.put('Acquire', 0, wait=True)
-        poll(0.05, 0.5)
-        self._xsp3.put('ERASE', 1)
-        poll(0.01)
-        self._xsp3.put('ERASE', 1) # erase again to clear SUM
+        poll(0.05)
+        self._xsp3.put('ERASE', 1, wait=False, use_complete=True)
+        poll(0.05)
 
-
-        dt.add('xspress3: clear, erase')
+        dt.add('xspress3: cleared, 1 erase')
         if filename is None:
             filename = ''
 
@@ -402,7 +405,6 @@ class Xspress3Detector(DetectorMixin):
         if npulses is not None:
             self._xsp3.put('NumImages', npulses)
 
-
         dt.add('xspress3: set dtime, npulses')
         self.config_filesaver(number=1,
                               name=fix_varname(filename),
@@ -415,14 +417,20 @@ class Xspress3Detector(DetectorMixin):
             self.connect_counters()
         dt.add('xspress3: connect counters')
         self._counter.mode = mode
+
+        tout = time.time()+5.0
+        while not (self._xsp3._pvs['ERASE'].put_complete or time.time()>tout):
+            time.sleep(0.025)
+
         # self._counter._get_counters()
         # self.counters = self._counter.counters
         # self.extra_pvs = self._counter.extra_pvs
-        dt.add('xspress3: done')
+        dt.add('Xspress3 PreScan: done')
         # dt.show()
 
     def post_scan(self, **kws):
         "run just after scan"
+        self.disarm()
         self.ContinuousMode()
         time.sleep(0.025)
 
@@ -474,16 +482,21 @@ class Xspress3Detector(DetectorMixin):
         2. setting dwelltime or numframes to None is discouraged,
            as it can lead to inconsistent data arrays.
         """
+        d = debugtime()
         self._xsp3.put('TriggerMode', 3) # External, TTL Veto
-
+        d.add('xspress3 ROIMode, trigger mode')
         if numframes is None:
             numframes = MAX_FRAMES
 
         self._xsp3.put('NumImages', numframes)
+        d.add('xspress3 ROIMode, numframes')
         self._xsp3.set_timeseries(mode='stop', numframes=numframes, enable=True)
+        d.add('xspress3 ROIMode, timeseries')
         if dwelltime is not None:
             self.set_dwelltime(dwelltime)
+        d.add('xspress3 ROIMode, dwelltime')
         self.mode = ROI_MODE
+        # d.show()
 
 
     def NDArrayMode(self, dwelltime=None, numframes=None):
@@ -533,13 +546,14 @@ class Xspress3Detector(DetectorMixin):
         time.sleep(0.1)
 
     def arm(self, mode=None, fnum=None, wait=True, numframes=None):
-        t0 = time.time()
+        print("XSPRESS3 Arm!  wait ", wait)
         if mode is not None:
             self.mode = mode
         if self._xsp3.DetectorState_RBV > 0:
             self._xsp3.put('Acquire', 0)
-        erase_pv = self._xsp3._pvs['ERASE']
-        erase_pv.put(1, wait=False, use_complete=True)
+        self._xsp3.put('ERASE', 1, wait=False, use_complete=True)
+        erase_on_start = 1 if (self.mode == SCALER_MODE) else 0
+        self._xsp3.put('EraseOnStart', erase_on_start)
 
         if fnum is not None:
             self.fnum = fnum
@@ -560,18 +574,21 @@ class Xspress3Detector(DetectorMixin):
         if self._xsp3.DetectorState_RBV > 0:
             self._xsp3.put('Acquire', 0, wait=True)
         if wait:
+            tout = time.time()+5.0
+            while not (self._xsp3._pvs['ERASE'].put_complete or time.time()>tout):
+                time.sleep(0.01)
             time.sleep(self.arm_delay)
 
-        while not erase_pv.put_complete:
-            time.sleep(0.01)
+    def arm_complete(self):
+        return self._xsp3._pvs['ERASE'].put_complete
 
-        # print("Xspress3 arm " , mode, fnum, numframes, wait, time.time()-t0, time.time()-t1)
-
-    def disarm(self, mode=None, wait=True):
+    def disarm(self, mode=None, wait=False):
         if mode is not None:
             self.mode = mode
         if wait:
             time.sleep(self.arm_delay)
+        self._xsp3.put('EraseOnStart', 1)
+        self._xsp3.put('ERASE', 1, wait=False, use_complete=True)
         self._xsp3.FileCaptureOff()
 
     def start(self, mode=None, arm=False, wait=True):
@@ -579,12 +596,9 @@ class Xspress3Detector(DetectorMixin):
             self.mode = mode
         if arm:
             self.arm(mode=mode, wait=wait)
-        if mode == SCALER_MODE:
-            self._xsp3.put('ERASE', 1, wait=True)
         self._xsp3.put('Acquire', 1, wait=False)
         if wait:
             time.sleep(self.start_delay)
-
 
     def stop(self, mode=None, disarm=False, wait=False):
         self._xsp3.put('Acquire', 0, wait=wait)
