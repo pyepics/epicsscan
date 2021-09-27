@@ -217,9 +217,10 @@ class QXAFS_ScanWatcher(object):
                     msg_counter += 1
                 for counter in self.counters:
                     try:
-                        self.scandb.set_scandata(counter.label, counter.read())
+                        dat = counter.read()
+                        self.scandb.set_scandata(counter.label, dat)
                     except:
-                        self.write("Could not set scandata for %r" % (counter))
+                        self.write("Could not set scandata for %r, %i" % (counter.label, cpt))
                 self.scandb.commit()
         if self.pulsecount_pv is not None:
             self.pulsecount_pv.put("%i" % self.pulse)
@@ -270,7 +271,10 @@ class QXAFS_ScanWatcher(object):
         while True:
             state = self.get_state()
             if 2 == int(state):
-                self.monitor_qxafs()
+                try:
+                    self.monitor_qxafs()
+                except:
+                    self.write("QXAFS monitor gave an exception, will try again")
             else:
                 if self.scandb.get_info(key='request_abort', as_bool=True):
                     self.write("QXAFS abort requested while not scanning")
