@@ -179,7 +179,7 @@ class Xspress3Counter(DeviceCounter):
         self.scandb = scandb
         self.nmcas, self.nrois = int(nmcas), int(nrois)
         self.nscas = int(nscas)
-        self.use_full = use_full
+        self.use_full = False ##  use_full
         self.use_unlabeled = False
         DeviceCounter.__init__(self, prefix, rtype=None, outpvs=outpvs)
 
@@ -318,6 +318,7 @@ class Xspress3Detector(DetectorMixin):
         self.prefix = prefix
         self.dwelltime = None
         self.mode = mode
+        self.use_full = use_full
         self.dwelltime_pv = get_pv('%sdet1:AcquireTime' % prefix)
         self.extra_pvs = self.add_extrapvs_GSE()
         self.use_dtc = use_dtc  # KLUDGE DTC!!
@@ -391,11 +392,13 @@ class Xspress3Detector(DetectorMixin):
         elif self.mode == ROI_MODE:
             self.ROIMode(dwelltime=dwelltime, numframes=npulses)
             filename = "%s_xsp3" % filename
+            template = '%s%s_xsp3.h5'
         elif self.mode == NDARRAY_MODE:
             self._xsp3.FileCaptureOff()
             time.sleep(0.01)
             self.NDArrayMode(dwelltime=dwelltime, numframes=npulses)
             filename = 'xsp3'
+            template = '%s%s.%4.4d'
         dt.add('xspress3: set mode %s' % self.mode)
         if dwelltime is not None:
             self.dwelltime = dwelltime
@@ -409,7 +412,7 @@ class Xspress3Detector(DetectorMixin):
         self.config_filesaver(number=1,
                               name=fix_varname(filename),
                               numcapture=npulses,
-                              template="%s%s.%4.4d",
+                              template=template,
                               auto_increment=False,
                               auto_save=True)
         dt.add('xspress3: config filesaver')
@@ -567,8 +570,12 @@ class Xspress3Detector(DetectorMixin):
         elif self.mode == SCALER_MODE:
             self._xsp3.FileCaptureOff()
         elif self.mode == ROI_MODE:
-            self._xsp3.FileCaptureOff()
             self._xsp3.set_timeseries(mode='start', numframes=numframes, enable=True)
+            if self.use_full:
+                self._xsp3.setFileNumCapture(numframes)
+                self._xsp3.FileCaptureOn(verify_rbv=True)
+            else:
+                self._xsp3.FileCaptureOff()
             self.start_delay = self.start_delay_roimode
         if self._xsp3.DetectorState_RBV > 0:
             self._xsp3.put('Acquire', 0, wait=True)
