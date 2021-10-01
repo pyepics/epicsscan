@@ -179,7 +179,7 @@ class Xspress3Counter(DeviceCounter):
         self.scandb = scandb
         self.nmcas, self.nrois = int(nmcas), int(nrois)
         self.nscas = int(nscas)
-        self.use_full = False ##  use_full
+        self.use_full =  use_full
         self.use_unlabeled = False
         DeviceCounter.__init__(self, prefix, rtype=None, outpvs=outpvs)
 
@@ -248,6 +248,7 @@ class Xspress3Counter(DeviceCounter):
             sca_format = '%s' + scaf.tsform
             if self.ad_version == 3:
                 scas2save = (0, 9)  # 0=Clock, 9=DTFactor
+                scas2save = (9,)
 
         # dt-corrected sum rois
         for roiname in self.rois:
@@ -286,7 +287,7 @@ class Xspress3Counter(DeviceCounter):
         if self.use_full:
             for imca in range(1, self.nmcas+1):
                 pv = '%sMCA%d.ArrayData' % (prefix, imca)
-                add_counter(pv, 'spectra%i' % imca)
+                # add_counter(pv, 'MCA%i' % imca)
 
 class Xspress3Detector(DetectorMixin):
     """
@@ -319,6 +320,7 @@ class Xspress3Detector(DetectorMixin):
         self.dwelltime = None
         self.mode = mode
         self.use_full = use_full
+
         self.dwelltime_pv = get_pv('%sdet1:AcquireTime' % prefix)
         self.extra_pvs = self.add_extrapvs_GSE()
         self.use_dtc = use_dtc  # KLUDGE DTC!!
@@ -391,7 +393,7 @@ class Xspress3Detector(DetectorMixin):
             self.ScalerMode(dwelltime=dwelltime, numframes=npulses)
         elif self.mode == ROI_MODE:
             self.ROIMode(dwelltime=dwelltime, numframes=npulses)
-            filename = "%s_xsp3" % filename
+            filename = "%s" % filename
             template = '%s%s_xsp3.h5'
         elif self.mode == NDARRAY_MODE:
             self._xsp3.FileCaptureOff()
