@@ -385,20 +385,19 @@ class Xspress3Detector(DetectorMixin):
 
         dt.add('xspress3: cleared, 1 erase')
         if filename is None:
-            filename = ''
+            filename = 'xsp3'
 
+        template = '%s%s.%4.4d'
         if self.mode == SCALER_MODE:
             self.ScalerMode(dwelltime=dwelltime, numframes=npulses)
         elif self.mode == ROI_MODE:
             self.ROIMode(dwelltime=dwelltime, numframes=npulses)
-            filename = "%s" % filename
             template = '%s%s_xsp3.h5'
         elif self.mode == NDARRAY_MODE:
             self._xsp3.FileCaptureOff()
             time.sleep(0.01)
             self.NDArrayMode(dwelltime=dwelltime, numframes=npulses)
-            filename = 'xsp3'
-            template = '%s%s.%4.4d'
+
         dt.add('xspress3: set mode %s' % self.mode)
         if dwelltime is not None:
             self.dwelltime = dwelltime
@@ -554,7 +553,8 @@ class Xspress3Detector(DetectorMixin):
         if self._xsp3.DetectorState_RBV > 0:
             self._xsp3.put('Acquire', 0)
         self._xsp3.put('ERASE', 1, wait=False, use_complete=True)
-        erase_on_start = 1 if (self.mode == SCALER_MODE) else 0
+        # erase_on_start = 1 if (self.mode == SCALER_MODE) else 0
+        erase_on_start = 0
         self._xsp3.put('EraseOnStart', erase_on_start)
 
         if fnum is not None:
