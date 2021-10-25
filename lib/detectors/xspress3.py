@@ -394,6 +394,7 @@ class Xspress3Detector(DetectorMixin):
             self.ROIMode(dwelltime=dwelltime, numframes=npulses)
             template = '%s%s_xsp3.h5'
         elif self.mode == NDARRAY_MODE:
+            filename = 'xsp3'
             self._xsp3.FileCaptureOff()
             time.sleep(0.01)
             self.NDArrayMode(dwelltime=dwelltime, numframes=npulses)
