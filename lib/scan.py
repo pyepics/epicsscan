@@ -745,6 +745,7 @@ class StepScan(object):
                             trig.abort()
 
                 # read counters and actual positions
+                time.sleep(0.05)
                 poll(self.det_settle_time, 0.1)
                 self.dtimer.add('Pt %i : det settled done.' % i)
                 [c.read() for c in self.counters]
