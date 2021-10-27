@@ -4,6 +4,7 @@ xafs scan
 based on EpicsApps.StepScan.
 
 """
+import os
 import time
 import json
 import numpy as np
@@ -370,6 +371,14 @@ class QXAFS_Scan(XAFS_Scan):
         for desc, pv in self.extra_pvs:
             extra_vals.append((desc, pv.get(as_string=True), pv.pvname))
 
+        # get folder name for full data from detectors
+        fileroot = self.scandb.get_info('server_fileroot')
+        userdir  = self.scandb.get_info('user_folder')
+        xrfdir   = os.path.join(userdir, 'XAFSXRF')
+        xrfdir_server = os.path.join(fileroot, xrfdir)
+        if not os.path.exists(xrfdir_server):
+            os.mkdir(xrfdir_server)
+
         self.xps.arm_trajectory('qxafs')
         dtimer.add('traj armed')
         out = self.pre_scan(npulses=1+traj['npulses'],
@@ -377,12 +386,6 @@ class QXAFS_Scan(XAFS_Scan):
                             mode='roi', filename=self.filename)
         self.check_outputs(out, msg='pre scan')
         dtimer.add('prescan ran')
-
-        fileroot = self.scandb.get_info('server_fileroot')
-        userdir  = self.scandb.get_info('user_folder')
-        xrfdir   = os.path.join(fileroot, userdir, 'XAFSXRF')
-        if not os.path.exists(xrfdir):
-            os.mkdir(xrfdir)
 
         det_arm_delay = 0.1
         det_start_delay = 0.5
