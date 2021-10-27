@@ -378,7 +378,11 @@ class QXAFS_Scan(XAFS_Scan):
         self.check_outputs(out, msg='pre scan')
         dtimer.add('prescan ran')
 
-        userdir = self.scandb.get_info('user_folder')
+        fileroot = self.scandb.get_info('server_fileroot')
+        userdir  = self.scandb.get_info('user_folder')
+        xrfdir   = os.path.join(fileroot, userdir, 'XAFSXRF')
+        if not os.path.exists(xrfdir):
+            os.mkdir(xrfdir)
 
         det_arm_delay = 0.1
         det_start_delay = 0.5
@@ -386,7 +390,7 @@ class QXAFS_Scan(XAFS_Scan):
         for det in reversed(self.detectors):
             det_prefixes.append(det.prefix)
             det.arm(mode='roi', numframes=1+traj['npulses'], fnum=0, wait=False)
-            det.config_filesaver(path=userdir)
+            det.config_filesaver(path=xrfdir)
             det_arm_delay = max(det_arm_delay, det.arm_delay)
             det_start_delay = max(det_start_delay, det.start_delay)
         time.sleep(det_arm_delay)
