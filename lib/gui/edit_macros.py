@@ -392,7 +392,7 @@ class CommandsPanel(scrolled.ScrolledPanel):
         self.prompt = wx.StaticText(panel, -1, 'Command>', size = (95,-1),
                                     style=RIGHT)
         self.histfile = os.path.join(larch.site_config.user_larchdir, MACRO_HISTORY)
-        self.input = ReadlineTextCtrl(panel, id=-1, value='', size=(525, -1),
+        self.input = ReadlineTextCtrl(panel, '', size=(525, -1),
                                       historyfile=self.histfile,
                                       style=wx.ALIGN_LEFT|wx.TE_PROCESS_ENTER)
 
@@ -484,7 +484,6 @@ class CommandsPanel(scrolled.ScrolledPanel):
 
 
     def onText(self, event=None):
-        print("on Text")
         text = event.GetString().strip()
         if len(text) < 1:
             return
