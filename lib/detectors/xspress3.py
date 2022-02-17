@@ -282,10 +282,10 @@ class Xspress3Counter(DeviceCounter):
                 _label = 'DTFactor mca%i' % (imca)
                 add_counter(_pvname, _label, units='scale')
 
-        if self.use_full:
-            for imca in range(1, self.nmcas+1):
-                pv = '%sMCA%d.ArrayData' % (prefix, imca)
-                # add_counter(pv, 'MCA%i' % imca)
+        # if self.use_full:
+        #     for imca in range(1, self.nmcas+1):
+        #        pv = '%sMCA%d.ArrayData' % (prefix, imca)
+        #        # add_counter(pv, 'MCA%i' % imca)
 
 class Xspress3Detector(DetectorMixin):
     """
@@ -327,7 +327,7 @@ class Xspress3Detector(DetectorMixin):
             self.label = self.prefix
         self.arm_delay   = 0.1
         self.start_delay = 0.4
-        self.start_delay_arraymode = 0.4
+        self.start_delay_arraymode = 0.25
         self.start_delay_roimode   = 1.00
         self._counter = None
         self.counters = []
@@ -373,16 +373,17 @@ class Xspress3Detector(DetectorMixin):
     def pre_scan(self, mode=None, npulses=None, dwelltime=None,
                  filename=None, **kws):
         "run just prior to scan"
-        # print("Xspress3 PreScan ", mode, npulses, dwelltime)
         dt = debugtime()
 
         if mode is not None:
             self.mode = mode
+        if dwelltime is not None:
+            self.dwelltime = dwelltime
+
         self._xsp3.put('Acquire', 0, wait=True)
         poll(0.05)
-        self._xsp3.put('ERASE', 1, wait=False, use_complete=True)
+        self._xsp3.put('ERASE', 1, use_complete=True)
         poll(0.05)
-
         dt.add('xspress3: cleared, 1 erase')
         if filename is None:
             filename = 'xsp3'
@@ -400,8 +401,6 @@ class Xspress3Detector(DetectorMixin):
             self.NDArrayMode(dwelltime=dwelltime, numframes=npulses)
 
         dt.add('xspress3: set mode %s' % self.mode)
-        if dwelltime is not None:
-            self.dwelltime = dwelltime
         if self.dwelltime is not None:
             self.dwelltime_pv.put(self.dwelltime)
 
@@ -463,7 +462,7 @@ class Xspress3Detector(DetectorMixin):
         """
         self._xsp3.put('TriggerMode', 1) # Internal
         if erase:
-            pass # self._xsp3.put('ERASE', 1)
+            self._xsp3.put('ERASE', 1, wait=True)
         if numframes is not None:
             self._xsp3.put('NumImages', numframes)
         if dwelltime is not None:
@@ -553,9 +552,9 @@ class Xspress3Detector(DetectorMixin):
             self.mode = mode
         if self._xsp3.DetectorState_RBV > 0:
             self._xsp3.put('Acquire', 0)
-        self._xsp3.put('ERASE', 1, wait=False, use_complete=True)
-        # erase_on_start = 1 if (self.mode == SCALER_MODE) else 0
-        erase_on_start = 0
+        t0 = time.time()
+        self._xsp3.put('ERASE', 1, use_complete=True)
+        erase_on_start = 1 if (self.mode == SCALER_MODE) else 0
         self._xsp3.put('EraseOnStart', erase_on_start)
 
         if fnum is not None:
@@ -583,19 +582,22 @@ class Xspress3Detector(DetectorMixin):
         if wait:
             tout = time.time()+5.0
             while not (self._xsp3._pvs['ERASE'].put_complete or time.time()>tout):
-                time.sleep(0.01)
-            time.sleep(self.arm_delay)
+                 time.sleep(0.01)
+        time.sleep(self.arm_delay)
+        # print(" xspress3 arm complete: ", erase_on_start, self.arm_delay,
+        #      self.start_delay, time.time()-t0)
 
     def arm_complete(self):
-        return self._xsp3._pvs['ERASE'].put_complete
+        # if self._xsp3._pvs['ERASE'].put_complete is None:
+        # return self._xsp3._pvs['ERASE'].put_complete
+        return True
 
     def disarm(self, mode=None, wait=False):
         if mode is not None:
             self.mode = mode
         if wait:
             time.sleep(self.arm_delay)
-        self._xsp3.put('EraseOnStart', 1)
-        self._xsp3.put('ERASE', 1, wait=False, use_complete=True)
+        self._xsp3.put('ERASE', 1, wait=True)
         self._xsp3.FileCaptureOff()
 
     def start(self, mode=None, arm=False, wait=True):
