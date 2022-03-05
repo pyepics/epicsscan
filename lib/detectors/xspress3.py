@@ -555,6 +555,7 @@ class Xspress3Detector(DetectorMixin):
         t0 = time.time()
         self._xsp3.put('ERASE', 1, use_complete=True)
         erase_on_start = 1 if (self.mode == SCALER_MODE) else 0
+        erase_on_start = 0
         self._xsp3.put('EraseOnStart', erase_on_start)
 
         if fnum is not None:
