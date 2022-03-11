@@ -23,7 +23,7 @@ from .edit_sequences   import ScanSequenceFrame
 from ..scandb import InstrumentDB
 
 import larch
-from wxutils.readlinetextctrl import ReadlineTextCtrl
+from larch.wxlib.readlinetextctrl import ReadlineTextCtrl
 
 
 MACRO_HISTORY = 'scan_macro_history.lar'
@@ -392,11 +392,17 @@ class CommandsPanel(scrolled.ScrolledPanel):
         self.prompt = wx.StaticText(panel, -1, 'Command>', size = (95,-1),
                                     style=RIGHT)
         self.histfile = os.path.join(larch.site_config.user_larchdir, MACRO_HISTORY)
-        self.input = ReadlineTextCtrl(panel, '', size=(525, -1),
-                                      historyfile=self.histfile,
-                                      style=wx.ALIGN_LEFT|wx.TE_PROCESS_ENTER)
+        self.input = wx.TextCtrl(panel, value='', size=(525, -1),
+                                 style=wx.TE_LEFT|wx.TE_PROCESS_ENTER)
 
+        self.hist_buff = []
+        self.hist_mark = 0
         self.input.Bind(wx.EVT_TEXT_ENTER, self.onText)
+        if sys.platform == 'darwin':
+            self.input.Bind(wx.EVT_KEY_UP,  self.onChar)
+        else:
+            self.input.Bind(wx.EVT_CHAR,  self.onChar)
+        
         sizer = wx.BoxSizer(wx.HORIZONTAL)
 
         sizer.Add(self.prompt,  0, wx.BOTTOM|wx.CENTER)
@@ -405,6 +411,37 @@ class CommandsPanel(scrolled.ScrolledPanel):
         sizer.Fit(panel)
         return panel
 
+    def onChar(self, event=None):
+        key = event.GetKeyCode()
+
+        entry  = self.input.GetValue().strip()
+        pos = self.input.GetSelection()
+        ctrl = event.ControlDown()
+
+        if key == wx.WXK_RETURN and len(entry) > 0:
+            pass
+        if key in (wx.WXK_UP, wx.WXK_DOWN):
+            if key == wx.WXK_UP:
+                self.hist_mark = max(0, self.hist_mark-1)
+            else:
+                self.hist_mark += 1
+            try:
+                wx.CallAfter(self.set_input_text, self.hist_buff[self.hist_mark])
+            except IndexError:
+                wx.CallAfter(self.set_input_text, '')
+        event.Skip()
+
+    def set_input_text(self, text):
+        self.input.SetValue(text)
+        self.input.SetFocus()
+        self.input.SetInsertionPointEnd()
+        
+    def AddToHistory(self, text=''):
+        for tline in text.split('\n'):
+            if len(tline.strip()) > 0:
+                self.hist_buff.append(tline)
+                self.hist_mark = len(self.hist_buff)
+    
     def make_info_panel(self):
         sizer = wx.GridBagSizer(2, 2)
         panel = wx.Panel(self)
@@ -488,11 +525,14 @@ class CommandsPanel(scrolled.ScrolledPanel):
         if len(text) < 1:
             return
         self.input.Clear()
-        self.input.AddToHistory(text)
+        # self.input.AddToHistory(text)
         out = self.scandb.add_command(text)
         self.scandb.commit()
         time.sleep(0.01)
         self.writeOutput(text)
+
+        self.AddToHistory(text)
+
 
     def onPanelExposed(self, evt=None):
         pass
