@@ -702,7 +702,7 @@ class XAFSScanPanel(GenericScanPanel):
             if det['label'] == herfd_det_name:
                 use_herfd = True
         self.use_herfd.SetValue(use_herfd)
-
+        self.setScanTime()
 
     def setScanTime(self):
         "set Scan Time for XAFS Scan"
