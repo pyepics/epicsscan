@@ -380,7 +380,7 @@ class Slew_Scan(StepScan):
         # this allows arming and starting times to be parallelized
         # also, initially arm detectors
 
-        det_arm_delay = det_start_delay = 0.05
+        det_arm_delay = det_start_delay = 0.025
         ordered_dets = []
         if xrddet is not None:
             ordered_dets.append(xrddet)
@@ -388,7 +388,8 @@ class Slew_Scan(StepScan):
             ordered_dets.append(xrfdet)
         for det in self.detectors:
             det_arm_delay = max(det_arm_delay, det.arm_delay)
-            det_start_delay = max(det_start_delay, det.start_delay)
+            dx = getattr(det, 'start_delay_arraymode', det.start_delay)
+            det_start_delay = max(det_start_delay, dx)
             if det not in ordered_dets:
                 ordered_dets.append(det)
 
@@ -443,7 +444,7 @@ class Slew_Scan(StepScan):
             dtimer.add('inner pos move started irow=%i' % irow)
             for det in ordered_dets:
                 det.arm(mode='ndarray', numframes=npulses, fnum=irow, wait=False)
-            time.sleep(det_arm_delay)
+            time.sleep(0.025)
 
             # wait for detectors to be armed
             tout = time.time()+5.0
@@ -460,9 +461,8 @@ class Slew_Scan(StepScan):
             dtimer.add('detectors started  %.3f' % det_start_delay)
             self.xps.arm_trajectory(trajname)
             if irow < 2 or not lastrow_ok:
-                time.sleep(0.25)
+                time.sleep(0.1)
             dtimer.add('outer pos move')
-            dtimer.add('trajectory armed')
 
             for p in self.positioners:
                 p.move_to_pos(irow-1, wait=True)
@@ -561,7 +561,7 @@ class Slew_Scan(StepScan):
                 t0 = time.time()
                 write_complete = xrfdet.file_write_complete()
                 ntry = 0
-                while not write_complete and (time.time()-t0 < 15.0):
+                while not write_complete and (time.time()-t0 < 10.0):
                     write_complete = xrfdet.file_write_complete()
                     time.sleep(0.05)
                     ntry = ntry + 1
@@ -593,7 +593,7 @@ class Slew_Scan(StepScan):
                 xrddet.stop()
                 dtimer.add('saved XRD data')
 
-            pos_saver_thread.join(timeout=30)
+            pos_saver_thread.join(timeout=15)
             dtimer.add('saved XPS data')
 
             rowdata_ok = (rowdata_ok and
