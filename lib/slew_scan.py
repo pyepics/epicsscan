@@ -24,7 +24,6 @@ from newportxps import NewportXPS
 
 from .debugtime import debugtime
 
-
 class Slew_Scan(StepScan):
     """Slew Scans"""
     def __init__(self, filename=None, auto_increment=True,
@@ -312,7 +311,6 @@ class Slew_Scan(StepScan):
         if dir_off % 2 == 0:
             tname = 'backward'
 
-        # print(" Traj: ", tname, self.xps.trajectories[tname])
         # pvnames = trajs[tname]['axes']
         # print("SlewScan Config ", pvnames, self.slewscan_config['motors'])
 
@@ -594,10 +592,13 @@ class Slew_Scan(StepScan):
                 dtimer.add('saved XRD data')
 
             pos_saver_thread.join(timeout=15)
+            if pos_saver_thread.is_alive():
+                print('ERROR:  NewportXPS gathering thread is still alive')
             dtimer.add('saved XPS data')
 
             rowdata_ok = (rowdata_ok and
                           (npts_sca >= npulses-1) and
+                          (self.xps.ngathered >= npulses-2) and
                           (nxrf >= npulses-2) and
                           (not pos_saver_thread.is_alive()))
 
