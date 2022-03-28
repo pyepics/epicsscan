@@ -326,8 +326,8 @@ class Xspress3Detector(DetectorMixin):
         if self.label is None:
             self.label = self.prefix
         self.arm_delay   = 0.1
-        self.start_delay = 0.4
-        self.start_delay_arraymode = 0.25
+        self.start_delay = 0.40
+        self.start_delay_arraymode = 0.40
         self.start_delay_roimode   = 1.00
         self._counter = None
         self.counters = []
@@ -568,6 +568,7 @@ class Xspress3Detector(DetectorMixin):
         self.start_delay = self.start_delay_arraymode
         if self.mode == NDARRAY_MODE:
             self._xsp3.FileCaptureOn(verify_rbv=True)
+            self.arm_delay = 0.025
         elif self.mode == SCALER_MODE:
             self._xsp3.FileCaptureOff()
         elif self.mode == ROI_MODE:
@@ -584,7 +585,8 @@ class Xspress3Detector(DetectorMixin):
             tout = time.time()+5.0
             while not (self._xsp3._pvs['ERASE'].put_complete or time.time()>tout):
                  time.sleep(0.01)
-        time.sleep(self.arm_delay)
+        if self.mode != NDARRAY_MODE:
+            time.sleep(self.arm_delay)
         # print(" xspress3 arm complete: ", erase_on_start, self.arm_delay,
         #      self.start_delay, time.time()-t0)
 
