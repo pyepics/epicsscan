@@ -349,7 +349,7 @@ class ASCIIScanFile(ScanFile):
         out = ["%s %s" % (COM1, COM3), self.column_label]
         npts_all = [len(c.buff) for c in self.scan.counters]
         npts_all.append(len(self.scan.pos_actual))
-        print("DataFile: Npts: ", npts_all)
+        # print("DataFile: Npts: ", npts_all)
         for i in range(max(npts_all)):
             words =  self.scan.pos_actual[i][:]
             for c in self.scan.counters:
