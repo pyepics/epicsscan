@@ -538,7 +538,7 @@ class QXAFS_Scan(XAFS_Scan):
 
         self.datafile.write_data(breakpoint=-1, close_file=True, clear=False)
 
-        # print("QXAFS Done ", qconf['energy_pv'], qconf['id_drive_pv'])
+        # print("QXAFS Done ", qconf['energy_pv'], qconf['id_drive_pv'], energy_orig)
         caput(qconf['energy_pv'], energy_orig)
         if self.with_id:
             try:
@@ -547,7 +547,7 @@ class QXAFS_Scan(XAFS_Scan):
                 pass
         time.sleep(0.05)
 
-        # caput(qconf['energy_pv'], energy_orig, wait=True)
+        caput(qconf['energy_pv'], energy_orig, wait=True, timeout=15)
 
         if self.look_for_interrupts():
             self.write("scan aborted at point %i of %i." % (self.cpt, self.npts))
