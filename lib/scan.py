@@ -322,7 +322,7 @@ class StepScan(object):
         out = []
         for meth in self.pre_scan_methods:
             out.append(meth(scan=self, row=row, **kws))
-            time.sleep(0.05)
+            time.sleep(0.025)
             dtimer.add('pre_scan ran %s' % meth)
 
         for det in self.detectors:
@@ -355,7 +355,7 @@ class StepScan(object):
         out = []
         for meth in self.post_scan_methods:
             out.append(meth(scan=self, row=row, **kws))
-            time.sleep(0.05)
+            time.sleep(0.025)
 
         if callable(self.postscan_func):
             try:
@@ -469,7 +469,7 @@ class StepScan(object):
 
         self.scandb.clear_scandata()
         self.scandb.commit()
-        time.sleep(0.05)
+        time.sleep(0.025)
         names = []
         npts = len(self.positioners[0].array)
         for p in self.positioners:
@@ -586,10 +586,10 @@ class StepScan(object):
         self.clear_interrupts()
         self.dtimer.add('PRE: cleared interrupts')
         self.orig_positions = [p.current() for p in self.positioners]
-
+        self.dtimer.add('PRE: orig positions')
         out = [p.move_to_start(wait=False) for p in self.positioners]
         self.check_outputs(out, msg='move to start')
-
+        self.dtimer.add('PRE: move to start')
         npts = self.npts = len(self.positioners[0].array)
         for det in self.detectors:
             det.arm(mode=SCALER_MODE, fnum=1, numframes=1)
@@ -690,7 +690,7 @@ class StepScan(object):
                 self.look_for_interrupts()
                 self.dtimer.add('Pt %i : looked for interrupts' % i)
                 while self.pause:
-                    time.sleep(0.25)
+                    time.sleep(0.025)
                     if self.look_for_interrupts():
                         break
                 # set dwelltime
@@ -699,7 +699,7 @@ class StepScan(object):
                         d.set_dwelltime(self.dwelltime[i])
                 for d in self.detectors:
                     d.arm()
-
+                self.dtimer.add('Pt %i : det arm' % i)
                 # move to next position
                 [p.move_to_pos(i) for p in self.positioners]
                 self.dtimer.add('Pt %i : move_to_pos (%i)' % (i, len(self.positioners)))
@@ -731,6 +731,9 @@ class StepScan(object):
                 self.dtimer.add('Pt %i : triggers done' % i)
                 if self.look_for_interrupts():
                     break
+                # print("STEP SCAN triggers may be done: ", i,
+                #    [(trig, trig.done) for trig in self.triggers])
+
                 point_ok = (all([trig.done for trig in self.triggers]) and
                             time.time()-t0 > (0.75*self.min_dwelltime))
                 if not point_ok:
@@ -745,21 +748,38 @@ class StepScan(object):
                             trig.abort()
 
                 # read counters and actual positions
-                time.sleep(0.05)
                 poll(self.det_settle_time, 0.1)
-                self.dtimer.add('Pt %i : det settled done.' % i)
+                self.dtimer.add('Pt %i : det settled done. ' % i)
+
+                dready = [True]
+                for counter in self.counters:
+                    if ('clock' in counter.label.lower() or
+                        'counttime' in counter.label.lower()):
+                        val = counter.pv.get()
+                        dready.append((val > 0))
+                if not all(dready):
+                    print("## waiting for valid clock data, point %d" % i)
+                    time.sleep(0.05 + self.det_settle_time)
+                    dready = [True]
+                    for counter in self.counters:
+                        if ('clock' in counter.label.lower() or
+                            'counttime' in counter.label.lower()):
+                            val = counter.pv.get(wait=True, timeout=3)
+                            dready.append((val > 0))
+                    if not all(dready):
+                        time.sleep(0.05)
                 [c.read() for c in self.counters]
-                # self.dtimer.add('Pt %i : read counters' % i)
+                self.dtimer.add('Pt %i : read counters' % i)
 
                 self.pos_actual.append([p.current() for p in self.positioners])
                 if self.publish_thread is not None:
                     self.publish_thread.cpt = self.cpt
-                # self.dtimer.add('Pt %i : sent message' % i)
+                self.dtimer.add('Pt %i : sent message' % i)
 
                 # if this is a breakpoint, execute those functions
                 if i in self.breakpoints:
                     self.at_break(breakpoint=i, clear=True)
-                # self.dtimer.add('Pt %i: done.' % i)
+                self.dtimer.add('Pt %i: done.' % i)
                 self.look_for_interrupts()
 
             except KeyboardInterrupt:
