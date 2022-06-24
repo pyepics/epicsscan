@@ -153,7 +153,11 @@ class ROISumCounter(Saveable):
                     dtc[:nd] = dx[:nd]
 
             if npts == 1:
-                val += v*dtc
+                try:
+                    val += v*dtc
+                except:
+                    print("error read v and dtc with npts == 1")
+                    val += v
             else:
                 val += v[:npts]*dtc[:npts]
         if npts == 1:
