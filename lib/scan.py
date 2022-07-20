@@ -764,7 +764,7 @@ class StepScan(object):
                     for counter in self.counters:
                         if ('clock' in counter.label.lower() or
                             'counttime' in counter.label.lower()):
-                            val = counter.pv.get(wait=True, timeout=3)
+                            val = counter.pv.get(timeout=3)
                             dready.append((val > 0))
                     if not all(dready):
                         time.sleep(0.05)
