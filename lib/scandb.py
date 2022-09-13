@@ -609,6 +609,10 @@ class ScanDB(object):
         sdict['larch'] = larch
         sdict['data_callback'] = data_callback
         sdict['extra_pvs'] = []
+        for det in sdict['detectors']:
+            if det.get('label', None) ==  'xspress3' and det.get('nrois', None) is not None:
+                det['nrois'] = 48
+
         for row  in self.getall('extrapvs', orderby='id'):
             if row.use:
                 sdict['extra_pvs'].append((row.name, row.pvname))

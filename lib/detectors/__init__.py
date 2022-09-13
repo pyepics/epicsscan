@@ -39,7 +39,7 @@ DET_DEFAULT_OPTS = {'scaler': {'use_calc': True, 'nchans': 8},
                                      'auto_increment': True},
                     'mca': {'nrois': 32, 'use_full': False,
                             'use_net': False},
-                    'xspress3': {'nrois': 32, 'nmcas': 4,
+                    'xspress3': {'nrois': 48, 'nmcas': 4,
                                  'use_full': False},
                     'multimca': {'nrois': 32, 'nmcas': 4,
                                  'use_full': False, 'use_net': False}}
