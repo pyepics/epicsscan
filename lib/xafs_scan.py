@@ -209,7 +209,8 @@ class QXAFS_Scan(XAFS_Scan):
         # midpoints of desired energy values
         estep = self.energies[1]-self.energies[0]
 
-        enx = [self.energies[0]-2*estep, self.energies[0]-estep]
+        # enx = [self.energies[0]-2*estep, self.energies[0]-estep]
+        enx = [self.energies[0]-estep]
         enx.extend(list(self.energies))
         enx.append(2*self.energies[-1]  - self.energies[-2])
         enx = np.array(enx)
