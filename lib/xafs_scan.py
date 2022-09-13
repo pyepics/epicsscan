@@ -207,7 +207,9 @@ class QXAFS_Scan(XAFS_Scan):
 
         # we want energy trajectory points to be at or near
         # midpoints of desired energy values
-        enx = [2*self.energies[0]  - self.energies[1]]
+        estep = self.energies[1]-self.energies[0]
+
+        enx = [self.energies[0]-2*estep, self.energies[0]-estep]
         enx.extend(list(self.energies))
         enx.append(2*self.energies[-1]  - self.energies[-2])
         enx = np.array(enx)
@@ -481,7 +483,7 @@ class QXAFS_Scan(XAFS_Scan):
         ne = len(energy)
         #
         [c.read() for c in self.counters]
-        ndat = [len(c.buff) for c in self.counters]
+        ndat = [len(c.buff[1:]) for c in self.counters]
         narr = min(ndat)
         # print('read counters (%d, %d, %d) ' % (narr, ne, len(self.counters)))
         t0  = time.monotonic()
@@ -489,7 +491,7 @@ class QXAFS_Scan(XAFS_Scan):
         while narr < (ne-1) and (time.monotonic()-t0) < 15.0:
             time.sleep(0.05)
             [c.read() for c in self.counters]
-            ndat = [len(c.buff) for c in self.counters]
+            ndat = [len(c.buff[1:]) for c in self.counters]
             narr = min(ndat)
 
         mca_offsets = {}
@@ -521,7 +523,7 @@ class QXAFS_Scan(XAFS_Scan):
                 offset = mca_offsets.get(key, 1)
             c.buff = c.buff[offset:]
             c.buff = c.buff[:ne]
-            # print("-> ", c.label, offset, len(c.buff), c.buff[:3], c.buff[-2:])
+            print("-> ", c.label, offset, len(c.buff), c.buff[:3], c.buff[-2:])
 
             data4calcs[c.pvname] = np.array(c.buff)
 
