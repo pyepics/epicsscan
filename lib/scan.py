@@ -412,7 +412,10 @@ class StepScan(object):
         if len(db_prefix) > 0:
             prefix = fix_varname(db_prefix).title()
             for row in self.scandb.get_info(prefix=db_prefix, orderby='display_order'):
-                desc = prefix + '.' + fix_varname(row.notes.title())
+                notes = row.notes
+                if notes is None or len(notes) < 1:
+                    notes = 'unknown'
+                desc = prefix + '.' + fix_varname(notes.title())
                 out.append((desc, row.key, row.value))
 
         for desc, pv in self.extra_pvs:
