@@ -12,8 +12,8 @@ from wx.lib.editor import Editor
 import wx.dataview as dv
 
 from collections import OrderedDict
-import epics
-from .gui_utils import (GUIColors, set_font_with_children, YesNo,
+from epics import Motor
+from .gui_utils import (GUIColors, set_font_with_children, YesNo, check,
                         add_menu, add_button, add_choice, pack, SimpleText,
                         FileOpen, FileSave, popup, FloatCtrl, HLine,
                         FRAMESTYLE, Font, FNB_STYLE, LEFT, RIGHT, CEN, DVSTYLE, cmp)
@@ -70,12 +70,27 @@ class PositionCommandModel(dv.DataViewIndexListModel):
     def read_data(self):
         self.data = []
         for pos in get_positionlist(self.scandb):
-            use, nscan = True, '1'
+            use, nscan, ddist = True, '1', '-1'
             if pos in self.posvals:
-                use, nsscan = self.posvals[pos]
-            self.data.append([pos, use, nscan])
-            self.posvals[pos] = [use, nscan]
+                use, nscan, ddist = self.posvals[pos]
+            self.data.append([pos, use, nscan, ddist])
+            self.posvals[pos] = [use, nscan, ddist]
         self.Reset(len(self.data))
+
+    def set_nscans(self, val=1):
+        if isinstance(val, (float, int)):
+            val = "%s" % int(val)
+        for posname, dat in self.posvals.items():
+            dat[1] = val
+        self.read_data()
+
+    def set_detdist(self, val=-1):
+        if isinstance(val, (float, int)):
+            val = "%.1f" % float(val)
+        for posname, dat in self.posvals.items():
+            dat[2] = val
+
+        self.read_data()
 
     def select_all(self, use=True):
         for posname, dat in self.posvals.items():
@@ -85,7 +100,7 @@ class PositionCommandModel(dv.DataViewIndexListModel):
     def select_above(self, item):
         itemname = self.GetValue(item, 0)
         use = True
-        for posname, x, nx in self.data:
+        for posname, _use, _nx, _dd in self.data:
             self.posvals[posname][0] = use
             if posname == itemname:
                 use = not use
@@ -133,9 +148,17 @@ class PositionCommandModel(dv.DataViewIndexListModel):
 
 class PositionCommandFrame(wx.Frame) :
     """Edit/Manage/Run/View Sequences"""
-    def __init__(self, parent, scandb, pos=(-1, -1), size=(625, 550), _larch=None):
+    def __init__(self, parent, scandb, pos=(-1, -1), size=(675, 550), _larch=None):
         self.parent = parent
         self.scandb = scandb
+
+        detdist_motor = None
+        _pos = scandb.get_info('experiment_xrfdet_posname', None)
+        if _pos is not None:
+            _row = scandb.get_positioner(_pos)
+            detdist_motor = Motor(_row.drivepv)
+        self.detdist_motor = detdist_motor
+
         self.last_refresh = time.monotonic() - 100.0
         self.Font10=wx.Font(10, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
         titlefont = wx.Font(12, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
@@ -167,7 +190,25 @@ class PositionCommandFrame(wx.Frame) :
         self.xrdtime = FloatCtrl(panel, value=10, minval=0, maxval=50000, precision=1)
         self.xrdtime.Disable()
 
-        sizer = wx.GridBagSizer(3, 2)
+        self.nscans  = FloatCtrl(panel, value=1,  minval=1, maxval=500, precision=0,
+                                 action=self.onNScans)
+
+        self.use_detdist = check(panel, default=True, label='Set XRF Detector Distance',
+                                 action=self.onUseDetDistance)
+
+        if detdist_motor is None:
+            self.detdist = FloatCtrl(panel, value=75, minval=0, maxval=500, precision=1)
+            self.detdist.Disable()
+            self.use_detdist.SetValue(False)
+
+        else:
+            self.detdist = FloatCtrl(panel, value=detdist_motor.drive,
+                                     minval=detdist_motor.low_limit,
+                                     maxval=detdist_motor.high_limit,
+                                     precision=1, action=self.onDetDist)
+            self.detdist.Enable()
+
+        sizer = wx.GridBagSizer(2, 2)
 
         irow = 0
         sizer.Add(add_button(panel, label='Select None', size=(125, -1),
@@ -193,15 +234,24 @@ class PositionCommandFrame(wx.Frame) :
         sizer.Add(self.scanname,                      (irow, 3), (1, 1), LEFT, 2)
 
         irow += 1
+        sizer.Add(self.use_detdist,                     (irow, 0), (1, 2), LEFT, 2)
+        sizer.Add(SimpleText(panel, 'Det Distance:'),   (irow, 2), (1, 1), LEFT, 2)
+        sizer.Add(self.detdist,                         (irow, 3), (1, 1), LEFT, 2)
+
+        irow += 1
         sizer.Add(add_button(panel, label='Add Commands', size=(250, -1),
                              action=self.onInsert),
                   (irow, 0), (1, 2), LEFT, 2)
+        sizer.Add(SimpleText(panel, 'Default # Scans:'),  (irow, 2), (1, 1), LEFT, 2)
+        sizer.Add(self.nscans,                           (irow, 3), (1, 1), LEFT, 2)
 
         pack(panel, sizer)
 
-        for icol, dat in enumerate((('Position Name',  400, 'text'),
+        for icol, dat in enumerate((('Position Name',  350, 'text'),
                                     ('Include',        100, 'bool'),
-                                    ('# Scans',        100, 'text'))):
+                                    ('# Scans',        100, 'text'),
+                                    ('XRF Det Distance', 150, 'text'))):
+
             label, width, dtype = dat
             method = self.dvc.AppendTextColumn
             mode = dv.DATAVIEW_CELL_EDITABLE
@@ -244,6 +294,7 @@ class PositionCommandFrame(wx.Frame) :
             scantype = 'xafs'
         elif 'map' in sname or 'slew' in sname:
             scantype = 'slew'
+            self.nscans.SetValue(1)
         cls, table = self.scandb.get_table('scandefs')
         q = table.select().where(table.c.type.ilike("%%%s%%" % scantype)).order_by('last_used_time')
         scannames = []
@@ -269,15 +320,29 @@ class PositionCommandFrame(wx.Frame) :
                     buff.append(command % (repr(posname), xrdtime))
         else:
             scanname = self.scanname.GetStringSelection()
-            command = "pos_scan(%s, %s, number=%s)"
-            for posname, use, nscans in reversed(self.model.data):
+            command = "pos_scan({posname:s}, {scanname:s}, number={nscans:s}"
+            if self.use_detdist.IsChecked():
+                command = command + ", xrfdet_z={ddist:s}"
+            command = command + ')'
+            for posname, use, nscans, ddist in reversed(self.model.data):
                 if use:
-                    buff.append(command % (repr(posname), repr(scanname), nscans))
+                    buff.append(command.format(posname=repr(posname),
+                                               scanname=repr(scanname),
+                                               nscans=nscans, ddist=ddist))
         buff.append("#\n")
         try:
             editor.AppendText("\n".join(buff))
         except:
             print("No editor?")
+
+    def onNScans(self, value=None, event=None):
+        self.model.set_nscans(value)
+
+    def onDetDist(self, value=None, event=None, **kws):
+        self.model.set_detdist(value)
+
+    def onUseDetDistance(self, event=None):
+        self.detdist.Enable(self.use_detdist.IsChecked() and self.detdist_motor is not None)
 
     def onSelAll(self, event=None):
         self.model.select_all(True)
@@ -296,6 +361,7 @@ class PositionCommandFrame(wx.Frame) :
 
     def onTimer(self, event=None, **kws):
         now = time.monotonic()
+
         poslist = get_positionlist(self.scandb)
         if len(self.model.data) != len(poslist):
             self.update()
@@ -402,7 +468,7 @@ class CommandsPanel(scrolled.ScrolledPanel):
             self.input.Bind(wx.EVT_KEY_UP,  self.onChar)
         else:
             self.input.Bind(wx.EVT_CHAR,  self.onChar)
-        
+
         sizer = wx.BoxSizer(wx.HORIZONTAL)
 
         sizer.Add(self.prompt,  0, wx.BOTTOM|wx.CENTER)
@@ -435,13 +501,13 @@ class CommandsPanel(scrolled.ScrolledPanel):
         self.input.SetValue(text)
         self.input.SetFocus()
         self.input.SetInsertionPointEnd()
-        
+
     def AddToHistory(self, text=''):
         for tline in text.split('\n'):
             if len(tline.strip()) > 0:
                 self.hist_buff.append(tline)
                 self.hist_mark = len(self.hist_buff)
-    
+
     def make_info_panel(self):
         sizer = wx.GridBagSizer(2, 2)
         panel = wx.Panel(self)
