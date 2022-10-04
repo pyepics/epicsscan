@@ -188,7 +188,7 @@ class QXAFS_Scan(XAFS_Scan):
             caput(qconf['id_array_pv'], np.zeros(2000))
 
     def make_trajectory(self, reverse=False,
-                        theta_accel=2, width_accel=0.050, **kws):
+                        theta_accel=2., width_accel=0.050, **kws):
         """this method builds the text of a Trajectory script for
         a Newport XPS Controller based on the energies and dwelltimes"""
 
@@ -524,7 +524,7 @@ class QXAFS_Scan(XAFS_Scan):
                 offset = mca_offsets.get(key, 1)
             c.buff = c.buff[offset:]
             c.buff = c.buff[:ne]
-            print("-> ", c.label, offset, len(c.buff), c.buff[:3], c.buff[-2:])
+            # print("-> ", c.label, offset, len(c.buff), c.buff[:3], c.buff[-2:])
 
             data4calcs[c.pvname] = np.array(c.buff)
 
