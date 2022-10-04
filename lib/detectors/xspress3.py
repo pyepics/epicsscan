@@ -328,7 +328,7 @@ class Xspress3Detector(DetectorMixin):
         self.arm_delay   = 0.1
         self.start_delay = 0.40
         self.start_delay_arraymode = 0.40
-        self.start_delay_roimode   = 1.00
+        self.start_delay_roimode   = 0.75
         self._counter = None
         self.counters = []
         self._repr_extra = self.repr_fmt % (nmcas, nrois,
@@ -489,7 +489,6 @@ class Xspress3Detector(DetectorMixin):
         dt.add('xspress3 ROIMode, trigger mode')
         if numframes is None:
             numframes = MAX_FRAMES
-
         self._xsp3.put('NumImages', numframes)
         dt.add('xspress3 ROIMode, numframes')
         self._xsp3.set_timeseries(mode='stop', numframes=numframes, enable=True)
