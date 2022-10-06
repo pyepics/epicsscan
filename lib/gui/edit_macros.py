@@ -315,7 +315,7 @@ class PositionCommandFrame(wx.Frame) :
         if datatype.lower().startswith('xrd'):
             xrdtime =  self.xrdtime.GetValue()
             command = "xrd_at(%s, t=%.1f)"
-            for posname, use, nscans in reversed(self.model.data):
+            for posname, use, nscans, ddist in reversed(self.model.data):
                 if use:
                     buff.append(command % (repr(posname), xrdtime))
         else:
