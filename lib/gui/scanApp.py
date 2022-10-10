@@ -63,7 +63,7 @@ from ..file_utils import new_filename, nativepath, fix_filename
 from ..scandb import ScanDB
 
 from .scan_panels import (LinearScanPanel, MeshScanPanel,
-                          SlewScanPanel,  XAFSScanPanel)
+                          SlewScanPanel, Slew1dScanPanel,  XAFSScanPanel)
 
 from ..larch_interface import LarchScanDBServer, larch
 
@@ -84,7 +84,7 @@ from .edit_sequences   import ScanSequenceFrame
 
 ICON_FILE = 'epics_scan.ico'
 
-SCANTYPES = ('slew', 'xafs', 'linear')
+SCANTYPES = ('slew', 'xafs', 'slew1d', 'linear')
 AUTOSAVE_FILE = 'macros_autosave.lar'
 
 def compare_scans(scan1, scan2, verbose=False):
@@ -207,7 +207,8 @@ class ScanFrame(wx.Frame):
         NB_PANELS = {'Settings': SettingsPanel,
                      'Map Scans': SlewScanPanel,
                      'XAFS Scans': XAFSScanPanel,
-                     'Linear Scans': LinearScanPanel,
+                     'Fast Line Scans': Slew1dScanPanel,
+                     'Slow Line Scans': LinearScanPanel,
                      'Commands and Macros': CommandsPanel}
 
         self.nb = flatnotebook(self, NB_PANELS,
@@ -327,7 +328,7 @@ class ScanFrame(wx.Frame):
         fmt = "do_%s('%s', filename='%s', nscans=%i, comments='''%s''')"
 
         command = 'scan'
-        if scan['type'].lower() == 'slew':
+        if scan['type'].lower() in ('slew', 'slew1d', 'slew2d', 'map'):
             command = 'slewscan'
             nscans = 1
 
@@ -352,7 +353,7 @@ class ScanFrame(wx.Frame):
         fmt = "do_%s('%s', filename='%s', nscans=%i, comments='''%s''')"
 
         command = 'scan'
-        if scan['type'].lower() == 'slew':
+        if scan['type'].lower() in ('slew', 'slew1d', 'slew2d', 'map'):
             command = 'slewscan'
             nscans = 1
 

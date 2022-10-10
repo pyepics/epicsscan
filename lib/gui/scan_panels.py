@@ -1083,8 +1083,6 @@ class MeshScanPanel(GenericScanPanel):
         self._initialized = True
         self.update_position_from_pv(0)
 
-
-
     def load_scandict(self, scan):
         """load scan for mesh scan from scan dictionary
         as stored in db, or passed to stepscan"""
@@ -1229,9 +1227,6 @@ class SlewScanPanel(GenericScanPanel):
                                label='Zero Fine Motors before Map?',
                                action=self.onZeroFineMotors)
 
-
-        zfm = self.scandb.get_info('zero_finemotors_beforemap',
-                                   as_bool=True, default=0)
         self.use_xrd = check(self, default=False,
                              label='Collect XRD with Map?',
                              action=self.onSelectXRD)
@@ -1419,6 +1414,169 @@ class SlewScanPanel(GenericScanPanel):
                         p1, p2 = p2, p1
                         start.SetValue(p1)
                         stop.SetValue(p2)
+                s[mname] = [name, pvnames, p1, p2, npts]
+
+
+        return s
+
+class Slew1dScanPanel(GenericScanPanel):
+    """ 1-d slew scan """
+    __name__ = 'Slew1dScan'
+    def __init__(self, parent, **kws):
+        GenericScanPanel.__init__(self, parent, **kws)
+
+        sizer = self.sizer
+
+        ir = self.top_widgets('1-D Slew Scan', with_absrel=False,
+                              dwell_value=0.050)
+
+        sizer.Add(self.hline(), (ir, 0), (1, 8), LEFT)
+        ir += 1
+        for ic, lab in enumerate(("  ", " Positioner", " Units",
+                                  " Current", " Start", " Stop", " Step", " Npts")):
+            s  = CEN
+            if lab == " Npts":
+                s = LEFT
+            # if lab == "Current": s = RIGHT
+            sizer.Add(SimpleText(self, lab), (ir, ic), (1, 1), s, 2)
+
+        fsize = (95, -1)
+        pchoices = [p.name for p in self.scandb.get_slewpositioners()]
+
+        pos = add_choice(self, pchoices, size=(100, -1), action=self.onPos)
+        pos.SetSelection(0)
+        units = wx.StaticText(self, -1, size=(40, -1), label='',
+                              style=CEN)
+        cur   = PVStaticText(self, pv=None, size=(100, -1),
+                             style=CEN)
+        start, stop, step, npts = self.StartStopStepNpts(0,
+                    initvals=(-0.25, 0.25, 0.002, 251))
+        self.pos_settings = [(pos, units, cur, start, stop, step, npts)]
+        ir += 1
+
+        lab = wx.StaticText(self, -1, label=' ')
+        sizer.Add(lab,   (ir, 0), (1, 1), wx.ALL, 2)
+        sizer.Add(pos,   (ir, 1), (1, 1), wx.ALL, 2)
+        sizer.Add(units, (ir, 2), (1, 1), wx.ALL, 2)
+        sizer.Add(cur,   (ir, 3), (1, 1), wx.ALL, 2)
+        sizer.Add(start, (ir, 4), (1, 1), wx.ALL, 2)
+        sizer.Add(stop,  (ir, 5), (1, 1), wx.ALL, 2)
+        sizer.Add(step,  (ir, 6), (1, 1), wx.ALL, 2)
+        sizer.Add(npts,  (ir, 7), (1, 1), wx.ALL, 2)
+
+        ir += 1
+
+        zfm = self.scandb.get_info('zero_finemotors_beforemap',
+                                   as_bool=True, default=0)
+        self.zfmchoice = check(self, default=zfm,
+                               label='Zero Fine Motors before Scan?',
+                               action=self.onZeroFineMotors)
+
+        sizer.Add(self.zfmchoice, (ir, 1), (1, 3), wx.ALL, 2)
+
+        bot_panel = self.add_startscan(with_nscans=False)
+
+        self.scan_message = SimpleText(self, " ", style=LEFT, size=(500, -1),
+                                       font=self.Font12, colour='#991111')
+        ir +=2
+        self.sizer.Add(self.scan_message, (ir,   0), (1, 8), LEFT)
+        self.sizer.Add(self.hline(),      (ir+1, 0), (1, 8), LEFT)
+        self.sizer.Add(bot_panel,         (ir+2, 0), (1, 8), LEFT)
+
+        pack(self, self.sizer)
+        self.SetupScrolling()
+        self._initialized = True
+        self.update_position_from_pv(0)
+
+
+    def load_scandict(self, scan):
+        """load scan for mesh scan from scan dictionary
+        as stored in db, or passed to stepscan"""
+        self.dwelltime.SetValue(scan['dwelltime'])
+        self.absrel.SetSelection(0)
+
+        pos, units, cur, start, stop, step, npts = self.pos_settings[0]
+        posdat = scan['inner']
+        if len(posdat) > 0:
+            pos.SetStringSelection(posdat[0])
+            start.SetValue(posdat[2])
+            stop.SetValue(posdat[3])
+            npts.SetValue(posdat[4])
+            self.update_position_from_pv(0)
+
+    def update_positioners(self):
+        """meant to be overwritten"""
+        self.get_positioners()
+        for irow, row in enumerate(self.pos_settings):
+            thispos = row[0]
+            cur = thispos.GetStringSelection()
+            thispos.Clear()
+            plist = self.poslist[2:]
+            if irow == 0:
+                plist = self.slewlist
+            thispos.SetItems(plist)
+            if cur in plist:
+                thispos.SetStringSelection(cur)
+            else:
+                thispos.SetSelection(0)
+
+    def onVal(self, index=0, label=None, value=None, **kws):
+        if not self._initialized: return
+        if label in ('start', 'stop', 'step', 'npts'):
+            self.setStepNpts(self.pos_settings[index][3:], label)
+        self.setScanTime()
+
+    def onZeroFineMotors(self, evt=None):
+        zfm = self.zfmchoice.IsChecked()
+        self.scandb.set_info('zero_finemotors_beforemap', int(zfm))
+
+    def onPos(self, evt=None, index=0):
+        self.update_position_from_pv(0)
+
+    def use_scandb(self, scandb):
+        self.get_positioners()
+        wid = self.pos_settings[0][0]
+        a = wid.GetStringSelection()
+        wid.Clear()
+        wid.SetItems(self.slewlist)
+        wid.SetStringSelection(a)
+
+    def setScanTime(self):
+        "set estimated scan time, addig overhead of 1 sec per row"
+        dtime = float(self.dwelltime.GetValue())
+        ninner = float(self.pos_settings[0][6].GetValue())
+        dtime  = 1.0 + dtime*ninner
+
+        self.scantime = dtime
+        self.est_time.SetLabel(hms(dtime))
+
+    def generate_scan_positions(self):
+        "generate slew scan"
+        s = {'type': 'slew1d',
+             'dwelltime':  float(self.dwelltime.GetValue()),
+             'dimension': 1,
+             'scantime': self.scantime,
+             'inner': [],
+             'outer': [],
+             'filename': self.filename.GetValue(),
+             'comments': self.user_comms.GetValue(),
+             'nscans': 1  }
+
+
+        for i, wids in enumerate(self.pos_settings):
+            pos, u, cur, start, stop, dx, wnpts = wids
+            if start.Enabled:
+                npts = wnpts.GetValue()
+                name = pos.GetStringSelection()
+                xpos = self.scandb.get_positioner(name)
+                pvnames = (xpos.drivepv, xpos.readpv)
+                p1 = start.GetValue()
+                p2 = stop.GetValue()
+                mname = 'inner'
+                if p1 > p2:  # force inner scan to be from low to high
+                    p1, p2 = p2, p1
+                    start.SetValue(p1)
+                    stop.SetValue(p2)
                 s[mname] = [name, pvnames, p1, p2, npts]
 
 

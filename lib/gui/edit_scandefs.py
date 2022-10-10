@@ -166,8 +166,7 @@ class ScanDefPanel(wx.Panel):
         self.name_filter.replace('*', '').lower()
 
         cls, table = self.scandb.get_table('scandefs')
-
-        q = table.select().where(table.c.type.ilike("%%%s%%" % self.scantype))
+        q = table.select().where(table.c.type==self.scantype)
         if self.name_filter not in (None, 'None', ''):
             q = q.where(table.c.name.ilike('%%%s%%' % self.name_filter))
 
@@ -289,6 +288,31 @@ class LinearScanDefs(ScanDefPanel):
         ScanDefPanel.__init__(self, parent, scandb)
 
 
+class Slew1DScanDefs(ScanDefPanel):
+    colLabels = (('Scan Name',  200),
+                 ('Positioner', 100),
+                 ('# Points',    80),
+                 ('Created',    150),
+                 ('Last Used',  150))
+    scantype = 'slew1d'
+    def __init__(self, parent, scandb):
+        ScanDefPanel.__init__(self, parent, scandb)
+
+    def get_data(self):
+        data = []
+        for scan in self._getscans():
+            sdat  = json.loads(scan.text)
+            inner = sdat['inner'][0]
+            npts  = int(sdat['inner'][4])
+            data.append([scan.name, inner, npts,
+                         scan.modify_time, scan.last_used_time])
+        try:
+            self.ncols = len(data[0])
+        except:
+            self.ncols = 5
+        return data
+
+
 class MeshScanDefs(ScanDefPanel):
     colLabels = (('Scan Name',  200),
                  ('Inner',       80),
@@ -345,7 +369,6 @@ class SlewScanDefs(ScanDefPanel):
             self.ncols = len(data[0])
         except:
             self.ncols = 6
-
         return data
 
 class XAFSScanDefs(ScanDefPanel):
@@ -432,9 +455,10 @@ class ScandefsFrame(wx.Frame) :
 
         self.tables = []
         self.nblabels = []
-        creators = {'xafs': XAFSScanDefs,
-                   'slew': SlewScanDefs,
-                   'linear': LinearScanDefs}
+        creators = {'XAFS': XAFSScanDefs,
+                    'Map': SlewScanDefs,
+                    'Fast Line': Slew1DScanDefs,
+                    'Slow Line': LinearScanDefs}
         for label, defclass in creators.items():
             table = defclass(self, self.scandb)
             self.tables.append(table)
