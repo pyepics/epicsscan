@@ -325,8 +325,6 @@ class Slew_Scan1D(StepScan):
 
         self.set_all_scandata()
         dtimer.add('set scan data')
-        # for val, pos in zip(orig_positions, self.positioners):
-        #     pos.move_to(val, wait=False)
 
         self.datafile.write_data(breakpoint=-1, close_file=True, clear=False)
         time.sleep(0.05)
@@ -340,11 +338,10 @@ class Slew_Scan1D(StepScan):
         self.complete = True
         self.set_info('scan_progress',
                       'scan complete. Wrote %s' % self.datafile.filename)
-        self.scandb.set_info('slew1d_running', 0)
+        self.scandb.set_info('qxafs_running', 0)
         self.runtime  = time.monotonic() - ts_start
         dtimer.add('done')
         # dtimer.show()
-        self.scandb.set_info('qxafs_running', 0)
         print("scan done at %s " % (time.ctime()))
         return self.datafile.filename
         ##
