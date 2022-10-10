@@ -64,13 +64,15 @@ class PositionCommandModel(dv.DataViewIndexListModel):
         dv.DataViewIndexListModel.__init__(self, 0)
         self.scandb = scandb
         self.data = []
+        self.nscans = 1
+        self.detdist = -1
         self.posvals = {}
         self.read_data()
 
     def read_data(self):
         self.data = []
         for pos in get_positionlist(self.scandb):
-            use, nscan, ddist = True, '1', '-1'
+            use, nscan, ddist = True, f"{int(self.nscans)}", f"{self.detdist:.1f}"
             if pos in self.posvals:
                 use, nscan, ddist = self.posvals[pos]
             self.data.append([pos, use, nscan, ddist])
@@ -78,6 +80,7 @@ class PositionCommandModel(dv.DataViewIndexListModel):
         self.Reset(len(self.data))
 
     def set_nscans(self, val=1):
+        self.nscans = val
         if isinstance(val, (float, int)):
             val = "%s" % int(val)
         for posname, dat in self.posvals.items():
@@ -85,11 +88,11 @@ class PositionCommandModel(dv.DataViewIndexListModel):
         self.read_data()
 
     def set_detdist(self, val=-1):
+        self.detdist = val
         if isinstance(val, (float, int)):
             val = "%.1f" % float(val)
         for posname, dat in self.posvals.items():
             dat[2] = val
-
         self.read_data()
 
     def select_all(self, use=True):
@@ -361,12 +364,13 @@ class PositionCommandFrame(wx.Frame) :
 
     def onTimer(self, event=None, **kws):
         now = time.monotonic()
-
         poslist = get_positionlist(self.scandb)
         if len(self.model.data) != len(poslist):
             self.update()
 
     def update(self):
+        self.model.set_nscans(int(self.nscans.GetValue()))
+        self.model.set_detdist(self.detdist.GetValue())
         self.model.read_data()
         self.Refresh()
         self.dvc.EnsureVisible(self.model.GetItem(0))
