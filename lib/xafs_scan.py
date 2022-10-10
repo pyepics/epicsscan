@@ -166,8 +166,8 @@ class QXAFS_Scan(XAFS_Scan):
 
     def connect_qxafs(self):
         """initialize a QXAFS scan"""
-        if self.config is None:
-            self.config = json.loads(self.scandb.get_config('qxafs').notes)
+        cname = self.scandb.get_info('qxafs_config')
+        self.config = json.loads(self.scandb.get_config(cname).notes)
         self.with_id = ('id_array_pv' in self.config and
                         'id_drive_pv' in self.config)
 
@@ -305,6 +305,7 @@ class QXAFS_Scan(XAFS_Scan):
         run the actual QXAFS scan
         """
         dtimer =  debugtime()
+        self.scandb.set_info('qxafs_config', 'qxafs')
         self.complete = False
         if filename is not None:
             self.filename  = filename
