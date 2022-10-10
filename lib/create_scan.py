@@ -121,26 +121,25 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
                 if len(pvs2) > 0:
                     scan.add_counter(pvs2[1], label="%s_read" % label2)
 
-        elif scantype == 'slew':
-            if dimension == 1:
-                scan = Slew_Scan1D(filename=filename, comments=comments)
-                scan.inner = inner
-                scan.detmode = 'roi'
-                label, pvs, start, stop, npts = inner
-                # print(" CREATE 1D ", inner, pvs)
-                pos = Positioner(pvs[0], label=label)
-                pos.array = np.linspace(start, stop, npts)
-                scan.add_positioner(pos)
+        elif scantype == 'slew1d' or scantype == 'slew' and dimension == 1:
+            scan = Slew_Scan1D(filename=filename, comments=comments)
+            scan.inner = inner
+            scan.detmode = 'roi'
+            label, pvs, start, stop, npts = inner
+            # print(" CREATE 1D ", inner, pvs)
+            pos = Positioner(pvs[0], label=label)
+            pos.array = np.linspace(start, stop, npts)
+            scan.add_positioner(pos)
 
-            else:
-                scan = Slew_Scan(filename=filename, comments=comments)
-                scan.inner = inner
-                scan.detmode = 'ndarray'
-                scan.outer = outer
-                label, pvs, start, stop, npts = outer
-                pos = Positioner(pvs[0], label=label)
-                pos.array = np.linspace(start, stop, npts)
-                scan.add_positioner(pos)
+        elif scantype == 'slew':
+            scan = Slew_Scan(filename=filename, comments=comments)
+            scan.inner = inner
+            scan.detmode = 'ndarray'
+            scan.outer = outer
+            label, pvs, start, stop, npts = outer
+            pos = Positioner(pvs[0], label=label)
+            pos.array = np.linspace(start, stop, npts)
+            scan.add_positioner(pos)
 
 
     # data callback
