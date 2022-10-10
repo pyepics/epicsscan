@@ -88,10 +88,12 @@ class Struck(Device):
         "put Struck in Internal Mode"
         out = self.put('ChannelAdvance', 0)  # internal
         if self.scaler is not None:
+            self.scaler.put('CNT',  0, wait=True)
+            time.sleep(0.01)
             self.scaler.put('CONT', 0, wait=True)
         if prescale is not None:
             self.put('Prescale', prescale)
-        time.sleep(0.002)
+        time.sleep(0.01)
         return out
 
     def set_dwelltime(self, val):
@@ -177,7 +179,9 @@ class Struck(Device):
         "Start Struck"
         if self.scaler is not None:
             self.scaler.put('CONT', 0) # , wait=True)
-        return self.put('EraseStart', 1, wait=wait)
+
+        espv = self.PV('EraseStart')
+        return espv.put(1, wait=wait)
 
     def stop(self):
         "Stop Struck Collection"
