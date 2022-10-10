@@ -58,15 +58,20 @@ class QXAFS_ScanWatcher(object):
         if heartbeat_pvname is not None:
             self.heartbeat_pv = PV(heartbeat_pvname)
         self.connected = False
+        self.confname = None
         self.connect()
 
     def connect(self):
-        self.config = json.loads(self.scandb.get_config('qxafs').notes)
-        self.with_id = ('id_array_pv' in self.config and
-                        'id_drive_pv' in self.config)
-        pulse_channel = "%sCurrentChannel" % self.config['mcs_prefix']
+        self.confname = self.scandb.get_info('qxafs_config', 'qxafs')
+        self.config = json.loads(self.scandb.get_config(self.confname).notes)
+        print("QXAFS CONNECT ", self.confname, self.config)
+        mcs_prefix = self.config.get('mcs_prefix', '13IDE:SIS1:')
+        pulse_channel = f"{mcs_prefix}CurrentChannel"
         self.pulse_pv = PV(pulse_channel, callback=self.onPulse)
 
+
+        self.with_id = ('id_array_pv' in self.config and
+                        'id_drive_pv' in self.config)
         if self.with_id:
             self.idarray_pv = PV(self.config['id_array_pv'])
             self.iddrive_pv = PV(self.config['id_drive_pv'])
@@ -100,7 +105,6 @@ class QXAFS_ScanWatcher(object):
             else:
                 counter = Counter(pvname, label=name, units=row.units)
             self.counters.append(counter)
-            # print("QX counter ", counter)
         time.sleep(0.05)
         if self.verbose:
             self.write("QXAFS_connect_counters %i counters" % (len(self.counters)))
@@ -130,7 +134,6 @@ class QXAFS_ScanWatcher(object):
         self.dtime = float(self.scandb.get_info(key='qxafs_dwelltime', default=0.5))
         if self.verbose:
             self.write("Monitor QXAFS begin %i ID Points"  % len(self.idarray))
-
         self.qxafs_connect_counters()
         while True:
             if self.get_state() == 0:
@@ -155,7 +158,7 @@ class QXAFS_ScanWatcher(object):
                 self.scandb.set_info('request_abort', 0)
                 time.sleep(1.0)
 
-            time.sleep(0.05)
+            time.sleep(0.1)
             now = time.time()
             # look for and prevent out-of-ordinary values for Taper (50 eV)
             # or for Gap Symmetry
@@ -211,6 +214,7 @@ class QXAFS_ScanWatcher(object):
                 self.scandb.set_info('scan_time_estimate', time_left)
                 time_est  = hms(time_left)
                 msg = 'Point %i/%i, time left: %s' % (cpt, npts, time_est)
+
                 if cpt >= msg_counter:
                     self.scandb.set_info('scan_progress',  msg)
                     self.scandb.set_info('heartbeat', tstamp())
@@ -273,6 +277,9 @@ class QXAFS_ScanWatcher(object):
             state = self.get_state()
             if 2 == int(state):
                 try:
+                    confname = self.scandb.get_info('qxafs_config', 'qxafs')
+                    if confname is not self.confname:
+                        self.connect()
                     self.monitor_qxafs()
                 except:
                     self.write("QXAFS monitor gave an exception, will try again")
