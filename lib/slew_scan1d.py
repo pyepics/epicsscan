@@ -45,9 +45,11 @@ class Slew_Scan1D(StepScan):
         self.set_info('scan_progress', 'preparing')
 
         # ZeroFineMotors before map? not available
-
+        self.scandb.set_info('qxafs_config', 'slew')
+        self.scandb.set_info('qxafs_running', 0) # abort
         inner_pos = self.scandb.get_slewpositioner(self.inner[0])
         conf = self.scandb.get_config_id(inner_pos.config_id)
+
         scnf = self.slewscan_config = json.loads(conf.notes)
         self.xps = NewportXPS(scnf['host'],
                               username=scnf['username'],
@@ -84,7 +86,6 @@ class Slew_Scan1D(StepScan):
         xrd_det = None
         xrf_det = None
         for det in self.detectors:
-            # print("prepare detector ", det)
             if isinstance(det, AreaDetector):
                 xrd_det = det
                 self.set_info('xrd_1dint_status', 'starting')
@@ -135,6 +136,7 @@ class Slew_Scan1D(StepScan):
         dtimer =  debugtime()
         debug = self.scandb.get_info('debug_scan', as_bool=True) or debug
         self.prepare_scan()
+
         trajs = self.xps.trajectories
         ts_start = time.monotonic()
 
@@ -195,6 +197,8 @@ class Slew_Scan1D(StepScan):
             det_start_delay = max(det_start_delay, det.start_delay)
         time.sleep(det_arm_delay)
 
+        self.scandb.set_info('qxafs_config', 'slew')
+        self.scandb.set_info('qxafs_running', 2) # running
         # wait for detectors to be armed
         tout = time.time()+5.0
         while not all([det.arm_complete for det in self.detectors]):
@@ -210,11 +214,12 @@ class Slew_Scan1D(StepScan):
 
         time.sleep(det_start_delay)
         dtimer.add('detectors started')
+
         self.datafile = self.open_output_file(filename=self.filename,
                                               comments=self.comments)
 
 
-        self.scandb.set_info('slew1d_running', 2) # running
+
         self.datafile.write_data(breakpoint=0)
         dtimer.add('datafile opened')
         self.filename =  self.datafile.filename
@@ -339,10 +344,10 @@ class Slew_Scan1D(StepScan):
         self.runtime  = time.monotonic() - ts_start
         dtimer.add('done')
         # dtimer.show()
+        self.scandb.set_info('qxafs_running', 0)
         print("scan done at %s " % (time.ctime()))
         return self.datafile.filename
         ##
-
 
     def gathering2xvals(self, text):
         """read gathering file, calculate and return
