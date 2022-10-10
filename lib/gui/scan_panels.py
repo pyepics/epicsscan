@@ -24,8 +24,7 @@ from .. import etok, ktoe, XAFS_Scan, StepScan, Positioner, Counter
 from ..utils import normalize_pvname, atGSECARS
 
 # Max number of points in scan
-MAX_NPTS = 4000
-
+MAX_NPTS = 8000
 
 LINWID = 700
 ELEM_LIST = ('H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na',
