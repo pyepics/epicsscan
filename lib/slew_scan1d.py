@@ -125,9 +125,9 @@ class Slew_Scan1D(StepScan):
         for det in self.detectors:
             det.stop()
             det.disarm(mode=self.detmode)
-            det.ContinuousMode()
-            if isinstance(det, AreaDetector):
-                self.set_info('xrd_1dint_status', 'finishing')
+            # det.ContinuousMode()
+            # if isinstance(det, AreaDetector):
+            #     self.set_info('xrd_1dint_status', 'finishing')
 
     def run(self, filename='fscan.001', comments=None, debug=False, npts=None):
         """
