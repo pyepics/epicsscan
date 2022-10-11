@@ -168,6 +168,7 @@ class QXAFS_Scan(XAFS_Scan):
         """initialize a QXAFS scan"""
         self.scandb.set_info('qxafs_config', 'qxafs')
         self.config = json.loads(self.scandb.get_config('qxafs').notes)
+        print("Connect QXAFS ", self.config)
         self.with_id = ('id_array_pv' in self.config and
                         'id_drive_pv' in self.config)
 
@@ -266,6 +267,7 @@ class QXAFS_Scan(XAFS_Scan):
                 'stop':  [theta[-1]+the0, width[-1]+wid0],
                 'pixeltime': self.dwelltime[0],
                 'npulses': npts, 'nsegments': npts}
+        print("QXAFS Trajectory ", traj)
         self.xps.trajectories['qxafs'] = traj
         self.xps.upload_trajectory('qxafs.trj', buff)
         return traj
@@ -476,14 +478,17 @@ class QXAFS_Scan(XAFS_Scan):
         self.check_outputs(out, msg='post scan')
 
         #
+        print("Will read gathering ", self.xps)
+        print(self.xps.status_report())
+
         npulses, gather_text = self.xps.read_gathering()
         energy, height = self.gathering2energy(gather_text)
-
         self.pos_actual = []
         for e in energy:
            self.pos_actual.append([e])
         ne = len(energy)
         #
+        print("Number of energy points ", ne)
         [c.read() for c in self.counters]
         ndat = [len(c.buff[1:]) for c in self.counters]
         narr = min(ndat)
@@ -508,7 +513,7 @@ class QXAFS_Scan(XAFS_Scan):
                 key = label.replace('clock', '').strip()
                 mca_offsets[key] = offset
 
-        # print("Read QXAFS Data %i points (NE=%i) %.3f secs" % (narr, ne, time.monotonic() - t0))
+        print("Read QXAFS Data %i points (NE=%i) %.3f secs" % (narr, ne, time.monotonic() - t0))
         dtimer.add('read all counters (done)')
         # remove hot first pixel AND align to proper energy
         # really, we tested this, comparing to slow XAFS scans!
@@ -542,7 +547,7 @@ class QXAFS_Scan(XAFS_Scan):
 
         self.datafile.write_data(breakpoint=-1, close_file=True, clear=False)
 
-        # print("QXAFS Done ", qconf['energy_pv'], qconf['id_drive_pv'], energy_orig)
+        print("QXAFS Done ", qconf['energy_pv'], qconf['id_drive_pv'], energy_orig)
         caput(qconf['energy_pv'], energy_orig)
         if self.with_id:
             try:
@@ -567,7 +572,7 @@ class QXAFS_Scan(XAFS_Scan):
         self.scandb.set_info('qxafs_running', 0)
         self.runtime  = time.monotonic() - ts_start
         dtimer.add('done')
-        # dtimer.show()
+        dtimer.show()
         print("scan done at %s %.3f" % (time.ctime(), time.time()))
         return self.datafile.filename
         ##
