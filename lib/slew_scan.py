@@ -528,10 +528,6 @@ class Slew_Scan(StepScan):
                     caput('%sstatus' % (mappref), 'Aborting')
                 break
 
-            # dtimer.add("stopping detectors after delay")
-            # for det in self.detectors:
-            #     det.stop()
-
             self.write_master(["%s %8.4f" % (masterline, time.time()-start_time)])
 
             if irow < npts-1:
