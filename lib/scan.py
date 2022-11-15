@@ -553,7 +553,7 @@ class StepScan(object):
         self.pos_settle_time = max(MIN_POLL_TIME, self.pos_settle_time)
         self.det_settle_time = max(MIN_POLL_TIME, self.det_settle_time)
         npts = self.npts = len(self.positioners[0].array)
-        print('est time ', npts, self.dwelltime)
+        # print('est time ', npts, self.dwelltime)
         self.dwelltime_varys = False
         if self.dwelltime is not None:
             self.min_dwelltime = self.dwelltime
