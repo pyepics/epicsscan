@@ -382,8 +382,8 @@ class QXAFS_Scan(XAFS_Scan):
         if not os.path.exists(xrfdir_server):
             os.mkdir(xrfdir_server)
 
-        self.xps.arm_trajectory('qxafs')
-        dtimer.add('traj armed')
+        # self.xps.arm_trajectory('qxafs')
+        # dtimer.add('traj armed')
         out = self.pre_scan(npulses=1+traj['npulses'],
                             dwelltime=dtime,
                             mode='roi', filename=self.filename)
@@ -464,6 +464,7 @@ class QXAFS_Scan(XAFS_Scan):
 
         for det in self.detectors:
             det.stop()
+            dtimer.add(f'det stopped {det}')
 
         dtimer.add('detectors stopped')
         self.finish_qscan()
@@ -486,6 +487,7 @@ class QXAFS_Scan(XAFS_Scan):
         [c.read() for c in self.counters]
         ndat = [len(c.buff[1:]) for c in self.counters]
         narr = min(ndat)
+        dtimer.add(f'read counters (ndat= {ndat})')
         # print('read counters (%d, %d, %d) ' % (narr, ne, len(self.counters)))
         t0  = time.monotonic()
 
@@ -533,7 +535,7 @@ class QXAFS_Scan(XAFS_Scan):
                 _counter = eval(c.pvname[len(EVAL4PLOT):])
                 _counter.data = data4calcs
                 c.buff = _counter.read()
-
+        dtimer.add('setting scan data')
         self.set_all_scandata()
         dtimer.add('set scan data')
         for val, pos in zip(orig_positions, self.positioners):
