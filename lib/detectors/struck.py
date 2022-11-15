@@ -88,7 +88,7 @@ class Struck(Device):
         "put Struck in Internal Mode"
         out = self.put('ChannelAdvance', 0)  # internal
         if self.scaler is not None:
-            self.scaler.put('CONT', 0, wait=True)
+            self.scaler.put('CNT',  0, wait=True)
         if prescale is not None:
             self.put('Prescale', prescale)
         time.sleep(0.002)
@@ -180,9 +180,17 @@ class Struck(Device):
         return self.put('EraseStart', 1, wait=wait)
 
     def stop(self):
-        "Stop Struck Collection"
-        if self.get('Acquiring'):
-            self.put('StopAll', 1)
+        "Stop Struck Collection: is sometimes not reliable"
+        self.put('StopAll', 1)
+        time.sleep(0.010)
+        for i in range(3):
+            if self.get('Acquiring'):
+                if self.scaler is not None:
+                    self.scaler.put('CNT', 0, wait=False)# True)
+                    time.sleep(0.010)
+                self.put('StopAll', 1)
+            if self.get('Acquiring'):
+                time.sleep(0.01 * (i+1))
         return
 
     def erase(self):
@@ -394,7 +402,7 @@ class StruckDetector(DetectorMixin):
             time.sleep(self.arm_delay)
 
     def disarm(self, mode=None, wait=False):
-        pass
+        self.struck.InternalMode()
 
     def ContinuousMode(self, **kws):
         self.struck.ContinuousMode(**kws)
