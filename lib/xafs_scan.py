@@ -464,6 +464,7 @@ class QXAFS_Scan(XAFS_Scan):
 
         for det in self.detectors:
             det.stop()
+            det.apply_offsets()
             dtimer.add(f'det stopped {det}')
 
         dtimer.add('detectors stopped')
@@ -484,6 +485,7 @@ class QXAFS_Scan(XAFS_Scan):
            self.pos_actual.append([e])
         ne = len(energy)
         #
+
         [c.read() for c in self.counters]
         ndat = [len(c.buff[1:]) for c in self.counters]
         narr = min(ndat)
@@ -524,10 +526,11 @@ class QXAFS_Scan(XAFS_Scan):
                     if word.startswith('mca'):
                         key = word
                 offset = mca_offsets.get(key, 1)
+            if hasattr(c, 'net_buff'):
+                c.buff = c.net_buff[:]
             c.buff = c.buff[offset:]
             c.buff = c.buff[:ne]
-            # print("-> ", c.label, offset, len(c.buff), c.buff[:3], c.buff[-2:])
-
+            # print(" READ-> ", c.label, offset, len(c.buff), c.buff[:3], c.buff[-2:], hasattr(c, 'net_buff'))
             data4calcs[c.pvname] = np.array(c.buff)
 
         for c in self.counters:

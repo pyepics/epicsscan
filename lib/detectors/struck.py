@@ -28,7 +28,7 @@ class Struck(Device):
              'ReadAll', 'DoReadAll', 'Model', 'Firmware')
 
     _nonpvs = ('_prefix', '_pvs', '_delim', '_nchan',
-               'clockrate', 'scaler', 'mcas', 'ast_interp')
+               'clockrate', 'scaler', 'mcas', 'ast_interp', 'scaler_config')
 
     def __init__(self, prefix, scaler=None, nchan=8, clockrate=50.0):
         self._nchan = nchan
@@ -51,7 +51,7 @@ class Struck(Device):
             pv.get()
 
         self.ast_interp = asteval.Interpreter()
-        self.read_scaler_config()
+        self.scaler_config = self.read_scaler_config()
 
     def ExternalMode(self, countonstart=None, initialadvance=None,
                      realtime=0, prescale=1, trigger_width=None):
@@ -223,8 +223,27 @@ class Struck(Device):
 
     def save_arraydata(self, filename='sis.dat', npts=None, **kws):
         "save MCA spectra to ASCII file"
+        nmcas, npts, names, headers, fmts, sdata = self.get_arraydata(npts=npts)
+        buff = ['# Struck MCA data: %s' % self._prefix,
+                '# Nchannels, Nmcas = %i, %i' % (npts, nmcas),
+                '# Time in microseconds']
+
+        buff.extend(headers)
+        buff.append("#%s" % ("-"*60))
+        buff.append("# %s" % ' | '.join(names))
+
+        fmt  = ''.join(fmts)
+        for i in range(npts):
+            buff.append(fmt.format(*sdata[i]))
+        buff.append('')
+        fout = open(filename, 'w')
+        fout.write("\n".join(buff))
+        fout.close()
+        return (nmcas, npts)
+
+    def get_arraydata(self, npts=None, **kws):
+        "save MCA spectra to ASCII file"
         t0 = time.time()
-        # print("SIS Save Array Data ", filename, os.getcwd())
         rdata, sdata, names, calcs, fmts = [], [], [], [], []
         headers = []
         if npts is None:
@@ -258,7 +277,6 @@ class Struck(Device):
 
         # make sure all data is the same length for calcs
         npts = min(npts, min(npts_chan))
-        #print(" Struck save_array: read %i in %.3f sec" % (npts, time.time()-t0))
 
         # final read
         icol = 0
@@ -307,31 +325,16 @@ class Struck(Device):
             sdata = numpy.array([s[:npts] for s in sdata]).transpose()
             npts, nmcas = sdata.shape
         except:
-            return (0, 0)
+            return (0, 0, names, headers, fmts, sdata)
 
-        buff = ['# Struck MCA data: %s' % self._prefix,
-                '# Nchannels, Nmcas = %i, %i' % (npts, nmcas),
-                '# Time in microseconds']
+        return (nmcas, npts, names, headers, fmts, sdata)
 
-        buff.extend(headers)
-        buff.append("#%s" % ("-"*60))
-        buff.append("# %s" % ' | '.join(names))
-
-        fmt  = ''.join(fmts)
-        for i in range(npts):
-            buff.append(fmt.format(*sdata[i]))
-        buff.append('')
-        fout = open(filename, 'w')
-        fout.write("\n".join(buff))
-        fout.close()
-        # print("SIS saved in %.3f seconds" % (time.time()-t0))
-        return (nmcas, npts)
 
 class StruckCounter(DeviceCounter):
     """Counter for Struck"""
     invalid_device_msg = 'StruckCounter must use an Epics Scaler'
     def __init__(self, prefix, scaler=None, outpvs=None, nchan=8,
-                 use_calc=False, use_unlabeled=False):
+                 use_calc=True, use_unlabeled=False):
         DeviceCounter.__init__(self, prefix)
         fields = [] # ('.T', 'CountTime')]
         extra_pvs = []
@@ -364,9 +367,9 @@ class StruckDetector(DetectorMixin):
         self.label = label
 
         self.dwelltime_pv = self.struck._pvs['Dwell']
-
+        print("Struck Detector ", self.struck)
         self._counter = StruckCounter(prefix, scaler=scaler,
-                                      nchan=nchan)
+                                      nchan=nchan, use_calc=True)
         self.counters = self._counter.counters
 
     def pre_scan(self, mode=None, npulses=None, dwelltime=None, **kws):
@@ -378,6 +381,13 @@ class StruckDetector(DetectorMixin):
         self.struck.set_dwelltime(self.dwelltime)
         if npulses is not None:
             self.struck.put('NuseAll', npulses)
+
+    def apply_offsets(self):
+         nmcas, npts, names, headers, fmts, sdata = self.struck.get_arraydata()
+         for counter in self.counters:
+            if counter.label in names:
+                ix = names.index(counter.label)
+                counter.net_buff = sdata[:, ix]
 
     def post_scan(self, **kws):
         "run just after scan"

@@ -60,6 +60,10 @@ class DetectorMixin(Saveable):
         "save calibration information to file"
         pass
 
+    def apply_offsets(self):
+        "apply offsets to detector counters"
+        pass
+
     def arm(self, mode=None, wait=False, fnum=None, numframes=1):
         "arm detector, ready to collect with optional mode"
         pass
