@@ -166,7 +166,7 @@ class ScanFile(object):
         if filename is not None:
             self.filename  = filename
         if 'a' in mode or 'w' in mode:
-            self.filename = new_filename(self.filename)
+            self.filename = new_filename(fix_filename(self.filename))
 
         if self.fh is not None:
             self.fh.close()
