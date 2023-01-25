@@ -739,26 +739,28 @@ class StepScan(object):
 
                 point_ok = (all([trig.done for trig in self.triggers]) and
                             time.time()-t0 > (0.75*self.min_dwelltime))
+
                 if not point_ok:
                     point_ok = True
-                    time.sleep(0.25)
-                    poll(0.1, 2.0)
+                    poll(0.1, 1.0)
                     for trig in self.triggers:
-                        poll(10*MIN_POLL_TIME, 1.0)
+                        poll(0.05, 1.0)
                         point_ok = point_ok and (trig.runtime > (0.8*self.min_dwelltime))
                         if not point_ok:
                             print('Trigger problem?:', trig, trig.runtime, self.min_dwelltime)
                             trig.abort()
 
                 # read counters and actual positions
-                poll(self.det_settle_time, 0.1)
+                poll(0.01, self.det_settle_time)
                 self.dtimer.add('Pt %i : det settled done. ' % i)
 
                 dready = [True]
+                t0 = time.time()
                 for counter in self.counters:
+                    if hasattr(counter, 'pv'):
+                        val = counter.pv.get(timeout=0.1)
                     if ('clock' in counter.label.lower() or
                         'counttime' in counter.label.lower()):
-                        val = counter.pv.get()
                         dready.append((val > 0))
                 if not all(dready):
                     print("## waiting for valid clock data, point %d" % i)
@@ -767,11 +769,16 @@ class StepScan(object):
                     for counter in self.counters:
                         if ('clock' in counter.label.lower() or
                             'counttime' in counter.label.lower()):
-                            val = counter.pv.get(timeout=3)
+                            val = counter.pv.get(timeout=0.5)
                             dready.append((val > 0))
+                        if hasattr(counter, 'pv'):
+                            _x = counter.pv.get()
                     if not all(dready):
                         time.sleep(0.05)
-                [c.read() for c in self.counters]
+                    if time.time() - t0 > 5:
+                        dready = [True]
+                dat = [c.read() for c in self.counters]
+                # print("read % counters in %.3f sec" % (len(dat), time.time()-t0))
                 self.dtimer.add('Pt %i : read counters' % i)
 
                 self.pos_actual.append([p.current() for p in self.positioners])
