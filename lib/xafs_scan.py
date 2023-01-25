@@ -384,7 +384,7 @@ class QXAFS_Scan(XAFS_Scan):
 
         # print("Would QXAFS ARM:")
         # self.xps.arm_trajectory('qxafs', verbose=True)
-        # dtimer.add('traj armed')
+        dtimer.add('traj armed')
         out = self.pre_scan(npulses=1+traj['npulses'],
                             dwelltime=dtime,
                             mode='roi', filename=self.filename)
