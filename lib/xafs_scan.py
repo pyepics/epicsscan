@@ -382,7 +382,8 @@ class QXAFS_Scan(XAFS_Scan):
         if not os.path.exists(xrfdir_server):
             os.mkdir(xrfdir_server)
 
-        # self.xps.arm_trajectory('qxafs')
+        # print("Would QXAFS ARM:")
+        # self.xps.arm_trajectory('qxafs', verbose=True)
         # dtimer.add('traj armed')
         out = self.pre_scan(npulses=1+traj['npulses'],
                             dwelltime=dtime,
@@ -485,7 +486,7 @@ class QXAFS_Scan(XAFS_Scan):
            self.pos_actual.append([e])
         ne = len(energy)
         #
-
+        print("Number of energy points ", ne)
         [c.read() for c in self.counters]
         ndat = [len(c.buff[1:]) for c in self.counters]
         narr = min(ndat)

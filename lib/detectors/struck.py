@@ -89,6 +89,9 @@ class Struck(Device):
         out = self.put('ChannelAdvance', 0)  # internal
         if self.scaler is not None:
             self.scaler.put('CNT',  0, wait=True)
+            time.sleep(0.01)
+            self.scaler.put('CONT',  0, wait=True)
+
         if prescale is not None:
             self.put('Prescale', prescale)
         time.sleep(0.002)
