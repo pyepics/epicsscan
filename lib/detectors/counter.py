@@ -36,14 +36,20 @@ class Counter(Saveable):
             self.buff = list(val)
         else:
             self.buff.append(val)
+        if hasattr(self, 'net_buff'):
+            return  self.net_buff
         return self.buff
 
     def clear(self):
         "clear counter"
         self.buff = []
+        if hasattr(self, 'net_buff'):
+            delattr(self, 'netc_buff')
 
-    def get_buffers(self):
+    def get_buffers(self, net=True):
         "return {label: buffer} dictionary"
+        if net and hasattr(self, 'net_buff'):
+            return {self.label: self.net_buff}
         return {self.label: self.buff}
 
 class DummyCounter(Saveable):

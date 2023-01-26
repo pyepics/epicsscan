@@ -366,7 +366,7 @@ class AD_Eiger(AreaDetector):
             self.cam.put('NumImages', numframes)
 
 
-    def ScalerMode(self, dwelltime=0.25, numframes=1):
+    def ScalerMode(self, dwelltime=None, numframes=1):
         """ set to scaler mode: ready for step scanning
 
     Arguments:

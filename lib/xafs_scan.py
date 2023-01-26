@@ -469,6 +469,8 @@ class QXAFS_Scan(XAFS_Scan):
 
         for det in self.detectors:
             det.stop()
+            det.apply_offsets()
+            dtimer.add(f'det stopped {det}')
 
         dtimer.add('detectors stopped')
         self.finish_qscan()
@@ -494,6 +496,7 @@ class QXAFS_Scan(XAFS_Scan):
         [c.read() for c in self.counters]
         ndat = [len(c.buff[1:]) for c in self.counters]
         narr = min(ndat)
+        dtimer.add(f'read counters (ndat= {ndat})')
         # print('read counters (%d, %d, %d) ' % (narr, ne, len(self.counters)))
         t0  = time.monotonic()
 
@@ -530,10 +533,11 @@ class QXAFS_Scan(XAFS_Scan):
                     if word.startswith('mca'):
                         key = word
                 offset = mca_offsets.get(key, 1)
+            if hasattr(c, 'net_buff'):
+                c.buff = c.net_buff[:]
             c.buff = c.buff[offset:]
             c.buff = c.buff[:ne]
-            # print("-> ", c.label, offset, len(c.buff), c.buff[:3], c.buff[-2:])
-
+            # print(" READ-> ", c.label, offset, len(c.buff), c.buff[:3], c.buff[-2:], hasattr(c, 'net_buff'))
             data4calcs[c.pvname] = np.array(c.buff)
 
         for c in self.counters:
@@ -541,7 +545,7 @@ class QXAFS_Scan(XAFS_Scan):
                 _counter = eval(c.pvname[len(EVAL4PLOT):])
                 _counter.data = data4calcs
                 c.buff = _counter.read()
-
+        dtimer.add('setting scan data')
         self.set_all_scandata()
         dtimer.add('set scan data')
         for val, pos in zip(orig_positions, self.positioners):

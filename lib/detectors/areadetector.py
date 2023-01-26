@@ -354,9 +354,8 @@ class AreaDetector(DetectorMixin):
                               numcapture=numcapture,
                               auto_increment=auto_increment)
 
-
         if hasattr(self, 'custom_pre_scan'):
-           self.custom_pre_scan(row=row, mode=mode, npulse=npulses,
+            self.custom_pre_scan(row=row, mode=mode, npulse=npulses,
                                 dwelltime=dwelltime, **kws)
 
     def post_scan(self, **kws):
@@ -472,12 +471,12 @@ class AreaDetector(DetectorMixin):
     Arguments:
         dwelltime (float): dwelltime per frame in seconds.   No default
         """
+        self.dwelltime = dwelltime
         self.cam.put('AcquireTime', dwelltime)
 
     def arm(self, mode=None, fnum=None, wait=False, numframes=None):
         if mode is not None:
             self.mode = mode
-        # print("AD arm: ", self.prefix, self.mode, numframes, self.arm_delay)
         self.cam.put('Acquire', 0, wait=True)
         if fnum is not None:
             self.fnum = fnum
