@@ -442,14 +442,14 @@ class Slew_Scan(StepScan):
             dtimer.add('inner pos move started irow=%i' % irow)
             for det in ordered_dets:
                 det.arm(mode='ndarray', numframes=npulses, fnum=irow, wait=False)
-            time.sleep(0.025)
+            time.sleep(0.005)
 
             # wait for detectors to be armed
-            tout = time.time()+5.0
+            tout = time.time()+2.0
             while not all([det.arm_complete for det in ordered_dets]):
                 if time.time() > tout:
                     break
-                time.sleep(0.01)
+                time.sleep(0.005)
 
             dtimer.add('detectors armed %.3f' % det_arm_delay)
             for det in ordered_dets:
