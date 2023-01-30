@@ -244,7 +244,7 @@ class ScanDB(object):
         if all([t in meta.tables for t in _tables]):
             keys = [row.key for row in
                     meta.tables['info'].select().execute().fetchall()]
-            allfound = 'version' in keys and 'experiment_id' in keys
+            allfound = 'version' in keys and 'fileroot' in keys
         if allfound:
             self.engine = engine
             self.dbname = dbname
