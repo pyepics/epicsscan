@@ -43,8 +43,11 @@ class SettingsPanel(scrolled.ScrolledPanel):
             expt_data[row.key] = (row.value, row.notes)
         self.wids = {}
         for key, dat in expt_data.items():
+            print(key, dat)
             ir += 1
             val, desc = dat
+            if val is None or len(val) < 1:
+                val = ''
             if desc is None or len(desc) < 1:
                 desc = key
             desc = ' %s:  '% desc
