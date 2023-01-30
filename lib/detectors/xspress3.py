@@ -331,8 +331,8 @@ class Xspress3Detector(DetectorMixin):
         self.label = label
         if self.label is None:
             self.label = self.prefix
-        self.arm_delay = 0.05
-        self.start_delay_arraymode = 0.10
+        self.arm_delay = 0.040
+        self.start_delay_arraymode = 0.05
         self.start_delay_roimode   = 0.75
         self.start_delay = self.start_delay_roimode
         self._counter = None
@@ -387,10 +387,10 @@ class Xspress3Detector(DetectorMixin):
             self.dwelltime = dwelltime
 
         self._xsp3.put('Acquire', 0, wait=True)
-        poll(0.05)
+        poll(0.025)
         self._xsp3.put('ERASE', 1, use_complete=True)
-        poll(0.05)
-        dt.add('xspress3: cleared, 1 erase')
+        poll(0.005)
+        dt.add('xspress3: cleared, erased')
         if filename is None:
             filename = 'xsp3'
 
@@ -428,7 +428,7 @@ class Xspress3Detector(DetectorMixin):
 
         tout = time.time()+5.0
         while not (self._xsp3._pvs['ERASE'].put_complete or time.time()>tout):
-            time.sleep(0.025)
+            time.sleep(0.001)
 
         # self._counter._get_counters()
         # self.counters = self._counter.counters
@@ -553,11 +553,11 @@ class Xspress3Detector(DetectorMixin):
         time.sleep(0.1)
 
     def arm(self, mode=None, fnum=None, wait=True, numframes=None):
+        t0 = time.time()
         if mode is not None:
             self.mode = mode
         if self._xsp3.DetectorState_RBV > 0:
             self._xsp3.put('Acquire', 0)
-        t0 = time.time()
         self._xsp3.put('ERASE', 1, use_complete=True)
         self._xsp3.put('EraseOnStart', 0)
         if fnum is not None:
@@ -587,17 +587,16 @@ class Xspress3Detector(DetectorMixin):
         if self._xsp3.DetectorState_RBV > 0:
             self._xsp3.put('Acquire', 0, wait=True)
         if wait:
-            tout = time.time()+5.0
+            tout = time.time()+2.0
             while not (self._xsp3._pvs['ERASE'].put_complete or time.time()>tout):
-                 time.sleep(0.005)
-
+                 time.sleep(0.002)
+        # print("xspress3 arm might be ready at %.4f" % (time.time()-t0))
         while (time.time() < (t0 + self.arm_delay)):
-            time.sleep(0.005)
+            time.sleep(0.002)
 
     def arm_complete(self):
         # if self._xsp3._pvs['ERASE'].put_complete is None:
-        # return self._xsp3._pvs['ERASE'].put_complete
-        return True
+        return self._xsp3._pvs['ERASE'].put_complete
 
     def disarm(self, mode=None, wait=False):
         if mode is not None:
