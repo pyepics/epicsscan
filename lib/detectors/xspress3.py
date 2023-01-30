@@ -331,8 +331,8 @@ class Xspress3Detector(DetectorMixin):
         self.label = label
         if self.label is None:
             self.label = self.prefix
-        self.arm_delay = 0.05
-        self.start_delay_arraymode = 0.10
+        self.arm_delay = 0.040
+        self.start_delay_arraymode = 0.05
         self.start_delay_roimode   = 0.75
         self.start_delay = self.start_delay_roimode
         self._counter = None
@@ -590,7 +590,7 @@ class Xspress3Detector(DetectorMixin):
             tout = time.time()+2.0
             while not (self._xsp3._pvs['ERASE'].put_complete or time.time()>tout):
                  time.sleep(0.002)
-
+        # print("xspress3 arm might be ready at %.4f" % (time.time()-t0))
         while (time.time() < (t0 + self.arm_delay)):
             time.sleep(0.002)
 

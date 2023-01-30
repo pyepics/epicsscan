@@ -258,6 +258,9 @@ class Slew_Scan(StepScan):
                 det.config_filesaver(path=detpath)
             except AttributeError:
                 pass
+        for det in self.detectors:
+            det.arm(mode='ndarray', numframes=npts, fnum=1, wait=False)
+
         return sname
 
     def post_scan(self):
@@ -432,8 +435,7 @@ class Slew_Scan(StepScan):
                     self.set_info('prescan_lasttime', "%i" % int(now))
 
             for pv, v1, v2 in self.motor_vals.values():
-                val = v1
-                if trajname == 'backward': val = v2
+                val = v2  if (trajname == 'backward') else v1
                 pv.put(val, wait=False)
 
             lastrow_ok = rowdata_ok
@@ -459,19 +461,18 @@ class Slew_Scan(StepScan):
             dtimer.add('detectors started  %.3f' % det_start_delay)
             self.xps.arm_trajectory(trajname)
             if irow < 2 or not lastrow_ok:
-                time.sleep(0.1)
-            dtimer.add('outer pos move')
+                time.sleep(0.05)
+            dtimer.add('XPS trajectory armed')
 
             for p in self.positioners:
                 p.move_to_pos(irow-1, wait=True)
 
-            dtimer.add('inner pos move(2)')
             for pv, v1, v2 in self.motor_vals.values():
                 val = v1
                 if trajname == 'backward': val = v2
                 pv.put(val, wait=True)
 
-            dtimer.add('inner pos move done')
+            dtimer.add('positioner moves done')
             # start trajectory in another thread
             scan_thread = Thread(target=self.xps.run_trajectory,
                                  kwargs=dict(save=False), name='trajectory_thread')
@@ -583,7 +584,7 @@ class Slew_Scan(StepScan):
                 while ((nxrd < nxrf) and
                        (time.time()- t0 < 10.0)):
                     nxrd = xrddet.get_numcaptured()
-                    time.sleep(0.01)
+                    time.sleep(0.003)
                 xrddet.stop()
                 dtimer.add('saved XRD data')
 
