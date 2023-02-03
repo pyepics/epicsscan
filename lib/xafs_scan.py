@@ -180,7 +180,7 @@ class QXAFS_Scan(XAFS_Scan):
                                   password=conf['password'],
                                   group=conf['group'],
                                   outputs=conf['outputs'],
-                                  extra_triggers=conf.get('extra_triggers', 0))
+                                  extra_triggers=conf.get('extra_triggers', 1))
 
         qconf = self.config
         caput(qconf['id_track_pv'], 1)
@@ -291,6 +291,7 @@ class QXAFS_Scan(XAFS_Scan):
                 words = line[:-1].split()
                 angle.append(float(words[0]))
                 height.append(float(words[2]))
+        # print(" Gather ", len(angle))
         angle  = np.array(angle)
         height = np.array(height)
         angle  = (angle[1:] + angle[:-1])/2.0
@@ -386,8 +387,7 @@ class QXAFS_Scan(XAFS_Scan):
         if not os.path.exists(xrfdir_server):
             os.mkdir(xrfdir_server)
 
-        # print("Would QXAFS ARM:")
-        # self.xps.arm_trajectory('qxafs', verbose=True)
+        self.xps.arm_trajectory('qxafs', verbose=True)
         dtimer.add('traj armed')
         out = self.pre_scan(npulses=1+traj['npulses'],
                             dwelltime=dtime,
@@ -463,7 +463,7 @@ class QXAFS_Scan(XAFS_Scan):
             scan_thread.join()
             dtimer.add('scan thread joined')
         else:
-            out = self.xps.run_trajectory(name='qxafs', save=False, verbose=True)
+            out = self.xps.run_trajectory(name='qxafs', save=False, verbose=False)
         dtimer.add('trajectory finished')
         self.set_info('scan_progress', 'reading data')
 
@@ -486,21 +486,28 @@ class QXAFS_Scan(XAFS_Scan):
         # print(self.xps.status_report())
 
         npulses, gather_text = self.xps.read_gathering()
+        # print("XPS read ", npulses, len(gather_text))
         energy, height = self.gathering2energy(gather_text)
+        if len(energy) < 2:
+            npulses, gather_text = self.xps.read_gathering()
+            energy, height = self.gathering2energy(gather_text)
+
+        if len(energy) < 2:
+            energy = self.energy_pos.array[:-2]
+            print("#Warning: will use theoretical energies ", len(energy))
         self.pos_actual = []
         for e in energy:
            self.pos_actual.append([e])
         ne = len(energy)
-        #
-        print("Number of energy points ", ne)
+
         [c.read() for c in self.counters]
         ndat = [len(c.buff[1:]) for c in self.counters]
+        # print("N energy and counters: ", ne, ndat)
         narr = min(ndat)
         dtimer.add(f'read counters (ndat= {ndat})')
         # print('read counters (%d, %d, %d) ' % (narr, ne, len(self.counters)))
         t0  = time.monotonic()
-
-        while narr < (ne-1) and (time.monotonic()-t0) < 15.0:
+        while narr < (ne-1) and (time.monotonic()-t0) < 5.0:
             time.sleep(0.05)
             [c.read() for c in self.counters]
             ndat = [len(c.buff[1:]) for c in self.counters]
@@ -520,6 +527,7 @@ class QXAFS_Scan(XAFS_Scan):
 
         # print("Read QXAFS Data %i points (NE=%i) %.3f secs" % (narr, ne, time.monotonic() - t0))
         dtimer.add('read all counters (done)')
+
         # remove hot first pixel AND align to proper energy
         # really, we tested this, comparing to slow XAFS scans!
         data4calcs = {}
@@ -533,8 +541,11 @@ class QXAFS_Scan(XAFS_Scan):
                     if word.startswith('mca'):
                         key = word
                 offset = mca_offsets.get(key, 1)
+            # print(label, len(c.buff), hasattr(c, 'net_buff') , offset, ne)
             if hasattr(c, 'net_buff'):
-                c.buff = c.net_buff[:]
+                if len(c.net_buff) > len(c.buff)-2:
+                    c.buff = c.net_buff[:]
+
             c.buff = c.buff[offset:]
             c.buff = c.buff[:ne]
             # print(" READ-> ", c.label, offset, len(c.buff), c.buff[:3], c.buff[-2:], hasattr(c, 'net_buff'))
@@ -545,9 +556,11 @@ class QXAFS_Scan(XAFS_Scan):
                 _counter = eval(c.pvname[len(EVAL4PLOT):])
                 _counter.data = data4calcs
                 c.buff = _counter.read()
+            if len(c.buff) > 0:
+                self.scandb.set_scandata(c.label, c.buff)
         dtimer.add('setting scan data')
-        self.set_all_scandata()
-        dtimer.add('set scan data')
+        # self.set_all_scandata()
+        #dtimer.add('set scan data')
         for val, pos in zip(orig_positions, self.positioners):
             pos.move_to(val, wait=False)
 
