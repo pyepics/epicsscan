@@ -85,6 +85,14 @@ class Xspress3(Device, ADFileMixin):
                 attr = scaf.valform % (imca, isca)
                 self.add_pv("%s%s" % (prefix, attr), attr)
         poll(0.003, 0.25)
+        for i in range(1, self.nmcas+1):
+            self.get('MCA%dROI:EnableCallbacks' % i)
+            self.get('MCA%dROI:BlockingCallbacks' % i)
+            self.get('MCA%dROI:TSControl' % i)
+            self.get('MCA%dROI:TSNumPoints' % i)
+            self.get("C%dSCA:%s" % (i, scaf.acq))
+            self.get("C%dSCA:%s" % (i, scaf.npts))
+
 
 
     def set_timeseries(self, mode='stop', numframes=MAX_FRAMES, enable_rois=True):
@@ -106,11 +114,21 @@ class Xspress3(Device, ADFileMixin):
             roi_val = 2 # stop  - we are not going to save rois
             roi_cb = 0
         for i in range(1, self.nmcas+1):
+            self.get('MCA%dROI:EnableCallbacks' % i)
+            self.get('MCA%dROI:BlockingCallbacks' % i)
+            self.get('MCA%dROI:TSControl' % i)
+            self.get('MCA%dROI:TSNumPoints' % i)
+            self.get("C%dSCA:%s" % (i, scaf.acq))
+            self.get("C%dSCA:%s" % (i, scaf.npts))
+
+        dt.add('set_timeseries ensured all PVs are connected')
+        for i in range(1, self.nmcas+1):
             self.put('MCA%dROI:EnableCallbacks' % i, roi_cb)
-            self.put('MCA%dROI:BlockingCallbacks' % i, roi_cb)
+        time.sleep(0.005)
 
         dt.add('set_timeseries enable callbacks')
         for i in range(1, self.nmcas+1):
+            self.put('MCA%dROI:BlockingCallbacks' % i, roi_cb)
             self.put('MCA%dROI:TSControl' % i, roi_val)
             self.put('MCA%dROI:TSNumPoints' % i, numframes)
             self.put("C%dSCA:%s" % (i, scaf.acq), sca_val)
@@ -331,8 +349,8 @@ class Xspress3Detector(DetectorMixin):
         self.label = label
         if self.label is None:
             self.label = self.prefix
-        self.arm_delay = 0.040
-        self.start_delay_arraymode = 0.05
+        self.arm_delay = 0.075
+        self.start_delay_arraymode = 0.35
         self.start_delay_roimode   = 0.75
         self.start_delay = self.start_delay_roimode
         self._counter = None
