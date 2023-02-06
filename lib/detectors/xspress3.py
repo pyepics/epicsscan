@@ -96,6 +96,9 @@ class Xspress3(Device, ADFileMixin):
 
 
     def set_timeseries(self, mode='stop', numframes=MAX_FRAMES, enable_rois=True):
+        if numframes is None:
+            numframes = MAX_FRAMES
+
         dt = debugtime()
         dt.add('set_timeseries')
         scaf = get_scaformats(self._ad_version) # ('acq', 'npts', 'valform', 'tsform')
@@ -130,9 +133,16 @@ class Xspress3(Device, ADFileMixin):
         for i in range(1, self.nmcas+1):
             self.put('MCA%dROI:BlockingCallbacks' % i, roi_cb)
             self.put('MCA%dROI:TSControl' % i, roi_val)
-            self.put('MCA%dROI:TSNumPoints' % i, numframes)
+            try:
+                self.put('MCA%dROI:TSNumPoints' % i, numframes)
+            except:
+                print("could not set ROI Timeseries with numframes= ", numframes)
             self.put("C%dSCA:%s" % (i, scaf.acq), sca_val)
-            self.put("C%dSCA:%s" % (i, scaf.npts), numframes)
+            try:
+                self.put("C%dSCA:%s" % (i, scaf.npts), numframes)
+            except:
+                print("could not set SCA Timeseries with numframes= ", numframes)
+
         dt.add('set_timeseries done %d ' % self.nmcas)
         # dt.show()
 
