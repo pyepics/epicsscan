@@ -7,11 +7,14 @@ based on EpicsApps.StepScan.
 import os
 import time
 import json
+import shutil
 import numpy as np
+from multiprocessing import Process
 from threading import Thread
 from epics import caget, caput, PV, get_pv
 from epics.ca import CASeverityException
 from newportxps import NewportXPS
+import socket
 
 from .scan import StepScan
 from .positioner import Positioner
@@ -35,6 +38,14 @@ def ktoe(k):
 def energy2angle(energy, dspace=3.13555):
     omega   = HC/(2.0 * dspace)
     return RAD2DEG * np.arcsin(omega/energy)
+
+def create_xps_abort(xpsconf):
+    thisxps = NewportXPS(xpsconf['host'],
+                          username=xpsconf['username'],
+                          password=xpsconf['password'],
+                          group=xpsconf['group'],
+                          outputs=xpsconf['outputs'])
+    return Process(target=thisxps.abort_group)
 
 class ScanRegion(Saveable):
     def __init__(self, start, stop, npts=None,
@@ -163,13 +174,11 @@ class QXAFS_Scan(XAFS_Scan):
         if scandb is not None:
             self.connect_qxafs()
 
-
     def connect_qxafs(self):
         """initialize a QXAFS scan"""
         self.scandb.set_info('qxafs_config', 'qxafs')
-        if self.config is None:
-            self.config = json.loads(self.scandb.get_config('qxafs').notes)
-        # print("Connect QXAFS ", self.config)
+        cname = self.scandb.get_info('qxafs_config')
+        self.config = json.loads(self.scandb.get_config(cname).notes)
         self.with_id = ('id_array_pv' in self.config and
                         'id_drive_pv' in self.config)
 
@@ -179,9 +188,8 @@ class QXAFS_Scan(XAFS_Scan):
                                   username=conf['username'],
                                   password=conf['password'],
                                   group=conf['group'],
-                                  outputs=conf['outputs'],
-                                  extra_triggers=conf.get('extra_triggers', 1))
-
+                                  outputs=conf['outputs'])
+            print("connect to NewportXPS: ", self.xps)
         qconf = self.config
         caput(qconf['id_track_pv'], 1)
         caput(qconf['y2_track_pv'], 1)
@@ -228,7 +236,6 @@ class QXAFS_Scan(XAFS_Scan):
             energy = energy[::-1]
             times  = times[::-1]
 
-        # print("QXAFS Traj: energy = ", energy)
         traw    = energy2angle(energy, dspace=dspace)
         theta  = 1.0*traw
         theta[1:-1] = traw[1:-1]/2.0 + traw[:-2]/4.0 + traw[2:]/4.0
@@ -268,8 +275,12 @@ class QXAFS_Scan(XAFS_Scan):
                 'stop':  [theta[-1]+the0, width[-1]+wid0],
                 'pixeltime': self.dwelltime[0],
                 'npulses': npts, 'nsegments': npts}
-        # print("QXAFS Trajectory ", traj)
-        self.xps.trajectories['qxafs'] = traj
+
+        xpstraj = {'axes': ['THETA', 'HEIGHT'],
+                   'pixeltime': self.dwelltime[0],
+                   'nsegments': npts}
+        #  print("QXAFS Trajectory ", traj['axes'], traj['pixeltime'], npts)
+        self.xps.trajectories['qxafs'] = xpstraj
         self.xps.upload_trajectory('qxafs.trj', buff)
         return traj
 
@@ -287,6 +298,8 @@ class QXAFS_Scan(XAFS_Scan):
         angle, height = [], []
         for line in text.split('\n'):
             line = line[:-1].strip()
+            if line.startswith('#') or line.startswith(';'):
+                continue
             if len(line) > 4:
                 words = line[:-1].split()
                 angle.append(float(words[0]))
@@ -325,11 +338,11 @@ class QXAFS_Scan(XAFS_Scan):
 
         dtimer.add('scan verified')
         self.scandb.set_info('qxafs_running', 1)
-        self.connect_qxafs()
         qconf = self.config
-
         dtimer.add('connect qxafs')
         traj = self.make_trajectory()
+        caput(qconf['theta_motor'] + '.DVAL', traj['start'][0])
+        caput(qconf['width_motor'] + '.DVAL', traj['start'][1])
 
         dtimer.add('make traj')
         energy_orig = caget(qconf['energy_pv'])
@@ -338,21 +351,18 @@ class QXAFS_Scan(XAFS_Scan):
             id_offset = 1000.0*caget(qconf['id_offset_pv'])
             idarray = 1.e-3*(1.0+id_offset/energy_orig)*traj['energy']
             idarray = np.concatenate((idarray, idarray[-1]+np.arange(1,26)/250.0))
-        # print("idarray: ", idarray)
         dtimer.add('idarray')
         time.sleep(0.1)
-        caput(qconf['theta_motor'] + '.DVAL', traj['start'][0])
-        caput(qconf['width_motor'] + '.DVAL', traj['start'][1])
 
         orig_positions = [p.current() for p in self.positioners]
-        # print("Original Positions: ", orig_positions)
+
         dtimer.add('orig positions')
         if self.with_id:
             try:
                 caput(qconf['id_drive_pv'], idarray[0], wait=False)
             except CASeverityException:
                 pass
-        caput(qconf['energy_pv'],  traj['energy'][0], wait=False)
+        caput(qconf['energy_pv'],  traj['energy'][0]-0.01, wait=False)
 
         self.clear_interrupts()
         dtimer.add('clear interrupts')
@@ -387,8 +397,7 @@ class QXAFS_Scan(XAFS_Scan):
         if not os.path.exists(xrfdir_server):
             os.mkdir(xrfdir_server)
 
-        self.xps.arm_trajectory('qxafs', verbose=True)
-        dtimer.add('traj armed')
+        self.xps.arm_trajectory('qxafs', verbose=False)
         out = self.pre_scan(npulses=1+traj['npulses'],
                             dwelltime=dtime,
                             mode='roi', filename=self.filename)
@@ -443,14 +452,18 @@ class QXAFS_Scan(XAFS_Scan):
         self.inittime = ts_init - ts_start
         start_time = time.strftime('%Y-%m-%d %H:%M:%S')
         dtimer.add('info set')
-        time.sleep(0.500)
 
-        with_scan_thread = False
+        if os.path.exists('mono_xps_gather.txt'):
+            shutil.move('mono_xps_gather.txt', 'mono_xps_gather_previos.txt')
+
+        time.sleep(0.250)
+
+        with_scan_thread = True
         dtimer.add('trajectory run %r' % (with_scan_thread))
-
         if with_scan_thread:
             scan_thread = Thread(target=self.xps.run_trajectory,
-                                 kwargs=dict(name='qxafs', save=False, verbose=True),
+                                 kwargs=dict(name='qxafs', save=True, verbose=False,
+                                             output_file='mono_xps_gather.txt'),
                                  name='trajectory_thread')
             scan_thread.start()
             dtimer.add('scan trajectory started')
@@ -458,14 +471,55 @@ class QXAFS_Scan(XAFS_Scan):
             time.sleep(2.0)
             while scan_thread.is_alive():
                 time.sleep(1.0)
-                if (time.monotonic() > join_time) or self.look_for_interrupts():
+                if time.monotonic() > join_time:
+                    break
+
+                if self.scandb.get_info(key='request_abort', as_bool=True):
+                    self.write("aborting QXAFS scan")
+                    abort_proc = create_xps_abort(qconf)
+                    abort_proc.start()
+                    time.sleep(1.0)
+                    abort_proc.join(5.0)
+                    if abort_proc.is_alive():
+                        abort_proc.terminate()
+                        time.sleep(2.0)
+                    self.scandb.set_info('request_abort', 0)
                     break
             scan_thread.join()
             dtimer.add('scan thread joined')
         else:
-            out = self.xps.run_trajectory(name='qxafs', save=False, verbose=False)
+            self.xps.run_trajectory(name='qxafs', save=True, verbose=False,
+                                    output_file='mono_xps_gather.txt')
         dtimer.add('trajectory finished')
         self.set_info('scan_progress', 'reading data')
+
+        # print(self.xps.status_report())
+
+        npulses, gather_text = self.xps.read_gathering(verbose=False)
+        # print("XPS read ", npulses, len(gather_text))
+        gtime = time.monotonic()
+        while npulses < 2 and time.monotonic() < (gtime+5):
+            time.sleep(0.2)
+            npulses, gather_text = self.xps.read_gathering()
+
+        if npulses < 2:
+            try:
+                with open('mono_xps.gather.txt', 'r') as fh:
+                    text = fh.read()
+                    nlines = text.split('\n')
+                    npulses = nlines - 3
+                    print("READ Npulses from gathering file ", npulses)
+            except:
+                pass
+        if npulses > 2:
+            energy, height = self.gathering2energy(gather_text)
+        else:
+            energy = self.energy_pos.array[:-2]
+            print("#Warning: will use theoretical energies ", npulses, len(energy))
+        self.pos_actual = []
+        for e in energy:
+           self.pos_actual.append([e])
+        ne = len(energy)
 
         for det in self.detectors:
             det.stop()
@@ -475,30 +529,11 @@ class QXAFS_Scan(XAFS_Scan):
         dtimer.add('detectors stopped')
         self.finish_qscan()
         dtimer.add('scan finished')
-        out = self.post_scan()
 
+        out = self.post_scan()
         dtimer.add('post scan finished')
         caput(qconf['energy_pv'], energy_orig-1.0)
         self.check_outputs(out, msg='post scan')
-
-        #
-        # print("Will read gathering ", self.xps)
-        # print(self.xps.status_report())
-
-        npulses, gather_text = self.xps.read_gathering()
-        # print("XPS read ", npulses, len(gather_text))
-        energy, height = self.gathering2energy(gather_text)
-        if len(energy) < 2:
-            npulses, gather_text = self.xps.read_gathering()
-            energy, height = self.gathering2energy(gather_text)
-
-        if len(energy) < 2:
-            energy = self.energy_pos.array[:-2]
-            print("#Warning: will use theoretical energies ", len(energy))
-        self.pos_actual = []
-        for e in energy:
-           self.pos_actual.append([e])
-        ne = len(energy)
 
         [c.read() for c in self.counters]
         ndat = [len(c.buff[1:]) for c in self.counters]
@@ -525,7 +560,8 @@ class QXAFS_Scan(XAFS_Scan):
                 key = label.replace('clock', '').strip()
                 mca_offsets[key] = offset
 
-        # print("Read QXAFS Data %i points (NE=%i) %.3f secs" % (narr, ne, time.monotonic() - t0))
+        # print("Read QXAFS Data %i points (NE=%i) %.3f secs" % (narr, ne,
+        #         time.monotonic() - t0))
         dtimer.add('read all counters (done)')
 
         # remove hot first pixel AND align to proper energy
@@ -541,14 +577,13 @@ class QXAFS_Scan(XAFS_Scan):
                     if word.startswith('mca'):
                         key = word
                 offset = mca_offsets.get(key, 1)
-            # print(label, len(c.buff), hasattr(c, 'net_buff') , offset, ne)
             if hasattr(c, 'net_buff'):
                 if len(c.net_buff) > len(c.buff)-2:
                     c.buff = c.net_buff[:]
-
             c.buff = c.buff[offset:]
             c.buff = c.buff[:ne]
-            # print(" READ-> ", c.label, offset, len(c.buff), c.buff[:3], c.buff[-2:], hasattr(c, 'net_buff'))
+            # print(" READ-> ", c.label, offset, len(c.buff),
+            #       c.buff[:3], c.buff[-2:], hasattr(c, 'net_buff'))
             data4calcs[c.pvname] = np.array(c.buff)
 
         for c in self.counters:
@@ -559,14 +594,12 @@ class QXAFS_Scan(XAFS_Scan):
             if len(c.buff) > 0:
                 self.scandb.set_scandata(c.label, c.buff)
         dtimer.add('setting scan data')
-        # self.set_all_scandata()
-        #dtimer.add('set scan data')
+        self.set_all_scandata()
         for val, pos in zip(orig_positions, self.positioners):
             pos.move_to(val, wait=False)
 
         self.datafile.write_data(breakpoint=-1, close_file=True, clear=False)
 
-        # print("QXAFS Done ", qconf['energy_pv'], qconf['id_drive_pv'], energy_orig)
         caput(qconf['energy_pv'], energy_orig)
         if self.with_id:
             try:
@@ -579,18 +612,18 @@ class QXAFS_Scan(XAFS_Scan):
 
         if self.look_for_interrupts():
             self.write("scan aborted at point %i of %i." % (self.cpt, self.npts))
-            # raise ScanDBAbort("scan aborted")
 
         # run post_scan methods
-        # self.set_info('scan_progress', 'finishing')
-        # out = self.post_scan()
-        # self.check_outputs(out, msg='post scan')
+        self.set_info('scan_progress', 'finishing')
+        out = self.post_scan()
+        self.check_outputs(out, msg='post scan')
         self.complete = True
         self.set_info('scan_progress',
                       'scan complete. Wrote %s' % self.datafile.filename)
         self.scandb.set_info('qxafs_running', 0)
         self.runtime  = time.monotonic() - ts_start
         dtimer.add('done')
+
         # dtimer.show()
         print("scan done at %s %.3f" % (time.ctime(), time.time()))
         return self.datafile.filename

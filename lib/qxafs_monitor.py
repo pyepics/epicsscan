@@ -64,7 +64,7 @@ class QXAFS_ScanWatcher(object):
     def connect(self):
         self.confname = self.scandb.get_info('qxafs_config', 'qxafs')
         self.config = json.loads(self.scandb.get_config(self.confname).notes)
-        print("QXAFS CONNECT ", self.confname, self.config)
+        print("QXAFS CONNECT ", self.confname)
         mcs_prefix = self.config.get('mcs_prefix', '13IDE:SIS1:')
         pulse_channel = f"{mcs_prefix}CurrentChannel"
         self.pulse_pv = PV(pulse_channel, callback=self.onPulse)
@@ -82,7 +82,7 @@ class QXAFS_ScanWatcher(object):
             self.idgapsym_pv = PV('%sGapSymmetry' % pvroot)
             self.idtaper_pv  = PV('%sTaperEnergy' % pvroot)
             self.idtaperset_pv  = PV('%sTaperEnergySet' % pvroot)
-        self.xps = NewportXPS(self.config['host'])
+        # self.xps = NewportXPS(self.config['host'])
 
         time.sleep(0.1)
         self.connected = True
@@ -141,12 +141,13 @@ class QXAFS_ScanWatcher(object):
                 break
             npts = int(self.scandb.get_info(key='scan_total_points', default=0))
             if self.scandb.get_info(key='request_abort', as_bool=True):
-                self.write("QXAFS abort request during scan: %s" % time.ctime())
-                abort_proc = Process(target=self.xps.abort_group)
-                abort_proc.start()
-                self.write("QXAFS abort process begun: %s" % (time.ctime()))
-                time.sleep(0.5)
+                self.write("QXAFS saw request for abort: %s" % time.ctime())
+                time.sleep(2.0)
                 self.qxafs_finish()
+
+                # abort_proc = Process(target=self.xps.abort_group)
+                # abort_proc.start()
+                self.write("QXAFS abort process begun: %s" % (time.ctime()))
                 time.sleep(0.5)
                 self.write("QXAFS scan finished, join abort process: %s" % (time.ctime()))
                 abort_proc.join(5.0)
@@ -283,12 +284,7 @@ class QXAFS_ScanWatcher(object):
                     self.monitor_qxafs()
                 except:
                     self.write("QXAFS monitor gave an exception, will try again")
-            else:
-                if self.scandb.get_info(key='request_abort', as_bool=True):
-                    self.write("QXAFS abort requested while not scanning")
-                    self.xps.abort_group()
-                    time.sleep(1.0)
-            time.sleep(1.0)
+            time.sleep(0.5)
             if self.heartbeat_pv is not None:
                 self.heartbeat_pv.put("%i"%int(time.time()))
         self.write("QXAFS monitor  mainloop done ")
