@@ -7,7 +7,6 @@ based on EpicsApps.StepScan.
 import os
 import time
 import json
-import shutil
 import numpy as np
 from multiprocessing import Process
 from threading import Thread
@@ -453,11 +452,7 @@ class QXAFS_Scan(XAFS_Scan):
         start_time = time.strftime('%Y-%m-%d %H:%M:%S')
         dtimer.add('info set')
 
-        if os.path.exists('mono_xps_gather.txt'):
-            shutil.move('mono_xps_gather.txt', 'mono_xps_gather_previos.txt')
-
         time.sleep(0.250)
-
         with_scan_thread = True
         dtimer.add('trajectory run %r' % (with_scan_thread))
         if with_scan_thread:
