@@ -371,7 +371,6 @@ class StruckDetector(DetectorMixin):
         self.label = label
 
         self.dwelltime_pv = self.struck._pvs['Dwell']
-        print("Struck Detector ", self.struck)
         self._counter = StruckCounter(prefix, scaler=scaler,
                                       nchan=nchan, use_calc=True)
         self.counters = self._counter.counters
