@@ -4,7 +4,6 @@ import time, sys, os
 import json
 import numpy as np
 import glob
-from collections import OrderedDict
 
 from .file_utils import nativepath
 from .utils import plain_ascii
@@ -163,7 +162,7 @@ class LarchScanDBServer(object):
 
         returned dictionary has function names as keys, and docstrings as values
         """
-        macros = OrderedDict()
+        macros = {}
         symtab = self.symtab
         modlist = [symtab, symtab._epics, symtab._scan]
         for mod in self.loaded_modules:
