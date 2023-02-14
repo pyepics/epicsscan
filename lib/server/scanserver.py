@@ -50,13 +50,12 @@ class ScanServer():
 
         if HAS_LARCH:
             self.larch = LarchScanDBServer(self.scandb)
-            # self.set_scan_message('Server Loading Larch Plugins...')
-            # self.larch.load_plugins()
-
             self.set_scan_message('Server Loading Larch Macros')
             time.sleep(0.05)
-            self.larch.load_macros()
+            current_macros = self.larch.load_macros()
             self.set_scan_message('Server Connected.')
+            if 'startup' in current_macros:
+                self.scandb.add_command("startup()")
 
         eprefix = self.scandb.get_info('epics_status_prefix')
         basedir = self.scandb.get_info('server_fileroot')
