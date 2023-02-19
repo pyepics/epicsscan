@@ -64,7 +64,7 @@ class QXAFS_ScanWatcher(object):
     def connect(self):
         self.confname = self.scandb.get_info('qxafs_config', 'qxafs')
         self.config = json.loads(self.scandb.get_config(self.confname).notes)
-        print("QXAFS CONNECT ", self.confname)
+        print("QXAFS CONNECT", self.confname, time.ctime())
         mcs_prefix = self.config.get('mcs_prefix', '13IDE:SIS1:')
         pulse_channel = f"{mcs_prefix}CurrentChannel"
         self.pulse_pv = PV(pulse_channel, callback=self.onPulse)
@@ -107,7 +107,7 @@ class QXAFS_ScanWatcher(object):
             self.counters.append(counter)
         time.sleep(0.05)
         if self.verbose:
-            self.write("QXAFS_connect_counters %i counters" % (len(self.counters)))
+            self.write("QXAFS_connect_counters %i counters / %s" % (len(self.counters), time.ctime()))
 
     def qxafs_finish(self):
         nidarr = len(self.idarray)
@@ -276,7 +276,7 @@ class QXAFS_ScanWatcher(object):
         self.qxafs_connect_counters()
         while True:
             state = self.get_state()
-            if 2 == int(state):
+            if state > 0:
                 try:
                     confname = self.scandb.get_info('qxafs_config', 'qxafs')
                     if confname is not self.confname:

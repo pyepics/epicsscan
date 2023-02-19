@@ -22,6 +22,7 @@ from .file_utils import fix_varname, new_filename
 from .utils import ScanDBAbort, hms
 from .debugtime import debugtime
 from .detectors.counter import ROISumCounter, EVAL4PLOT
+from .detectors import  ROI_MODE, SCALER_MODE
 
 XAFS_K2E = 3.809980849311092
 HC       = 12398.4193
@@ -70,7 +71,7 @@ class XAFS_Scan(StepScan):
         self.regions = []
         StepScan.__init__(self, **kws)
         self.scantype = 'xafs'
-        self.detmode  = 'scaler'
+        self.detmode  = SCALER_MODE
         self.dwelltime = []
         self.energy_pos = None
         self.scandb = scandb
@@ -168,7 +169,7 @@ class QXAFS_Scan(XAFS_Scan):
         self.read_pv = None
         self.set_energy_pv(energy_pv, read_pv=None, extra_pvs=extra_pvs)
         self.scantype = 'xafs'
-        self.detmode  = 'roi'
+        self.detmode  = ROI_MODE
         self.config = None
         if scandb is not None:
             self.connect_qxafs()
@@ -403,16 +404,21 @@ class QXAFS_Scan(XAFS_Scan):
         self.check_outputs(out, msg='pre scan')
         dtimer.add('prescan ran')
 
+        self.init_scandata()
+        dtimer.add('init scandata')
+
         det_arm_delay = 0.1
         det_start_delay = 0.5
         det_prefixes = []
         for det in reversed(self.detectors):
             det_prefixes.append(det.prefix)
-            det.arm(mode='roi', numframes=1+traj['npulses'], fnum=0, wait=False)
+            det.arm(mode='roi', numframes=1+traj['npulses'], fnum=0, wait=True)
             det.config_filesaver(path=xrfdir)
             det_arm_delay = max(det_arm_delay, det.arm_delay)
             det_start_delay = max(det_start_delay, det.start_delay)
         time.sleep(det_arm_delay)
+
+        self.scandb.set_info('qxafs_running', 2) # running
 
         # wait for detectors to be armed
         tout = time.time()+5.0
@@ -422,8 +428,6 @@ class QXAFS_Scan(XAFS_Scan):
             time.sleep(0.01)
 
         dtimer.add('detectors armed %.4f / %.4f' % (det_arm_delay, det_start_delay))
-        self.init_scandata()
-        dtimer.add('init scandata')
         for det in reversed(self.detectors):
             det.start(arm=False, wait=False)
 
@@ -432,7 +436,6 @@ class QXAFS_Scan(XAFS_Scan):
         self.datafile = self.open_output_file(filename=self.filename,
                                               comments=self.comments)
 
-        self.scandb.set_info('qxafs_running', 2) # running
         self.datafile.write_data(breakpoint=0)
         dtimer.add('datafile opened')
         self.filename =  self.datafile.filename
@@ -524,24 +527,27 @@ class QXAFS_Scan(XAFS_Scan):
         dtimer.add('detectors stopped')
         self.finish_qscan()
         dtimer.add('scan finished')
-
-        out = self.post_scan()
-        dtimer.add('post scan finished')
+        # out = self.post_scan()
+        # dtimer.add('post scan finished')
         caput(qconf['energy_pv'], energy_orig-1.0)
         self.check_outputs(out, msg='post scan')
+        time.sleep(0.05)
 
         [c.read() for c in self.counters]
         ndat = [len(c.buff[1:]) for c in self.counters]
         # print("N energy and counters: ", ne, ndat)
         narr = min(ndat)
         dtimer.add(f'read counters (ndat= {ndat})')
-        # print('read counters (%d, %d, %d) ' % (narr, ne, len(self.counters)))
         t0  = time.monotonic()
         while narr < (ne-1) and (time.monotonic()-t0) < 5.0:
-            time.sleep(0.05)
+            time.sleep(0.1)
             [c.read() for c in self.counters]
             ndat = [len(c.buff[1:]) for c in self.counters]
             narr = min(ndat)
+
+        print('read counters (%d, %d, %d) ' % (narr, ne, len(self.counters)))
+        minvals = [min(c.buff[1:]) for c in self.counters]
+        print('minimum counter values: ' , minvals)
 
         mca_offsets = {}
         counter_buffers = []
@@ -586,8 +592,8 @@ class QXAFS_Scan(XAFS_Scan):
                 _counter = eval(c.pvname[len(EVAL4PLOT):])
                 _counter.data = data4calcs
                 c.buff = _counter.read()
-            if len(c.buff) > 0:
-                self.scandb.set_scandata(c.label, c.buff)
+            #if len(c.buff) > 0:
+            #    self.scandb.set_scandata(c.label, c.buff)
         dtimer.add('setting scan data')
         self.set_all_scandata()
         for val, pos in zip(orig_positions, self.positioners):
