@@ -169,7 +169,7 @@ class StepScan(object):
         self.auto_increment = auto_increment
         self.filetype = 'ASCII'
         self.scantype = 'linear'
-        self.detmode  = 'scaler'
+        self.detmode  = SCALER_MODE
         self.scandb = scandb
         self.larch = larch
         self.prescan_func = prescan_func
@@ -595,7 +595,7 @@ class StepScan(object):
         self.dtimer.add('PRE: move to start')
         npts = self.npts = len(self.positioners[0].array)
         for det in self.detectors:
-            det.arm(mode=SCALER_MODE, fnum=1, numframes=1)
+            det.arm(mode=self.detmode, fnum=1, numframes=1)
             fname = fix_varname(fix_filename("%s_%s" % (self.filename, det.label)))
             det.config_filesaver(path=userdir, name=fname,
                                  numcapture=npts)
