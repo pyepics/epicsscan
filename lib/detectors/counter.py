@@ -44,7 +44,7 @@ class Counter(Saveable):
         "clear counter"
         self.buff = []
         if hasattr(self, 'net_buff'):
-            delattr(self, 'netc_buff')
+            delattr(self, 'net_buff')
 
     def get_buffers(self, net=True):
         "return {label: buffer} dictionary"
