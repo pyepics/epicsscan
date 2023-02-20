@@ -254,7 +254,8 @@ class Struck(Device):
         if npts is None:
             npts = self.NuseAll
         npts_req = npts
-        avars = ('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H')
+        avars = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+        avars = ['A', 'B', 'C', 'D']
         adat = {}
         for name in avars:
             self.ast_interp.symtable[name] = adat[name] = numpy.zeros(npts)
@@ -289,6 +290,7 @@ class Struck(Device):
         # final read
         icol = 0
         hformat = "# Column.%i: %16s | %s"
+        calcs_map = {}
         for nchan, name, calc in scaler_config:
             icol += 1
             dat = self.readmca(nmca=nchan)
@@ -304,6 +306,8 @@ class Struck(Device):
             headers.append(hformat % (icol, name, label))
             names.append(name)
             calcs.append(calc)
+            calcs_map["%s_raw" % name] = varname
+            calcs_map[name] = calc
             fmt = ' {:14f} '
             if icol == 1:
                 fmt = ' {:14.2f} '
@@ -321,6 +325,7 @@ class Struck(Device):
                 result = numpy.zeros(1)
             sdata.append(result)
 
+
         for name, nchan, varname, rdat in rdata:
             icol += 1
             label = "%s | %s" % ("%smca%i" % (self._prefix, nchan), varname)
@@ -333,9 +338,9 @@ class Struck(Device):
             sdata = numpy.array([s[:npts] for s in sdata]).transpose()
             npts, nmcas = sdata.shape
         except:
-            return (0, 0, names, headers, fmts, sdata)
-
-        return (nmcas, npts, names, headers, fmts, sdata)
+            return (0, 0, names, calcs, sdata)
+        #print("SIS Calc: RETURN ", nmcas, npts, names, headers, fmts, sdata.shape)
+        return (nmcas, npts, names, calcs_map, sdata)
 
 
 class StruckCounter(DeviceCounter):
@@ -358,6 +363,7 @@ class StruckCounter(DeviceCounter):
                 if len(label) > 0 or use_unlabeled:
                     suff = 'mca%i' % (i)
                     fields.append((suff, label))
+
         self.extra_pvs = extra_pvs
         self.set_counters(fields)
 
@@ -378,6 +384,15 @@ class StruckDetector(DetectorMixin):
         self._counter = StruckCounter(prefix, scaler=scaler,
                                       nchan=nchan, use_calc=True)
         self.counters = self._counter.counters
+        time.sleep(0.01)
+        scaler_conf = self.struck.read_scaler_config()
+        for c in self.counters:
+            if c.label.lower() in ('tscaler', 'time'):
+                c.units = 'microseconds'
+            for (i, label, expr) in scaler_conf:
+                if c.label == label:
+                    c.extra_label = expr
+
 
     def pre_scan(self, mode=None, npulses=None, dwelltime=None, **kws):
         "run just prior to scan"
@@ -394,8 +409,8 @@ class StruckDetector(DetectorMixin):
             self.struck.put('NuseAll', npulses)
 
     def apply_offsets(self):
-         nmcas, npts, names, headers, fmts, sdata = self.struck.get_arraydata()
-         for counter in self.counters:
+        nmcas, npts, names, calcs, sdata = self.struck.get_arraydata()
+        for counter in self.counters:
             if counter.label in names:
                 ix = names.index(counter.label)
                 counter.net_buff = sdata[:, ix]
