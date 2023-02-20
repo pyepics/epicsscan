@@ -163,11 +163,8 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
                                'prefix': a.pvname,
                                'label': a.name,
                                'scaler': scaler_pvname}
-    # here we collect detectors and put them in order:
-    #   1st, areadetectors
-    #   2nd, xrf detectors
-    #   3rd, scalers / struck
-    det_data = []
+
+    scan.rois = rois
     for dpars in detectors:
         dpars['rois'] = scan.rois
         dpars['mode'] = scan.detmode
@@ -177,18 +174,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
             dpars.update(scaler_shim)
         if 'label' not in dpars:
             dpars['label'] = dpars['kind']
-        det_position = 2
-        if dkind == 'areadetector':
-            det_position = 1
-        elif dkind == 'xspress3' or 'mca' in dkind:
-            det_position = 2
-        if dkind in ('scaler', 'struck'):
-            det_position = 3
-        det_data.append((det_position, dpars))
-    for ipos in (1, 2, 3):
-        for dpos, dpars in det_data:
-            if dpos == ipos:
-                scan.add_detector(get_detector(**dpars))
+        scan.add_detector(get_detector(**dpars))
 
     # extra counters (not-triggered things to count)
     if counters is not None:
