@@ -17,19 +17,16 @@ from epics import caget, caput, PV, get_pv
 from epics.ca import CASeverityException
 from epicsscan.scandb import ScanDB
 from epicsscan.utils import hms, tstamp
-from newportxps import NewportXPS
 
 from optparse import OptionParser
 
 from .detectors.counter import Counter, ROISumCounter, EVAL4PLOT
-
 
 # minimum ID energy to put
 MIN_ID_ENERGY =   2.0
 MAX_ID_ENERGY = 200.0
 
 DEFAULT_PIDFILE = os.path.join(os.path.expanduser('~'), 'qxafs_monitor.pid')
-
 
 class QXAFS_ScanWatcher(object):
     def __init__(self, verbose=False, pidfile=None,
@@ -48,7 +45,7 @@ class QXAFS_ScanWatcher(object):
         self.config = None
         self.dead_time = 0.5
         self.id_lookahead = 2
-        self.with_id = False
+        self.with_id = True
         self.counters = []
         self.pidfile = pidfile or DEFAULT_PIDFILE
         self.pulsecount_pv = None
@@ -64,12 +61,9 @@ class QXAFS_ScanWatcher(object):
     def connect(self):
         self.confname = self.scandb.get_info('qxafs_config', 'qxafs')
         self.config = json.loads(self.scandb.get_config(self.confname).notes)
-        print("QXAFS CONNECT", self.confname, time.ctime())
         mcs_prefix = self.config.get('mcs_prefix', '13IDE:SIS1:')
         pulse_channel = f"{mcs_prefix}CurrentChannel"
         self.pulse_pv = PV(pulse_channel, callback=self.onPulse)
-
-
         self.with_id = ('id_array_pv' in self.config and
                         'id_drive_pv' in self.config)
         if self.with_id:
@@ -82,7 +76,7 @@ class QXAFS_ScanWatcher(object):
             self.idgapsym_pv = PV('%sGapSymmetry' % pvroot)
             self.idtaper_pv  = PV('%sTaperEnergy' % pvroot)
             self.idtaperset_pv  = PV('%sTaperEnergySet' % pvroot)
-        # self.xps = NewportXPS(self.config['host'])
+            time.sleep(0.25)
 
         time.sleep(0.1)
         self.connected = True
@@ -117,6 +111,7 @@ class QXAFS_ScanWatcher(object):
         self.last, self.pulse = 0, 0
         self.last_move_time = 0
         self.counters = []
+        time.sleep(1.0)
 
     def onPulse(self, pvname, value=0, **kws):
         self.pulse = value
@@ -142,22 +137,7 @@ class QXAFS_ScanWatcher(object):
             npts = int(self.scandb.get_info(key='scan_total_points', default=0))
             if self.scandb.get_info(key='request_abort', as_bool=True):
                 self.write("QXAFS saw request for abort: %s" % time.ctime())
-                time.sleep(2.0)
                 self.qxafs_finish()
-
-                # abort_proc = Process(target=self.xps.abort_group)
-                # abort_proc.start()
-                self.write("QXAFS abort process begun: %s" % (time.ctime()))
-                time.sleep(0.5)
-                self.write("QXAFS scan finished, join abort process: %s" % (time.ctime()))
-                abort_proc.join(5.0)
-                if abort_proc.is_alive():
-                    self.write("QXAFS join abort timed-out, trying to terminate")
-                    abort_proc.terminate()
-                    time.sleep(2.0)
-                self.write("QXAFS abort process done: %s" % (time.ctime()))
-                self.scandb.set_info('request_abort', 0)
-                time.sleep(1.0)
 
             time.sleep(0.1)
             now = time.time()
@@ -283,7 +263,9 @@ class QXAFS_ScanWatcher(object):
                         self.connect()
                     self.monitor_qxafs()
                 except:
-                    self.write("QXAFS monitor gave an exception, will try again")
+                    self.write("QXAFS monitor gave an exception")
+                    sys.excepthook(*sys.exc_info())
+                    self.write("QXAFS monitor will try again")
             time.sleep(0.5)
             if self.heartbeat_pv is not None:
                 self.heartbeat_pv.put("%i"%int(time.time()))
