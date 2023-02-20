@@ -409,7 +409,7 @@ class StruckDetector(DetectorMixin):
             self.struck.put('NuseAll', npulses)
 
     def apply_offsets(self):
-        nmcas, npts, names, headers, fmts, sdata = self.struck.get_arraydata(npts=npts)
+        nmcas, npts, names, headers, fmts, sdata = self.struck.get_arraydata()
         for counter in self.counters:
             if counter.label in names:
                 ix = names.index(counter.label)
