@@ -38,6 +38,7 @@ class Slew_Scan(StepScan):
         self.detmode  = 'ndarray'
         self.motor_vals = {}
         self.orig_positions = {}
+        self.postscan_func = self.post_slew_scan
 
     def prepare_scan(self):
         """prepare slew scan"""
@@ -263,15 +264,8 @@ class Slew_Scan(StepScan):
 
         return sname
 
-    def post_scan(self):
-        self.set_info('scan_progress', 'finishing')
-        for pvname, val in self.orig_positions.items():
-            caput(pvname, val)
-
-        [m() for m in self.post_scan_methods]
+    def post_slew_scan(self, **kws):
         for det in self.detectors:
-            det.stop()
-            det.disarm()
             if isinstance(det, AreaDetector):
                 self.set_info('xrd_1dint_status', 'finishing')
 
