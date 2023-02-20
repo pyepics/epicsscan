@@ -258,7 +258,10 @@ class ASCIIScanFile(ScanFile):
                 else:
                     desc = '%s.Value' % desc
                 desc = fix_filename(desc)
-            out.append("%s %s: %s %s %s" % (COM1, desc, val, SEP, pvname))
+            sthis = "%s %s: %s" % (COM1, desc, val)
+            if len(sthis) < 42:
+                sthis = (sthis + ' '*42)[:42]
+            out.append("%s %s %s" % (sthis, SEP, pvname))
 
         out.append('%s ExtraPVs.End: here' % COM1)
         self.write_lines(out)
@@ -328,7 +331,13 @@ class ASCIIScanFile(ScanFile):
                 if units in (None, 'None', ''):
                     units = objunits
                 lab = fix_filename(obj.label)
-                sthis = "%s: %s %s %s %s" %(key, lab, units, SEP, pvname)
+                sthis = "%s: %s %s" %(key, lab, units)
+                extra = getattr(obj, 'extra_label', '')
+                if len(extra) > 0:
+                    sthis = sthis + ' = %s' % extra
+                if len(sthis) < 42:
+                    sthis = (sthis + ' '*42)[:42]
+                sthis = "%s %s %s" %(sthis, SEP, pvname)
                 out.append(sthis)
                 cols.append(lab)
 
