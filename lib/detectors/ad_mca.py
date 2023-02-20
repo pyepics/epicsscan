@@ -146,7 +146,7 @@ class ADMCA(Device):
         poll()
         return self.Acquire
 
-    def stop(self):
+    def stop(self, disarm=False):
         "Stop AD MCA"
         self.Acquire = 0
         return self.Acquire

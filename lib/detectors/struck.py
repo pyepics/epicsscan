@@ -413,14 +413,6 @@ class StruckDetector(DetectorMixin):
         if wait:
             time.sleep(self.arm_delay)
 
-    def disarm(self, mode=None, wait=False):
-        self.struck.stop()
-        self.struck.InternalMode()
-
-    def post_scan(self, **kws):
-        "run just after scan"
-        self.disarm()
-
     def ContinuousMode(self, **kws):
         self.struck.ContinuousMode(**kws)
 
@@ -433,9 +425,19 @@ class StruckDetector(DetectorMixin):
         if wait:
             time.sleep(self.start_delay)
 
-    def stop(self):
+    def stop(self, disarm=False):
         "stop detector"
         self.struck.stop()
+        if disarm:
+            self.struck.InterMode()
+
+    def disarm(self, mode=None, wait=False):
+        self.struck.stop()
+        self.struck.InternalMode()
+
+    def post_scan(self, **kws):
+        "run just after scan"
+        self.disarm()
 
     def save_arraydata(self, filename=None, npts=None):
         if filename is not None:
