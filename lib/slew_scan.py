@@ -268,13 +268,10 @@ class Slew_Scan(StepScan):
         for pvname, val in self.orig_positions.items():
             caput(pvname, val)
 
-        for m in self.post_scan_methods:
-            m()
-
+        [m() for m in self.post_scan_methods]
         for det in self.detectors:
             det.stop()
-            det.disarm(mode=self.detmode)
-            det.ContinuousMode()
+            det.disarm()
             if isinstance(det, AreaDetector):
                 self.set_info('xrd_1dint_status', 'finishing')
 
@@ -377,22 +374,11 @@ class Slew_Scan(StepScan):
                 xrddet = det
             det.NDArrayMode(numframes=npulses)
 
-        # put detectors in order for arm/start
-        # this allows arming and starting times to be parallelized
-        # also, initially arm detectors
-
         det_arm_delay = det_start_delay = 0.025
-        ordered_dets = []
-        if xrddet is not None:
-            ordered_dets.append(xrddet)
-        if xrfdet is not None:
-            ordered_dets.append(xrfdet)
         for det in self.detectors:
             det_arm_delay = max(det_arm_delay, det.arm_delay)
             dx = getattr(det, 'start_delay_arraymode', det.start_delay)
             det_start_delay = max(det_start_delay, dx)
-            if det not in ordered_dets:
-                ordered_dets.append(det)
 
         self.clear_interrupts()
         self.set_info('scan_progress', 'starting')
@@ -442,19 +428,19 @@ class Slew_Scan(StepScan):
             rowdata_ok = True
 
             dtimer.add('inner pos move started irow=%i' % irow)
-            for det in ordered_dets:
+            for det in self.detectors:
                 det.arm(mode='ndarray', numframes=npulses, fnum=irow, wait=False)
             time.sleep(0.005)
 
             # wait for detectors to be armed
             tout = time.time()+2.0
-            while not all([det.arm_complete for det in ordered_dets]):
+            while not all([det.arm_complete for det in self.detectors]):
                 if time.time() > tout:
                     break
                 time.sleep(0.005)
 
             dtimer.add('detectors armed %.3f' % det_arm_delay)
-            for det in ordered_dets:
+            for det in self.detectors:
                 det.start(arm=False, wait=False)
 
             time.sleep(det_start_delay)
@@ -504,13 +490,6 @@ class Slew_Scan(StepScan):
                                              posfile, xrdfile)
             if xrddet is not None:
                 xt0 = time.time()
-                # while xrddet.cam.Acquire != 1:
-                #     time.sleep(0.05)
-                #     if (time.time() - xt0) > 2:
-                #         rowdata_ok = False
-                #         break
-                # if xrddet.cam.Acquire != 1:
-                #    print("XRD not Acquiring ", irow, xrddet, xrddet.cam.Acquire)
 
             # wait for trajectory to finish
             dtimer.add('scan thread run join()')
@@ -607,6 +586,8 @@ class Slew_Scan(StepScan):
                 self.write(fmt % (irow, self.xps.ngathered, npts_sca, nxrf, nxrd, npulses))
                 irow -= 1
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
+                for det in self.detectors:
+                    det.arm(mode='ndarray', numframes=npulses, fnum=irow, wait=False)
                 time.sleep(0.25)
 
             elif irow < npts-1:
