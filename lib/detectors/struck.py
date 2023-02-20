@@ -116,10 +116,11 @@ class Struck(Device):
         """
         self.InternalMode()
         if numframes is not None:
-            self.put('NuseAll', numframes, wait=True)
+            self.put('NuseAll', numframes, wait=False)
         if dwelltime is not None:
             self.set_dwelltime(dwelltime)
         if self.scaler is not None:
+            time.sleep(0.025)
             self.scaler.put('CONT', 1, wait=True)
         self._mode = SCALER_MODE
 
@@ -377,6 +378,10 @@ class StruckDetector(DetectorMixin):
 
     def pre_scan(self, mode=None, npulses=None, dwelltime=None, **kws):
         "run just prior to scan"
+        self.struck.stop()
+        self.struck.InternalMode()
+        time.sleep(0.05)
+
         self.arm(mode=mode, numframes=npulses)
         self.counters = self._counter.counters
         if dwelltime is not None:
@@ -391,12 +396,6 @@ class StruckDetector(DetectorMixin):
             if counter.label in names:
                 ix = names.index(counter.label)
                 counter.net_buff = sdata[:, ix]
-
-    def post_scan(self, **kws):
-        "run just after scan"
-        pass
-        # self.struck.InternalMode()
-        # self.struck.ScalerMode()
 
     def arm(self, mode=None, fnum=None, wait=True, numframes=None):
         "arm detector, ready to collect with optional mode"
@@ -415,7 +414,12 @@ class StruckDetector(DetectorMixin):
             time.sleep(self.arm_delay)
 
     def disarm(self, mode=None, wait=False):
+        self.struck.stop()
         self.struck.InternalMode()
+
+    def post_scan(self, **kws):
+        "run just after scan"
+        self.disarm()
 
     def ContinuousMode(self, **kws):
         self.struck.ContinuousMode(**kws)
