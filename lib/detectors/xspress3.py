@@ -360,8 +360,8 @@ class Xspress3Detector(DetectorMixin):
         if self.label is None:
             self.label = self.prefix
         self.arm_delay = 0.075
-        self.start_delay_arraymode = 0.35
-        self.start_delay_roimode   = 0.75
+        self.start_delay_arraymode = 0.25
+        self.start_delay_roimode   = 0.25
         self.start_delay = self.start_delay_roimode
         self._counter = None
         self.counters = []
@@ -469,7 +469,6 @@ class Xspress3Detector(DetectorMixin):
         self.disarm()
         self.ContinuousMode()
         time.sleep(0.025)
-
 
     def ContinuousMode(self, dwelltime=0.25, numframes=16384):
         """set to continuous mode: use for live reading
@@ -623,7 +622,6 @@ class Xspress3Detector(DetectorMixin):
             time.sleep(0.002)
 
     def arm_complete(self):
-        # if self._xsp3._pvs['ERASE'].put_complete is None:
         return self._xsp3._pvs['ERASE'].put_complete
 
     def disarm(self, mode=None, wait=False):
@@ -631,7 +629,7 @@ class Xspress3Detector(DetectorMixin):
             self.mode = mode
         if wait:
             time.sleep(self.arm_delay)
-        self._xsp3.put('ERASE', 1, wait=True)
+        self._xsp3.put('ERASE', 1, wait=False)
         self._xsp3.FileCaptureOff()
 
     def start(self, mode=None, arm=False, wait=True):
