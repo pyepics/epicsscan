@@ -205,6 +205,7 @@ class StepScan(object):
         self.pre_scan_methods = []
         self.post_scan_methods = []
         self.pos_actual  = []
+        self.orig_postions = {}
         self.dtimer = debugtime()
 
     def set_info(self, attr, value):
@@ -271,7 +272,9 @@ class StepScan(object):
 
     def add_detector(self, det):
         """ add a Detector -- needs to be derived from Detector_Mixin"""
-        det.rois = self.rois
+        rois = getattr(self, 'rois', getattr(det, 'rois', None))
+        if rois is not None:
+            det.rois = self.rois = rois
         # if det.extra_pvs is None: # not fully connected!
         det.mode = self.detmode
         det.connect_counters()
@@ -347,15 +350,20 @@ class StepScan(object):
         return out
 
     def post_scan(self, row=0, filename=None, **kws):
-
         self.set_info('scan_progress', 'running post_scan routines')
         if filename is None:
             filename = self.filename
         kws['filename'] = filename
         out = []
+
+        for pvname, val in self.orig_positions.items():
+            caput(pvname, val, wait=False)
+
         for meth in self.post_scan_methods:
             out.append(meth(scan=self, row=row, **kws))
-            time.sleep(0.025)
+
+        for det in self.detectors:
+            det.stop(disarm=True)
 
         if callable(self.postscan_func):
             try:
@@ -588,7 +596,11 @@ class StepScan(object):
 
         self.clear_interrupts()
         self.dtimer.add('PRE: cleared interrupts')
-        self.orig_positions = [p.current() for p in self.positioners]
+
+        self.orig_postions = {}
+        for p in self.positioners:
+            self.orig_positions[p.pv.pvname] = p.current()
+
         self.dtimer.add('PRE: orig positions')
         out = [p.move_to_start(wait=False) for p in self.positioners]
         self.check_outputs(out, msg='move to start')
@@ -814,9 +826,6 @@ class StepScan(object):
         ts_loop = time.time()
         self.looptime = ts_loop - ts_init
 
-        for val, pos in zip(self.orig_positions, self.positioners):
-            pos.move_to(val, wait=False)
-        self.dtimer.add('Post: return move issued')
         self.datafile.write_data(breakpoint=-1, close_file=True, clear=False)
         self.dtimer.add('Post: file written')
         if self.look_for_interrupts():
