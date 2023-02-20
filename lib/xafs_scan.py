@@ -19,7 +19,7 @@ from .scan import StepScan
 from .positioner import Positioner
 from .saveable import Saveable
 from .file_utils import fix_varname, new_filename
-from .utils import ScanDBAbort, hms
+from .utils import ScanDBAbort, hms, normalize_pvname
 from .debugtime import debugtime
 from .detectors.counter import ROISumCounter, EVAL4PLOT
 from .detectors import  ROI_MODE, SCALER_MODE
@@ -111,18 +111,6 @@ class XAFS_Scan(StepScan):
             npts = 1 + int(0.1  + abs(stop - start)/step)
 
         en_arr = list(np.linspace(start, stop, npts))
-        # note: save region definition using npts here,
-        # even though npts may be reduced below, this set
-        # will provide reproducible results, and so can be
-        # save for later re-use.
-        #         self.regions.append(ScanRegion(start, stop, npts=npts,
-        #                              relative=relative,
-        #                              e0=e0, use_k=use_k,
-        #                              dtime=dtime,
-        #                              dtime_final=dtime_final,
-        #                              dtime_wt=dtime_wt))
-        #
-
         self.regions.append((start, stop, npts, relative, e0, use_k, dtime,
                              dtime_final, dtime_wt))
 
@@ -339,45 +327,48 @@ class QXAFS_Scan(XAFS_Scan):
         dtimer.add('scan verified')
         self.scandb.set_info('qxafs_running', 1)
         qconf = self.config
+        energy_orig = caget(qconf['energy_pv'])
+
         dtimer.add('connect qxafs')
         traj = self.make_trajectory()
-        caput(qconf['theta_motor'] + '.DVAL', traj['start'][0])
-        caput(qconf['width_motor'] + '.DVAL', traj['start'][1])
-
         dtimer.add('make traj')
-        energy_orig = caget(qconf['energy_pv'])
         if self.with_id:
             idenergy_orig = caget(qconf['id_drive_pv'])
             id_offset = 1000.0*caget(qconf['id_offset_pv'])
             idarray = 1.e-3*(1.0+id_offset/energy_orig)*traj['energy']
             idarray = np.concatenate((idarray, idarray[-1]+np.arange(1,26)/250.0))
         dtimer.add('idarray')
-        time.sleep(0.1)
+        time.sleep(0.025)
 
-        orig_positions = [p.current() for p in self.positioners]
+        self.orig_positions = {}
+        for p in self.positioners:
+            thispv = p.pv.pvname
+            retval = p.current()
+            if normalize_pvname(p.pv.pvname) == normalize_pvname(qconf['energy_pv']):
+                retval = energy_orig
+                if retval < self.e0:
+                    retval = 25.0*(int((self.e0*1.01)/25.0 + 1))
+            self.orig_positions[thispv] = retval
 
         dtimer.add('orig positions')
         if self.with_id:
+            caput(qconf['id_array_pv'], idarray)
             try:
                 caput(qconf['id_drive_pv'], idarray[0], wait=False)
             except CASeverityException:
                 pass
-        caput(qconf['energy_pv'],  traj['energy'][0]-0.01, wait=False)
 
+        caput(qconf['energy_pv'],  traj['energy'][0]-0.01, wait=False)
+        det_arm_delay = 0.025
+        det_start_delay = 0.1
+        for det in self.detectors:
+            det.stop(disarm=True)
+            det_arm_delay = max(det_arm_delay, det.arm_delay)
+            det_start_delay = max(det_start_delay, det.start_delay)
+
+        self.scandb.set_info('qxafs_dwelltime', self.dwelltime[0])
         self.clear_interrupts()
         dtimer.add('clear interrupts')
-        sis_prefix = qconf['mcs_prefix']
-
-        if self.with_id:
-            caput(qconf['id_array_pv'], idarray)
-        self.scandb.set_info('qxafs_dwelltime', self.dwelltime[0])
-
-        caput(qconf['energy_pv'], traj['energy'][0], wait=True)
-        if self.with_id:
-            try:
-                caput(qconf['id_drive_pv'], idarray[0], wait=True, timeout=5.0)
-            except CASeverityException:
-                pass
 
         npts = len(self.positioners[0].array)
         self.dwelltime_varys = False
@@ -396,32 +387,26 @@ class QXAFS_Scan(XAFS_Scan):
         xrfdir_server = os.path.join(fileroot, xrfdir)
         if not os.path.exists(xrfdir_server):
             os.mkdir(xrfdir_server)
+        dtimer.add('folders and timer setup')
 
         self.xps.arm_trajectory('qxafs', verbose=False)
+        dtimer.add('trajectory armed')
         out = self.pre_scan(npulses=1+traj['npulses'],
                             dwelltime=dtime,
-                            mode='roi', filename=self.filename)
+                            mode=ROI_MODE, filename=self.filename)
         self.check_outputs(out, msg='pre scan')
         dtimer.add('prescan ran')
 
         self.init_scandata()
         dtimer.add('init scandata')
 
-        det_arm_delay = 0.1
-        det_start_delay = 0.5
-        det_prefixes = []
-        for det in reversed(self.detectors):
-            det_prefixes.append(det.prefix)
-            det.arm(mode='roi', numframes=1+traj['npulses'], fnum=0, wait=True)
+        for det in self.detectors:
+            det.arm(mode=ROI_MODE, numframes=1+traj['npulses'], fnum=0, wait=False)
             det.config_filesaver(path=xrfdir)
-            det_arm_delay = max(det_arm_delay, det.arm_delay)
-            det_start_delay = max(det_start_delay, det.start_delay)
         time.sleep(det_arm_delay)
 
-        self.scandb.set_info('qxafs_running', 2) # running
-
         # wait for detectors to be armed
-        tout = time.time()+5.0
+        tout = time.time()+2.0
         while not all([det.arm_complete for det in self.detectors]):
             if time.time() > tout:
                 break
@@ -455,7 +440,12 @@ class QXAFS_Scan(XAFS_Scan):
         start_time = time.strftime('%Y-%m-%d %H:%M:%S')
         dtimer.add('info set')
 
-        time.sleep(0.250)
+        caput(qconf['theta_motor'] + '.DVAL', traj['start'][0])
+        caput(qconf['width_motor'] + '.DVAL', traj['start'][1], wait=True)
+        caput(qconf['theta_motor'] + '.DVAL', traj['start'][0], wait=True)
+        time.sleep(0.01)
+        dtimer.add('mono motors at start')
+
         with_scan_thread = True
         dtimer.add('trajectory run %r' % (with_scan_thread))
         if with_scan_thread:
@@ -522,13 +512,12 @@ class QXAFS_Scan(XAFS_Scan):
         for det in self.detectors:
             det.stop()
             det.apply_offsets()
-            dtimer.add(f'det stopped {det}')
+            dtimer.add(f'det stopped {det.label}')
 
         dtimer.add('detectors stopped')
         self.finish_qscan()
         dtimer.add('scan finished')
-        # out = self.post_scan()
-        # dtimer.add('post scan finished')
+
         caput(qconf['energy_pv'], energy_orig-1.0)
         self.check_outputs(out, msg='post scan')
         time.sleep(0.05)
@@ -537,17 +526,14 @@ class QXAFS_Scan(XAFS_Scan):
         ndat = [len(c.buff[1:]) for c in self.counters]
         # print("N energy and counters: ", ne, ndat)
         narr = min(ndat)
-        dtimer.add(f'read counters (ndat= {ndat})')
+        dtimer.add(f'read counters (narr, ne={narr}, {ne})')
         t0  = time.monotonic()
         while narr < (ne-1) and (time.monotonic()-t0) < 5.0:
             time.sleep(0.1)
             [c.read() for c in self.counters]
             ndat = [len(c.buff[1:]) for c in self.counters]
             narr = min(ndat)
-
-        print('read counters (%d, %d, %d) ' % (narr, ne, len(self.counters)))
-        minvals = [min(c.buff[1:]) for c in self.counters]
-        print('minimum counter values: ' , minvals)
+        dtimer.add(f'read counters ndat= [{min(ndat)}, {max(ndat)}])')
 
         mca_offsets = {}
         counter_buffers = []
@@ -596,28 +582,25 @@ class QXAFS_Scan(XAFS_Scan):
             #    self.scandb.set_scandata(c.label, c.buff)
         dtimer.add('setting scan data')
         self.set_all_scandata()
-        for val, pos in zip(orig_positions, self.positioners):
-            pos.move_to(val, wait=False)
 
         self.datafile.write_data(breakpoint=-1, close_file=True, clear=False)
-
+        dtimer.add('write complete')
         caput(qconf['energy_pv'], energy_orig)
         if self.with_id:
             try:
                 caput(qconf['id_drive_pv'], idenergy_orig)
             except CASeverityException:
                 pass
-        time.sleep(0.05)
-
-        caput(qconf['energy_pv'], energy_orig, wait=True, timeout=15)
+        time.sleep(0.025)
 
         if self.look_for_interrupts():
             self.write("scan aborted at point %i of %i." % (self.cpt, self.npts))
 
         # run post_scan methods
         self.set_info('scan_progress', 'finishing')
-        out = self.post_scan()
-        self.check_outputs(out, msg='post scan')
+        dtimer.add('before post_scan')
+        self.post_scan()
+        dtimer.add('post_scan ran')
         self.complete = True
         self.set_info('scan_progress',
                       'scan complete. Wrote %s' % self.datafile.filename)
@@ -625,7 +608,8 @@ class QXAFS_Scan(XAFS_Scan):
         self.runtime  = time.monotonic() - ts_start
         dtimer.add('done')
 
-        # dtimer.show()
-        print("scan done at %s %.3f" % (time.ctime(), time.time()))
+        if debug:
+            dtimer.show()
+        # print("scan done at %s " % (time.ctime(), ))
         return self.datafile.filename
         ##
