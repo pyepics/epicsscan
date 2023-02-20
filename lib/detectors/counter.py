@@ -21,6 +21,7 @@ class Counter(Saveable):
         if label is None:
             label = pvname
         self.label = label
+        self.extra_label = ''
         self.units = units
         self.clear()
 
@@ -102,6 +103,7 @@ class ROISumCounter(Saveable):
         if not self.dtcorr:
             label = label + ' no_dtc'
         self.label = fix_varname(label)
+        self.extra_label = ''
         self.nmcas = nmcas
         self.roifmt = roifmt
         self.dtcfmt = dtcfmt
