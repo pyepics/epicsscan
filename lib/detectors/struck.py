@@ -262,8 +262,9 @@ class Struck(Device):
 
         # read MCAs until all data have a consistent length (up to ~2 seconds)
         t0 = time.time()
-        time.sleep(0.025)
-        for _i in range(10):
+        time.sleep(0.005)
+        waiting_for_data = True
+        while waiting_for_data:
             npts_chan = []
             for nchan, name, calc in scaler_config:
                 dat = self.readmca(nmca=nchan)
@@ -272,9 +273,11 @@ class Struck(Device):
                 npts_chan.append(len(dat))
             if npts_req is None:
                 npts_req = npts_chan[0]
-            if (npts_chan[0] == npts_req) and (max(npts_chan) == min(npts_chan)):
-                break
-            time.sleep(0.025*(_i+1))
+            waiting_for_data = (npts_req-npts_chan[0]) > 3
+            waiting_for_data = waiting_for_data or (max(npts_chan) != min(npts_chan))
+            waiting_for_data = waiting_for_data and (time.time() < (t0+2.0))
+
+        # print("SIS read time = %.3f" % (time.time()-t0))
 
         if max(npts_chan) != min(npts_chan):
             print(" Struck warning, inconsistent number of points!")
@@ -429,7 +432,7 @@ class StruckDetector(DetectorMixin):
         "stop detector"
         self.struck.stop()
         if disarm:
-            self.struck.InterMode()
+            self.struck.InternalMode()
 
     def disarm(self, mode=None, wait=False):
         self.struck.stop()
