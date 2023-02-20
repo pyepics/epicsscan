@@ -338,9 +338,9 @@ class Struck(Device):
             sdata = numpy.array([s[:npts] for s in sdata]).transpose()
             npts, nmcas = sdata.shape
         except:
-            return (0, 0, names, calcs, sdata)
+            return (0, 0, names, headers, fmts, sdata)
         #print("SIS Calc: RETURN ", nmcas, npts, names, headers, fmts, sdata.shape)
-        return (nmcas, npts, names, calcs_map, sdata)
+        return (nmcas, npts, names, headers, fmts, sdata)
 
 
 class StruckCounter(DeviceCounter):
@@ -409,7 +409,7 @@ class StruckDetector(DetectorMixin):
             self.struck.put('NuseAll', npulses)
 
     def apply_offsets(self):
-        nmcas, npts, names, calcs, sdata = self.struck.get_arraydata()
+        nmcas, npts, names, headers, fmts, sdata = self.struck.get_arraydata(npts=npts)
         for counter in self.counters:
             if counter.label in names:
                 ix = names.index(counter.label)
