@@ -325,7 +325,6 @@ class QXAFS_Scan(XAFS_Scan):
             return
 
         dtimer.add('scan verified')
-        self.scandb.set_info('qxafs_running', 1)
         qconf = self.config
         energy_orig = caget(qconf['energy_pv'])
 
@@ -399,6 +398,7 @@ class QXAFS_Scan(XAFS_Scan):
 
         self.init_scandata()
         dtimer.add('init scandata')
+        self.scandb.set_info('qxafs_running', 1)
 
         for det in self.detectors:
             det.arm(mode=ROI_MODE, numframes=1+traj['npulses'], fnum=0, wait=False)
