@@ -567,7 +567,7 @@ class Slew_Scan(StepScan):
             dtimer.add('saved XPS data')
 
             rowdata_ok = (rowdata_ok and
-                          (npts_sca >= npulses-1) and
+                          (npts_sca >= npulses-2) and
                           (self.xps.ngathered >= npulses-2) and
                           (nxrf >= npulses-2) and
                           (not pos_saver_thread.is_alive()))
@@ -580,8 +580,8 @@ class Slew_Scan(StepScan):
                 self.write(fmt % (irow, self.xps.ngathered, npts_sca, nxrf, nxrd, npulses))
                 irow -= 1
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
-                for det in self.detectors:
-                    det.arm(mode='ndarray', numframes=npulses, fnum=irow, wait=False)
+                # for det in self.detectors:
+                #     det.arm(mode='ndarray', numframes=npulses, fnum=irow-1, wait=False)
                 time.sleep(0.25)
 
             elif irow < npts-1:
