@@ -205,7 +205,7 @@ class StepScan(object):
         self.pre_scan_methods = []
         self.post_scan_methods = []
         self.pos_actual  = []
-        self.orig_postions = {}
+        self.orig_positions = {}
         self.dtimer = debugtime()
 
     def set_info(self, attr, value):
@@ -597,7 +597,7 @@ class StepScan(object):
         self.clear_interrupts()
         self.dtimer.add('PRE: cleared interrupts')
 
-        self.orig_postions = {}
+        self.orig_positions = {}
         for p in self.positioners:
             self.orig_positions[p.pv.pvname] = p.current()
 
