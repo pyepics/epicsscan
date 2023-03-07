@@ -712,8 +712,9 @@ class StepScan(object):
                 if self.dwelltime_varys:
                     for d in self.detectors:
                         d.set_dwelltime(self.dwelltime[i])
-                for d in self.detectors:
-                    d.arm()
+                for det in self.detectors:
+                    det.arm(mode=self.detmode, fnum=1, numframes=1)
+                    time.sleep(det.arm_delay)
                 self.dtimer.add('Pt %i : det arm' % i)
                 # move to next position
                 [p.move_to_pos(i) for p in self.positioners]
@@ -734,11 +735,14 @@ class StepScan(object):
 
                 # trigger detectors
                 [trig.start() for trig in self.triggers]
+                # print("TRIGGERS ", self.triggers)
+                #for det in self.detectors:
+                #    det.start(mode=self.detmode, arm=False, wait=False)
                 self.dtimer.add('Pt %i : triggers fired, (%d)' % (i, len(self.triggers)))
 
                 # wait for detectors
                 t0 = time.time()
-                time.sleep(max(0.05, self.min_dwelltime/2.0))
+                time.sleep(max(0.05, 0.8*self.min_dwelltime))
                 while not all([trig.done for trig in self.triggers]):
                     if (time.time() - t0) > 5.0*(1 + 2*self.max_dwelltime):
                         break
@@ -747,11 +751,11 @@ class StepScan(object):
                 if self.look_for_interrupts():
                     break
                 # print("STEP SCAN triggers may be done: ", i,
-                #    [(trig, trig.done) for trig in self.triggers])
-
+                #      [(trig, trig.done) for trig in self.triggers])
+                time.sleep(0.1)
                 point_ok = (all([trig.done for trig in self.triggers]) and
                             time.time()-t0 > (0.75*self.min_dwelltime))
-
+                # print("STEP SCAN  point_ok = ", point_ok)
                 if not point_ok:
                     point_ok = True
                     poll(0.1, 1.0)
@@ -787,7 +791,7 @@ class StepScan(object):
                             _x = counter.pv.get()
                     if not all(dready):
                         time.sleep(0.05)
-                    if time.time() - t0 > 5:
+                    if time.time() - t0 > 10:
                         dready = [True]
                 dat = [c.read() for c in self.counters]
                 # print("read % counters in %.3f sec" % (len(dat), time.time()-t0))
@@ -849,6 +853,6 @@ class StepScan(object):
         self.runtime  = ts_exit - ts_start
         self.dtimer.add('Post: fully done')
 
-        if debug:
-            self.dtimer.show()
+        # if debug:
+        self.dtimer.show()
         return self.datafile.filename
