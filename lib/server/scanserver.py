@@ -84,13 +84,10 @@ class ScanServer():
     def finish(self):
         self.set_scan_message('Server Shutting Down')
         self.scandb.set_info('request_pause',    0)
-        time.sleep(0.1)
         self.scandb.set_info('request_abort',    1)
-        time.sleep(0.1)
         self.scandb.set_info('request_abort',    0)
-        time.sleep(0.1)
         self.scandb.set_info('request_shutdown', 0)
-        time.sleep(0.1)
+        time.sleep(0.025)
 
     def set_status(self, status):
         self.scandb.set_info('scan_status', status)
@@ -149,8 +146,8 @@ class ScanServer():
                 words.append("filename='%s'" % filename)
                 self.scandb.set_filename(filename)
 
-            self.scandb.update_where('scandefs', {'name': scanname},
-                                     {'last_used_time': make_datetime()})
+            self.scandb.update('scandefs', where={'name': scanname},
+                               last_used_time= make_datetime())
             command = "do_%s" % command
             args = ', '.join(words)
         elif command.lower().startswith('restart_scanserver'):
@@ -235,10 +232,11 @@ class ScanServer():
         # we're going to be doing a lot of reading of the 'commands'
         # table in scandb, so we pre-compile the query to get the
         # requested commands, in order.
-        cmd_cls, cmd_table = self.scandb.get_table('commands')
+        session = self.scandb.get_session()
         request_id = self.scandb.status_codes['requested']
-        cmd_query = cmd_table.select().where(
-            cmd_table.c.status_id==request_id).order_by(cmd_cls.run_order)
+        tab = self.scandb.tables['commands']
+        cmd_query = tab.select().where(tab.c.status_id==request_id
+                                       ).order_by(tab.c.run_order)
 
         # Note: this loop is really just looking for new commands
         # or interrupts, so does not need to go super fast.
@@ -265,7 +263,7 @@ class ScanServer():
                 continue
 
             # get ordered list of requested commands
-            reqs = cmd_query.execute().fetchall()
+            reqs = session.execute(cmd_query).fetchall()
 
             # abort command?
             if (self.req_abort or (self.epicsdb is not None

@@ -97,6 +97,7 @@ class LarchScanDBServer(object):
                                  "Cannot locate modules in '%s'" % moduledir)
             print("no macros imported ", moduledir)
             return
+        print("Load MACRO ", moduledir)
 
         try:
             origdir = os.getcwd()
@@ -104,6 +105,7 @@ class LarchScanDBServer(object):
             for name in glob.glob('*.lar'):
                 time.sleep(0.025)
                 modname = name[:-4]
+                print(" IMPORT MACRO ", name)
                 this_mtime = os.stat(name).st_mtime
                 if modname in self.loaded_modules:
                     last_mtime = self.loaded_modules[modname]
@@ -129,7 +131,8 @@ class LarchScanDBServer(object):
                     _sys.searchGroupObjects.append(thismod)
             os.chdir(origdir)
         except OSError:
-            pass
+            print("error loading macros")
+        print("--> " , origdir)
         self.scandb.set_path()
         return self.get_macros()
 
