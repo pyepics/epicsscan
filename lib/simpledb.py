@@ -342,7 +342,7 @@ class SimpleDB(object):
         else:
             result = result.fetchall()
 
-        if len(result) == 0 and none_if_empty:
+        if result is not None and len(result) == 0 and none_if_empty:
             result = None
         return result
 
