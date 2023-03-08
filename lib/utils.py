@@ -44,7 +44,8 @@ def plain_ascii(s, replace=''):
     replace non-ASCII characters with blank or other string
     very restrictive (basically ord(c) < 128 only)
     """
-    return "".join(i for i in s if ord(i)<128)
+    if s is None: s = ''
+    return "".join([i for i in s if ord(i)<128])
 
 def get_units(pv, default):
     try:
