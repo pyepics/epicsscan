@@ -77,7 +77,6 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
                 new_runorder = runorder - 1
 
             self.scandb.add_command(cmdstring)
-            self.scandb.commit()
             time.sleep(0.1)
             recent = datetime.now() - timedelta(seconds=15)
             cmds = self.scandb.get_commands(requested_since=recent)
@@ -86,7 +85,6 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
                 cmdid = cmds[-1].id
             if cmdid > 0:
                 self.scandb.set_command_run_order(new_runorder, cmdid)
-            self.scandb.commit()
         self.read_data()
 
     def move_item(self, item, direction='up'):
@@ -114,7 +112,6 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
             cmd = self.commands[cmd_id]
             self.scandb.set_command_run_order(other.run_order, cmd.id)
             self.scandb.set_command_run_order(cmd.run_order, other.id)
-            self.scandb.commit()
         self.read_data()
 
     def GetColumnType(self, col):
@@ -329,7 +326,6 @@ class ScanSequenceFrame(wx.Frame) :
 
     def onAbort(self, event=None):
         self.scandb.set_info('request_abort', 1)
-        self.scandb.commit()
         time.sleep(1.0)
 
     def refresh_display(self, show_top=False):

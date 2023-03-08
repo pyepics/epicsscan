@@ -180,7 +180,7 @@ class ScanDB(SimpleDB):
         self.insert('slewscanstatus', text=text)
 
     def clear_slewscanstatus(self, **kws):
-        self.delete_rows('slewscanstatus')
+        self.delete_rows('slewscanstatus', where=True)
 
     def get_slewscanstatus(self):
         return self.get_rows('slewscanstatus')
@@ -229,7 +229,7 @@ class ScanDB(SimpleDB):
             where['name'] = kws['name']
         elif 'id' in kws:
             where['id'] = kws['id']
-        return self.get_row(tablename, where=where, limit_one=True)
+        return self.get_rows(tablename, where=where, limit_one=True)
 
     # Scan Definitions
     def get_scandef(self, name):
@@ -322,7 +322,7 @@ class ScanDB(SimpleDB):
         kws.update({'notes': notes, 'pvname': pvname, 'name': name})
         if self.server.startswith('sqli'):
             value = json_encode(value)
-        kws['value'] = value
+        kws['data'] = value
 
         return self.add_row_attr('scandata', **kws)
 
@@ -356,7 +356,7 @@ class ScanDB(SimpleDB):
     def clear_scandata(self, **kws):
         a = self.get_scandata()
         if len(a) > 0:
-            self.delete_rows('scandata')
+            self.delete_rows('scandata', where=True)
 
     ### positioners
     def get_positioners(self):

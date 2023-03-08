@@ -37,20 +37,21 @@ class ScanDBMessageQueue(object):
     """ScanDB Messages"""
     def __init__(self, scandb):
         self.scandb = scandb
-        self.cls, self.tab = scandb.get_table('messages')
+        self.tab = mtab = scandb.tables['messages']
         # get last ID
-        out = scandb.query(sqlfunc.max(self.cls.id)).one()
-        self.last_id = out[0]
+        rows = scandb.execute(mtab.select().order_by(mtab.c.id)).fetchall()
+        self.last_id = rows[-1].id
 
     def get_new_messages(self):
         try:
-            q = self.tab.select(whereclause=text("id>'%i'" % self.last_id))
+            query = self.tab.select().where(
+                      self.tab.c.id > self.last_id).order_by(self.tab.c.id)
         except TypeError:
             return [None]
-        out = q.order_by(self.cls.id).execute().fetchall()
-        if len(out) > 0:
-            self.last_id = out[-1].id
-        return out
+        rows = self.scandb.execute(query).fetchall()
+        if len(rows) > 0:
+            self.last_id = rows[-1].id
+        return rows
 
 def get_positionlist(scandb, instrument=None):
     """get list of positions for and instrument"""
@@ -298,10 +299,10 @@ class PositionCommandFrame(wx.Frame) :
         elif 'map' in sname or 'slew' in sname:
             scantype = 'slew'
             self.nscans.SetValue(1)
-        cls, table = self.scandb.get_table('scandefs')
-        q = table.select().where(table.c.type.ilike("%%%s%%" % scantype)).order_by('last_used_time')
+        tab = self.scandb.tables['scandefs']
+        q = tab.select().where(tab.c.type.ilike("%%%s%%" % scantype)).order_by('last_used_time')
         scannames = []
-        for s in q.execute().fetchall():
+        for s in self.scandb.execute(q).fetchall():
             if not (s.name.startswith('__') and s.name.endswith('__')):
                 scannames.append(s.name)
         scannames.reverse()
@@ -597,32 +598,26 @@ class CommandsPanel(scrolled.ScrolledPanel):
         self.input.Clear()
         # self.input.AddToHistory(text)
         out = self.scandb.add_command(text)
-        self.scandb.commit()
         time.sleep(0.01)
         self.writeOutput(text)
-
         self.AddToHistory(text)
-
 
     def onPanelExposed(self, evt=None):
         pass
 
     def onPause(self, event=None):
         self.scandb.set_info('request_pause', 1)
-        self.scandb.commit()
         self.pause_btn.Disable()
         self.resume_btn.SetBackgroundColour("#D1D122")
 
     def onResume(self, event=None):
         self.scandb.set_info('request_pause', 0)
-        self.scandb.commit()
         self.pause_btn.Enable()
         fg = self.pause_btn.GetBackgroundColour()
         self.resume_btn.SetBackgroundColour(fg)
 
     def onAbort(self, event=None):
         self.scandb.set_info('request_abort', 1)
-        self.scandb.commit()
         time.sleep(1.0)
 
     def onCancelAll(self, event=None):
@@ -651,7 +646,6 @@ class CommandsPanel(scrolled.ScrolledPanel):
             lin = lin.split('#', 1)[0].strip()
             if len(lin) > 0:
                 self.scandb.add_command(lin)
-        self.scandb.commit()
         self.scandb.set_info('request_abort',  0)
         self.scandb.set_info('request_pause',  0)
 

@@ -175,10 +175,8 @@ class PositionerFrame(wx.Frame) :
             elif obj is None and wtype == 'slew':
                 self.scandb.add_slewpositioner(name, drivepv, readpv=readpv)
 
-        self.scandb.commit()
         for panel in self.parent.scanpanels:
             panel.update_positioners()
-
         self.Destroy()
 
 

@@ -207,7 +207,6 @@ class QXAFS_ScanWatcher(object):
                             self.scandb.set_scandata(counter.label, dat[1:])
                     except:
                         self.write("Could not set scandata for %r, %i" % (counter.label, cpt))
-                self.scandb.commit()
         if self.pulsecount_pv is not None:
             self.pulsecount_pv.put("%i" % self.pulse)
         self.scandb.set_info('scan_current_point', self.pulse)

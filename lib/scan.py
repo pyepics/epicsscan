@@ -419,7 +419,9 @@ class StepScan(object):
         db_prefix = self.scandb.get_info('extra_pvs_prefix')
         if len(db_prefix) > 0:
             prefix = fix_varname(db_prefix).title()
-            for row in self.scandb.get_info(prefix=db_prefix, orderby='display_order'):
+            for row in self.scandb.get_info(prefix=db_prefix,
+                                            order_by='display_order',
+                                            full_row=True):
                 notes = row.notes
                 if notes is None or len(notes) < 1:
                     notes = 'unknown'
@@ -477,9 +479,8 @@ class StepScan(object):
     def init_scandata(self):
         if self.scandb is None:
             return
-
         self.scandb.clear_scandata()
-        self.scandb.commit()
+
         time.sleep(0.025)
         names = []
         npts = len(self.positioners[0].array)
@@ -493,6 +494,7 @@ class StepScan(object):
             if name in names:
                 name += '_2'
             if name not in names:
+                # print("ADD SCAN DATA POS ", name, p.array)
                 self.scandb.add_scandata(name, p.array.tolist(),
                                          pvname=p.pv.pvname,
                                          units=units, notes='positioner')
@@ -512,11 +514,11 @@ class StepScan(object):
             if name in names:
                 name += '_2'
             if name not in names:
+                # print("ADD SCAN DATA DET ", name, pvname)
                 self.scandb.add_scandata(name, [],
                                          pvname=pvname,
                                          units=units, notes='counter')
                 names.append(name)
-        self.scandb.commit()
 
     def set_error(self, msg):
         """set scan error message"""

@@ -159,18 +159,19 @@ class ScanDefPanel(wx.Panel):
             col.Alignment = wx.ALIGN_LEFT
             icol += 1
 
-    def _getscans(self, orderby='last_used_time'):
+    def _getscans(self, order_by='last_used_time'):
         if self.name_filter is  None or len(self.name_filter) < 1:
             self.name_filter = ''
 
         self.name_filter.replace('*', '').lower()
 
-        cls, table = self.scandb.get_table('scandefs')
+        table = self.scandb.tables['scandefs']
         q = table.select().where(table.c.type==self.scantype)
         if self.name_filter not in (None, 'None', ''):
             q = q.where(table.c.name.ilike('%%%s%%' % self.name_filter))
 
-        out = list(reversed(q.order_by(orderby).execute().fetchall()))
+        q = q.order_by(order_by)
+        out = list(reversed(self.scandb.execute(q).fetchall()))
 
         if not self.show_dunder:
             tmp = []
@@ -236,21 +237,18 @@ class ScanDefPanel(wx.Panel):
         if dlg.ShowModal() != wx.ID_OK:
             return
 
-        cls, table = self.scandb.get_table('scandefs')
-
         newname = dlg.newname.GetValue()
-        tmpscans = self.scandb.query(table).filter(cls.name==newname).all()
+        tmpscans = self.scandb.get_rows('scandefs', where={'name':newname})
         if tmpscans is not None and len(tmpscans) > 0:
             ret = popup(self, "Scan definition '%s' already in use" % newname,
                 "Scan definition in use!", style=wx.OK)
             return
 
-        scans = self.scandb.query(table).filter(cls.name==name).all()
+        scans = self.scandb.get_rows('scandefs', where={'name': name})
         if scans is not None:
             scan = scans[0]
             if scan.name == name and scan.type == self.scantype:
                 self.scandb.rename_scandef(scan.id, newname)
-            self.scandb.commit()
             self.model.SetValueByRow(newname, row, 0)
 
     def onErase(self, event=None):
@@ -264,13 +262,11 @@ class ScanDefPanel(wx.Panel):
         if ret != wx.ID_YES:
             return
 
-        cls, table = self.scandb.get_table('scandefs')
-        scans = self.scandb.query(table).filter(cls.name==name).all()
+        scans = self.scandb.get_rows('scandefs', where={'name': name})
         if scans is not None:
             scan = scans[0]
             if scan.name == name and scan.type == self.scantype:
                 self.scandb.del_scandef(scanid=scan.id)
-            self.scandb.commit()
             self.model.DeleteRows([row])
 
     def onDone(self, event=None):

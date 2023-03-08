@@ -107,7 +107,6 @@ class ExtraPVsFrame(wx.Frame) :
             elif obj is None:
                 self.scandb.add_extrapv(name, pvname, use=usepv)
 
-        self.scandb.commit()
         self.Destroy()
 
 
