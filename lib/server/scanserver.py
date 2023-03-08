@@ -107,6 +107,9 @@ class ScanServer():
             self.scandb.set_command_status('canceled', cmdid=req.id)
             return
 
+        if req.command in (None, 'None', ''):
+            self.scandb.set_command_status('canceled', cmdid=req.id)
+
         workdir = self.scandb.get_info('user_folder')
         if self.epicsdb is not None:
             self.epicsdb.workdir = plain_ascii(workdir)
