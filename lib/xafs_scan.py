@@ -330,7 +330,8 @@ class QXAFS_Scan(XAFS_Scan):
 
         dtimer.add('connect qxafs')
         traj = self.make_trajectory()
-        dtimer.add('make traj')
+        dtimer.add(f'make traj with_id = {self.with_id}')
+
         if self.with_id:
             idenergy_orig = caget(qconf['id_drive_pv'])
             id_offset = 1000.0*caget(qconf['id_offset_pv'])
@@ -347,7 +348,8 @@ class QXAFS_Scan(XAFS_Scan):
                 retval = energy_orig
                 if retval < self.e0:
                     retval = 25.0*(int((self.e0*1.01)/25.0 + 1))
-            self.orig_positions[thispv] = retval
+            if thispv not in self.orig_positions:
+                self.orig_positions[thispv] = retval-0.5
 
         dtimer.add('orig positions')
         if self.with_id:
@@ -496,7 +498,6 @@ class QXAFS_Scan(XAFS_Scan):
                     text = fh.read()
                     nlines = text.split('\n')
                     npulses = nlines - 3
-                    print("READ Npulses from gathering file ", npulses)
             except:
                 pass
         if npulses > 2:
@@ -585,13 +586,6 @@ class QXAFS_Scan(XAFS_Scan):
 
         self.datafile.write_data(breakpoint=-1, close_file=True, clear=False)
         dtimer.add('write complete')
-        caput(qconf['energy_pv'], energy_orig)
-        if self.with_id:
-            try:
-                caput(qconf['id_drive_pv'], idenergy_orig)
-            except CASeverityException:
-                pass
-        time.sleep(0.025)
 
         if self.look_for_interrupts():
             self.write("scan aborted at point %i of %i." % (self.cpt, self.npts))
@@ -599,13 +593,22 @@ class QXAFS_Scan(XAFS_Scan):
         # run post_scan methods
         self.set_info('scan_progress', 'finishing')
         dtimer.add('before post_scan')
+        if self.with_id:
+            try:
+                caput(qconf['id_drive_pv'], idenergy_orig, wait=False)
+            except CASeverityException:
+                pass
+        time.sleep(0.05)
         self.post_scan()
         dtimer.add('post_scan ran')
+
+        caput(qconf['energy_pv'], energy_orig, wait=True)
         self.complete = True
         self.set_info('scan_progress',
                       'scan complete. Wrote %s' % self.datafile.filename)
         self.scandb.set_info('qxafs_running', 0)
         self.runtime  = time.monotonic() - ts_start
+
         dtimer.add('done')
 
         if debug:
@@ -613,3 +616,39 @@ class QXAFS_Scan(XAFS_Scan):
         # print("scan done at %s " % (time.ctime(), ))
         return self.datafile.filename
         ##
+
+    def post_scan(self, row=0, filename=None, **kws):
+        self.set_info('scan_progress', 'running post_scan routines')
+        if filename is None:
+            filename = self.filename
+        kws['filename'] = filename
+        out = []
+
+        dtimer = debugtime()
+        for pvname, val in self.orig_positions.items():
+            caput(pvname, val, wait=False)
+
+        dtimer.add("post orig_pos")
+        for meth in self.post_scan_methods:
+            out.append(meth(scan=self, row=row, **kws))
+            dtimer.add(f"post_scan_method:  {meth}")
+
+        for det in self.detectors:
+            det.stop(disarm=True)
+        dtimer.add("post det stop")
+        if callable(self.postscan_func):
+            try:
+                ret = self.postscan_func(scan=self, row=row, **kws)
+            except:
+                ret = None
+            out.append(ret)
+        dtimer.add("post func")
+        if self.larch is not None:
+            try:
+                self.larch.run("post_scan_command(row=%i)" % row)
+            except:
+                self.write("Failed to run post_scan_command()\n")
+        dtimer.add("post larchfunc")
+        self.set_info('scan_progress', 'finishing')
+        # dtimer.show()
+        return out
