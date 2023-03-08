@@ -183,16 +183,20 @@ class SimpleDB(object):
             session.flush()
         return result
 
-    def set_info(self, key, value, do_execute=True):
+    def set_info(self, key, value, with_modify_time=True, do_execute=True):
         """set key / value in the info table
         do_execute=False to avoid executing, and only return query
         """
         tab = self.tables['info']
         val = self.get_rows('info', where={'key': key}, none_if_empty=True)
+        ivals = {'value': value}
+        if with_modify_time:
+            ivals['modify_time'] = datetime.now()
         if val is None:
-            query = tab.insert().values(key=key, value=value)
+            ivals['key'] = key
+            query = tab.insert().values(**ivals)
         else:
-            query = tab.update().where(tab.c.key==key).values(value=value)
+            query = tab.update().where(tab.c.key==key).values(**ivals)
         if do_execute:
             self.execute(query, set_modify_date=True)
         return query
@@ -205,7 +209,6 @@ class SimpleDB(object):
             where['key'] = key
 
         allrows = self.get_rows('info', where, order_by=order_by)
-
         def cast(val, as_int, as_bool):
             if (as_int or as_bool):
                 if val is None:
@@ -234,7 +237,10 @@ class SimpleDB(object):
             out = []
             for row in allrows:
                 if row.key.startswith(prefix):
-                    out.append(cast(row.value, as_int, as_bool))
+                    xout = row
+                    if not full_row:
+                        xout = xout.value
+                    out.append(cast(xout, as_int, as_bool))
         return out
 
 
