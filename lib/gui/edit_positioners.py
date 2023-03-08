@@ -56,7 +56,7 @@ class PositionerFrame(wx.Frame) :
 
         self.widlist = []
         poslist = []
-        for pos in self.scandb.getall('scanpositioners'):
+        for pos in self.scandb.get_rows('scanpositioners'):
             poslist.append(pos.name)
             desc   = wx.TextCtrl(panel, -1, value=pos.name, size=(175, -1))
             pvctrl = wx.TextCtrl(panel, value=pos.drivepv,  size=(175, -1))
@@ -98,7 +98,7 @@ class PositionerFrame(wx.Frame) :
         sizer.Add(add_subtitle(panel, 'Slew Scan Positioners'),
                   (ir, 0),  (1, 4),  LEFT, 1)
 
-        for pos in self.scandb.getall('slewscanpositioners'):
+        for pos in self.scandb.get_rows('slewscanpositioners'):
             desc   = wx.TextCtrl(panel, -1, value=pos.name, size=(175, -1))
             pvctrl = wx.TextCtrl(panel, value=pos.drivepv,  size=(175, -1))
             rdctrl = wx.TextCtrl(panel, value=pos.readpv,  size=(175, -1))

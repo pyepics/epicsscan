@@ -38,7 +38,7 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
             self.commands[cmd.id] = cmd
             self.data.append([cmd.command,
                               self.scandb.status_names[cmd.status_id],
-                              False, 
+                              False,
                               tfmt(cmd.request_time),
                               tfmt(cmd.modify_time),
                               repr(cmd.id)])
@@ -58,7 +58,7 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
     def select_all(self, value=False):
         for irow, row in enumerate(self.data):
             self.SetValueByRow(value, irow, 2)
-                
+
     def insert_before(self, item, cmdstring):
         cmd_id = int(self.GetValue(item, 5))
         status = self.GetValue(item, 1)
@@ -261,7 +261,7 @@ class ScanSequenceFrame(wx.Frame) :
             if mode == 'text':
                 kws['mode'] = dv.DATAVIEW_CELL_EDITABLE
             elif mode == 'bool':
-                add_col = self.dvc.AppendToggleColumn                
+                add_col = self.dvc.AppendToggleColumn
                 kws['mode'] = dv.DATAVIEW_CELL_ACTIVATABLE
             add_col(title, icol, **kws)
             col = self.dvc.Columns[icol]
@@ -342,5 +342,3 @@ class ScanSequenceFrame(wx.Frame) :
 
     def onDone(self, event=None):
         self.parent.Destroy()
-        
-    

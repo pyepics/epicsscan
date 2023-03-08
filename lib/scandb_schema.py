@@ -11,6 +11,7 @@ import logging
 
 # from utils import backup_versions, save_backup
 
+
 from sqlalchemy import (MetaData, and_, create_engine, text, func,
                         Table, Column, ColumnDefault, ForeignKey,
                         Integer, Float, String, Text, DateTime,
@@ -39,6 +40,7 @@ def hasdb_pg(dbname, create=False,
     return whether a database is known to the postgresql server,
     optionally creating (but leaving it empty) said database.
     """
+
     dbname = dbname.lower()
     conn_str= 'postgresql://%s:%s@%s:%i/%s'
     query = "select datname from pg_database"

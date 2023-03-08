@@ -242,7 +242,7 @@ class ScanFrame(wx.Frame):
 
     @EpicsFunction
     def connect_epics(self):
-        for pv in self.scandb.getall('pv'):
+        for pv in self.scandb.get_rows('pv'):
             name = normalize_pvname(pv.name)
             if len(name)>0:
                 self.pvlist[name] = epics.PV(name)
@@ -270,7 +270,7 @@ class ScanFrame(wx.Frame):
         scan['counters']  = []
         if 'extra_pvs' not in scan:
             scan['extra_pvs'] = []
-        for det in sdb.select('scandetectors', use=1):
+        for det in sdb.get_rows('scandetectors', where={'use': 1}):
             opts = json.loads(det.options)
             opts['label']  = det.name
             opts['prefix'] = det.pvname
@@ -278,11 +278,8 @@ class ScanFrame(wx.Frame):
             opts['notes']  = det.notes
             scan['detectors'].append(opts)
 
-        for ct in sdb.select('scancounters', use=1):
+        for ct in sdb.get_rows('scancounters', where={'use':1}):
             scan['counters'].append((ct.name, ct.pvname))
-
-        # for ep in sdb.select('extrapvs', use=1):
-        #    scan['extra_pvs'].append((ep.name, ep.pvname))
 
         if debug:
             return (scanname,  scan)
@@ -644,7 +641,7 @@ class ScanFrame(wx.Frame):
             sname =  dlg.GetValue()
         dlg.Destroy()
         if sname is not None:
-            scannames = [s.name for s in self.scandb.select('scandefs')]
+            scannames = [s.name for s in self.scandb.get_rows('scandefs')]
             if sname in scannames:
                 _ok = wx.ID_NO
                 if self.scandb.get_info('scandefs_verify_overwrite',
@@ -681,7 +678,7 @@ class ScanFrame(wx.Frame):
             if panelname in SCANTYPES:
                 stype = panelname
         snames = []
-        for sdef in self.scandb.getall('scandefs', orderby='last_used_time'):
+        for sdef in self.scandb.get_rows('scandefs', order_by='last_used_time'):
             if sdef.type is None:
                 continue
             if ((_alltypes or stype in sdef.type) and
@@ -714,7 +711,7 @@ class ScanFrame(wx.Frame):
         if 'rois' in scan:
             sdb.set_info('rois', json.dumps(scan['rois']))
 
-        ep = [x.pvname for x in sdb.select('extrapvs')]
+        ep = [x.pvname for x in sdb.get_rows('extrapvs')]
         if 'extra_pvs' in scan:
             for name, pvname in scan['extra_pvs']:
                 if pvname not in ep:

@@ -179,8 +179,7 @@ class CommonCommandsAdminFrame(wx.Frame):
             if args != cargs:
                 vals['args'] = args
             if len(vals) > 0:
-                self.scandb.update_where('common_commands',
-                                         {'name': wname}, vals)
+                self.scandb.update('common_commands', where={'name': wname}, vals)
 
         newcmd_name = self.newcmd_name.GetValue().strip()
         if len(newcmd_name) > 0 and newcmd_name not in self.cmds:
@@ -189,7 +188,6 @@ class CommonCommandsAdminFrame(wx.Frame):
             self.scandb.add_common_commands(newcmd_name, newcmd_args, show=True,
                                             display_order=newcmd_order)
         self.scandb.add_command("load_macros()")
-        self.scandb.commit()
 
     def onDone(self, event=None):
         self.Destroy()
@@ -237,7 +235,6 @@ class CommonCommandsFrame(wx.Frame):
 
         irow += 1
         self.wids  = {}
-        self.scandb.commit()
         self.commands = self.scandb.get_common_commands()
 
         for icmd, cmd in enumerate(self.commands):
