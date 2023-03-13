@@ -41,9 +41,10 @@ ELEM_LIST = ('H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na',
 
 class GenericScanPanel(scrolled.ScrolledPanel):
     __name__ = 'genericScan'
+
     def __init__(self, parent, scandb=None, pvlist=None, larch=None,
                  title='?', size=(800, 425), style=wx.GROW|wx.TAB_TRAVERSAL):
-
+        self.scantype = 'linear'
         self.scandb = scandb
         self.pvlist = pvlist
         self.larch = larch
@@ -360,7 +361,7 @@ class LinearScanPanel(GenericScanPanel):
 
     def __init__(self, parent, **kws):
         GenericScanPanel.__init__(self, parent, **kws)
-
+        self.scantype = 'linear'
         sizer = self.sizer
         ir = self.top_widgets('Linear Step Scan')
 
@@ -539,6 +540,7 @@ class XAFSScanPanel(GenericScanPanel):
     def __init__(self, parent, **kws):
         kws['size'] = (800, 425)
         GenericScanPanel.__init__(self, parent, **kws)
+        self.scantype = 'xafs'        
         self.reg_settings = []
         self.ev_units = []
 
@@ -1030,7 +1032,7 @@ class MeshScanPanel(GenericScanPanel):
     def __init__(self, parent, **kws):
         GenericScanPanel.__init__(self, parent, **kws)
         sizer = self.sizer
-
+        self.scantype = 'mesh'        
         ir = self.top_widgets('Mesh Scan (Slow Map)')
         sizer.Add(self.hline(), (ir, 0), (1, 8), LEFT)
         ir += 1
@@ -1170,7 +1172,7 @@ class SlewScanPanel(GenericScanPanel):
     __name__ = 'SlewScan'
     def __init__(self, parent, **kws):
         GenericScanPanel.__init__(self, parent, **kws)
-
+        self.scantype = 'slew'        
         sizer = self.sizer
 
         ir = self.top_widgets('Map Scan (slewscan)', with_absrel=False,
@@ -1424,7 +1426,7 @@ class Slew1dScanPanel(GenericScanPanel):
     __name__ = 'Slew1dScan'
     def __init__(self, parent, **kws):
         GenericScanPanel.__init__(self, parent, **kws)
-
+        self.scantype = 'slew1d'        
         sizer = self.sizer
 
         ir = self.top_widgets('1-D Slew Scan', with_absrel=False,

@@ -69,7 +69,7 @@ from ..larch_interface import LarchScanDBServer, larch
 
 from ..positioner import Positioner
 from ..detectors import (SimpleDetector, ScalerDetector, McaDetector,
-                         MultiMcaDetector, AreaDetector, get_detector)
+                         MultiMcaDetector, AreaDetector)
 
 from .liveviewerApp    import ScanViewerFrame
 from .edit_positioners import PositionerFrame
@@ -207,7 +207,7 @@ class ScanFrame(wx.Frame):
         NB_PANELS = {'Settings': SettingsPanel,
                      'Map Scans': SlewScanPanel,
                      'XAFS Scans': XAFSScanPanel,
-                     'Fast Line Scans': Slew1dScanPanel,
+                     # 'Fast Line Scans': Slew1dScanPanel,
                      'Slow Line Scans': LinearScanPanel,
                      'Commands and Macros': CommandsPanel}
 
@@ -577,11 +577,12 @@ class ScanFrame(wx.Frame):
 
     def onEditScans(self, evt=None):
         self.show_subframe('scan', ScandefsFrame)
-        self.subframes['scan'].nb.SetSelection(self.nb.GetSelection())
+        page = self.nb.pagelist[self.nb.GetSelection()]
+        scantype = getattr(page, 'scantype', 'slew')
+        wx.CallAfter(self.subframes['scan'].show_scandefs, scantype)
 
     def onEditSettings(self, evt=None):
         self.show_subframe('settings', SettingsFrame)
-
 
 
     def onRestartServer(self, evt=None):
@@ -721,7 +722,7 @@ class ScanFrame(wx.Frame):
                         pass
 
         for detdat in scan['detectors']:
-            det = sdb.get_detector(detdat['label'])
+            det = sdb.get_detector(detdat['label'], pvname=detdat['prefix'])
             if det is None:
                 name   = detdat.pop('label')
                 prefix = detdat.pop('prefix')
@@ -733,7 +734,7 @@ class ScanFrame(wx.Frame):
                 sdb.add_detector(name, prefix,
                                  kind=dkind,
                                  options=opts,
-                                 use=use)
+                                 use=int(use))
 
         if 'positioners' in scan:
             for data in scan['positioners']:
