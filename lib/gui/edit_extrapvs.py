@@ -40,7 +40,7 @@ class ExtraPVsFrame(wx.Frame) :
                   (ir, 3), (1, 1), LEFT, 2)
 
         self.widlist = []
-        for this in self.scandb.getall('extrapvs'):
+        for this in self.scandb.get_rows('extrapvs'):
             pvctrl = wx.TextCtrl(panel, value=this.pvname,  size=(200, -1))
             desc   = wx.TextCtrl(panel, -1, value=this.name, size=(200, -1))
             usepv  = check(panel, default=this.use)
