@@ -56,7 +56,7 @@ class ROIFrame(wx.Frame):
         roistring =  self.scandb.get_info('rois', default='[]').replace("'", '"')
         self.current_rois = [str(s.lower()) for s in json.loads(roistring)]
         self.det = None
-        for det in self.scandb.getall('scandetectors', orderby='id'):
+        for det in self.scandb.get_rows('scandetectors', order_by='id'):
             dname = det.kind.lower().strip()
             if det.use == 1 and ('xsp' in dname or 'mca' in dname):
                 self.det = det
@@ -233,8 +233,8 @@ class DetectorFrame(wx.Frame) :
         self.scandb = parent.scandb if scandb is None else scandb
         self.detailframe = None
 
-        self.detectors = self.scandb.getall('scandetectors', orderby='id')
-        self.counters = self.scandb.getall('scancounters', orderby='id')
+        self.detectors = self.scandb.get_rows('scandetectors', order_by='id')
+        self.counters = self.scandb.get_rows('scancounters', order_by='id')
 
         wx.Frame.__init__(self, None, -1, 'Epics Scanning: Detector Setup',
                           style=FRAMESTYLE)

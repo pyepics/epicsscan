@@ -36,14 +36,14 @@ class SettingsPanel(scrolled.ScrolledPanel):
         ir = 2
 
         expt_data = {}
-        for row in scandb.get_info(prefix='experiment_', orderby='display_order'):
+        for row in scandb.get_info(prefix='experiment_', order_by='display_order',
+                                   full_row=True):
             value = row.value
             if value is None:
                 value = ''
             expt_data[row.key] = (row.value, row.notes)
         self.wids = {}
         for key, dat in expt_data.items():
-            print(key, dat)
             ir += 1
             val, desc = dat
             if val is None or len(val) < 1:
@@ -64,8 +64,7 @@ class SettingsPanel(scrolled.ScrolledPanel):
             self.scandb.set_info(label, value)
 
     def onPanelExposed(self, evt=None):
-        expt_info = self.scandb.get_info(prefix='experiment_')
-        for row in expt_info:
+        for row in self.scandb.get_info(prefix='experiment_', full_row=True):
             if row.key in self.wids:
                 self.wids[row.key].SetValue(row.value)
 

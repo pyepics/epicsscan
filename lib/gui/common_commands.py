@@ -179,7 +179,7 @@ class CommonCommandsAdminFrame(wx.Frame):
             if args != cargs:
                 vals['args'] = args
             if len(vals) > 0:
-                self.scandb.update('common_commands', where={'name': wname}, vals)
+                self.scandb.update('common_commands', where={'name': wname}, **vals)
 
         newcmd_name = self.newcmd_name.GetValue().strip()
         if len(newcmd_name) > 0 and newcmd_name not in self.cmds:

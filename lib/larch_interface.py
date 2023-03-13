@@ -97,7 +97,6 @@ class LarchScanDBServer(object):
                                  "Cannot locate modules in '%s'" % moduledir)
             print("no macros imported ", moduledir)
             return
-        print("Load MACRO ", moduledir)
 
         try:
             origdir = os.getcwd()
@@ -132,7 +131,6 @@ class LarchScanDBServer(object):
             os.chdir(origdir)
         except OSError:
             print("error loading macros")
-        print("--> " , origdir)
         self.scandb.set_path()
         return self.get_macros()
 
