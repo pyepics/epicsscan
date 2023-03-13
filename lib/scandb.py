@@ -29,7 +29,7 @@ import epics
 
 from .scandb_schema import get_dbengine, create_scandb, map_scandb
 
-from .simpledb import SimpleDB
+from .simpledb import SimpleDB, isotime
 
 from .utils import (normalize_pvname, asciikeys, pv_fullname,
                     ScanDBException, ScanDBAbort)
@@ -52,9 +52,9 @@ def json_encode(val):
         return val
     return  json.dumps(val)
 
-def isotime2datetime(isotime):
+def isotime2datetime(xisotime):
     "convert isotime string to datetime object"
-    sdate, stime = isotime.replace('T', ' ').split(' ')
+    sdate, stime = xisotime.replace('T', ' ').split(' ')
     syear, smon, sday = [int(x) for x in sdate.split('-')]
     sfrac = '0'
     if '.' in stime:
@@ -198,8 +198,6 @@ class ScanDB(SimpleDB):
     def set_message(self, text):
         """add message to messages table"""
         self.add_row('messages', text=text)
-
-
 
     def set_hostpid(self, clear=False):
         """set hostname and process ID, as on intial set up"""
@@ -429,10 +427,16 @@ class ScanDB(SimpleDB):
     def get_detectors(self):
         return self.get_rows('scandetectors')
 
-    def get_detector(self, name):
-        """return detector by name"""
-        return self.getrow('scandetectors', name)
-
+    def get_detector(self, name=None, pvname=None):
+        """return detector by name or prefix"""
+        out = None
+        if name is not None:
+            out = self.getrow('scandetectors', name)
+        if out is None and prefix is not None:
+            out = self.get_rows('scandetectors', where={'pvname': pvname},
+                             none_if_empty=True, limit_one=True)
+        return out
+    
     def del_detector(self, name):
         """delete detector by name"""
         self.delete_rows('scandetectors', {'name': name})
@@ -598,13 +602,15 @@ class ScanDB(SimpleDB):
     def add_command(self, command, arguments='',output_value='',
                     output_file='', notes='', nrepeat=1, **kws):
         """add command"""
-        kws.update({'arguments': arguments,
+        kws.update({'command': command,
+                    'arguments': arguments,
                     'output_file': output_file,
                     'output_value': output_value,
                     'notes': notes,
                     'nrepeat': nrepeat,
+                    'request_time': isotime(),
                     'status_id': self.status_codes.get('requested', 1)})
-        return self.add_row_attr('commands', **kws)
+        return self.insert('commands', **kws)
 
 
     def get_current_command_id(self):

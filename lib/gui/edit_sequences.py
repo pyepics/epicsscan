@@ -13,7 +13,10 @@ from .gui_utils import (GUIColors, set_font_with_children, YesNo, popup,
 import wx.dataview as dv
 
 def tfmt(dt):
-    return dt.strftime("%b-%d %H:%M")
+    try:
+        return dt.strftime("%b-%d %H:%M")
+    except:
+        return 'unknown'
 
 class ScanSequenceModel(dv.DataViewIndexListModel):
     def __init__(self, scandb):
