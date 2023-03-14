@@ -946,9 +946,7 @@ class XAFSScanPanel(GenericScanPanel):
 
     def onUseHERFD(self, evt=None):
         herfd_det_name = self.scandb.get_info('xas_herfd_detector', None)
-        for det in self.scandb.get_detectors():
-            if det.name == herfd_det_name:
-                det.use = 1 if evt.IsChecked() else 0
+        self.scandb.use_detector(herfd_det_name)        
 
 
     def onAbsRel(self, evt=None):
@@ -1009,8 +1007,7 @@ class XAFSScanPanel(GenericScanPanel):
         herfd_det_name = self.scandb.get_info('xas_herfd_detector', None)
         for det in self.scandb.get_detectors():
             if det.name == herfd_det_name:
-                det.use = 1 if self.use_herfd.IsChecked() else 0
-
+                self.scandb.use_detector(det.name)
 
         if self.nscans is not None:
             s['nscans'] = int(self.nscans.GetValue())
@@ -1354,9 +1351,7 @@ class SlewScanPanel(GenericScanPanel):
 
     def onSelectXRD(self, evt=None):
         xrd_det_name = self.scandb.get_info('xrdmap_detector', None)
-        for det in self.scandb.get_detectors():
-            if det.name == xrd_det_name:
-                det.use = 1 if evt.IsChecked() else 0
+        self.scandb.use_detector(xrd_det_name)
 
     def onPos(self, evt=None, index=0):
         self.update_position_from_pv(index)
@@ -1398,7 +1393,7 @@ class SlewScanPanel(GenericScanPanel):
         xrd_det_name = self.scandb.get_info('xrdmap_detector', None)
         for det in self.scandb.get_detectors():
             if det.name == xrd_det_name:
-                det.use = 1 if self.use_xrd.IsChecked() else 0
+                self.scandb.use_detector(xrd_det_name)        
 
         for i, wids in enumerate(self.pos_settings):
             pos, u, cur, start, stop, dx, wnpts = wids
