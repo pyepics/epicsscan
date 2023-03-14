@@ -436,7 +436,11 @@ class ScanDB(SimpleDB):
             out = self.get_rows('scandetectors', where={'pvname': pvname},
                              none_if_empty=True, limit_one=True)
         return out
-    
+
+    def use_detector(self, detname, use=True):
+        useval = 1 if use else 0
+        self.update('scandetectors', where={'name':detname}, use=useval)
+
     def del_detector(self, name):
         """delete detector by name"""
         self.delete_rows('scandetectors', {'name': name})
