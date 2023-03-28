@@ -432,7 +432,7 @@ class ScanDB(SimpleDB):
         out = None
         if name is not None:
             out = self.getrow('scandetectors', name)
-        if out is None and prefix is not None:
+        if out is None and pvname is not None:
             out = self.get_rows('scandetectors', where={'pvname': pvname},
                              none_if_empty=True, limit_one=True)
         return out
