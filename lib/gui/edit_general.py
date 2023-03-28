@@ -52,7 +52,7 @@ class SettingsPanel(scrolled.ScrolledPanel):
                 desc = key
             desc = ' %s:  '% desc
             label = SimpleText(self, desc, size=(225, -1), style=LEFT)
-            ctext = TextCtrl(self, value=val, size=(250, -1),
+            ctext = TextCtrl(self, value=val, size=(350, -1),
                              action=partial(self.onSetValue, label=key))
             self.wids[key] = ctext
             sizer.Add(label, (ir, 0),  (1, 1), LEFT)
@@ -124,7 +124,7 @@ class SettingsFrame(wx.Frame) :
                         val = False
                     ctrl = check(panel, default=val)
                 else:
-                    ctrl = wx.TextCtrl(panel, value=val,  size=(250, -1))
+                    ctrl = wx.TextCtrl(panel, value=val,  size=(350, -1))
                 self.wids[vname] = ctrl
                 ir += 1
                 sizer.Add(desc,  (ir, 0), (1, 1), LEFT|wx.ALL, 1)
