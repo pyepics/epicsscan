@@ -699,9 +699,10 @@ class XAFSScanPanel(GenericScanPanel):
 
         herfd_det_name = self.scandb.get_info('xas_herfd_detector', None)
         use_herfd = False
-        for det in scan['detectors']:
-            if det['label'] == herfd_det_name:
-                use_herfd = True
+        #for det in scan['detectors']:
+        #    print("SCAN DET ", det)
+        #    if det.get('label', None) == herfd_det_name:
+        #        use_herfd = True
         self.use_herfd.SetValue(use_herfd)
         self.setScanTime()
 
