@@ -42,9 +42,14 @@ class ROIFrame(wx.Frame):
         names = self.pvnames_xmap
         if 'xspress' in self.det.name:
             names = self.pvnames_xsp3
-        pref = names['pref'] % self.prefix
+        prefix = self.prefix
+        if prefix.endswith('.VAL'):
+            prefix = prefix[:-4]
+        pref = names['pref'] % prefix
         for i in range(self.nrois):
-            nm = caget("%s%i%s" % (pref, i+1, names['name']))
+            pvname = "%s%i%s" % (pref, i+1, names['name'])
+            # print("ROIS ",  i, names['name'], pvname)
+            nm = caget(pvname)
             if len(nm.strip()) > 0:
                 check = self.wids[i]
                 check.SetLabel('  %s' % nm)
@@ -405,11 +410,17 @@ class DetectorFrame(wx.Frame) :
                     delete = self.scan.del_counter
                 delete(obj.name)
             elif obj is not None:
-                obj.use    = int(use)
-                obj.name   = name
-                obj.pvname = pvname
-                if kind is not None:
-                    obj.kind   = kind
+                pvname = obj.pvname
+                if pvname.endswith('.VAL'):
+                    pvname = pvname[:-4]
+                dvals = {'use': int(obj.use), 'name': obj.name, 'pvname': pvname}
+                # print("on OK ", obj, dvals)
+                # obj.use    = int(use)
+                # obj.name   = name
+                # obj.pvname = pvname
+                # if kind is not None:
+                #    obj.kind   = kind
+                self.scandb.update('scandetectors', where={'id': obj.id}, **dvals)
             elif 'det' in wtype:
                 opts = json.dumps(DET_DEFAULT_OPTS.get(kind, {}))
                 self.scandb.add_detector(name, pvname, kind,
