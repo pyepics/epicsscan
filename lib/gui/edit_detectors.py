@@ -395,38 +395,32 @@ class DetectorFrame(wx.Frame) :
             else:
                 erase = False
 
-            use    = use.IsChecked()
+            use    = 1 if use.IsChecked() else 0
             name   = name.GetValue().strip()
             pvname = pvname.GetValue().strip()
+            if pvname.endswith('.VAL'):
+                pvname = pvname[:-4]
+
             if len(name) < 1 or len(pvname) < 1:
                 continue
-            # print wtype, obj, name, pvname, use
+            print("DET onOK: ",  wtype, obj, name, pvname, use)
 
-            if kind is not None:
+            if kind is None:
                 kind = kind.GetStringSelection()
-            if erase and obj is not None:
-                delete = self.scandb.del_detector
-                if 'counter' in wtype:
-                    delete = self.scan.del_counter
-                delete(obj.name)
-            elif obj is not None:
-                pvname = obj.pvname
-                if pvname.endswith('.VAL'):
-                    pvname = pvname[:-4]
-                dvals = {'use': int(obj.use), 'name': obj.name, 'pvname': pvname}
-                # print("on OK ", obj, dvals)
-                # obj.use    = int(use)
-                # obj.name   = name
-                # obj.pvname = pvname
-                # if kind is not None:
-                #    obj.kind   = kind
-                self.scandb.update('scandetectors', where={'id': obj.id}, **dvals)
-            elif 'det' in wtype:
+                #             if erase and obj is not None:
+                #                 delete = self.scandb.del_detector
+                #                 if 'counter' in wtype:
+                #                     delete = self.scan.del_counter
+                #                 delete(obj.name)
+            if wtype=='old_det' and obj is not None:
+                self.scandb.update('scandetectors', where={'name': name},
+                                   use=use, pvname=pvname)
+            elif wtype=='new_det':
                 opts = json.dumps(DET_DEFAULT_OPTS.get(kind, {}))
                 self.scandb.add_detector(name, pvname, kind,
-                                         options=opts, use=int(use))
+                                         options=opts, use=use)
             elif 'counter' in wtype:
-                self.scandb.add_counter(name, pvname, use=int(use))
+                self.scandb.add_counter(name, pvname, use=use)
 
         self.Destroy()
 
