@@ -249,9 +249,11 @@ class ScanDB(SimpleDB):
     def add_scandef(self, name, text='', notes='', type='', **kws):
         """add scan"""
         name = name.strip()
+        now = make_datetime()
         kws.update({'notes': notes, 'text': text,
-                    'type': type, 'name': name})
-        return self.add_row_attr('scandefs', **kws)
+                    'type': type, 'name': name,
+                    'modify_time': now, 'last_used_time': now})
+        self.add_row_attr('scandefs', **kws)
 
     def get_scandict(self, scanname):
         """return dictionary of scan configuration for a named scan"""
