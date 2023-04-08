@@ -403,16 +403,20 @@ class DetectorFrame(wx.Frame) :
 
             if len(name) < 1 or len(pvname) < 1:
                 continue
-            print("DET onOK: ",  wtype, obj, name, pvname, use)
+            # print("DET onOK: ",  wtype, name, pvname, use)
 
             if kind is None:
-                kind = kind.GetStringSelection()
+                try:
+                    kind = kind.GetStringSelection()
+                except:
+                    continue
                 #             if erase and obj is not None:
                 #                 delete = self.scandb.del_detector
                 #                 if 'counter' in wtype:
                 #                     delete = self.scan.del_counter
                 #                 delete(obj.name)
             if wtype=='old_det' and obj is not None:
+                print("SET DET ", name, pvname, use)
                 self.scandb.update('scandetectors', where={'name': name},
                                    use=use, pvname=pvname)
             elif wtype=='new_det':

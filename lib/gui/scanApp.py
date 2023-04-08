@@ -63,13 +63,13 @@ from ..file_utils import new_filename, nativepath, fix_filename
 from ..scandb import ScanDB
 
 from .scan_panels import (LinearScanPanel, MeshScanPanel,
-                          SlewScanPanel, Slew1dScanPanel,  XAFSScanPanel)
+                          SlewScanPanel,  XAFSScanPanel)
 
 from ..larch_interface import LarchScanDBServer, larch
 
 from ..positioner import Positioner
 from ..detectors import (SimpleDetector, ScalerDetector, McaDetector,
-                         MultiMcaDetector, AreaDetector)
+                         MultiMcaDetector, AreaDetector, get_detector)
 
 from .liveviewerApp    import ScanViewerFrame
 from .edit_positioners import PositionerFrame
@@ -84,7 +84,7 @@ from .edit_sequences   import ScanSequenceFrame
 
 ICON_FILE = 'epics_scan.ico'
 
-SCANTYPES = ('slew', 'xafs', 'slew1d', 'linear')
+SCANTYPES = ('slew', 'xafs', 'linear')
 AUTOSAVE_FILE = 'macros_autosave.lar'
 
 def compare_scans(scan1, scan2, verbose=False):
@@ -207,8 +207,7 @@ class ScanFrame(wx.Frame):
         NB_PANELS = {'Settings': SettingsPanel,
                      'Map Scans': SlewScanPanel,
                      'XAFS Scans': XAFSScanPanel,
-                     # 'Fast Line Scans': Slew1dScanPanel,
-                     'Slow Line Scans': LinearScanPanel,
+                     'Linear Scans': LinearScanPanel,
                      'Commands and Macros': CommandsPanel}
 
         self.nb = flatnotebook(self, NB_PANELS,
@@ -270,16 +269,23 @@ class ScanFrame(wx.Frame):
         scan['counters']  = []
         if 'extra_pvs' not in scan:
             scan['extra_pvs'] = []
-        for det in sdb.get_rows('scandetectors', where={'use': 1}):
-            opts = json.loads(det.options)
-            opts['label']  = det.name
-            opts['prefix'] = det.pvname
-            opts['kind']   = det.kind
-            opts['notes']  = det.notes
-            scan['detectors'].append(opts)
+        for det in sdb.get_rows('scandetectors', use=1):
+            print("SCAN DET ", det.name, det.use)
+            if det.name.startswith('eiger'):
+                continue
+            if det.use  == 1:
+                opts = json.loads(det.options)
+                opts['label']  = det.name
+                opts['prefix'] = det.pvname
+                opts['kind']   = det.kind
+                opts['notes']  = det.notes
+                scan['detectors'].append(opts)
 
-        for ct in sdb.get_rows('scancounters', where={'use':1}):
+        for ct in sdb.get_rows('scancounters', use=1):
             scan['counters'].append((ct.name, ct.pvname))
+
+        # for ep in sdb.select('extrapvs', use=1):
+        #    scan['extra_pvs'].append((ep.name, ep.pvname))
 
         if debug:
             return (scanname,  scan)
@@ -325,7 +331,7 @@ class ScanFrame(wx.Frame):
         fmt = "do_%s('%s', filename='%s', nscans=%i, comments='''%s''')"
 
         command = 'scan'
-        if scan['type'].lower() in ('slew', 'slew1d', 'slew2d', 'map'):
+        if scan['type'].lower() == 'slew':
             command = 'slewscan'
             nscans = 1
 
@@ -350,7 +356,7 @@ class ScanFrame(wx.Frame):
         fmt = "do_%s('%s', filename='%s', nscans=%i, comments='''%s''')"
 
         command = 'scan'
-        if scan['type'].lower() in ('slew', 'slew1d', 'slew2d', 'map'):
+        if scan['type'].lower() == 'slew':
             command = 'slewscan'
             nscans = 1
 
@@ -577,12 +583,11 @@ class ScanFrame(wx.Frame):
 
     def onEditScans(self, evt=None):
         self.show_subframe('scan', ScandefsFrame)
-        page = self.nb.pagelist[self.nb.GetSelection()]
-        scantype = getattr(page, 'scantype', 'slew')
-        wx.CallAfter(self.subframes['scan'].show_scandefs, scantype)
+        self.subframes['scan'].nb.SetSelection(self.nb.GetSelection())
 
     def onEditSettings(self, evt=None):
         self.show_subframe('settings', SettingsFrame)
+
 
 
     def onRestartServer(self, evt=None):
@@ -679,7 +684,7 @@ class ScanFrame(wx.Frame):
             if panelname in SCANTYPES:
                 stype = panelname
         snames = []
-        for sdef in self.scandb.get_rows('scandefs', order_by='last_used_time'):
+        for sdef in self.scandb.getall('scandefs', orderby='last_used_time'):
             if sdef.type is None:
                 continue
             if ((_alltypes or stype in sdef.type) and
@@ -722,7 +727,7 @@ class ScanFrame(wx.Frame):
                         pass
 
         for detdat in scan['detectors']:
-            det = sdb.get_detector(detdat['label'], pvname=detdat['prefix'])
+            det = sdb.get_detector(detdat['label'])
             if det is None:
                 name   = detdat.pop('label')
                 prefix = detdat.pop('prefix')
@@ -734,7 +739,7 @@ class ScanFrame(wx.Frame):
                 sdb.add_detector(name, prefix,
                                  kind=dkind,
                                  options=opts,
-                                 use=int(use))
+                                 use=use)
 
         if 'positioners' in scan:
             for data in scan['positioners']:
