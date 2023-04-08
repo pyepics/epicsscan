@@ -684,7 +684,7 @@ class ScanFrame(wx.Frame):
             if panelname in SCANTYPES:
                 stype = panelname
         snames = []
-        for sdef in self.scandb.get_rows('scandefs', orderby='last_used_time'):
+        for sdef in self.scandb.get_rows('scandefs', order_by='last_used_time'):
             if sdef.type is None:
                 continue
             if ((_alltypes or stype in sdef.type) and
