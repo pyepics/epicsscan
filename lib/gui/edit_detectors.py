@@ -389,13 +389,13 @@ class DetectorFrame(wx.Frame) :
     def onOK(self, event=None):
         self.scandb.set_info('det_settle_time', float(self.settle_time.GetValue()))
         for w in self.widlist:
-            wtype, obj, name, pvname, use, kind, erase = w
+            wtype, obj, name, pvname, wuse, kind, erase = w
             if erase not in (None, False):
                 erase = erase.GetSelection()
             else:
                 erase = False
 
-            use    = 1 if use.IsChecked() else 0
+            use    = 1 if wuse.IsChecked() else 0
             name   = name.GetValue().strip()
             pvname = pvname.GetValue().strip()
             if pvname.endswith('.VAL'):
@@ -416,11 +416,12 @@ class DetectorFrame(wx.Frame) :
                 #                     delete = self.scan.del_counter
                 #                 delete(obj.name)
             if wtype=='old_det' and obj is not None:
-                print("SET DET ", name, pvname, use)
+                print("Edit Detectors: set(old):  ", name, pvname, use)
                 self.scandb.update('scandetectors', where={'name': name},
                                    use=use, pvname=pvname)
             elif wtype=='new_det':
                 opts = json.dumps(DET_DEFAULT_OPTS.get(kind, {}))
+                print("Edit Detectors: set(new):  ", name, pvname, kind, use, opts)
                 self.scandb.add_detector(name, pvname, kind,
                                          options=opts, use=use)
             elif 'counter' in wtype:

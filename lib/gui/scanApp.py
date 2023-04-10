@@ -253,6 +253,7 @@ class ScanFrame(wx.Frame):
         """generate scan definition from current values on GUI
         return scanname, scan_dict
         """
+        print("This is generate_scan... ")
         if scanname is None:
             scanname = time.strftime("__%b%d_%H:%M:%S__")
 
@@ -269,10 +270,11 @@ class ScanFrame(wx.Frame):
         scan['counters']  = []
         if 'extra_pvs' not in scan:
             scan['extra_pvs'] = []
+        # print("Generate Scan: set detectors")
         for det in sdb.get_rows('scandetectors', use=1):
-            print("SCAN DET ", det.name, det.use)
-            if det.name.startswith('eiger'):
-                continue
+            print("SCAN detectors:  ", det.name, det.use)
+            #if det.name.startswith('eiger'):
+            #    continue
             if det.use  == 1:
                 opts = json.loads(det.options)
                 opts['label']  = det.name
@@ -646,6 +648,7 @@ class ScanFrame(wx.Frame):
         if dlg.ShowModal() == wx.ID_OK:
             sname =  dlg.GetValue()
         dlg.Destroy()
+        print("onSaveScanDef--> sname ", (sname is None), sname)
         if sname is not None:
             scannames = [s.name for s in self.scandb.get_rows('scandefs')]
             if sname in scannames:
@@ -658,14 +661,18 @@ class ScanFrame(wx.Frame):
                                  style=wx.YES_NO|wx.NO_DEFAULT|wx.ICON_QUESTION)
 
                 if (_ok == wx.ID_YES):
+                    print("DELETE SCANDEF ", sname)
                     self.scandb.del_scandef(sname)
-
+                    print("DELETE SCANDEF done")
                 else:
                     sname = ''
             if len(sname) > 0:
+                print("onSaveScanDef--> GEN SCAN ", sname)
                 name, scan = self.generate_scan(scanname=sname, force_save=True)
+                print("onSaveScanDef--> scan generated ", name)
                 thisscan = self.scandb.get_scandef(name)
                 self.statusbar.SetStatusText("Saved scan '%s'" % sname)
+                print("onSaveScanDef--> scan save message posted")
             else:
                 self.statusbar.SetStatusText("Could not overwrite scan '%s'" % sname)
 

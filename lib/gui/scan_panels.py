@@ -540,7 +540,7 @@ class XAFSScanPanel(GenericScanPanel):
     def __init__(self, parent, **kws):
         kws['size'] = (800, 425)
         GenericScanPanel.__init__(self, parent, **kws)
-        self.scantype = 'xafs'        
+        self.scantype = 'xafs'
         self.reg_settings = []
         self.ev_units = []
 
@@ -697,13 +697,14 @@ class XAFSScanPanel(GenericScanPanel):
         # self.kwtimemax.Enable(step_xafs)
         # self.kwtimechoice.Enable(step_xafs)
 
-        herfd_det_name = self.scandb.get_info('xas_herfd_detector', None)
+        # make sure HERFD detector follows the checkbox
+        det_name = self.scandb.get_info('xas_herfd_detector', None)
         use_herfd = False
-        #for det in scan['detectors']:
-        #    print("SCAN DET ", det)
-        #    if det.get('label', None) == herfd_det_name:
-        #        use_herfd = True
+        for det in self.scandb.get_detectors():
+            if det.name == det_name:
+                use_herfd = det.use
         self.use_herfd.SetValue(use_herfd)
+
         self.setScanTime()
 
     def setScanTime(self):
@@ -946,9 +947,8 @@ class XAFSScanPanel(GenericScanPanel):
         self.setScanTime()
 
     def onUseHERFD(self, evt=None):
-        herfd_det_name = self.scandb.get_info('xas_herfd_detector', None)
-        self.scandb.use_detector(herfd_det_name)        
-
+        det_name = self.scandb.get_info('xas_herfd_detector', None)
+        self.scandb.use_detector(det_name, use=self.use_herfd.IsChecked())
 
     def onAbsRel(self, evt=None):
         """xafs abs/rel"""
@@ -971,7 +971,6 @@ class XAFSScanPanel(GenericScanPanel):
     def onEdgeChoice(self, evt=None):
         edge = self.edgechoice.GetStringSelection()
         elem = self.elemchoice.GetStringSelection()
-        # print(" On Edge Choice! ", elem, edge)
         if self.larch is not None:
             e0val = self.larch.run("xray_edge('%s', '%s')" % (elem, edge))
             self.e0.SetValue(e0val[0])
@@ -1005,10 +1004,8 @@ class XAFSScanPanel(GenericScanPanel):
              }
 
         # make sure HERFD detector follows the checkbox
-        herfd_det_name = self.scandb.get_info('xas_herfd_detector', None)
-        for det in self.scandb.get_detectors():
-            if det.name == herfd_det_name:
-                self.scandb.use_detector(det.name)
+        hdet_name = self.scandb.get_info('xas_herfd_detector', None)
+        self.scandb.use_detector(hdet_name, use=self.use_herfd.IsChecked())
 
         if self.nscans is not None:
             s['nscans'] = int(self.nscans.GetValue())
@@ -1030,7 +1027,7 @@ class MeshScanPanel(GenericScanPanel):
     def __init__(self, parent, **kws):
         GenericScanPanel.__init__(self, parent, **kws)
         sizer = self.sizer
-        self.scantype = 'mesh'        
+        self.scantype = 'mesh'
         ir = self.top_widgets('Mesh Scan (Slow Map)')
         sizer.Add(self.hline(), (ir, 0), (1, 8), LEFT)
         ir += 1
@@ -1170,7 +1167,7 @@ class SlewScanPanel(GenericScanPanel):
     __name__ = 'SlewScan'
     def __init__(self, parent, **kws):
         GenericScanPanel.__init__(self, parent, **kws)
-        self.scantype = 'slew'        
+        self.scantype = 'slew'
         sizer = self.sizer
 
         ir = self.top_widgets('Map Scan (slewscan)', with_absrel=False,
@@ -1351,8 +1348,8 @@ class SlewScanPanel(GenericScanPanel):
         self.scandb.set_info('zero_finemotors_beforemap', int(zfm))
 
     def onSelectXRD(self, evt=None):
-        xrd_det_name = self.scandb.get_info('xrdmap_detector', None)
-        self.scandb.use_detector(xrd_det_name)
+        det_name = self.scandb.get_info('xrdmap_detector', None)
+        self.scandb.use_detector(det_name, use=self.use_xrd.IsChecked())
 
     def onPos(self, evt=None, index=0):
         self.update_position_from_pv(index)
@@ -1391,10 +1388,11 @@ class SlewScanPanel(GenericScanPanel):
              'nscans': 1    }
 
         # make sure XRD detector follows the XRD checkbox
-        xrd_det_name = self.scandb.get_info('xrdmap_detector', None)
-        for det in self.scandb.get_detectors():
-            if det.name == xrd_det_name:
-                self.scandb.use_detector(xrd_det_name)        
+        det_name = self.scandb.get_info('xrdmap_detector', None)
+        if det_name is not None:
+            self.scandb.use_detector(det_name, use=self.use_xrd.IsChecked())
+
+        #xrd_det_name = self.scandb.get_info('xrdmap_detector', None)
 
         for i, wids in enumerate(self.pos_settings):
             pos, u, cur, start, stop, dx, wnpts = wids
@@ -1422,7 +1420,7 @@ class Slew1dScanPanel(GenericScanPanel):
     __name__ = 'Slew1dScan'
     def __init__(self, parent, **kws):
         GenericScanPanel.__init__(self, parent, **kws)
-        self.scantype = 'slew1d'        
+        self.scantype = 'slew1d'
         sizer = self.sizer
 
         ir = self.top_widgets('1-D Slew Scan', with_absrel=False,
