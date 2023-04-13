@@ -161,7 +161,8 @@ class ScanDB(SimpleDB):
 
     def set_config(self, name, text):
         """add configuration, general purpose table"""
-        row = self.getrow('config', None)
+        row = self.getrow('config', name=name)
+
         if row is None:
             self.insert('config', name=name, notes=text)
         else:
