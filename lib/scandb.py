@@ -9,26 +9,16 @@ import os
 import sys
 import json
 import time
-import atexit
 import logging
 import numpy as np
 from socket import gethostname
 from datetime import datetime
 import yaml
+from charset_normalizer import from_bytes
 # from utils import backup_versions, save_backup
-import sqlalchemy
-from sqlalchemy import MetaData, Table, select, and_, create_engine, text
-from sqlalchemy.orm import sessionmaker, mapper, clear_mappers
-
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm.exc import  NoResultFound
-
-from sqlalchemy_utils import database_exists
-
 import epics
 
-from .scandb_schema import get_dbengine, create_scandb, map_scandb
-
+from .scandb_schema import create_scandb
 from .simpledb import SimpleDB, isotime
 
 from .utils import (normalize_pvname, asciikeys, pv_fullname,
@@ -40,9 +30,8 @@ def get_credentials(envvar='ESCAN_CREDENTIALS'):
     conn = {}
     credfile = os.environ.get(envvar, None)
     if credfile is not None and os.path.exists(credfile):
-        with open(credfile, 'r') as fh:
-            text = fh.read()
-            text.replace('=', ': ')
+        with open(credfile, 'rb') as fh:
+            text = str(from_bytes(fh.read()).best()).replace('=', ': ')
             conn = yaml.load(text, Loader=yaml.Loader)
     return conn
 
