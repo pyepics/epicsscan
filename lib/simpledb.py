@@ -2,11 +2,11 @@
 """
 Simple database interface using SQLAlchemy 1.3 to 2.0
 """
-
 import os
 import time
 import random
 import logging
+import yaml
 from datetime import datetime
 
 from sqlalchemy import MetaData, create_engine, text, and_
@@ -34,6 +34,11 @@ def test_password(password, hash, minimum_runtime=0.05):
     does a deliberately slow string comparison, and also uses
     a minimum runtime (default 0.05 sec) to help confuse attacks.
 
+    does a slow-as-possible compare of 2 strings, a and b
+    returns whether the two strings are equal
+    this is meant to confuse and slow down attempts to guess / crack
+    passwords that time how long a string comparison takes to fail.
+
     """
     t0 = time.time()
     try:
@@ -55,12 +60,50 @@ def test_password(password, hash, minimum_runtime=0.05):
     return result
 
 
-    """
-    does a slow-as-possible compare of 2 strings, a and b
-    returns whether the two strings are equal
-    this is meant to confuse and slow down attempts to guess / crack
-    passwords that time how long a string comparison takes to fail.
-    """
+def get_credentials(envvar='ESCAN_CREDENTIALS'):
+    """look up credentials file (yaml format) from environment variable"""
+    conn = {}
+    credfile = os.environ.get(envvar, None)
+    if credfile is not None and os.path.exists(credfile):
+        with open(credfile, 'r') as fh:
+            text = fh.read()
+            text.replace('=', ': ')
+            conn = yaml.load(text, Loader=yaml.Loader)
+    return conn
+
+def json_encode(val):
+    "simple wrapper around json.dumps"
+    if val is None or isinstance(val, (str, unicode)):
+        return val
+    return  json.dumps(val)
+
+def isotime(dtime=None, sep=' '):
+    if dtime is None:
+        dtime = datetime.now()
+    return datetime.isoformat(dtime, sep=sep)
+
+def isotime2datetime(xisotime):
+    "convert isotime string to datetime object"
+    sdate, stime = xisotime.replace('T', ' ').split(' ')
+    syear, smon, sday = [int(x) for x in sdate.split('-')]
+    sfrac = '0'
+    if '.' in stime:
+        stime, sfrac = stime.split('.')
+    shour, smin, ssec  = [int(x) for x in stime.split(':')]
+    susec = int(1e6*float('.%s' % sfrac))
+    return datetime(syear, smon, sday, shour, smin, ssec, susec)
+
+def make_datetime(t=None, iso=False):
+    """unix timestamp to datetime iso format
+    if t is None, current time is used"""
+    if t is None:
+        dt = datetime.now()
+    else:
+        dt = datetime.utcfromtimestamp(t)
+    if iso:
+        return datetime.isoformat(dt)
+    return dt
+
 
 
 def isSimpleDB(dbname, required_tables=('info',)):
@@ -86,11 +129,6 @@ def isSimpleDB(dbname, required_tables=('info',)):
         for colname in ('key', 'value'):
             valid = valid and colname in info_keys
     return valid
-
-def isotime(dtime=None, sep=' '):
-    if dtime is None:
-        dtime = datetime.now()
-    return datetime.isoformat(dtime, sep=sep)
 
 class SimpleDB(object):
     """simple, common interface to Sqlite/Postgres databases
@@ -126,6 +164,8 @@ class SimpleDB(object):
         "connect to an existing database"
 
         self.dbname = dbname
+        if port is not None:
+            port = int(port)
         connect_args = {}
         if server.startswith('post') or server.startswith('pg'):
             server ='postgresql'
@@ -147,14 +187,14 @@ class SimpleDB(object):
         else:
             connect_str = f'{server}+{dialect}://{connect_str}'
 
-        # print("CONN ", connect_str, connect_args)
+        print("CONN ", connect_str, connect_args)
 
         self.engine = create_engine(connect_str, connect_args=connect_args)
         self.metadata = MetaData()
         try:
             self.metadata.reflect(bind=self.engine)
         except:
-            raise ValueError(f'{dnamme:s} is not a valid database' % dbname)
+            raise ValueError(f'{dbname:s} is not a valid database')
 
         tables = self.tables = self.metadata.tables
 
@@ -173,7 +213,10 @@ class SimpleDB(object):
             session.flush()
 
     def execute(self, query, set_modify_date=False):
-        """general execute of query, optionally setting 'modify date' and committing"""
+        """
+        general execute of query, optionally setting 'modify date'
+        and committing
+        """
         result = None
         with Session(self.engine) as session, session.begin():
             result = session.execute(query)
@@ -242,8 +285,6 @@ class SimpleDB(object):
                         xout = xout.value
                     out.append(cast(xout, as_int, as_bool))
         return out
-
-
 
     def set_modify_time(self):
         """set modify_date in info table"""
@@ -345,7 +386,6 @@ class SimpleDB(object):
         if result is not None and len(result) == 0 and none_if_empty:
             result = None
         return result
-
 
     def lookup(self, tablename, **kws):
         """
