@@ -31,7 +31,7 @@ def get_credentials(envvar='ESCAN_CREDENTIALS'):
     credfile = os.environ.get(envvar, None)
     if credfile is not None and os.path.exists(credfile):
         with open(credfile, 'rb') as fh:
-            text = str(from_bytes(fh.read()).best()).replace('=', ': ')
+            text = str(from_bytes(fh.read()).best())
             conn = yaml.load(text, Loader=yaml.Loader)
     return conn
 
