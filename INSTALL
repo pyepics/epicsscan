@@ -1,6 +1,34 @@
-Installation instructions for EpicsScan
+Installation and Getting Started for EpicsScan
+==============================================
 
-    pip install .
+To use EpicsScan, you'll need to
+  1. install this python package
+  2. set up a Postgresql relational database
+       a. create a database user
+       b. create an credentials file for this user.
+       c. create an "epics scan" database for this user.
+  3. configure which detectors and positioners to use.
+  4. start collecting data, using either Python scripts,
+     or the supplied graphical user interface.
+
+
+1. Install this package
+------------------------
+
+Install the Python Package with
+
+    pip install epicsscan
+
+2. Setup a Postgresql database for EpicsScan
+-----------------------------------------------
+
+You may need help from someone with system adminstrator rights.
+This sounds harder than it is.
+
+First, you'll need to have a postgresql server running on your network.
+
+
+  > createuser --createdb --createrole --pwprompt username
 
 Matt Newville <newville@cars.uchicago.edu>
-Last Update:  14-Aug-2024
+Last Update:  24-Aug-2024
