@@ -68,7 +68,7 @@ class ScanDB(SimpleDB):
     """
     Main Interface to Scans Database
     """
-    def __init__(self, dbname=None, server='sqlite', create=False, **kws):
+    def __init__(self, dbname=None, server='postgresql', create=False, **kws):
         if dbname is None:
             conndict = get_credentials(envvar='ESCAN_CREDENTIALS')
             if 'dbname' in conndict:
@@ -76,8 +76,6 @@ class ScanDB(SimpleDB):
             if 'server' in conndict:
                 server = conndict.pop('server')
             kws.update(conndict)
-        if server == 'sqlite3':
-            server = 'sqlite'
 
         self.dbname = dbname
         self.server = server
@@ -88,9 +86,9 @@ class ScanDB(SimpleDB):
         self.scandata = []
         self.restoring_pvs = []
         if create:
-            print("Would create newdb")
-        SimpleDB.__init__(self, dbname=self.dbname, server=self.server, **kws)
+            create_scandb(dbname, server=self.server, create=True, **kws)
 
+        SimpleDB.__init__(self, dbname=self.dbname, server=self.server, **kws)
 
         self.status_codes = {}
         self.status_names = {}
@@ -325,19 +323,12 @@ class ScanDB(SimpleDB):
         if isinstance(data, (int, float)):
             data = [data]
         where = "name='%s'" % name
-        # if self.server.startswith('sqli'):
-        #    data = json_encode(data)
         self.update('scandata', where={'name': name}, data=data)
 
     def append_scandata(self, name, val):
         tab = self.tables['scandata']
         row = self.get_rows('scandata', name=name, limit_one=True)
         n = len(row.data)
-        # if self.server.startswith('sqli'):
-        #     data = json.loads(tselect.execute().fetchone().data)
-        #     data.append(val)
-        #     tupdate.execute(data=json_encode(data))
-
         where = self.handle_where('scandata', where={'name': name})
         self.execute(tab.update(where=where).values(tab.c.data[n]==val),
                      set_modify_date=True)
@@ -519,18 +510,17 @@ class ScanDB(SimpleDB):
 
 
     # add PV to list of PVs
-    def add_pv(self, name, notes='', monitor=False):
+    def add_pv(self, name, notes=''):
         """add pv to PV table if not already there """
         if len(name) < 2:
             return
         name = pv_fullname(name)
         self.connect_pvs(names=[name])
         vals  = self.get_rows('pv', where={'name': name})
-        ismon = {False:0, True:1}[monitor]
         if len(vals) < 1:
-            self.insert('pv', name=name, notes=notes, is_monitor=ismon)
+            self.insert('pv', name=name, notes=notes)
         elif notes != '':
-            self.update('pv', where={'name': name}, notes=notes, is_monitor=ismon)
+            self.update('pv', where={'name': name}, notes=notes)
 
         pvrow = self.get_rows('pv', where={'name': name}, limit_one=true)
         return pvrow
