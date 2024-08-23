@@ -12,6 +12,7 @@ dependencies = [
     "numpy>=1.23,<2",
     "scipy>=1.7",
     "sqlalchemy>=2.0",
+    "sqlalchemy_utils",
     "psycopg2",
     "wxpython>=4.2.1",
     "wxmplot>=0.9.57",
@@ -62,10 +63,3 @@ include = ["epicsscan"]
 [tool.setuptools_scm]
 write_to = "epicsscan/version.py"
 version_scheme = "post-release"
-
-known_third_party = [
-    "pyepics", "sqlalchemy", "psycogp2", "asteval", "lmfit", "dill" ,
-    "matplotlib", "numpy",    "scipy",    "uncertainties",
-]
-
-known_first_party = [ "epicsscan" ]
