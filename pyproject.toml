@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "epicsscan"
+dynamic = ["version"]
+dependencies = [
+    "pyepics>=3.5.3",
+    "asteval>=1.0.2",
+    "lmfit>=1.2.0",
+    "numpy>=1.23,<2",
+    "scipy>=1.7",
+    "sqlalchemy>=2.0",
+    "psycopg2",
+    "wxpython>=4.2.1",
+    "wxmplot>=0.9.57",
+    "newportxps>=0.9",
+]
+
+requires-python = ">= 3.9"
+authors = [
+    {name = "Matthew Newville", email = "newville@cars.uchicago.edu"},
+]
+description = "Scanning and Data Acquistion with PyEpics"
+readme = "README.rst"
+license = {file = "LICENSE"}
+keywords = ["curve-fitting, least-squares minimization"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: Implementation :: CPython",
+]
+
+[project.urls]
+Homepage = "https://github.com/pyepics/epicsscan"
+Documentation = "https://github.com/pyepics/epicsscan"
+
+[project.optional-dependencies]
+dev = [
+     "build",
+     "twine",
+]
+doc = [
+     "matplotlib",
+     "Sphinx",
+]
+all = ["epicsscan[dev, doc]"]
+
+[tool.setuptools.packages.find]
+include = ["epicsscan"]
+
+[tool.setuptools_scm]
+write_to = "epicsscan/version.py"
+version_scheme = "post-release"
+
+known_third_party = [
+    "pyepics", "sqlalchemy", "psycogp2", "asteval", "lmfit", "dill" ,
+    "matplotlib", "numpy",    "scipy",    "uncertainties",
+]
+
+known_first_party = [ "epicsscan" ]
