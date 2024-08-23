@@ -26,8 +26,8 @@ port:  5432
 user:  db_user_name
 password: db_user_password
     """
-    conn = {'dbname': 'escandb', 'server': 'sqlite',
-            'host': 'localhost',  'port': '',
+    conn = {'dbname': 'escandb', 'server': 'postgresql',
+            'host': 'localhost',  'port': 5432,
             'user': '', 'password': '_invalid_password_'}
     if credfile is None:
         credfile = os.environ.get(envvar, None)
@@ -54,32 +54,8 @@ def isotime(dtime=None, sep=' '):
         dtime = datetime.now()
     return datetime.isoformat(dtime, sep=sep)
 
-def isSimpleDB(dbname, required_tables=('info',)):
-    """test if a file is a valid sqlite3 SimpleDB file
-    with tables listed in required_tables,
-
-    All DBs must have  an 'info' table with columns 'key' and 'value'
-    """
-
-    try:
-        engine  = create_engine('sqlite:///%s' % dbname)
-        metadata = MetaData()
-        metadata.reflect(bind=engine)
-    except:
-        return False
-
-    valid = 'info' in metadata.tables
-    if valid:
-        for tab_name in required_tables:
-            valid = valid and tab_name in metadata.tables
-
-        info_keys = metadata.tables['info'].columns.keys()
-        for colname in ('key', 'value'):
-            valid = valid and colname in info_keys
-    return valid
-
 class SimpleDB(object):
-    """simple, common interface to Sqlite/Postgres databases
+    """simple, common interface to Postgres/SQLite3 databases
 
     Intended as mixin class, with attributes:
 
@@ -98,7 +74,7 @@ class SimpleDB(object):
     get_rows()
 
     """
-    def __init__(self, dbname=None, server='sqlite', user='',
+    def __init__(self, dbname=None, server='postgresql', user='',
                  password='',  host='', port=5432, dialect=None, logfile=None):
         self.engine = None
         self.metadata = None
@@ -107,7 +83,7 @@ class SimpleDB(object):
             self.connect(dbname, server=server, user=user,
                          password=password, port=port, host=host, dialect=dialect)
 
-    def connect(self, dbname, server='sqlite', user='',
+    def connect(self, dbname, server='postgresql', user='',
                 password='', port=None, host='localhost', dialect=None):
         "connect to an existing database"
 
