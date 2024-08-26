@@ -8,12 +8,12 @@ import numpy as np
 import glob
 import epics
 
-from ..scandb import ScanDB, make_datetime
-from ..file_utils import fix_varname, nativepath
-from ..utils import (strip_quotes, plain_ascii, tstamp,
+from .scandb import ScanDB, make_datetime
+from .file_utils import fix_varname, nativepath
+from .utils import (strip_quotes, plain_ascii, tstamp,
                      ScanDBException, ScanDBAbort)
 
-from ..larch_interface import LarchScanDBServer, HAS_LARCH
+from .macro_interface import LarchScanDBServer, HAS_LARCH
 
 def command_complete(s, *args, **kws):
     return True
