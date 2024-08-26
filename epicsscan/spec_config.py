@@ -2,9 +2,8 @@
 
 import os
 import time
-from six.moves.configparser import  ConfigParser
-from six.moves import StringIO
-from collections import OrderedDict
+from configparser import  ConfigParser
+from io import StringIO
 from .file_utils import get_homedir, get_timestamp
 
 LEGEND     = '# index = label || PVname'
@@ -39,11 +38,8 @@ DEF_CONFFILE = os.path.join(get_homedir(), '.pyscan', 'pyscan_spec.ini')
 
 class SpecConfig(object):
     #  sections            name      ordered?
-    __sects = OrderedDict((('setup',     False),
-                           ('motors',    True),
-                           ('detectors', True),
-                           ('extra_pvs', True),
-                           ('counters',  True)))
+    __sects = {'setup': False, 'motors': True, 'detectors': True,
+                   'extra_pvs': True, 'counters': True}
 
     def __init__(self, filename=None, text=None):
         for s in self.__sects:
@@ -74,7 +70,7 @@ class SpecConfig(object):
                 continue
             thissect = {}
             if ordered:
-                thissect = OrderedDict()
+                thissect = {}
             for opt in self._cp.options(sect):
                 val = self._cp.get(sect, opt)
                 if '||' in val:

@@ -1,7 +1,7 @@
 import sys
 import socket
 import time
-import six
+import json
 from datetime import timedelta
 
 class ScanDBException(Exception):
@@ -27,6 +27,8 @@ def atGSECARS():
     hostname, aliaslist, ipaddrs = socket.gethostbyname_ex(socket.gethostname())
     hostname = socket.getfqdn()
     return 'cars.aps.anl.gov' in hostname.lower()
+
+
 
 def strip_quotes(t):
     d3, s3, d1, s1 = '"""', "'''", '"', "'"
@@ -69,12 +71,18 @@ def pv_fullname(name):
         return name
     return "%s.VAL" % name
 
-def asciikeys(adict):
-    """ensure a dictionary has ASCII keys (and so can be an **kwargs)"""
-    if six.PY2:
-        return dict((k.encode('ascii'), v) for k, v in adict.items())
+
+def json2ascii(inp):
+    """convert input unicode json text to pure ASCII/utf-8"""
+    if isinstance(inp, dict):
+        return dict([(json2ascii(k), json2ascii(v)) for k, v in inp.iteritems()])
+    elif isinstance(inp, list):
+        return [json2ascii(k) for k in inp]
+    elif isinstance(inp, unicode):
+        return inp.encode('utf-8')
     else:
-        return adict
+        return inp
+
 
 
 def read_oldscanfile(fname):

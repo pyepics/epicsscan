@@ -20,12 +20,9 @@ ScanFile supports several methods:
 which  can be overridden to create a new Output file type
 """
 import os
-import six
 import time
 import numpy as np
 import json
-from collections import OrderedDict
-
 from .file_utils import new_filename, get_timestamp, fix_filename
 
 COM1 = '#'
@@ -248,7 +245,7 @@ class ASCIIScanFile(ScanFile):
         "write extra PVS"
         out = ['%s ExtraPVs.Start: Family.Member: Value | PV' % COM1]
         for desc, pvname, val in self.scan.read_extra_pvs():
-            if not isinstance(val, six.string_types):
+            if not isinstance(val, str):
                 val = repr(val)
             # require a '.' in the description!!
             if '.' not in desc:

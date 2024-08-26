@@ -91,7 +91,6 @@ from threading import Thread
 import json
 import numpy as np
 import random
-import six
 
 from .file_utils import fix_varname, fix_filename, increment_filename
 
@@ -230,7 +229,7 @@ class StepScan(object):
 
     def add_counter(self, counter, label=None):
         "add simple counter"
-        if isinstance(counter, six.string_types):
+        if isinstance(counter, str):
             counter = Counter(counter, label)
         if counter not in self.counters:
             self.counters.append(counter)
@@ -240,7 +239,7 @@ class StepScan(object):
         "add simple detector trigger"
         if trigger is None:
             return
-        if isinstance(trigger, six.string_types):
+        if isinstance(trigger, str):
             trigger = Trigger(trigger, label=label, value=value)
         if trigger not in self.triggers:
             self.triggers.append(trigger)

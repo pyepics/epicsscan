@@ -11,9 +11,8 @@ the Extra PVs to be cached, and file directory names.
 
 import os
 import time
-from six.moves.configparser import  ConfigParser
-from six.moves import StringIO
-from collections import OrderedDict
+from configparser import  ConfigParser
+from io import StringIO
 from .file_utils import get_homedir, get_timestamp
 
 LEGEND     = '# index = label || PVname'
@@ -129,16 +128,15 @@ def dict2opts(d):
 
 class StationConfig(object):
     #  sections            name      ordered?
-    __sects = OrderedDict((('setup',       False),
-                           ('server',   False),
-                           ('positioners', True),
-                           ('detectors',   True),
-                           ('counters',    True),
-                           ('xafs',        False),
-                           ('slewscan',    False),
-                           ('slewscan_positioners',  True),
-                           ('extrapvs',   True),
-                           ))
+    __sects = {'setup': False,
+               'server': False,
+               'positioners': True,
+               'detectors':  True,
+                'counters':  True,
+                'xafs':   False,
+                'slewscan':  False,
+                'slewscan_positioners':  True,
+                'extrapvs':   True}
 
     def __init__(self, filename=None, text=None):
         for s in self.__sects:
@@ -178,7 +176,7 @@ class StationConfig(object):
             thissect = {}
             opt_keys = self._cp.options(sect)
             if ordered:
-                thissect = OrderedDict()
+                thissect = {}
                 opt_keys.sort()
             for opt in opt_keys:
                 val = self._cp.get(sect, opt)
