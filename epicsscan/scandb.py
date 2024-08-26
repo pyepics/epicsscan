@@ -21,7 +21,7 @@ import epics
 from .scandb_schema import create_scandb
 from .simpledb import SimpleDB, isotime
 
-from .utils import (normalize_pvname, asciikeys, pv_fullname,
+from .utils import (normalize_pvname, pv_fullname,
                     ScanDBException, ScanDBAbort)
 from .create_scan import create_scan
 
@@ -248,7 +248,7 @@ class ScanDB(SimpleDB):
         sobj = self.get_scandef(scanname)
         if sobj is None:
             raise ScanDBException('get_scandict needs valid scan name')
-        return json.loads(sobj.text, object_hook=asciikeys)
+        return json.loads(sobj.text)
 
     def make_scan(self, scanname, filename='scan.001',
                   data_callback=None, larch=None):
@@ -270,7 +270,7 @@ class ScanDB(SimpleDB):
             raise ScanDBException("make.scan(): '%s' not a valid scan name" % scanname)
 
         if 'rois' not in sdict:
-            sdict['rois'] = json.loads(self.get_info('rois'), object_hook=asciikeys)
+            sdict['rois'] = json.loads(self.get_info('rois'))
         sdict['filename'] = filename
         sdict['scandb'] = self
         sdict['larch'] = larch
