@@ -13,26 +13,21 @@ from .file_utils import fix_varname, nativepath
 from .utils import (strip_quotes, plain_ascii, tstamp,
                      ScanDBException, ScanDBAbort)
 
-from .macro_interface import LarchScanDBServer, HAS_LARCH
+from .macro_kernel import MacroKernel
 
 def command_complete(s, *args, **kws):
     return True
 
-if HAS_LARCH:
-    from larch.inputText import is_complete as command_complete
-
 from .epics_scandb import EpicsScanDB
-from .abort_slewscan import abort_slewscan
+# from .abort_slewscan import abort_slewscan
 
 DEBUG_TIMER = False
 
 class ScanServer():
-    def __init__(self, dbname=None, _larch=None,  **kws):
+    def __init__(self, dbname=None,  **kws):
         self.epicsdb = None
         self.scandb = None
         self.abort = False
-        self.larch = None
-        self.larch_modules = {}
         self.command_in_progress = False
         self.req_shutdown = False
         self.connect(dbname, **kws)
@@ -48,14 +43,12 @@ class ScanServer():
         self.scandb.set_info('request_shutdown', 0)
         self.set_path()
 
-        if HAS_LARCH:
-            self.larch = LarchScanDBServer(self.scandb)
-            self.set_scan_message('Server Loading Larch Macros')
-            time.sleep(0.05)
-            current_macros = self.larch.load_macros()
-            self.set_scan_message('Server Connected.')
-            if 'startup' in current_macros:
-                self.scandb.add_command("startup()")
+        self.eval = MacroKernel(self.scandb)
+        time.sleep(0.05)
+        current_macros = self.eval.load_macros()
+        self.set_scan_message('Server Connected.')
+        if 'startup' in current_macros:
+            self.scandb.add_command("startup()")
 
         eprefix = self.scandb.get_info('epics_status_prefix')
         basedir = self.scandb.get_info('server_fileroot')
@@ -160,45 +153,41 @@ class ScanServer():
             self.scandb.set_info('error_message',   '')
             self.scandb.set_command_status('running', cmdid=req.id)
             self.set_scan_message('Server reloading macros..')
-            if HAS_LARCH:
-                self.larch.load_macros()
-            else:
-                self.scandb.set_info('error_message',  'Macro system not available')
+            self.eval.load_macros()
             self.scandb.set_command_status('finished', cmdid=req.id)
         else:
             if len(args) == 0:
-                larch_cmd = command
+                cmd = command
             else:
-                larch_cmd = "%s(%s)" % (command, args)
+                cmd = "%s(%s)" % (command, args)
             self.scandb.set_info('scan_progress', 'running')
             self.scandb.set_info('error_message',   '')
-            self.scandb.set_info('current_command', larch_cmd)
+            self.scandb.set_info('current_command', cmd)
             self.scandb.set_info('current_command_id', req.id)
             self.set_status('running')
             self.scandb.set_command_status('running', cmdid=req.id)
             if self.epicsdb is not None:
                 self.epicsdb.cmd_id = req.id
-                self.epicsdb.command = larch_cmd
+                self.epicsdb.command = cmd
 
             msg = 'done'
-            if HAS_LARCH:
-                try:
-                    print("<%s>%s" % (tstamp(), larch_cmd))
-                    out = self.larch.run(larch_cmd)
-                except:
-                    pass
-                status, msg = 'finished', 'scan complete'
-                err = self.larch.get_error()
-                if len(err) > 0:
-                    err = err[0]
-                    exc_type, exc_val, exc_tb = err.exc_info
-                    if 'ScanDBAbort' in repr( exc_type):
-                        status = 'aborted'
-                        msg = 'scan aborted'
-                    else:
-                        emsg = '\n'.join(err.get_error())
-                        self.scandb.set_info('error_message', emsg)
-                        msg = 'scan completed with error'
+            try:
+                print("<%s>%s" % (tstamp(), cmd))
+                out = self.eval.run(cmd)
+            except:
+                pass
+            status, msg = 'finished', 'scan complete'
+            err = self.eval.get_error()
+            if len(err) > 0:
+                err = err[0]
+                exc_type, exc_val, exc_tb = err.exc_info
+                if 'ScanDBAbort' in repr( exc_type):
+                    status = 'aborted'
+                    msg = 'scan aborted'
+                else:
+                    emsg = '\n'.join(err.get_error())
+                    self.scandb.set_info('error_message', emsg)
+                    msg = 'scan completed with error'
             time.sleep(0.1)
             self.scandb.set_info('scan_progress', msg)
             self.scandb.set_command_status(status, cmdid=req.id)
@@ -217,16 +206,13 @@ class ScanServer():
         """re-set interrupt requests:
         abort / pause / resume
         if scandb is being used, these are looked up from database.
-        otherwise local larch variables are used.
+        otherwise local Macro variables are used.
         """
         self.req_abort = self.req_pause = False
         self.scandb.set_info('request_abort', 0)
         self.scandb.set_info('request_pause', 0)
 
     def mainloop(self):
-        if self.larch is None:
-            raise ValueError("Scan server not connected!")
-
         self.set_status('idle')
         msgtime = time.time()
         self.set_scan_message('Server Ready')
@@ -274,7 +260,7 @@ class ScanServer():
                 if len(reqs) > 0:
                     req = reqs[0]
                     self.scandb.set_command_status('aborted', cmdid=req.id)
-                    abort_slewscan()
+                    # abort_slewscan()
                     reqs = []
                 if self.epicsdb is not None:
                     self.epicsdb.Abort = 0
