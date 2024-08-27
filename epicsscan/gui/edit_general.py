@@ -36,8 +36,9 @@ class SettingsPanel(scrolled.ScrolledPanel):
         ir = 2
 
         expt_data = {}
-        for row in scandb.get_info(prefix='experiment_', order_by='display_order',
-                                   full_row=True):
+        expt_rows = scandb.get_info(prefix='experiment_',
+                                    order_by='display_order', full_row=True)
+        for name, row in expt_rows.items():
             value = row.value
             if value is None:
                 value = ''

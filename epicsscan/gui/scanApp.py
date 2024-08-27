@@ -54,7 +54,7 @@ from .gui_utils import (SimpleText, FloatCtrl, pack, add_button,
                         FileSave, LEFT, CEN, FRAMESTYLE, FNB_STYLE,
                         Font, GUIColors, flatnotebook)
 
-from ..utils import normalize_pvname, read_oldscanfile, atGSECARS
+from ..utils import normalize_pvname, atGSECARS
 
 from ..xafs_scan import XAFS_Scan
 
@@ -65,7 +65,7 @@ from ..scandb import ScanDB
 from .scan_panels import (LinearScanPanel, MeshScanPanel,
                           SlewScanPanel,  XAFSScanPanel)
 
-from ..larch_interface import LarchScanDBServer, larch
+from ..macro_kernel import MacroKernel
 
 from ..positioner import Positioner
 from ..detectors import (SimpleDetector, ScalerDetector, McaDetector,
@@ -149,7 +149,7 @@ class ScanFrame(wx.Frame):
 
         self.pvlist = {}
         self.subframes = {}
-        self._larch = None
+        self.mkernel = None
 
         self.last_scanname = ''
         self.scan_started = False
@@ -173,10 +173,10 @@ class ScanFrame(wx.Frame):
         self.scantimer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.onScanTimer, self.scantimer)
 
-        self._larch = LarchScanDBServer(self.scandb)
-        self._larch.load_macros()
-        self._larch.set_symbol('_sys.wx.wxapp', wx.GetApp())
-        self._larch.set_symbol('_sys.wx.parent', self)
+        self.mkernel = MacroKernel(self.scandb)
+        self.mkernel.load_macros()
+        self.mkernel.set_symbol('_sys.wx.wxapp', wx.GetApp())
+        self.mkernel.set_symbol('_sys.wx.parent', self)
         self.statusbar.SetStatusText('Larch Ready')
 
         try:
@@ -188,7 +188,7 @@ class ScanFrame(wx.Frame):
         for span in self.nb.pagelist:
             if hasattr(span, 'initialize_positions'):
                 span.initialize_positions()
-                span.larch = self._larch
+                span.mkernel = self.mkernel
 
         self.statusbar.SetStatusText('', 0)
         self.statusbar.SetStatusText('Ready', 1)
@@ -564,7 +564,7 @@ class ScanFrame(wx.Frame):
                 del self.subframes[name]
         if not shown:
             self.subframes[name] = frameclass(self, scandb=self.scandb,
-                                              _larch=self._larch)
+                                              mkernel=self.mkernel)
             if self._icon is not None:
                 self.subframes[name].SetIcon(self._icon)
 

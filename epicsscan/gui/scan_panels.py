@@ -20,8 +20,11 @@ from .gui_utils import (GUIColors, SimpleText, FloatCtrl, HyperText,
                         pack, add_choice, hms, check, LEFT, RIGHT,
                         CEN, add_button)
 
-from .. import etok, ktoe, XAFS_Scan, StepScan, Positioner, Counter
 from ..utils import normalize_pvname, atGSECARS
+from ..xafs_scan import etok, ktoe, XAFS_Scan
+from ..scan import StepScan
+from ..positioner import Positioner
+from ..detectors import Counter
 
 # Max number of points in scan
 MAX_NPTS = 8000
@@ -42,12 +45,12 @@ ELEM_LIST = ('H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na',
 class GenericScanPanel(scrolled.ScrolledPanel):
     __name__ = 'genericScan'
 
-    def __init__(self, parent, scandb=None, pvlist=None, larch=None,
+    def __init__(self, parent, scandb=None, pvlist=None, macro_kernel=None,
                  title='?', size=(800, 425), style=wx.GROW|wx.TAB_TRAVERSAL):
         self.scantype = 'linear'
         self.scandb = scandb
         self.pvlist = pvlist
-        self.larch = larch
+        self.mkernel = macro_kernel
         self.parent = parent
         scrolled.ScrolledPanel.__init__(self, parent,
                                         size=size, style=style,
@@ -971,8 +974,8 @@ class XAFSScanPanel(GenericScanPanel):
     def onEdgeChoice(self, evt=None):
         edge = self.edgechoice.GetStringSelection()
         elem = self.elemchoice.GetStringSelection()
-        if self.larch is not None:
-            e0val = self.larch.run("xray_edge('%s', '%s')" % (elem, edge))
+        if self.mkernel is not None:
+            e0val = self.mkernel.run("xray_edge('%s', '%s')" % (elem, edge))
             self.e0.SetValue(e0val[0])
             self.set_scan_message("Warning: Check ROIs for '%s %sa' (use Ctrl-R)" % (elem, edge))
 

@@ -21,7 +21,7 @@ import wx.lib.mixins.inspection
 import epics
 from epics.wx import DelayedEpicsCallback, EpicsFunction
 
-from ..larch_interface import LarchScanDBServer
+from ..macro_kernel import MacroKernel
 
 from wxmplot import PlotFrame, PlotPanel
 from ..datafile import StepScanData
@@ -53,7 +53,7 @@ class ScanViewerFrame(wx.Frame):
 
     def __init__(self, parent, dbname=None, server='sqlite',
                  host=None, port=None, user=None, password=None,
-                 create=True, _larch=None, scandb=None, **kws):
+                 create=True, macrokernel=None, scandb=None, **kws):
 
         wx.Frame.__init__(self, None, -1, style=FRAMESTYLE)
         title = "Epics Step Scan Viewer"
@@ -63,15 +63,7 @@ class ScanViewerFrame(wx.Frame):
             self.scandb = ScanDB(dbname=dbname, server=server, host=host,
                                  user=user, password=password, port=port,
                                  create=create)
-        self.larch = _larch
-        if _larch is None:
-            self.larch = LarchScanDBServer(self.scandb)
-
-        self.lgroup = None
-        self.larch.run("%s = group(filename='%s')" % (SCANGROUP, CURSCAN))
-        self.larch.run("_sys.localGroup = %s" % (SCANGROUP))
-        # self.larch.run("show(_sys)")
-        self.lgroup =  self.larch.get_symbol(SCANGROUP)
+        self.mkernel = macrokernel
         self.last_cpt = -1
         self.force_newplot = False
         self.scan_inprogress = False
@@ -391,10 +383,8 @@ class ScanViewerFrame(wx.Frame):
         ylabel, yexpr = make_array(self.yops, 0)
         if yexpr == '':
             return
-        self.larch.run("%s.arr_x = %s.%s" % (gname, gname, x))
-        self.larch.run("%s.arr_y1 = %s"   % (gname, yexpr))
-        # print(" on Plot ", "%s.arr_y1 = %s"   % (gname, yexpr))
-        # print(" on Plot ", len(lgroup.arr_x), len(lgroup.arr_y1))
+        self.mkernel.run("%s_arr_x = %s_%s" % (gname, gname, x))
+        self.mkernel.run("%s_arr_y1 = %s"   % (gname, yexpr))
         try:
             npts = min(len(lgroup.arr_x), len(lgroup.arr_y1))
         except AttributeError:
@@ -402,7 +392,7 @@ class ScanViewerFrame(wx.Frame):
 
         y2label, y2expr = make_array(self.yops, 1)
         if y2expr != '':
-            self.larch.run("%s.arr_y2 = %s" % (gname, y2expr))
+            self.mkernel.run("%s.arr_y2 = %s" % (gname, y2expr))
             n2pts = npts
             try:
                 n2pts = min(len(lgroup.arr_x), len(lgroup.arr_y1),
