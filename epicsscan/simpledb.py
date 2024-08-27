@@ -193,8 +193,6 @@ class SimpleDB(object):
             thisrow = None if len(allrows)==0 else allrows[0]
             out = None
             if thisrow is None:
-                if key is not None: # will add to info
-                    self.set_info(key, default)
                 out = default
             else:
                 out = thisrow
