@@ -146,14 +146,16 @@ class SimpleDB(object):
         with Session(self.engine) as session, session.begin():
             result = session.execute(query)
             if set_modify_date:
-                session.execute(self.set_info('modify_date', isotime(),
-                                              do_execute=False))
+                q = self.set_info('modify_date', isotime(), do_execute=False)
+                if q is not None:
+                    session.execute(q)
             session.flush()
         return result
 
     def set_info(self, key, value, with_modify_time=True, do_execute=True):
         """set key / value in the info table
-        do_execute=False to avoid executing, and only return query
+
+        use do_execute=False to avoid executing, and return the query
         """
         tab = self.tables['info']
         val = self.get_rows('info', where={'key': key}, none_if_empty=True)
@@ -167,8 +169,8 @@ class SimpleDB(object):
             query = tab.update().where(tab.c.key==key).values(**ivals)
         if do_execute:
             self.execute(query, set_modify_date=True)
+            return
         return query
-
 
     def get_info(self, key=None, default=None, prefix=None, as_int=False,
                  as_bool=False, order_by='modify_time', full_row=False):
@@ -190,23 +192,27 @@ class SimpleDB(object):
             return val
 
         if prefix is None:
-            thisrow = None if len(allrows)==0 else allrows[0]
-            out = None
-            if thisrow is None:
-                out = default
-            else:
-                out = thisrow
+            if len(allrows) == 1:
+                xout = allrows[0]
                 if not full_row:
-                    out = out.value
-            out = cast(out, as_int, as_bool)
+                    xout = xout.value
+                out = cast(xout, as_int, as_bool)
+            else:
+                out = {}
+                for row in allrows:
+                    xout = row
+                    if not full_row:
+                        xout = xout.value
+                    out[row.key] = cast(xout, as_int, as_bool)
         else:
-            out = []
+            out = {}
             for row in allrows:
                 if row.key.startswith(prefix):
                     xout = row
                     if not full_row:
                         xout = xout.value
-                    out.append(cast(xout, as_int, as_bool))
+                    out[row.key] = cast(xout, as_int, as_bool)
+
         return out
 
     def set_modify_time(self):
