@@ -43,11 +43,10 @@ class ScanServer():
         self.scandb.set_info('request_shutdown', 0)
         self.set_path()
 
-        self.eval = MacroKernel(self.scandb)
+        self.mkernel = MacroKernel(self.scandb, load_macros=True)
         time.sleep(0.05)
-        current_macros = self.eval.load_macros()
         self.set_scan_message('Server Connected.')
-        if 'startup' in current_macros:
+        if 'startup' in self.mkernel.get_macros():
             self.scandb.add_command("startup()")
 
         eprefix = self.scandb.get_info('epics_status_prefix')
@@ -91,41 +90,43 @@ class ScanServer():
         self.scandb.set_path()
         self.fileroot = self.scandb.get_info('server_fileroot')
 
-    def do_command(self, req):
+    def do_command(self, cmd_row):
+        """execute a single command: a row from the commands table"""
         self.set_path()
-        cmd_stat = self.scandb.get_command_status(req.id).lower()
+        cmdid = cmd_row.id
+        command = plain_ascii(cmd_row.command)
+
+        cmd_stat = self.scandb.get_command_status(cmdid).lower()
         if str(cmd_stat) not in ('requested', 'starting', 'running', 'aborting'):
-            msg = "Warning: skipping command <%s> status=%s"
-            self.set_scan_message(msg % repr(req.command), cmd_stat )
-            self.scandb.set_command_status('canceled', cmdid=req.id)
+            msg = f"Warning: skipping command <{command}s> status={cmd_stat}"
+            self.set_scan_message(msg)
+            self.scandb.set_command_status('canceled', cmdid=cmdid)
             return
 
-        if req.command in (None, 'None', ''):
-            self.scandb.set_command_status('canceled', cmdid=req.id)
+        if len(command) < 1 or command in (None, 'None', ''):
+            self.scandb.set_command_status('canceled', cmdid=cmdid)
+            return
 
-        workdir = self.scandb.get_info('user_folder')
+        workdir = plain_ascii(self.scandb.get_info('user_folder'))
         if self.epicsdb is not None:
-            self.epicsdb.workdir = plain_ascii(workdir)
+            self.epicsdb.workdir = workdir
 
-        command = plain_ascii(req.command)
-        if len(command) < 1 or command == 'None':
-            return
 
         if not command_complete(command):
-            self.set_scan_message("Error:  command <%s> is incomplete (missing paren or quote?)." % repr(command))
-            self.scandb.set_command_status('canceled', cmdid=req.id)
+            self.set_scan_message(f"Error:  command <command> is incomplete")
+            self.scandb.set_command_status('canceled', cmdid=cmdid)
             return
 
         self.command_in_progress = True
         self.set_status('starting')
-        self.scandb.set_command_status('starting', cmdid=req.id)
-        self.set_scan_message("Executing:  %s" % repr(req.command))
+        self.scandb.set_command_status('starting', cmdid=cmdid)
+        self.set_scan_message(f"Executing: <{command}>")
 
-        args    = strip_quotes(plain_ascii(req.arguments)).strip()
-        notes   = strip_quotes(plain_ascii(req.notes)).strip()
-        nrepeat = int(req.nrepeat)
+        args    = strip_quotes(plain_ascii(cmd_row.arguments)).strip()
+        notes   = strip_quotes(plain_ascii(cmd_row.notes)).strip()
+        nrepeat = int(cmd_row.nrepeat)
 
-        filename = req.output_file
+        filename = cmd_row.output_file
         if filename is None:
             filename = ''
         filename = strip_quotes(plain_ascii(filename))
@@ -151,10 +152,10 @@ class ScanServer():
             self.scandb.set_info('request_shutdown', 1)
         elif command.lower().startswith('load_macro'):
             self.scandb.set_info('error_message',   '')
-            self.scandb.set_command_status('running', cmdid=req.id)
+            self.scandb.set_command_status('running', cmdid=cmdid)
             self.set_scan_message('Server reloading macros..')
-            self.eval.load_macros()
-            self.scandb.set_command_status('finished', cmdid=req.id)
+            self.mkernel.load_macros()
+            self.scandb.set_command_status('finished', cmdid=cmdid)
         else:
             if len(args) == 0:
                 cmd = command
@@ -163,21 +164,21 @@ class ScanServer():
             self.scandb.set_info('scan_progress', 'running')
             self.scandb.set_info('error_message',   '')
             self.scandb.set_info('current_command', cmd)
-            self.scandb.set_info('current_command_id', req.id)
+            self.scandb.set_info('current_command_id', cmdid)
             self.set_status('running')
-            self.scandb.set_command_status('running', cmdid=req.id)
+            self.scandb.set_command_status('running', cmdid=cmdid)
             if self.epicsdb is not None:
-                self.epicsdb.cmd_id = req.id
+                self.epicsdb.cmd_id = cmdid
                 self.epicsdb.command = cmd
 
             msg = 'done'
             try:
-                print("<%s>%s" % (tstamp(), cmd))
-                out = self.eval.run(cmd)
+                # print(f"[{tstamp()}] <{cmd}>")
+                out = self.mkernel.run(cmd)
             except:
                 pass
             status, msg = 'finished', 'scan complete'
-            err = self.eval.get_error()
+            err = self.mkernel.get_error()
             if len(err) > 0:
                 err = err[0]
                 exc_type, exc_val, exc_tb = err.exc_info
@@ -190,7 +191,7 @@ class ScanServer():
                     msg = 'scan completed with error'
             time.sleep(0.1)
             self.scandb.set_info('scan_progress', msg)
-            self.scandb.set_command_status(status, cmdid=req.id)
+            self.scandb.set_command_status(status, cmdid=cmdid)
         self.set_status('idle')
         self.command_in_progress = False
 
@@ -217,15 +218,7 @@ class ScanServer():
         msgtime = time.time()
         self.set_scan_message('Server Ready')
         is_paused = False
-
-        # we're going to be doing a lot of reading of the 'commands'
-        # table in scandb, so we pre-compile the query to get the
-        # requested commands, in order.
-        session = self.scandb.get_session()
         request_id = self.scandb.status_codes['requested']
-        tab = self.scandb.tables['commands']
-        cmd_query = tab.select().where(tab.c.status_id==request_id
-                                       ).order_by(tab.c.run_order)
 
         # Note: this loop is really just looking for new commands
         # or interrupts, so does not need to go super fast.
@@ -246,13 +239,16 @@ class ScanServer():
                 self.scandb.set_info('heartbeat', tstamp())
                 if self.epicsdb is not None:
                     self.epicsdb.setTime()
-            # if pauses, continue loop
+
+            # if paused, continue loop
             if self.req_pause:
-                time.sleep(1.0)
+                time.sleep(0.50)
                 continue
 
             # get ordered list of requested commands
-            reqs = session.execute(cmd_query).fetchall()
+            reqs = self.scandb.get_rows('commands',
+                                        status=request_id,
+                                        order_by='run_order')
 
             # abort command?
             if (self.req_abort or (self.epicsdb is not None
@@ -271,7 +267,7 @@ class ScanServer():
             if len(reqs) > 0:
                 self.do_command(reqs[0])
             else:
-                time.sleep(0.5)
+                time.sleep(0.25)
         # mainloop end
         self.finish()
         return None
