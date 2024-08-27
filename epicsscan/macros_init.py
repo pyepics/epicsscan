@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+"""
+Macro symbols and builtin function for EpicsScan MacroKernel
+
+"""
+
 import numpy as np
 import scipy.constants as consts
 
@@ -10,6 +16,19 @@ from xraydb import (atomic_density, atomic_mass, atomic_name, atomic_number,
           material_mu_components, mirror_reflectivity, mu_chantler, mu_elam,
           xray_delta_beta, xray_edge, xray_edges, xray_line, xray_lines)
 
+__all__ = ['caget', 'caput', 'get_pv', 'PV', 'consts', 'etok', 'ktoe', 'AMU',
+           'ATOM_NAMES', 'ATOM_SYMS', 'AVOGADRO', 'DEG2RAD', 'E_MASS', 'PI',
+           'PLANCK_HBARC', 'PLANCK_HC', 'RAD2DEG', 'RYDBERG', 'R_ELECTRON_ANG',
+           'R_ELECTRON_CM', 'SI_PREFIXES', 'TAU', 'XAFS_KTOE',
+           'atomic_density', 'atomic_mass', 'atomic_name', 'atomic_number',
+           'atomic_symbol', 'chemparse', 'core_width', 'darwin_width', 'f0',
+           'f1_chantler', 'f2_chantler', 'fluor_yield', 'get_material',
+           'guess_edge', 'index_nearest', 'index_of', 'ionchamber_fluxes',
+           'ionization_potential', 'material_mu', 'material_mu_components',
+           'mirror_reflectivity', 'mu_elam', 'xray_delta_beta', 'xray_edge',
+           'xray_edges', 'xray_line', 'xray_lines', 'get_dbinfo', 'set_dbinfo',
+           'check_scan_abort', 'scan_from_db', 'do_scan', 'move_instrument',
+           'move_samplestage']
 
 physical_constants = consts.physical_constants
 
@@ -41,8 +60,8 @@ RYDBERG = consts.Rydberg * consts.Planck * consts.c/ consts.e
 R_ELECTRON_CM  = 100.0 * consts.physical_constants['classical electron radius'][0]
 R_ELECTRON_ANG = 1.e8 * R_ELECTRON_CM
 
-#
-XAFS_KTOE = 1.e20*consts.hbar**2 / (2*consts.m_e * consts.e) # 3.8099819442818976
+# XAFS K to E # 3.8099819442818976
+XAFS_KTOE = 1.e20*consts.hbar**2 / (2*consts.m_e * consts.e)
 
 # will be able to import these from xraydb when v 4.5.1 is required
 ATOM_SYMS = ['H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na', 'Mg',
@@ -160,3 +179,122 @@ def index_nearest(array, value):
 
     """
     return np.abs(array-value).argmin()
+
+
+def scan_from_db(scanname, filename="scan.001"):
+    """
+    get scan definition from ScanDB by name
+    """
+    try:
+        scan = _scandb.make_scan(scanname)
+        scan.filename = filename
+    except ScanDBException:
+        raise ScanDBException(f"no scan definition '{scanname}' found")
+    return scan
+
+def do_scan(scanname, filename="scan.001", nscans=1, comments=""):
+    """do_scan(scanname, filename="scan.001", nscans=1, comments="")
+
+    execute a step scan as defined in Scan database
+
+    Arguments
+    ---------
+    scanname (string):  name of scan
+    filename (string):  name of output data file ['scan.001']
+    comments (string): user comments for file ['']
+    nscans (integr):   number of repeats to make. [1]
+
+    Examples
+    --------
+      do_scan("cu_xafs", "cu_sample1.001", nscans=3)
+
+    Notes
+    -----
+      1. The filename will be incremented so that each scan uses a new filename.
+    """
+    if nscans is not None:
+        _scandb.set_info("nscans", nscans)
+
+    scan = scan_from_db(scanname, filename=filename)
+    scan.comments = comments
+    if scan.scantype == "slew":
+        return scan.run(filename=filename, comments=comments)
+    else:
+        scans_completed = 0
+        nscans = int(_scandb.get_info("nscans"))
+        abort  = _scandb.get_info("request_abort", as_bool=True)
+        while (scans_completed  < nscans) and not abort:
+            scan.run()
+            scans_completed += 1
+            nscans = int(_scandb.get_info("nscans"))
+            abort  = _scandb.get_info("request_abort", as_bool=True)
+        return scan
+
+def get_dbinfo(key, default=None, as_bool=False, as_int=False, full_row=False):
+    """get a value for a keyword in the scan info table,
+    where most status information is kept.
+
+    Arguments
+    ---------
+     key        name of data to look up
+     default    (default None) value to return if key is not found
+     as_bool    (default False) convert to bool
+     as_int     (default False) convert to int
+     full_row   (default False) return full row, not just value
+
+    Notes
+    -----
+     1.  if this key doesn"t exist, it will be added with the default
+         value and the default value will be returned.
+     2.  the full row will include notes, create_time, modify_time
+
+    """
+    return _scandb.get_info(key, default=default, full_row=full_row,
+                            as_int=as_int, as_bool=as_bool)
+
+def set_dbinfo(key, value, notes=None, **kws):
+    """set a value for a keyword in the scan info table."""
+    return _scandb.set_info(key, value, notes=notes)
+
+def check_scan_abort():
+    """returns whether Abort has been requested"""
+    return get_dbinfo('request_abort', as_bool=True)
+
+def move_instrument(inst_name, position_name, wait=True, timeout=60.0):
+    """move an Epics Instrument to a named position
+
+    Arguments
+    ---------
+    inst_name (string):     name of Epics Instrument
+    position_name (string): name of position for the Instrument
+    wait (True or False):   whether to wait for move to complete [True]
+    timeout (float):        time in seconds to give up waiting [60]
+
+    Examples
+    -------
+       move_instrument('Double H Mirror Stripes', 'platinum', wait=True)
+
+    """
+    _instdb.restore_position(inst_name, position_name, wait=wait, timeout=timeout)
+
+def move_samplestage(position_name, wait=True, timeout=60.0):
+    """move Instrument for Samplestage to a named position
+
+    Arguments
+    ---------
+    position_name (string): name of sample position
+    wait (True or False):   whether to wait for move to complete [True]
+    timeout (float):        time in seconds to give up waiting [60]
+
+    Notes
+    -----
+     the instrument for the sample will be fetched from
+             _scandb.get_info('samplestage_instrument')
+
+    Examples
+    --------
+        move_sample('Map1 positionA', wait=True)
+
+    """
+    inst_name = _scandb.get_info('samplestage_instrument')
+    _instdb.restore_position(inst_name, position_name, wait=wait, timeout=timeout)
