@@ -21,7 +21,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
                 pos_settle_time=0.01, det_settle_time=0.01, scantime=None,
                 elem=None, edge=None, e0=None, dimension=1, regions=None,
                 energy_drive=None, energy_read=None, time_kw=0, max_time=0,
-                is_relative=False, scandb=None, larch=None, data_callback=None, **kws):
+                is_relative=False, scandb=None, mkernel=None, data_callback=None, **kws):
     """
     return a StepScan object, built from function arguments
 
@@ -185,7 +185,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
 
     scan.rois = rois
     scan.scandb = scandb
-    scan.larch = larch
+    scan.mkernel = mkernel
     scan.scantype = scantype
     scan.filename = filename
     scan.scantime = scantime

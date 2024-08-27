@@ -155,7 +155,7 @@ class StepScan(object):
     """
     def __init__(self, filename=None, auto_increment=True, comments=None,
                  messenger=None, data_callback=None, scandb=None,
-                 prescan_func=None, postscan_func=None, larch=None, **kws):
+                 prescan_func=None, postscan_func=None, mkernel=None, **kws):
 
         self.pos_settle_time = MIN_POLL_TIME
         self.det_settle_time = MIN_POLL_TIME
@@ -170,7 +170,7 @@ class StepScan(object):
         self.scantype = 'linear'
         self.detmode  = SCALER_MODE
         self.scandb = scandb
-        self.larch = larch
+        self.mkernel = mkernel
         self.prescan_func = prescan_func
         self.postscan_func = postscan_func
         self.verified = False
@@ -301,9 +301,9 @@ class StepScan(object):
         out = [m(breakpoint=breakpoint) for m in self.at_break_methods]
         if self.datafile is not None:
             self.datafile.write_data(breakpoint=breakpoint)
-        if self.larch is not None:
+        if self.mkernel is not None:
             try:
-                self.larch.run("pre_scan_command()")
+                self.mkernel.run("pre_scan_command()")
             except:
                 self.write("Failed to run pre_scan_command()\n")
         return out
@@ -339,12 +339,12 @@ class StepScan(object):
                 ret = None
             out.append(ret)
         dtimer.add('pre_scan ran local prescan')
-        if self.larch is not None:
+        if self.mkernel is not None:
             try:
-                self.larch.run("pre_scan_command(row=%i)" % row)
+                self.mkernel.run("pre_scan_command(row=%i)" % row)
             except:
                 self.write("Failed to run pre_scan_command()\n")
-        dtimer.add('pre_scan ran larch prescan')
+        dtimer.add('pre_scan ran macro prescan')
         # dtimer.show()
         return out
 
@@ -371,9 +371,9 @@ class StepScan(object):
                 ret = None
             out.append(ret)
 
-        if self.larch is not None:
+        if self.mkernel is not None:
             try:
-                self.larch.run("post_scan_command(row=%i)" % row)
+                self.mkernel.run("post_scan_command(row=%i)" % row)
             except:
                 self.write("Failed to run post_scan_command()\n")
         self.set_info('scan_progress', 'finishing')

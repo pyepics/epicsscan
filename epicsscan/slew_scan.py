@@ -28,12 +28,12 @@ class Slew_Scan(StepScan):
     """Slew Scans"""
     def __init__(self, filename=None, auto_increment=True,
                  comments=None, messenger=None, scandb=None,
-                 prescan_func=None, larch=None, **kws):
+                 prescan_func=None, mkernel=None, **kws):
 
         StepScan.__init__(self, auto_increment=auto_increment,
                           comments=comments, messenger=messenger,
                           scandb=scandb, **kws)
-        self.larch = larch
+        self.mkernel = mkernel
         self.scantype = 'slew'
         self.detmode  = 'ndarray'
         self.motor_vals = {}
@@ -402,14 +402,14 @@ class Slew_Scan(StepScan):
             if debug:
                 print("# Row %i of %i trajectory='%s'" % (irow, npts, trajname))
 
-            if self.larch is not None:
+            if self.mkernel is not None:
                 now = time.time()
                 prescan_lasttime = float(self.scandb.get_info('prescan_lasttime'))
                 prescan_interval = float(self.scandb.get_info('prescan_interval'))
                 run_prescan = (now > prescan_lasttime + prescan_interval)
                 if run_prescan:
                     try:
-                        self.larch.run("pre_scan_command(row=%i, npts=%i)" % (irow, npts))
+                        self.mkernel.run("pre_scan_command(row=%i, npts=%i)" % (irow, npts))
                     except:
                         print("Failed to run pre_scan_command(row=%i)" % irow)
                     self.set_info('prescan_lasttime', "%i" % int(now))

@@ -245,7 +245,7 @@ class ScanDB(SimpleDB):
         return json.loads(sobj.text)
 
     def make_scan(self, scanname, filename='scan.001',
-                  data_callback=None, larch=None):
+                  data_callback=None, mkernel=None):
         """
         create a StepScan object from a saved scan definition
 
@@ -267,7 +267,7 @@ class ScanDB(SimpleDB):
             sdict['rois'] = json.loads(self.get_info('rois'))
         sdict['filename'] = filename
         sdict['scandb'] = self
-        sdict['larch'] = larch
+        sdict['mkernel'] = mkernel
         sdict['data_callback'] = data_callback
         sdict['extra_pvs'] = []
         for det in sdict['detectors']:

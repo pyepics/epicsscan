@@ -29,12 +29,12 @@ class Slew_Scan1D(StepScan):
     """1D Slew Scan, presenting data as a plain scan"""
     def __init__(self, filename=None, auto_increment=True,
                  comments=None, messenger=None, scandb=None,
-                 prescan_func=None, larch=None, **kws):
+                 prescan_func=None, mkernel=None, **kws):
 
         StepScan.__init__(self, auto_increment=auto_increment,
                           comments=comments, messenger=messenger,
                           scandb=scandb, **kws)
-        self.larch = larch
+        self.mkernel = mkernel
         self.scantype = 'slew'
         self.detmode  = 'roi'
         self.motor_vals = {}

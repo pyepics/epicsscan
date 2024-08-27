@@ -643,12 +643,12 @@ class QXAFS_Scan(XAFS_Scan):
                 ret = None
             out.append(ret)
         dtimer.add("post func")
-        if self.larch is not None:
+        if self.mkernel is not None:
             try:
-                self.larch.run("post_scan_command(row=%i)" % row)
+                self.mkernel.run("post_scan_command(row=%i)" % row)
             except:
                 self.write("Failed to run post_scan_command()\n")
-        dtimer.add("post larchfunc")
+        dtimer.add("post_scan macro func ran")
         self.set_info('scan_progress', 'finishing')
         # dtimer.show()
         return out
