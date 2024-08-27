@@ -10,6 +10,7 @@ import sys
 import json
 import time
 import logging
+from pathlib import Path
 import numpy as np
 from socket import gethostname
 from datetime import datetime
@@ -29,7 +30,7 @@ def get_credentials(envvar='ESCAN_CREDENTIALS'):
     """look up credentials file from environment variable"""
     conn = {}
     credfile = os.environ.get(envvar, None)
-    if credfile is not None and os.path.exists(credfile):
+    if credfile is not None and Path(credfile).exists():
         with open(credfile, 'rb') as fh:
             text = str(from_bytes(fh.read()).best())
             conn = yaml.load(text, Loader=yaml.Loader)
@@ -105,7 +106,6 @@ class ScanDB(SimpleDB):
 
     def set_path(self, fileroot=None):
         workdir = self.get_info('user_folder')
-        workdir = workdir.replace('\\', '/').replace('//', '/')
         if workdir.startswith('/'):
             workdir = workdir[1:]
         if fileroot is None:
@@ -114,18 +114,14 @@ class ScanDB(SimpleDB):
                 fileroot = self.get_info('windows_fileroot')
                 if not fileroot.endswith('/'):
                     fileroot += '/'
-            fileroot = fileroot.replace('\\', '/').replace('//', '/')
         if workdir.startswith(fileroot):
             workdir = workdir[len(fileroot):]
-
-        fullpath = os.path.join(fileroot, workdir)
-        fullpath = fullpath.replace('\\', '/').replace('//', '/')
+        fullpath = Path(fileroot, workdir).absolute().as_posix()
         try:
             os.chdir(fullpath)
         except:
-            logging.exception("ScanDB: Could not set working directory to %s " % fullpath)
+            logging.exception(f"ScanDB: Could not set working directory to '{fullpath}'")
         finally:
-            # self.set_info('server_fileroot',  fileroot)
             self.set_info('user_folder',      workdir)
         time.sleep(0.1)
 
@@ -642,7 +638,7 @@ class ScanDB(SimpleDB):
         """set filename for info and command"""
         self.set_info('filename', filename)
         ufolder = self.get_info('user_folder', default='')
-        self.set_command_filename(os.path.join(ufolder, filename))
+        self.set_command_filename(Path(ufolder, filename).as_posix())
 
     def set_command_filename(self, filename, cmdid=None):
         """set filename for command"""
