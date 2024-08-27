@@ -6,7 +6,6 @@ import time
 import json
 import numpy as np
 
-from .utils import asciikeys
 from .detectors import get_detector
 from .positioner import Positioner
 from .scan import StepScan
