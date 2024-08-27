@@ -16,14 +16,12 @@ from socket import gethostname
 from datetime import datetime
 import yaml
 from charset_normalizer import from_bytes
-# from utils import backup_versions, save_backup
+
 import epics
 
 from .scandb_schema import create_scandb
 from .simpledb import SimpleDB, isotime
-
-from .utils import (normalize_pvname, pv_fullname,
-                    ScanDBException, ScanDBAbort)
+from .utils import normalize_pvname, ScanDBException, ScanDBAbort
 from .create_scan import create_scan
 
 def get_credentials(envvar='ESCAN_CREDENTIALS'):
@@ -358,12 +356,12 @@ class ScanDB(SimpleDB):
                        extrapvs=None, **kws):
         """add positioner"""
         name = name.strip()
-        drivepv = pv_fullname(drivepv)
+        drivepv = normalize_pvname(drivepv)
         if readpv is not None:
-            readpv = pv_fullname(readpv)
+            readpv = normalize_pvname(readpv)
         epvlist = []
         if extrapvs is not None:
-            epvlist = [pv_fullname(p) for p in extrapvs]
+            epvlist = [normalize_pvname(p) for p in extrapvs]
 
         self.add_pv(drivepv, notes=name)
         if readpv is not None:
@@ -384,12 +382,12 @@ class ScanDB(SimpleDB):
                            extrapvs=None, **kws):
         """add slewscan positioner"""
         name = name.strip()
-        drivepv = pv_fullname(drivepv)
+        drivepv = normalize_pvname(drivepv)
         if readpv is not None:
-            readpv = pv_fullname(readpv)
+            readpv = normalize_pvname(readpv)
         epvlist = []
         if extrapvs is not None:
-            epvlist = [pv_fullname(p) for p in extrapvs]
+            epvlist = [normalize_pvname(p) for p in extrapvs]
 
         self.add_pv(drivepv, notes=name)
         if readpv is not None:
@@ -427,7 +425,7 @@ class ScanDB(SimpleDB):
     def add_detector(self, name, pvname, kind='', options='', **kws):
         """add detector"""
         name = name.strip()
-        pvname = pv_fullname(pvname)
+        pvname = normalize_pvname(pvname)
         kws.update({'pvname': pvname, 'name': name,
                     'kind': kind, 'options': options})
         return self.add_row_attr('scandetectors', **kws)
@@ -467,7 +465,7 @@ class ScanDB(SimpleDB):
 
     def add_counter(self, name, pvname, **kws):
         """add counter (non-triggered detector)"""
-        pvname = pv_fullname(pvname)
+        pvname = normalize_pvname(pvname)
         self.add_pv(pvname, notes=name)
 
         name = name.strip()
@@ -489,7 +487,7 @@ class ScanDB(SimpleDB):
     def add_extrapv(self, name, pvname, use=True, **kws):
         """add extra pv (recorded at breakpoints in scans"""
         name = name.strip()
-        pvname = pv_fullname(pvname)
+        pvname = normalize_pvname(pvname)
         self.add_pv(pvname, notes=name)
 
         kws.update({'pvname': pvname, 'use': int(use), 'name': name})
@@ -510,7 +508,7 @@ class ScanDB(SimpleDB):
         """add pv to PV table if not already there """
         if len(name) < 2:
             return
-        name = pv_fullname(name)
+        name = normalize_pvname(name)
         self.connect_pvs(names=[name])
         vals  = self.get_rows('pv', where={'name': name})
         if len(vals) < 1:
@@ -530,7 +528,7 @@ class ScanDB(SimpleDB):
     def get_pv(self, name):
         """return pv object from known PVs"""
         if len(name) > 2:
-            name = pv_fullname(name)
+            name = normalize_pvname(name)
             if name in self.pvs:
                 return self.pvs[name]
 
@@ -541,7 +539,7 @@ class ScanDB(SimpleDB):
 
         _connect = []
         for name in names:
-            name = pv_fullname(name)
+            name = normalize_pvname(name)
             if len(name) < 2:
                 continue
             if name not in self.pvs:
