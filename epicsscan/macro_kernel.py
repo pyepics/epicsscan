@@ -50,11 +50,9 @@ class MacroKernel(object):
             scandb = ScanDB()
         self.scandb = scandb
         self.instdb = InstrumentDB(self.scandb)
-
         self.writer = MessageWriter(scandb=scandb)
 
         self.fileroot = self.scandb.get_info('server_fileroot')
-        self.macro_dir = self.scandb.get_info('macro_folder')
         self.macros = {}
 
         # take all symbols from macros_init, add, _scandb, _instdb,
@@ -87,32 +85,30 @@ class MacroKernel(object):
 
     def load_macros(self, macro_dir=None, verbose=False):
         """read latest macros"""
-        if macro_dir is None:
-            macro_dir = self.macro_dir
+        if macrodir is None:
+            macrodir = self.macrodir
 
-        macro_root = self.fileroot
+        macroroot = self.fileroot
         if os.name == 'nt':
-            macro_root = self.scandb.get_info('windows_fileroot')
-            if not macro_root.endswith('/'):
-                macro_root += '/'
+            macroroot = self.scandb.get_info('windows_fileroot')
+            if not macroroot.endswith('/'):
+                macroroot += '/'
 
-        modpath = Path(macro_root, macro_dir).absolute()
-        modpathname = modpath.as_posix()
-        if not modpath.exists():
+        macpath = Path(macroroot, macrodir).absolute()
+        macpathname = macpath.as_posix()
+        if not macpath.exists():
             self.scandb.set_info('scan_message',
-                                 f"Cannot locate modules in '{modpathname}'")
-            print(f"no macros imported from {modpathname}")
+                                 f"Cannot locate modules in '{macpathname}'")
+            print(f"no macros imported from {macpathname}")
             return
-        print("Load Macros from ", modpathname)
-
         try:
             origdir = os.getcwd()
-            os.chdir(modpathname)
+            os.chdir(macpathname)
             for name in glob.glob('*.lar') + glob.glob('*.py'):
                 self.eval.error = []
                 if verbose:
                     print('importing macros from : ', name)
-                fname = Path(modpathname, name).absolute().as_posix()
+                fname = Path(macpathname, name).absolute().as_posix()
                 with open(name, 'r') as fh:
                     text = fh.read()
                 self.eval(text, show_errors=False)
@@ -128,7 +124,8 @@ class MacroKernel(object):
         except OSError:
             print("error loading macros")
         self.scandb.set_path()
-        return self.get_macros()
+        self.macros = self.get_macros()
+        print(f"Loaded {len(self.macros)} macro functions from {macpathname}")
 
     def __call__(self, arg):
         return self.run(arg)
@@ -149,8 +146,6 @@ class MacroKernel(object):
     def get_macros(self):
         """return an orderded dictionary of functions/procedures
         that are exposed to user for Scan macros
-
-        These are taken from the _epics, _scan, and macros groups
 
         returned dictionary has function names as keys, and docstrings as values
         """
