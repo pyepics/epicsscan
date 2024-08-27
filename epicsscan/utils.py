@@ -29,7 +29,6 @@ def atGSECARS():
     return 'cars.aps.anl.gov' in hostname.lower()
 
 
-
 def strip_quotes(t):
     d3, s3, d1, s1 = '"""', "'''", '"', "'"
     if hasattr(t, 'startswith'):
@@ -61,16 +60,7 @@ def get_units(pv, default):
 
 def normalize_pvname(name):
     """ make sure Epics PV name either ends with .VAL or .SOMETHING!"""
-    if  '.' in name:
-        return name
-    return "%s.VAL" % name
-
-def pv_fullname(name):
-    """ make sure Epics PV name either ends with .VAL or .SOMETHING!"""
-    if  '.' in name:
-        return name
-    return "%s.VAL" % name
-
+    return name if  '.' in name else f"{name}.VAL"
 
 def json2ascii(inp):
     """convert input unicode json text to pure ASCII/utf-8"""
@@ -84,76 +74,53 @@ def json2ascii(inp):
         return inp
 
 
+PARENS = {'{': '}', '(': ')', '[': ']'}
+OPENS  = ''.join(PARENS.keys())
+CLOSES = ''.join(PARENS.values())
+QUOTES = '\'"'
+BSLASH = '\\'
+COMMENT = '#'
+DBSLASH = '\\\\'
 
-def read_oldscanfile(fname):
-    out = {'type': 'linear'}
-    with open(fname, 'r') as fh:
-        lines = fh.readlines()
-    if len(lines) < 1:
-        return out
-    sect = 'head'
-    nreg = 1
-    isrel = False
-    iskspace = [False]*5
-    dtimes = [1]*5
-    starts = [0]*5
-    stops  = [0]*5
-    steps  = [0]*5
-    pos = -1
-    for line in lines:
-        line  = line[:-1].strip()
-        key, val =  line, ''
-        if '%' in line:
-            key, val = [s.strip() for s in line.split('%')]
-        if key.startswith(';scan'):
-            if sect == 'head':
-                sect = 'scan'
+def find_eostring(txt, eos, istart):
+    """find end of string token for a string"""
+    while True:
+        inext = txt[istart:].find(eos)
+        if inext < 0:  # reached end of text before match found
+            return eos, len(txt)
+        elif (txt[istart+inext-1] == BSLASH and
+              txt[istart+inext-2] != BSLASH):  # matched quote was escaped
+            istart = istart+inext+len(eos)
+        else: # real match found! skip ahead in string
+            return '', istart+inext+len(eos)-1
+
+
+def is_complete(text):
+    """
+    returns whether a text of code is complete
+    for strings quotes and open / close delimiters,
+    including nested delimeters.
+    """
+    itok, istart, eos = 0, 0, ''
+    delims = []
+    while itok < len(text):
+        c = text[itok]
+        if c in QUOTES:
+            eos = c
+            if text[itok:itok+3] == c*3:
+                eos = c*3
+            istart = itok + len(eos)
+            # leap ahead to matching quote, ignoring text within
+            eos, itok = find_eostring(text, eos, istart)
+        elif c in OPENS:
+            delims.append(PARENS[c])
+        elif c in CLOSES and len(delims) > 0 and c == delims[-1]:
+            delims.pop()
+        elif c == COMMENT and eos == '': # comment char outside string
+            jtok = itok
+            if '\n' in text[itok:]:
+                itok = itok + text[itok:].index('\n')
             else:
-                break
-        if key == 'datafile':
-            out['filename'] = val
-        elif key == 'type' and val == 'EXAFS':
-            out['type'] = 'xafs'
-        elif key == 'n_regions':
-            nreg = int(val)
-        elif key == 'is_rel':
-            isrel = ('1' == val)
-        elif key == 'delay':
-            pdel, ddel = [float(x) for x in val]
-            out['pos_settle_time'] = pdel
-            out['det_settle_time'] = ddel
-        elif key == 'is_kspace':
-            iskspace =[(float(x)>0.1) for x in val.split()]
-        elif key == 'time':
-            dtimes =[float(x) for x in val.split()]
-        elif key == 'npts':
-            npts   =[int(float(x)) for x in val.split()]
-        elif key == 'params':
-            dat = [float(x) for x in val.split()]
-            out['e0'] = dat[0]
-            out['time_kw'] = dat[1]
-            out['max_time'] = dat[2]
-        elif key == 'pos':
-            pos = int(val)
-        elif key == 'start' and pos == 0:
-            starts = [float(x) for x in val.split()]
-        elif key == 'stop' and pos == 0:
-            stops = [float(x) for x in val.split()]
-        elif key == 'step' and pos == 0:
-            steps = [float(x) for x in val.split()]
-
-    #
-    regions = []
-    out['dwelltime'] = dtimes[0]
-    for i in range(nreg):
-        start= starts[i]
-        stop = stops[i]
-        step = steps[i]
-        dtime = dtimes[i]
-        npt   = npts[i]
-        units = 'k' if iskspace[i] else 'eV'
-        regions.append((start, stop, npt, dtime, units))
-
-    out['is_relative'] = isrel
-    out['regions'] = regions
-    return out
+                itok = len(text)
+        itok += 1
+    return eos=='' and len(delims)==0 and not text.rstrip().endswith(BSLASH)
