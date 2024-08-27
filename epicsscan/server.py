@@ -11,12 +11,9 @@ import epics
 from .scandb import ScanDB, make_datetime
 from .file_utils import fix_varname, nativepath
 from .utils import (strip_quotes, plain_ascii, tstamp,
-                     ScanDBException, ScanDBAbort)
+                    is_complete, ScanDBException, ScanDBAbort)
 
 from .macro_kernel import MacroKernel
-
-def command_complete(s, *args, **kws):
-    return True
 
 from .epics_scandb import EpicsScanDB
 # from .abort_slewscan import abort_slewscan
@@ -112,8 +109,8 @@ class ScanServer():
             self.epicsdb.workdir = workdir
 
 
-        if not command_complete(command):
-            self.set_scan_message(f"Error:  command <command> is incomplete")
+        if not is_complete(command):
+            self.set_scan_message(f"Error: command <command> is incomplete")
             self.scandb.set_command_status('canceled', cmdid=cmdid)
             return
 
