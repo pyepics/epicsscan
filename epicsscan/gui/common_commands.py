@@ -40,12 +40,12 @@ else:
 class CommonCommandsAdminFrame(wx.Frame):
     """Manage Display of Common Commands from the Common_Commands Table
     """
-    def __init__(self, parent, scandb=None, pos=(-1, -1), size=(750, 725), _larch=None):
+    def __init__(self, parent, scandb=None, pos=(-1, -1), size=(750, 725), mkernel=None):
         self.parent = parent
         self.scandb = parent.scandb if scandb is None else scandb
-        self._larch = parent._larch if _larch is None else _larch
-        self._larch.load_macros()
-        self.macros = self._larch.get_macros()
+        self.mkernel = parent.mkernel if mkernel is None else mkernel
+        self.mkernel.load_macros()
+        self.macros = self.mkernel.get_macros()
 
         labstyle = LEFT|wx.ALL
         font11 = wx.Font(11, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
@@ -197,14 +197,14 @@ class CommonCommandsFrame(wx.Frame):
     """Edit/Manage/Execute Common Commands from the
     Common_Commands Table
     """
-    def __init__(self, parent, scandb=None, pos=(-1, -1), size=(700, 625), _larch=None):
+    def __init__(self, parent, scandb=None, pos=(-1, -1), size=(700, 625), mkernel=None):
         self.parent = parent
         self.scandb = parent.scandb if scandb is None else scandb
         self.instdb = InstrumentDB(scandb)
 
-        self._larch = parent._larch if _larch is None else _larch
-        self._larch.load_macros()
-        macros = self._larch.get_macros()
+        self.mkernel = parent.mkernel if mkernel is None else mkernel
+        self.mkernel.load_macros()
+        macros = self.mkernel.get_macros()
 
         labstyle  = LEFT|wx.ALL
         font11 = wx.Font(11, wx.SWISS, wx.NORMAL, wx.BOLD, 0, "")
