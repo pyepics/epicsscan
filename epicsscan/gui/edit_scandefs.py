@@ -400,7 +400,7 @@ class XAFSScanDefs(ScanDefPanel):
 
 class ScandefsFrame(wx.Frame) :
     """Edit Scan Definitions"""
-    def __init__(self, parent, pos=(-1, -1), scandb=None, _larch=None):
+    def __init__(self, parent, pos=(-1, -1), scandb=None, mkernel=None):
 
         self.parent = parent
         self.scandb = parent.scandb if scandb is None else scandb
@@ -464,7 +464,7 @@ class ScandefsFrame(wx.Frame) :
             self.nblabels.append((label, table))
             self.nb_scantypes[table.scantype] = i
             i += 1
-            
+
         self.nb.SetSelection(0)
         sizer.Add(self.nb, 1, wx.ALL|wx.EXPAND, 5)
 
@@ -479,7 +479,7 @@ class ScandefsFrame(wx.Frame) :
 
     def show_scandefs(self, scantype):
         self.nb.SetSelection(self.nb_scantypes.get(scantype, 0))
-        
+
     def onSearch(self, event=None):
         for tab in self.tables:
             tab.name_filter = event.GetString().strip().lower()

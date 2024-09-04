@@ -22,8 +22,8 @@ from .common_commands  import CommonCommandsFrame, CommonCommandsAdminFrame
 from .edit_sequences   import ScanSequenceFrame
 from ..scandb import InstrumentDB
 
-import larch
-from larch.wxlib.readlinetextctrl import ReadlineTextCtrl
+#import larch
+# from larch.wxlib.readlinetextctrl import ReadlineTextCtrl
 
 
 MACRO_HISTORY = 'scan_macro_history.lar'
@@ -152,7 +152,7 @@ class PositionCommandModel(dv.DataViewIndexListModel):
 
 class PositionCommandFrame(wx.Frame) :
     """Edit/Manage/Run/View Sequences"""
-    def __init__(self, parent, scandb, pos=(-1, -1), size=(675, 550), _larch=None):
+    def __init__(self, parent, scandb, pos=(-1, -1), size=(675, 550), mkernel=None):
         self.parent = parent
         self.scandb = scandb
 
@@ -462,7 +462,6 @@ class CommandsPanel(scrolled.ScrolledPanel):
         panel.SetBackgroundColour(GUIColors.bg)
         self.prompt = wx.StaticText(panel, -1, 'Command>', size = (95,-1),
                                     style=RIGHT)
-        self.histfile = os.path.join(larch.site_config.user_larchdir, MACRO_HISTORY)
         self.input = wx.TextCtrl(panel, value='', size=(525, -1),
                                  style=wx.TE_LEFT|wx.TE_PROCESS_ENTER)
 

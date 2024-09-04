@@ -28,7 +28,6 @@ To Do:
    Edit Macros
 
 """
-from __future__ import print_function
 import os
 import sys
 import time
@@ -177,7 +176,7 @@ class ScanFrame(wx.Frame):
         self.mkernel.load_macros()
         self.mkernel.set_symbol('_sys.wx.wxapp', wx.GetApp())
         self.mkernel.set_symbol('_sys.wx.parent', self)
-        self.statusbar.SetStatusText('Larch Ready')
+        self.statusbar.SetStatusText('Macros Ready')
 
         try:
             fico = os.path.join(larch.site_config.icondir, ICON_FILE)

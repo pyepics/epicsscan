@@ -45,7 +45,22 @@ def randname(n=6):
     return ''.join([chr(randrange(26)+97) for i in range(n)])
 
 
+
 CURSCAN, SCANGROUP = '< Current Scan >', 'scandat'
+
+
+class Group():
+    """
+    Generic Group: a container for variables, modules, and subgroups.
+    """
+    def __init__(self, name=None, **kws):
+        if name is None:
+            name = hex(id(self))
+        self.__name__ = name
+        for key, val in kws.items():
+            setattr(self, key, val)
+
+
 
 class ScanViewerFrame(wx.Frame):
     _about = """Scan Viewer,  Matt Newville <newville @ cars.uchicago.edu>  """
@@ -64,6 +79,7 @@ class ScanViewerFrame(wx.Frame):
                                  user=user, password=password, port=port,
                                  create=create)
         self.mkernel = macrokernel
+        self.lgroup = Group()
         self.last_cpt = -1
         self.force_newplot = False
         self.scan_inprogress = False

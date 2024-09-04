@@ -10,7 +10,7 @@ from .gui_utils import (GUIColors, set_font_with_children, YesNo,
 
 class ExtraPVsFrame(wx.Frame) :
     """Set Extra PVs"""
-    def __init__(self, parent, pos=(-1, -1), scandb=None, _larch=None):
+    def __init__(self, parent, pos=(-1, -1), scandb=None, mkernel=None):
         self.parent = parent
         self.scandb = parent.scandb if scandb is None else scandb
 

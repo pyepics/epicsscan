@@ -197,7 +197,7 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
 
 class ScanSequenceFrame(wx.Frame) :
     """Edit/Manage/Run/View Sequences"""
-    def __init__(self, parent, scandb, pos=(-1, -1), size=(950, 400), _larch=None):
+    def __init__(self, parent, scandb, pos=(-1, -1), size=(950, 400), mkernel=None):
         self.parent = parent
         self.scandb = scandb
         self.last_refresh = time.monotonic() - 100.0

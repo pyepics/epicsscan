@@ -26,7 +26,7 @@ class ROIFrame(wx.Frame):
     """Select ROIS"""
     pvnames_xmap = {'pref': '%smca1.R',   'name': 'NM'}
     pvnames_xsp3 = {'pref': '%sMCA1ROI:', 'name': ':Name'}
-    def __init__(self, parent, det=None, scandb=None, _larch=None):
+    def __init__(self, parent, det=None, scandb=None, mkernel=None):
         self.parent = parent
         self.scandb = parent.scandb if scandb is None else scandb
         title = "Select ROIs"
@@ -233,7 +233,7 @@ class DetectorDetailsFrame(wx.Frame):
 
 class DetectorFrame(wx.Frame) :
     """Frame to Setup Scan Detectors"""
-    def __init__(self, parent, pos=(-1, -1), scandb=None, _larch=None):
+    def __init__(self, parent, pos=(-1, -1), scandb=None, mkernel=None):
         self.parent = parent
         self.scandb = parent.scandb if scandb is None else scandb
         self.detailframe = None
