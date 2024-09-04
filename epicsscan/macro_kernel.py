@@ -53,6 +53,7 @@ class MacroKernel(object):
         self.writer = MessageWriter(scandb=scandb)
 
         self.fileroot = self.scandb.get_info('server_fileroot')
+        self.macrodir = self.scandb.get_info('macro_folder')
         self.macros = {}
 
         # take all symbols from macros_init, add, _scandb, _instdb,
@@ -83,22 +84,22 @@ class MacroKernel(object):
         return True
 
 
-    def load_macros(self, macro_dir=None, verbose=False):
+    def load_macros(self, macrodir=None, verbose=False):
         """read latest macros"""
         if macrodir is None:
             macrodir = self.macrodir
 
-        macroroot = self.fileroot
+        root = self.fileroot
         if os.name == 'nt':
-            macroroot = self.scandb.get_info('windows_fileroot')
-            if not macroroot.endswith('/'):
-                macroroot += '/'
+            root = self.scandb.get_info('windows_fileroot')
+        if root.endswith('/'):
+            root = root[:-1]
 
-        macpath = Path(macroroot, macrodir).absolute()
+        macpath = Path(root, macrodir).absolute()
         macpathname = macpath.as_posix()
         if not macpath.exists():
             self.scandb.set_info('scan_message',
-                                 f"Cannot locate modules in '{macpathname}'")
+                f"Cannot locate modules in '{macpathname}'")
             print(f"no macros imported from {macpathname}")
             return
         try:
@@ -123,7 +124,7 @@ class MacroKernel(object):
             os.chdir(origdir)
         except OSError:
             print("error loading macros")
-        self.scandb.set_path()
+        self.scandb.set_workdir()
         self.macros = self.get_macros()
         print(f"Loaded {len(self.macros)} macro functions from {macpathname}")
 

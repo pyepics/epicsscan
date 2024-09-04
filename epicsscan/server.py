@@ -38,7 +38,7 @@ class ScanServer():
         self.scandb.set_info('request_abort',    0)
         self.scandb.set_info('request_pause',    0)
         self.scandb.set_info('request_shutdown', 0)
-        self.set_path()
+        self.set_workdir()
 
         self.mkernel = MacroKernel(self.scandb, load_macros=True)
         time.sleep(0.05)
@@ -83,13 +83,13 @@ class ScanServer():
         if self.epicsdb is not None:
             self.epicsdb.status = status.title()
 
-    def set_path(self):
-        self.scandb.set_path()
+    def set_workdir(self):
+        self.scandb.set_workdir()
         self.fileroot = self.scandb.get_info('server_fileroot')
 
     def do_command(self, cmd_row):
         """execute a single command: a row from the commands table"""
-        self.set_path()
+        self.set_workdir()
         cmdid = cmd_row.id
         command = plain_ascii(cmd_row.command)
 

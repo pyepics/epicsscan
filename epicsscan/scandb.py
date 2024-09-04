@@ -102,26 +102,32 @@ class ScanDB(SimpleDB):
             time.sleep(0.5)
             self.connect(dbname, **kws)
 
-    def set_path(self, fileroot=None):
-        workdir = self.get_info('user_folder')
-        if workdir.startswith('/'):
-            workdir = workdir[1:]
+    def set_workdir(self, fileroot=None):
+        def _setfolder(f):
+            p = f.absolute()
+            if p.exists():
+                pname = p.as_posix()
+                os.chdir(pname)
+                self.set_info('user_folder', pname)
+                print("Set user folder ", pname)
+                return True
+            return False
+
+        wdir = self.get_info('user_folder')
+        if _setfolder(Path(wdir)):
+            return True
+
         if fileroot is None:
             fileroot = self.get_info('server_fileroot')
             if os.name == 'nt':
                 fileroot = self.get_info('windows_fileroot')
                 if not fileroot.endswith('/'):
                     fileroot += '/'
-        if workdir.startswith(fileroot):
-            workdir = workdir[len(fileroot):]
-        fullpath = Path(fileroot, workdir).absolute().as_posix()
-        try:
-            os.chdir(fullpath)
-        except:
-            logging.exception(f"ScanDB: Could not set working directory to '{fullpath}'")
-        finally:
-            self.set_info('user_folder',      workdir)
-        time.sleep(0.1)
+
+        if _setfolder(Path(fileroot, wdir)):
+            return True
+
+        return _setfolder(Path('.'))
 
     def isScanDB(self, dbname, server='sqlite',
                  user='', password='', host='', port=None):
