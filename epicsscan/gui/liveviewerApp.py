@@ -44,10 +44,7 @@ def randname(n=6):
     "return random string of n (default 6) lowercase letters"
     return ''.join([chr(randrange(26)+97) for i in range(n)])
 
-
-
 CURSCAN, SCANGROUP = '< Current Scan >', 'scandat'
-
 
 class Group():
     """
@@ -68,7 +65,7 @@ class ScanViewerFrame(wx.Frame):
 
     def __init__(self, parent, dbname=None, server='sqlite',
                  host=None, port=None, user=None, password=None,
-                 create=True, macrokernel=None, scandb=None, **kws):
+                 create=True, mkernel=None, scandb=None, **kws):
 
         wx.Frame.__init__(self, None, -1, style=FRAMESTYLE)
         title = "Epics Step Scan Viewer"
@@ -78,7 +75,7 @@ class ScanViewerFrame(wx.Frame):
             self.scandb = ScanDB(dbname=dbname, server=server, host=host,
                                  user=user, password=password, port=port,
                                  create=create)
-        self.mkernel = macrokernel
+        self.mkernel = mkernel
         self.lgroup = Group()
         self.last_cpt = -1
         self.force_newplot = False
@@ -371,7 +368,7 @@ class ScanViewerFrame(wx.Frame):
             if yy1 in ('0', '1', '', None) or len(yy1) < 0:
                 return '', ''
             label = yy1
-            expr = "%s.%s"  % (gn, yy1)
+            expr = "%s_%s"  % (gn, yy1)
 
             if yy2 != '':
                 label = "%s%s%s" % (label, op2, yy2)
@@ -379,7 +376,7 @@ class ScanViewerFrame(wx.Frame):
                 if yy2 in ('1.0', '0.0'):
                     expr = "%s%s" % (expr, yy2)
                 else:
-                    expr = "%s%s.%s"  % (expr, gn, yy2)
+                    expr = "%s%s_%s"  % (expr, gn, yy2)
 
             if yy3 != '':
                 label = "(%s)%s%s" % (label, op3, yy3)
@@ -387,7 +384,7 @@ class ScanViewerFrame(wx.Frame):
                 if yy3 in ('1.0', '0.0'):
                     expr = "%s%s"  % (expr, yy3)
                 else:
-                    expr = "%s%s.%s" % (expr, gn, yy3)
+                    expr = "%s%s_%s" % (expr, gn, yy3)
 
             if op1 != '':
                 end = ''
@@ -401,14 +398,22 @@ class ScanViewerFrame(wx.Frame):
             return
         self.mkernel.run("%s_arr_x = %s_%s" % (gname, gname, x))
         self.mkernel.run("%s_arr_y1 = %s"   % (gname, yexpr))
+
+        arrx = getattr(lgroup, 'arr_x', None)
+        arry1 =getattr(lgroup, 'arr_y1', None)
+        if arrx is None or arry1 is None:
+            logging.exception("no array data for plotting")
+            return
+
         try:
-            npts = min(len(lgroup.arr_x), len(lgroup.arr_y1))
-        except AttributeError:
-            logging.exception("Problem getting arrays")
+            npts = min(len(arrx), len(arry1))
+        except:
+            logging.exception("empty array data for plotting")
+            return
 
         y2label, y2expr = make_array(self.yops, 1)
         if y2expr != '':
-            self.mkernel.run("%s.arr_y2 = %s" % (gname, y2expr))
+            self.mkernel.run("%s_arr_y2 = %s" % (gname, y2expr))
             n2pts = npts
             try:
                 n2pts = min(len(lgroup.arr_x), len(lgroup.arr_y1),
