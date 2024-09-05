@@ -29,7 +29,7 @@ class PositionerFrame(wx.Frame) :
         title = SimpleText(panel, 'Positioners Setup',  font=Font(13),
                            colour=GUIColors.title, style=LEFT)
 
-        sizer.Add(title,      (0, 0), (1, 3), LEFT, 5)
+        sizer.Add(title,     (0, 0), (1, 3), LEFT, 5)
 
 
         desc = wx.StaticText(panel, -1, label='Positioner Settling Time (sec): ',
@@ -37,31 +37,32 @@ class PositionerFrame(wx.Frame) :
 
         self.settle_time = wx.TextCtrl(panel, size=(75, -1),
                             value=self.scandb.get_info('pos_settle_time', '0.001'))
-        sizer.Add(desc,              (1, 0), (1, 2), CEN,  1)
-        sizer.Add(self.settle_time,  (1, 2), (1, 1), LEFT, 1)
+        sizer.Add(desc,              (1, 1), (1, 2), LEFT,  1)
+        sizer.Add(self.settle_time,  (1, 3), (1, 1), LEFT, 1)
 
 
         ir = 2
-        sizer.Add(add_subtitle(panel, 'Linear/Mesh Scan Positioners'),
+        sizer.Add(SimpleText(panel, 'Linear/Mesh Scan Positioners',
+                             size=(250,-1), style=LEFT),
                   (ir, 0),  (1, 4),  LEFT, 1)
         ir += 1
-        sizer.Add(SimpleText(panel, label='Description', size=(175, -1)),
+        sizer.Add(SimpleText(panel, label='Description', size=(180, -1)),
                   (ir, 0), (1, 1), RIGHT, 1)
-        sizer.Add(SimpleText(panel, label='Drive PV', size=(175, -1)),
+        sizer.Add(SimpleText(panel, label='Drive PV', size=(180, -1)),
                   (ir, 1), (1, 1), RIGHT, 1)
-        sizer.Add(SimpleText(panel, label='Readback PV', size=(175, -1)),
+        sizer.Add(SimpleText(panel, label='Readback PV', size=(180, -1)),
                   (ir, 2), (1, 1), LEFT, 1)
-        sizer.Add(SimpleText(panel, label='Erase?', size=(60, -1)),
+        sizer.Add(SimpleText(panel, label='Erase?', size=(80, -1)),
                   (ir, 3), (1, 1), LEFT, 1)
 
         self.widlist = []
         poslist = []
         for pos in self.scandb.get_rows('scanpositioners'):
             poslist.append(pos.name)
-            desc   = wx.TextCtrl(panel, -1, value=pos.name, size=(175, -1))
-            pvctrl = wx.TextCtrl(panel, value=pos.drivepv,  size=(175, -1))
-            rdctrl = wx.TextCtrl(panel, value=pos.readpv,  size=(175, -1))
-            delpv  = YesNo(panel, defaultyes=False)
+            desc   = wx.TextCtrl(panel, -1, value=pos.name, size=(180, -1))
+            pvctrl = wx.TextCtrl(panel, value=pos.drivepv,  size=(180, -1))
+            rdctrl = wx.TextCtrl(panel, value=pos.readpv,  size=(180, -1))
+            delpv  = YesNo(panel, defaultyes=False, size=(80, -1))
             ir +=1
             sizer.Add(desc,   (ir, 0), (1, 1), RIGHT, 1)
             sizer.Add(pvctrl, (ir, 1), (1, 1), LEFT, 1)
@@ -70,9 +71,9 @@ class PositionerFrame(wx.Frame) :
             self.widlist.append(('line', pos, desc, pvctrl, rdctrl, delpv))
 
         for i in range(2):
-            desc   = wx.TextCtrl(panel, -1, value='', size=(175, -1))
-            pvctrl = wx.TextCtrl(panel, value='', size=(175, -1))
-            rdctrl = wx.TextCtrl(panel, value='', size=(175, -1))
+            desc   = wx.TextCtrl(panel, -1, value='', size=(180, -1))
+            pvctrl = wx.TextCtrl(panel, value='', size=(180, -1))
+            rdctrl = wx.TextCtrl(panel, value='', size=(180, -1))
             ir +=1
             sizer.Add(desc,   (ir, 0), (1, 1), RIGHT, 1)
             sizer.Add(pvctrl, (ir, 1), (1, 1), LEFT, 1)
@@ -81,12 +82,13 @@ class PositionerFrame(wx.Frame) :
 
         # xafs
         ir += 1
-        sizer.Add(add_subtitle(panel, 'Positioner for XAFS Scans'),
+        sizer.Add(SimpleText(panel, 'Positioner for XAFS Scans',
+                             size=(250, -1), style=LEFT),
                   (ir, 0),  (1, 4),  LEFT, 1)
 
         energy = self.scandb.get_info('xafs_energy')
-        desc   = wx.StaticText(panel, -1, label='Energy Positioner', size=(175, -1))
-        pvctrl = wx.Choice(panel, choices=poslist, size=(175, -1))
+        desc   = wx.StaticText(panel, -1, label='Energy Positioner', size=(180, -1))
+        pvctrl = wx.Choice(panel, choices=poslist, size=(180, -1))
         pvctrl.SetStringSelection(energy)
         ir +=1
         sizer.Add(desc,   (ir, 0), (1, 1), RIGHT, 1)
@@ -95,14 +97,15 @@ class PositionerFrame(wx.Frame) :
 
         # slew scans
         ir += 1
-        sizer.Add(add_subtitle(panel, 'Slew Scan Positioners'),
+        sizer.Add(SimpleText(panel, 'Slew Scan Positioners',
+                             size=(250, -1), style=LEFT),
                   (ir, 0),  (1, 4),  LEFT, 1)
 
         for pos in self.scandb.get_rows('slewscanpositioners'):
-            desc   = wx.TextCtrl(panel, -1, value=pos.name, size=(175, -1))
-            pvctrl = wx.TextCtrl(panel, value=pos.drivepv,  size=(175, -1))
-            rdctrl = wx.TextCtrl(panel, value=pos.readpv,  size=(175, -1))
-            delpv  = YesNo(panel, defaultyes=False)
+            desc   = wx.TextCtrl(panel, -1, value=pos.name, size=(180, -1))
+            pvctrl = wx.TextCtrl(panel, value=pos.drivepv,  size=(180, -1))
+            rdctrl = wx.TextCtrl(panel, value=pos.readpv,  size=(180, -1))
+            delpv  = YesNo(panel, defaultyes=False, size=(80, -1))
             ir +=1
             sizer.Add(desc,   (ir, 0), (1, 1), RIGHT, 1)
             sizer.Add(pvctrl, (ir, 1), (1, 1), LEFT, 1)
@@ -111,9 +114,9 @@ class PositionerFrame(wx.Frame) :
             self.widlist.append(('slew', pos, desc, pvctrl, rdctrl, delpv))
 
         for i in range(1):
-            desc   = wx.TextCtrl(panel, -1, value='', size=(175, -1))
-            pvctrl = wx.TextCtrl(panel, value='', size=(175, -1))
-            rdctrl = wx.TextCtrl(panel, value='', size=(175, -1))
+            desc   = wx.TextCtrl(panel, -1, value='', size=(180, -1))
+            pvctrl = wx.TextCtrl(panel, value='', size=(180, -1))
+            rdctrl = wx.TextCtrl(panel, value='', size=(180, -1))
             ir +=1
             sizer.Add(desc,   (ir, 0), (1, 1), RIGHT, 1)
             sizer.Add(pvctrl, (ir, 1), (1, 1), LEFT, 1)
@@ -160,23 +163,25 @@ class PositionerFrame(wx.Frame) :
             readpv  = readpv.GetValue().strip()
             if len(readpv) < 1:
                 readpv = drivepv
-            if erase and obj is not None:
-                delete = self.scandb.del_positioner
-                if wtype == 'slew':
-                    delete = self.scandb.del_slewpositioner
-                delete(obj.name)
-            elif obj is not None:
-                obj.name = name
-                obj.use = 1
-                obj.drivepv = drivepv
-                obj.readpv = readpv
-            elif obj is None and wtype == 'line':
-                self.scandb.add_positioner(name, drivepv, readpv=readpv)
-            elif obj is None and wtype == 'slew':
-                self.scandb.add_slewpositioner(name, drivepv, readpv=readpv)
 
-        for panel in self.parent.scanpanels:
-            panel.update_positioners()
+            tablename = 'slewscanpositioners' if wtype == 'slew' else 'scanpositioners'
+            if obj is None:
+                if wtype == 'line':
+                    self.scandb.add_positioner(name, drivepv, readpv=readpv)
+                elif wtype == 'slew':
+                    self.scandb.add_slewpositioner(name, drivepv, readpv=readpv)
+            elif erase:
+                self.scandb.delete_row(tablename, where={'id': obj.id})
+            else:
+                self.scandb.update(tablename, where={'id': obj.id},
+                                   name=name, use=1, drivepv=drivepv, readpv=readpv)
+
+
+        print("PARENT ", self.parent)
+        for page in self.parent.nb.pagelist:
+            if hasattr(page, 'update_positioners'):
+                page.update_positioners()
+                print("updated positioners for ", page)
         self.Destroy()
 
 

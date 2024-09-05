@@ -17,8 +17,8 @@ from ..utils import strip_quotes
 from epics import caget
 from epics.wx import EpicsFunction
 
-DET_CHOICES = ('scaler', 'tetramm', 'xspress3', 'struck',
-               'mca', 'multimca', 'areadetector')
+DET_CHOICES = ('scaler', 'tetramm', 'xspress3', 'struck', 'usbctr', 'mca',
+               'multimca', 'areadetector')
 
 AD_CHOICES = ['None'] + list(AD_FILE_PLUGINS)
 
@@ -129,8 +129,9 @@ class DetectorDetailsFrame(wx.Frame):
     def __init__(self, parent, det=None):
         self.parent = parent
         self.scandb = parent.scandb
+        print("Det details from ", det, type(det))
         self.det = det
-        title = "Settings for '%s'" % (det.name)
+        title = f"Settings for '{det.name}'"
         wx.Frame.__init__(self, None, -1, title, style=FRAMESTYLE)
         self.SetFont(Font(8))
         self.build_dialog(parent)
@@ -185,7 +186,7 @@ class DetectorDetailsFrame(wx.Frame):
                     wid.SetStringSelection(val)
             elif val in (True, False, 'Yes', 'No'):
                 defval = val in (True, 'Yes')
-                wid = check(self, default=defval)
+                wid = check(self, default=defval, size=(65, -1))
             elif isinstance(val, (int, float)):
                 wid = FloatCtrl(self, value=val, size=(150, -1))
             else:
@@ -224,7 +225,8 @@ class DetectorDetailsFrame(wx.Frame):
                 val =  {0:False, 1:True}[wid.GetSelection()]
             opts[key] = val
 
-        self.det.options = json.dumps(opts)
+        self.scandb.update('scandetectors', where={'id': self.det.id},
+                           options=json.dumps(opts))
         self.onClose()
 
     def onClose(self, event=None):
@@ -246,44 +248,43 @@ class DetectorFrame(wx.Frame) :
 
         self.SetFont(Font(9))
 
-        sizer = wx.GridBagSizer(3, 2)
-        sizer.SetHGap(2)
-        sizer.SetVGap(2)
+        sizer = wx.GridBagSizer(2, 2)
         panel = scrolled.ScrolledPanel(self) # , size=(675, 625))
         self.SetMinSize((650, 625))
         panel.SetBackgroundColour(GUIColors.bg)
 
         # title row
         title = SimpleText(panel, 'Detector Setup',  font=Font(13),
-                           minsize=(130, -1),
+                           size=(400, -1),
                            colour=GUIColors.title, style=LEFT)
 
-        sizer.Add(title,        (0, 0), (1, 1), LEFT, 2)
+        sizer.Add(title,        (0, 0), (1, 4), LEFT, 2)
 
         desc = wx.StaticText(panel, -1, label='Detector Settling Time (sec): ',
                              size=(180, -1))
 
         self.settle_time = wx.TextCtrl(panel, size=(75, -1),
                             value=self.scandb.get_info('det_settle_time', '0.001'))
-        sizer.Add(desc,              (1, 0), (1, 2), CEN,  3)
-        sizer.Add(self.settle_time,  (1, 2), (1, 2), LEFT, 3)
+        sizer.Add(desc,              (1, 1), (1, 2), LEFT,  3)
+        sizer.Add(self.settle_time,  (1, 3), (1, 2), LEFT, 3)
 
         ir = 2
-        sizer.Add(add_subtitle(panel, 'Available Detectors'),
-                  (ir, 0),  (1, 5),  LEFT, 0)
+        sizer.Add(SimpleText(panel, 'Available Detectors', size=(250, -1),
+                             style=LEFT),
+                  (ir, 0),  (1, 4),  LEFT, 0)
 
         ir +=1
-        sizer.Add(SimpleText(panel, label='Label',  size=(125, -1)),
+        sizer.Add(SimpleText(panel, label='Label',  size=(150, -1)),
                   (ir, 0), (1, 1), LEFT, 1)
-        sizer.Add(SimpleText(panel, label='PV prefix', size=(175, -1)),
+        sizer.Add(SimpleText(panel, label='PV prefix', size=(180, -1)),
                   (ir, 1), (1, 1), LEFT, 1)
         sizer.Add(SimpleText(panel, label='Use?'),
                   (ir, 2), (1, 1), LEFT, 1)
-        sizer.Add(SimpleText(panel, label='Kind',     size=(80, -1)),
+        sizer.Add(SimpleText(panel, label='Kind',     size=(160, -1)),
                   (ir, 3), (1, 1), LEFT, 1)
-        sizer.Add(SimpleText(panel, label='Details',  size=(60, -1)),
+        sizer.Add(SimpleText(panel, label='Details',  size=(80, -1)),
                   (ir, 4), (1, 1), LEFT, 1)
-        sizer.Add(SimpleText(panel, label='Erase?',  size=(60, -1)),
+        sizer.Add(SimpleText(panel, label='Erase?',  size=(80, -1)),
                   (ir, 5), (1, 1), LEFT, 1)
 
         self.widlist = []
@@ -293,12 +294,12 @@ class DetectorFrame(wx.Frame) :
             ir +=1
             dkind = strip_quotes(det.kind)
             dkind  = det.kind.title().strip()
-            desc   = wx.TextCtrl(panel, value=det.name,   size=(125, -1))
-            pvctrl = wx.TextCtrl(panel, value=det.pvname, size=(175, -1))
+            desc   = wx.TextCtrl(panel, value=det.name,   size=(150, -1))
+            pvctrl = wx.TextCtrl(panel, value=det.pvname, size=(180, -1))
             use    = check(panel, default=det.use)
-            detail = add_button(panel, 'Edit', size=(60, -1),
+            detail = add_button(panel, 'Edit', size=(80, -1),
                                 action=partial(self.onDetDetails, det=det))
-            kind = add_choice(panel, DET_CHOICES, size=(110, -1))
+            kind = add_choice(panel, DET_CHOICES, size=(160, -1))
             kind.SetStringSelection(dkind)
             erase  = YesNo(panel, defaultyes=False)
             sizer.Add(desc,   (ir, 0), (1, 1),  CEN, 1)
@@ -313,10 +314,10 @@ class DetectorFrame(wx.Frame) :
         # select a new detector
         for i in range(1):
             ir +=1
-            desc   = wx.TextCtrl(panel, value='',   size=(125, -1))
-            pvctrl = wx.TextCtrl(panel, value='',   size=(175, -1))
+            desc   = wx.TextCtrl(panel, value='',   size=(150, -1))
+            pvctrl = wx.TextCtrl(panel, value='',   size=(180, -1))
             use    = check(panel, default=False)
-            kind = add_choice(panel, DET_CHOICES, size=(110, -1))
+            kind = add_choice(panel, DET_CHOICES, size=(160, -1))
             kind.SetStringSelection(DET_CHOICES[0])
             sizer.Add(desc,   (ir, 0), (1, 1), CEN, 1)
             sizer.Add(pvctrl, (ir, 1), (1, 1), LEFT, 1)
@@ -325,14 +326,15 @@ class DetectorFrame(wx.Frame) :
             self.widlist.append(('new_det', None, desc, pvctrl, use, kind, False))
 
         ir += 1
-        sizer.Add(add_subtitle(panel, 'Additional Counters'),
-                  (ir, 0),  (1, 5),  LEFT, 1)
+        sizer.Add(SimpleText(panel, 'Additional Counters', size=(250, -1),
+                             style=LEFT),
+                  (ir, 0),  (1, 4),  LEFT, 1)
 
         ###
         ir += 1
-        sizer.Add(SimpleText(panel, label='Label',  size=(125, -1)),
+        sizer.Add(SimpleText(panel, label='Label',  size=(150, -1)),
                   (ir, 0), (1, 1), LEFT, 1)
-        sizer.Add(SimpleText(panel, label='PV name', size=(175, -1)),
+        sizer.Add(SimpleText(panel, label='PV name', size=(180, -1)),
                   (ir, 1), (1, 1), LEFT, 1)
         sizer.Add(SimpleText(panel, label='Use?'),
                   (ir, 2), (1, 1), LEFT, 1)
@@ -340,9 +342,10 @@ class DetectorFrame(wx.Frame) :
                   (ir, 3), (1, 2), LEFT, 1)
 
         for counter in self.counters:
-            if counter.use is None: counter.use = 0
-            desc   = wx.TextCtrl(panel, -1, value=counter.name, size=(125, -1))
-            pvctrl = wx.TextCtrl(panel, value=counter.pvname,  size=(175, -1))
+            if counter.use is None:
+                counter.use = 0
+            desc   = wx.TextCtrl(panel, -1, value=counter.name, size=(150, -1))
+            pvctrl = wx.TextCtrl(panel, value=counter.pvname,  size=(180, -1))
             use    = check(panel, default=counter.use)
             erase  = YesNo(panel, defaultyes=False)
             ir +=1
@@ -354,8 +357,8 @@ class DetectorFrame(wx.Frame) :
                                  pvctrl, use, None, erase))
 
         for i in range(2):
-            desc   = wx.TextCtrl(panel, -1, value='', size=(125, -1))
-            pvctrl = wx.TextCtrl(panel, value='', size=(175, -1))
+            desc   = wx.TextCtrl(panel, -1, value='', size=(150, -1))
+            pvctrl = wx.TextCtrl(panel, value='', size=(180, -1))
             use    = check(panel, default=False)
             ir +=1
             sizer.Add(desc,   (ir, 0), (1, 1), CEN, 1)
@@ -395,37 +398,35 @@ class DetectorFrame(wx.Frame) :
             else:
                 erase = False
 
-            use    = 1 if wuse.IsChecked() else 0
-            name   = name.GetValue().strip()
+            kws = {'use': (1 if wuse.IsChecked() else 0)}
+            name  = name.GetValue().strip()
             pvname = pvname.GetValue().strip()
             if pvname.endswith('.VAL'):
                 pvname = pvname[:-4]
 
             if len(name) < 1 or len(pvname) < 1:
                 continue
-            # print("DET onOK: ",  wtype, name, pvname, use)
 
-            if kind is None:
-                try:
-                    kind = kind.GetStringSelection()
-                except:
-                    continue
-                #             if erase and obj is not None:
-                #                 delete = self.scandb.del_detector
-                #                 if 'counter' in wtype:
-                #                     delete = self.scan.del_counter
-                #                 delete(obj.name)
-            if wtype=='old_det' and obj is not None:
-                print("Edit Detectors: set(old):  ", name, pvname, use)
-                self.scandb.update('scandetectors', where={'name': name},
-                                   use=use, pvname=pvname)
+            if kind is not None:
+                kws['kind'] = kind.GetStringSelection()
+
+            if erase:
+                if wtype == 'old_det':
+                    self.scandb.delete_rows('scandetectors', where={'id': obj.id})
+                elif wtype == 'old_counter':
+                    self.scandb.delete_rows('scancounters', where={'id': obj.id})
+
+            elif wtype=='old_det' and obj is not None:
+                self.scandb.update('scandetectors', where={'id': obj.id},
+                                   name=name, pvname=pvname, **kws)
+
+            elif wtype=='old_counter' and obj is not None:
+                self.scandb.update('scancounters', where={'id': obj.id},
+                                   name=name, pvname=pvname, **kws)
+
             elif wtype=='new_det':
-                opts = json.dumps(DET_DEFAULT_OPTS.get(kind, {}))
-                print("Edit Detectors: set(new):  ", name, pvname, kind, use, opts)
-                self.scandb.add_detector(name, pvname, kind,
-                                         options=opts, use=use)
-            elif 'counter' in wtype:
-                self.scandb.add_counter(name, pvname, use=use)
+                kws['options'] = json.dumps(DET_DEFAULT_OPTS.get(kind, {}))
+                self.scandb.add_detector(name, pvname, **kws)
 
         self.Destroy()
 
