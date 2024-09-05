@@ -102,7 +102,7 @@ class ScanDB(SimpleDB):
             time.sleep(0.5)
             self.connect(dbname, **kws)
 
-    def set_workdir(self, fileroot=None):
+    def set_workdir(self, basedir=None, fileroot=None):
         def _setfolder(f):
             p = f.absolute()
             if p.exists():
@@ -113,7 +113,9 @@ class ScanDB(SimpleDB):
                 return True
             return False
 
-        wdir = self.get_info('user_folder')
+        wdir = basedir
+        if wdir is None:
+            wdir = self.get_info('user_folder')
         if _setfolder(Path(wdir)):
             return True
 
