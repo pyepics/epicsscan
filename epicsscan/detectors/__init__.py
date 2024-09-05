@@ -17,7 +17,7 @@ from ..file_utils import fix_filename
 from .xrd_calibration import read_poni, write_poni
 from .trigger import Trigger
 from .counter import (Counter, DummyCounter, DeviceCounter,
-                      MotorCounter, ROISumCounter)
+                      MotorCounter, ROISumCounter, MCSCounter)
 
 from .base  import DetectorMixin, SimpleDetector, MotorDetector
 from .base  import SCALER_MODE, ROI_MODE, NDARRAY_MODE
@@ -25,6 +25,7 @@ from .mca import McaDetector, MultiMcaDetector
 from .scaler import ScalerCounter, ScalerDetector
 from .xspress3 import Xspress3, Xspress3Detector
 from .struck import Struck, StruckDetector
+from .usbctr import USBCTR, USBCTRDetector
 from .areadetector import AreaDetector
 from .quadem import TetrAMM, TetrAMMDetector
 from .ad_perkinelmer import AD_PerkinElmer

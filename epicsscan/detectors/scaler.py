@@ -66,7 +66,6 @@ class ScalerDetector(DetectorMixin):
             self.scaler.CountTime(dwelltime)
         return self.scaler.put('CONT', 0, wait=True)
 
-
     def ContinuousMode(self, dwelltime=None, numframes=None, **kws):
         "set to continuous mode"
         if dwelltime is not None:

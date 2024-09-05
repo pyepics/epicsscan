@@ -184,7 +184,6 @@ class ROISumCounter(Saveable):
         "return {label: buffer} dictionary"
         return {self.label: self.buff}
 
-
 class DeviceCounter(object):
     """Generic Multi-PV Counter
 
@@ -243,3 +242,28 @@ class DeviceCounter(object):
         for counter in self.counters:
             out[counter.label] = counter.buff
         return out
+
+
+class MCSCounter(DeviceCounter):
+    """Counter for MCS"""
+    invalid_device_msg = 'MCSCounter must use an Epics Scaler'
+    def __init__(self, prefix, scaler=None, outpvs=None, nchan=8,
+                 use_calc=True, use_unlabeled=False):
+        DeviceCounter.__init__(self, prefix)
+        fields = [] # ('.T', 'CountTime')]
+        extra_pvs = []
+        nchan = int(nchan)
+        if scaler is not None:
+            for i in range(1, nchan+1):
+                label = caget('%s.NM%i' % (scaler, i))
+                if label is None:
+                    time.sleep(0.1)
+                    label = caget('%s.NM%i' % (scaler, i))
+                    if label is None:
+                        label = ''
+                if len(label) > 0 or use_unlabeled:
+                    suff = 'mca%i' % (i)
+                    fields.append((suff, label))
+
+        self.extra_pvs = extra_pvs
+        self.set_counters(fields)
