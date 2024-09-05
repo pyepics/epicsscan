@@ -524,7 +524,7 @@ class ScanDB(SimpleDB):
         elif notes != '':
             self.update('pv', where={'name': name}, notes=notes)
 
-        pvrow = self.get_rows('pv', where={'name': name}, limit_one=true)
+        pvrow = self.get_rows('pv', where={'name': name}, limit_one=True)
         return pvrow
 
     def get_pvrow(self, name):
