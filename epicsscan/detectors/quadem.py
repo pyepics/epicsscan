@@ -5,7 +5,7 @@ from __future__ import print_function
 
 import numpy as np
 from epics import Device, poll, caget, get_pv
-from .struck import Struck
+from . import Struck
 
 from .counter import DeviceCounter
 from .base import DetectorMixin, SCALER_MODE, NDARRAY_MODE, ROI_MODE
@@ -22,7 +22,7 @@ class TetrAMM(Device):
     """
     TetrAMM quad channel electrometer, version 2.9
 
-    Can also use SIS3820 (Struck) to manage triggering and timing
+    Can also use SIS3820 (Struck) or USBCTR MCS to manage triggering and timing
     """
 
     attrs = ('Acquire', 'AcquireMode', 'AveragingTime', 'NumAcquire',
@@ -34,9 +34,9 @@ class TetrAMM(Device):
                   '%i:Sigma_RBV', '%i:TSAcquiring', '%i:TSControl',
                   '%i:TSTotal', '%i:TSSigma', '%i:TSNumPoints', )
 
-    _nonpvs = ('_prefix', '_pvs', '_delim', '_chans', '_mode', '_sis')
+    _nonpvs = ('_prefix', '_pvs', '_delim', '_chans', '_mode', '_mcs')
 
-    def __init__(self, prefix, nchan=4, sis_prefix=None):
+    def __init__(self, prefix, nchan=4, mcs_prefix=None, mcs_type='usbctr'):
 
         self._mode = SCALER_MODE
         self.ROIMode = self.NDArrayMode
@@ -61,10 +61,11 @@ class TetrAMM(Device):
             self._aliases['TSTotal%i'% i] = 'Current%i:TSTotal' % i
             self._aliases['TSSigma%i'% i] = 'Current%i:TSSigma' % i
 
-        self._sis = None
-        if sis_prefix is not None:
-            self.sis_prefix = sis_prefix
-            self._sis = Struck(prefix)
+        self._mcs = None
+        if mcs_prefix is not None:
+            self.mcs_prefix = mcs_prefix
+            mcs = Struck if 'struck' mca_type.lower() else USBCTR
+            self._mcs = mcs(prefix)
 
     def ContinuousMode(self, dwelltime=None, numframes=None):
         """set to continuous mode: use for live reading
@@ -107,8 +108,8 @@ class TetrAMM(Device):
             self.put('NumAcquire', numframes)
         if dwelltime is not None:
             self.set_dwelltime(dwelltime)
-        if self._sis is not None:
-            self._sis.ScalerMode()
+        if self._mcs is not None:
+            self._mcs.ScalerMode()
         self._mode = SCALER_MODE
 
 
@@ -140,9 +141,8 @@ class TetrAMM(Device):
             if numframes is not None:
                 self.put('Current%i:TSNumPoints' % i, numframes)
 
-        if self._sis is not None:
-            self._sis.NDArrayMode(dwelltime=dwelltime, numframes=numframes,
-                                trigger_width=sis_trigger_width)
+        if self._mcs is not None:
+            self._mcs.NDArrayMode(dwelltime=dwelltime, numframes=numframes)
         self._mode = NDARRAY_MODE
 
     def set_dwelltime(self, dwelltime, valuesperread=None):
@@ -159,8 +159,8 @@ class TetrAMM(Device):
         if valuesperread is None:
             valuesperread = 10*max(1, int(dwelltime * 400))
         self.put('ValuesPerRead', max(5, valuesperread))
-        if self._sis is not None:
-            self._sis.SetDwellTime(dwelltime)
+        if self._mcs is not None:
+            self._mcs.SetDwellTime(dwelltime)
 
         return self.put('AveragingTime', dwelltime)
 
@@ -278,10 +278,10 @@ class TetrAMM(Device):
         if self._mode in (NDARRAY_MODE, ROI_MODE):
             for i in self._chans:
                 self.put('Current%i:TSControl' % i, 0)  # 'Erase/Start'
-            if self._sis is  not None:
+            if self._mcs is  not None:
                 self.put('Acquire', 1, wait=False)
                 poll(0.025, 1.0)
-                out = self._sis.Start(wait=wait)
+                out = self._mcs.Start(wait=wait)
             else:
                 out = self.put('Acquire', 1, wait=wait)
         else:
@@ -302,8 +302,8 @@ class TetrAMM(Device):
         if self._mode in (NDARRAY_MODE, ROI_MODE):
             for i in self._chans:
                 self.put('Current%i:TSControl' % i, 2) # 'Stop'
-        if self._sis is not None:
-            self._sis.stop()
+        if self._mcs is not None:
+            self._mcs.stop()
         return self.put('Acquire', 0, wait=wait)
 
     def save_arraydata(self, filename='tetramm_arrays.dat'):
@@ -323,11 +323,11 @@ class TetrAMM(Device):
         addrs = [fmt % (self._prefix, i) for i in self._chans]
 
         sis_header = 'No SIS used'
-        if self._sis is not None:
-            sis_header = 'SIS %s' % self._sis.prefix
+        if self._mcs is not None:
+            sis_header = 'MCS %s' % self._mcs.prefix
             names.insert(0, 'TSCALER')
-            addrs.insert(0, self.sis_prefix + 'VAL')
-            sdata.insert(0, self._sis.readmc(mca=1)/self._sis.clockrate)
+            addrs.insert(0, self.mcs_prefix + 'VAL')
+            sdata.insert(0, self._mcs.readmca(mca=1)/self._mcs.clockrate)
 
         npts = len(sdata[0])
         sdata = np.array([s[:npts] for s in sdata]).transpose()

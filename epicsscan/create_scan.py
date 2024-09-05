@@ -148,7 +148,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
     # also, note this hack:
     # a scan may have specified a 'scaler' detector, but
     # if it is a slew scan or qxafs scan, this should really
-    # be the corresponding Struck detector
+    # be the corresponding Struck or USBCTR MCS detector
     scaler_shim = None
     if scan.detmode in ('roi', 'ndarray') and scandb is not None:
         scaler_pvname = '_no_scaler_available_'
@@ -158,7 +158,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
                 scaler_pvname = d['prefix']
         for a in alldets:
             if scaler_pvname == json.loads(a.options).get('scaler', None):
-                scaler_shim = {'kind': 'struck', # a.kind,
+                scaler_shim = {'kind': 'mcs', # a.kind,
                                'prefix': a.pvname,
                                'label': a.name,
                                'scaler': scaler_pvname}

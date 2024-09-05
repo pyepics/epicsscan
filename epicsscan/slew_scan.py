@@ -15,7 +15,6 @@ from .positioner import Positioner
 from .saveable import Saveable
 
 from .utils import ScanDBAbort
-from .detectors import Struck, TetrAMM, Xspress3
 from .detectors import (Counter, Trigger, AreaDetector, write_poni)
 from .file_utils import fix_varname, fix_filename, increment_filename
 
@@ -346,7 +345,7 @@ class Slew_Scan(StepScan):
             mbuff.extend(['#Y.positioner  = %s' %  (ypos),
                          '#Y.start_stop_step = %f, %f, %f' %  (start, stop, step)])
         mbuff.extend(['#------------------------------------',
-             '# yposition  xrf_file  struck_file  xps_file  xrd_file   time'])
+             '# yposition  xrf_file  mcs_file  xps_file  xrd_file   time'])
 
         self.mastertext = []
         self.write_master(mbuff)
@@ -360,7 +359,7 @@ class Slew_Scan(StepScan):
         for det in self.detectors:
             dlabel = det.label.lower()
             # print('detector ', det, dlabel)
-            if dlabel == 'struck':
+            if dlabel in ('struck', 'usbctr', 'mcs'):
                 scadet = det
             elif dlabel in ('xspress3', 'multimca')  or 'mca' in dlabel:
                 xrfdet = det
