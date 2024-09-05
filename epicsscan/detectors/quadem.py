@@ -64,7 +64,7 @@ class TetrAMM(Device):
         self._mcs = None
         if mcs_prefix is not None:
             self.mcs_prefix = mcs_prefix
-            mcs = Struck if 'struck' mca_type.lower() else USBCTR
+            mcs = Struck if 'struck' in mca_type.lower() else USBCTR
             self._mcs = mcs(prefix)
 
     def ContinuousMode(self, dwelltime=None, numframes=None):
