@@ -108,7 +108,6 @@ class ScanServer():
         if self.epicsdb is not None:
             self.epicsdb.workdir = workdir
 
-
         if not is_complete(command):
             self.set_scan_message(f"Error: command <command> is incomplete")
             self.scandb.set_command_status('canceled', cmdid=cmdid)
@@ -198,6 +197,11 @@ class ScanServer():
         self.req_abort = get_info('request_abort', as_bool=True)
         self.req_pause = get_info('request_pause', as_bool=True)
         self.req_shutdown = get_info('request_shutdown', as_bool=True)
+        if self.epicsdb is not None:
+            if self.epicsdb.Abort == 1:
+                self.req_abort = 1
+            if self.epicsdb.Shutdown == 1:
+                self.req_shutdown = 1
         return self.req_abort
 
     def clear_interrupts(self):
@@ -209,10 +213,19 @@ class ScanServer():
         self.req_abort = self.req_pause = False
         self.scandb.set_info('request_abort', 0)
         self.scandb.set_info('request_pause', 0)
+        if self.epicsdb is not None:
+            self.epicsdb.Abort = 0
+            self.epicsdb.Shutdown = 0
+
+    def set_heartbeat(self):
+        tmsg = tstamp()
+        self.scandb.set_info('heartbeat', tmsg)
+        if self.epicsdb is not None:
+            self.epicsdb.TSTAMP = tmsg
 
     def mainloop(self):
         self.set_status('idle')
-        msgtime = time.time()
+        msgtime = t0 = time.time()
         self.set_scan_message('Server Ready')
         is_paused = False
         request_id = self.scandb.status_codes['requested']
@@ -223,46 +236,39 @@ class ScanServer():
             epics.poll(0.025, 1.0)
             time.sleep(0.25)
             now = time.time()
-            self.look_for_interrupts()
-
-            # shutdown?
-            if (self.req_shutdown or (self.epicsdb is not None
-                                     and  self.epicsdb.Shutdown == 1)):
-                break
 
             # update server heartbeat / message
             if now > msgtime + 0.75:
                 msgtime = now
-                self.scandb.set_info('heartbeat', tstamp())
-                if self.epicsdb is not None:
-                    self.epicsdb.setTime()
+                self.set_heartbeat()
 
-            # if paused, continue loop
+            self.look_for_interrupts()
+
+            # shutdown?
+            if self.req_shutdown:
+                break
+
+            # pause: sleep, continue loop until un-paused
             if self.req_pause:
-                time.sleep(0.50)
+                time.sleep(1.0)
                 continue
 
             # get ordered list of requested commands
-            reqs = self.scandb.get_rows('commands',
+            cmds = self.scandb.get_rows('commands',
                                         status=request_id,
                                         order_by='run_order')
-
-            # abort command?
-            if (self.req_abort or (self.epicsdb is not None
-                                   and  self.epicsdb.Abort == 1)):
-                if len(reqs) > 0:
-                    req = reqs[0]
-                    self.scandb.set_command_status('aborted', cmdid=req.id)
-                    # abort_slewscan()
-                    reqs = []
-                if self.epicsdb is not None:
-                    self.epicsdb.Abort = 0
+            # abort current command?
+            if self.req_abort:
+                if len(cmds) > 0:
+                    cmd = cmds[0]
+                    self.scandb.set_command_status('aborted', cmdid=cmd.id)
+                    cmds = []
                 self.clear_interrupts()
-                time.sleep(0.5)
+                time.sleep(1.0)
 
             # do next command
-            if len(reqs) > 0:
-                self.do_command(reqs[0])
+            if len(cmds) > 0:
+                self.do_command(cmds[0])
             else:
                 time.sleep(0.25)
         # mainloop end
