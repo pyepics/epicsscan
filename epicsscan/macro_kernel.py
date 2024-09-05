@@ -76,7 +76,6 @@ class MacroKernel(object):
         if load_macros:
             self.load_macros()
 
-
     def check_abort_pause(self, msg='at caget'):
         if self.scandb.test_abort(msg):
             return False
@@ -157,6 +156,9 @@ class MacroKernel(object):
                 docstring = val._getdoc()
                 if docstring is None:
                     docstring = ''
+                sig = getattr(val, '_signature', None)
+                if callable(sig):
+                    sig = sig()
                 if 'PRIVATE' not in docstring:
-                    macros[name] = docstring
+                    macros[name] = sig, docstring, val
         return macros
