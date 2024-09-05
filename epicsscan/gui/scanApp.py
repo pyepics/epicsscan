@@ -168,12 +168,14 @@ class ScanFrame(wx.Frame):
         for i in range(len(statusbar_fields)):
             self.statusbar.SetStatusText(statusbar_fields[i], i)
 
-        self.set_workdir()
+        self.scandb.set_workdir()
         self.scantimer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.onScanTimer, self.scantimer)
 
         self.mkernel = MacroKernel(self.scandb)
-        self.mkernel.load_macros()
+        if len(self.mkernel.macros) == 0:
+            self.mkernel.load_macros()
+
         self.mkernel.set_symbol('_sys.wx.wxapp', wx.GetApp())
         self.mkernel.set_symbol('_sys.wx.parent', self)
         self.statusbar.SetStatusText('Macros Ready')
@@ -597,31 +599,6 @@ class ScanFrame(wx.Frame):
         except:
             pass
 
-    def set_workdir(self, basedir=None):
-        """set working dir"""
-        if basedir is None:
-            basedir = self.scandb.get_info('user_folder')
-        basedir = str(basedir)
-        fileroot = self.scandb.get_info('server_fileroot')
-        if os.name == 'nt':
-            fileroot = self.scandb.get_info('windows_fileroot')
-        if fileroot is None:
-            fileroot = ''
-
-        if basedir.startswith(fileroot):
-            basedir = basedir[len(fileroot):]
-
-        if basedir.startswith('/'): basedir = basedir[1:]
-        self.scandb.set_info('user_folder', basedir)
-        fullpath = os.path.join(fileroot, basedir)
-        if os.name == 'nt' and ':' in fullpath[:4]:
-            fullpath = fullpath.replace(':', ':/')
-        fullpath = fullpath.replace('\\', '/').replace('//', '/')
-        try:
-            os.chdir(fullpath)
-        except:
-            print("ScanApp: Could not set working directory to %s " % fullpath)
-
     def onFolderSelect(self, evt=None):
         style = wx.DD_DIR_MUST_EXIST|wx.DD_DEFAULT_STYLE
 
@@ -630,7 +607,7 @@ class ScanFrame(wx.Frame):
 
         if dlg.ShowModal() == wx.ID_OK:
             basedir = os.path.abspath(str(dlg.GetPath())).replace('\\', '/')
-            self.set_workdir(basedir=basedir)
+            self.scandb.set_workdir(basedir=basedir)
 
             pref, username = os.path.split(basedir)
             try:
