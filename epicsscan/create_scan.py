@@ -6,7 +6,7 @@ import time
 import json
 import numpy as np
 
-from .detectors import get_detector
+from .detectors import get_detector, ScalerDetector
 from .positioner import Positioner
 from .scan import StepScan
 from .xafs_scan import XAFS_Scan, QXAFS_Scan
@@ -21,7 +21,8 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
                 pos_settle_time=0.01, det_settle_time=0.01, scantime=None,
                 elem=None, edge=None, e0=None, dimension=1, regions=None,
                 energy_drive=None, energy_read=None, time_kw=0, max_time=0,
-                is_relative=False, scandb=None, mkernel=None, data_callback=None, **kws):
+                is_relative=False, scandb=None, mkernel=None,
+                data_callback=None, **kws):
     """
     return a StepScan object, built from function arguments
 
@@ -148,7 +149,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
     # also, note this hack:
     # a scan may have specified a 'scaler' detector, but
     # if it is a slew scan or qxafs scan, this should really
-    # be the corresponding Struck or USBCTR MCS detector
+    # be the corresponding MCS (Struck/USBCTR) detector
     scaler_shim = None
     if scan.detmode in ('roi', 'ndarray') and scandb is not None:
         scaler_pvname = '_no_scaler_available_'
@@ -162,6 +163,17 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
                                'prefix': a.pvname,
                                'label': a.name,
                                'scaler': scaler_pvname}
+    # ... or if this is a step scan, and an MCS (Struck/ USBCTR) is give,
+    # replace it with the corresponding Scaler Detector:
+    elif scan.detmode == 'scaler':
+        newdets = []
+        for d in detectors:
+            if d.get('scaler', None) is not None:
+                newdets.append({'kind': 'scaler', 'prefix': d['scaler'],
+                                'nchan': d['nchan'], 'label': 'scaler'})
+            else:
+                newdets.append(d)
+        detectors = newdets
 
     scan.rois = rois
     for dpars in detectors:
