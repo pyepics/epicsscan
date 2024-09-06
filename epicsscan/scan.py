@@ -418,9 +418,9 @@ class StepScan(object):
         db_prefix = self.scandb.get_info('extra_pvs_prefix')
         if len(db_prefix) > 0:
             prefix = fix_varname(db_prefix).title()
-            for row in self.scandb.get_info(prefix=db_prefix,
+            for key, row in self.scandb.get_info(prefix=db_prefix,
                                             order_by='display_order',
-                                            full_row=True):
+                                            full_row=True).items():
                 notes = row.notes
                 if notes is None or len(notes) < 1:
                     notes = 'unknown'
@@ -746,6 +746,9 @@ class StepScan(object):
                 time.sleep(max(0.05, 0.8*self.min_dwelltime))
                 while not all([trig.done for trig in self.triggers]):
                     if (time.time() - t0) > 5.0*(1 + 2*self.max_dwelltime):
+                        print("Trigger timed-out!")
+                        for trig in self.triggers:
+                            print(trig, trig.done)
                         break
                     poll(MIN_POLL_TIME, 0.5)
                 self.dtimer.add('Pt %i : triggers done' % i)
