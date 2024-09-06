@@ -44,20 +44,7 @@ def randname(n=6):
     "return random string of n (default 6) lowercase letters"
     return ''.join([chr(randrange(26)+97) for i in range(n)])
 
-CURSCAN, SCANGROUP = '< Current Scan >', 'scandat'
-
-class Group():
-    """
-    Generic Group: a container for variables, modules, and subgroups.
-    """
-    def __init__(self, name=None, **kws):
-        if name is None:
-            name = hex(id(self))
-        self.__name__ = name
-        for key, val in kws.items():
-            setattr(self, key, val)
-
-
+CURSCAN= '< Current Scan >'
 
 class ScanViewerFrame(wx.Frame):
     _about = """Scan Viewer,  Matt Newville <newville @ cars.uchicago.edu>  """
@@ -70,13 +57,25 @@ class ScanViewerFrame(wx.Frame):
         wx.Frame.__init__(self, None, -1, style=FRAMESTYLE)
         title = "Epics Step Scan Viewer"
         self.parent = parent
+
         self.scandb = getattr(parent, 'scandb', None)
+        self.mkernel = mkernel
+
+        print("LIVE viewer: ", self.mkernel, self.scandb)
+        print("LIVE: ", self.mkernel.get_symbol('_scandb'))
+
         if self.scandb is None and dbname is not None:
             self.scandb = ScanDB(dbname=dbname, server=server, host=host,
                                  user=user, password=password, port=port,
                                  create=create)
-        self.mkernel = mkernel
-        self.lgroup = Group()
+
+
+        if self.mkernel is None:
+            self.mkernel = MacroKernel()
+        self.mkernel('deriv = diff')
+
+        self.plotdata = {}
+        self.plotinfo = {}
         self.last_cpt = -1
         self.force_newplot = False
         self.scan_inprogress = False
@@ -113,11 +112,10 @@ class ScanViewerFrame(wx.Frame):
         self.Raise()
 
     def onScanTimer(self, evt=None,  **kws):
-        if self.lgroup is None:
-            return
         try:
             curfile   = fix_filename(self.get_info('filename'))
             sdata     = self.scandb.get_scandata()
+
             scan_stat = self.get_info('scan_status')
             msg       = self.get_info('scan_progress')
         except:
@@ -125,23 +123,21 @@ class ScanViewerFrame(wx.Frame):
             return
         if msg is None:
             return
-        npts = 1e200
+        npts = -1
         try:
-            # npts = len(sdata[-1].data)
             for s in sdata:
                 n = len(s.data)
                 if n > 0:
                     npts = min(npts, n)
         except:
-            npts = 0
+            npts = -1
         if npts <= 0 or msg.lower().startswith('preparing'):
             self.need_column_update = True
 
         do_newplot = False
 
         if ((curfile != self.live_scanfile) or
-            (npts > 0 and npts < 3 and self.need_column_update)):
-            self.need_column_update = False
+            (npts > 0 and self.need_column_update)):
             self.scan_inprogress = True
             self.moveto_btn.Disable()
             do_newplot = True
@@ -149,6 +145,7 @@ class ScanViewerFrame(wx.Frame):
             self.title.SetLabel(curfile)
             if len(sdata)>1:
                 self.set_column_names(sdata)
+            self.need_column_update = False
 
         elif msg.lower().startswith('scan complete') and self.scan_inprogress:
             self.scan_inprogress = False
@@ -174,7 +171,7 @@ class ScanViewerFrame(wx.Frame):
             dat = np.array(dat)
             if len(dat) > npts:
                 dat = dat[:npts]
-            setattr(self.lgroup, fix_varname(row.name), dat)
+            self.plotdata[row.name] = dat
 
         if ((npts > 1 and npts != self.live_cpt)  or
             (time.time() - self.last_plot_update) > 15.0):
@@ -183,27 +180,25 @@ class ScanViewerFrame(wx.Frame):
             self.onPlot(npts=npts)
             self.last_plot_update = time.time()
         self.live_cpt = npts
-        # print(" Scan Timer ", do_newplot, npts)
-
 
     def set_column_names(self, sdata):
         """set column names from values read from scandata table"""
         if len(sdata) < 1:
             return
-        try:
-            self.lgroup.array_units = [fix_varname(s.units) for s in sdata]
-        except:
-            return
+
+        self.plotinfo = {'units': {}, 'pvnames': {}, 'notes': {}}
+        xcols, ycols, y2cols = [], [], []
+        for s in sdata:
+            self.plotinfo['units'][s.name] = s.units
+            self.plotinfo['pvnames'][s.name] = s.pvname
+            self.plotinfo['notes'][s.name] = s.notes
+            ycols.append(s.name)
+            if s.notes.lower().startswith('pos'):
+                xcols.append(s.name)
+
         self.total_npts = self.get_info('scan_total_points', as_int=True)
         self.live_cpt = -1
-        xcols, ycols, y2cols = [], [], []
-        self.positioner_pvs = {}
-        for s in sdata:
-            nam = fix_varname(s.name)
-            ycols.append(nam)
-            if s.notes.lower().startswith('pos'):
-                xcols.append(nam)
-                self.positioner_pvs[nam] = s.pvname
+
 
         y2cols = ycols[:] + ['1.0', '0.0', '']
         xarr_old = self.xarr.GetStringSelection()
@@ -220,9 +215,9 @@ class ScanViewerFrame(wx.Frame):
             if i0name in cols_lower:
                 col_i0 = cols_lower.index(i0name)
 
-        defs = [(col_roi, col_i0, n0), (n0, n0, n0)]
+        defs = [(col_roi, col_i0), (n0, n0)]
         for i in range(2):
-            for j in range(3):
+            for j in range(2):
                 ycur = self.yarr[i][j].GetStringSelection()
                 iy = defs[i][j]
                 if ycur not in (None, '', 'None') and ycur in y2cols:
@@ -238,25 +233,24 @@ class ScanViewerFrame(wx.Frame):
         self.SetBackgroundColour(GUIColors.bg)
         self.yops = [[],[]]
         self.yarr = [[],[]]
-        arr_kws= {'choices':[], 'size':(150, -1), 'action':self.onPlot}
+        arr_kws= {'choices':[], 'size':(200, -1), 'action':self.onPlot}
 
         self.title = SimpleText(panel, 'initializing...',
                                 font=Font(13), colour='#880000')
         self.xarr = add_choice(panel, **arr_kws)
-        for i in range(3):
+        for i in range(2):
             self.yarr[0].append(add_choice(panel, **arr_kws))
             self.yarr[1].append(add_choice(panel, **arr_kws))
 
-        for opts, sel, wid in ((PRE_OPS, 0, 80),
-                               (ARR_OPS, 3, 40),
-                               (ARR_OPS, 3, 40)):
+        for opts, sel, wid in ((PRE_OPS, 0, 125),
+                               (ARR_OPS, 3,  80)):
             arr_kws['choices'] = opts
             arr_kws['size'] = (wid, -1)
             self.yops[0].append(add_choice(panel, default=sel, **arr_kws))
             self.yops[1].append(add_choice(panel, default=sel, **arr_kws))
 
         # place widgets
-        sizer = wx.GridBagSizer(3, 2)
+        sizer = wx.GridBagSizer(3, 3)
         sizer.Add(self.title,                  (0, 1), (1, 6), LEFT, 2)
         sizer.Add(SimpleText(panel, '  X ='),  (1, 0), (1, 1), CEN, 0)
         sizer.Add(self.xarr,                   (1, 3), (1, 1), RIGHT, 0)
@@ -267,25 +261,20 @@ class ScanViewerFrame(wx.Frame):
             label = '  Y%i =' % (i+1)
             sizer.Add(SimpleText(panel, label),  (ir, 0), (1, 1), CEN, 0)
             sizer.Add(self.yops[i][0],           (ir, 1), (1, 1), CEN, 0)
-            sizer.Add(SimpleText(panel, '[('),   (ir, 2), (1, 1), CEN, 0)
+            sizer.Add(SimpleText(panel, '('),    (ir, 2), (1, 1), CEN, 0)
             sizer.Add(self.yarr[i][0],           (ir, 3), (1, 1), CEN, 0)
             sizer.Add(self.yops[i][1],           (ir, 4), (1, 1), CEN, 0)
             sizer.Add(self.yarr[i][1],           (ir, 5), (1, 1), CEN, 0)
             sizer.Add(SimpleText(panel, ')'),    (ir, 6), (1, 1), LEFT, 0)
-            sizer.Add(self.yops[i][2],           (ir, 7), (1, 1), CEN, 0)
-            sizer.Add(self.yarr[i][2],           (ir, 8), (1, 1), CEN, 0)
-            sizer.Add(SimpleText(panel, ']'),    (ir, 9), (1, 1), LEFT, 0)
         ir += 1
-        sizer.Add(hline(panel),   (ir, 0), (1, 12), CEN|wx.GROW|wx.ALL, 0)
+        sizer.Add(hline(panel),   (ir, 0), (1, 7), CEN|wx.GROW|wx.ALL, 0)
         pack(panel, sizer)
-
 
         self.plotpanel = PlotPanel(mainpanel, size=(520, 550), fontsize=8)
         self.plotpanel.cursor_callback = self.onLeftDown
         self.plotpanel.messenger = self.write_message
         self.plotpanel.canvas.figure.set_facecolor((0.98,0.98,0.97))
         self.plotpanel.unzoom     = self.unzoom
-        # self.plotpanel.popup_menu = None
 
         btnsizer = wx.StdDialogButtonSizer()
         btnpanel = wx.Panel(mainpanel)
@@ -339,71 +328,55 @@ class ScanViewerFrame(wx.Frame):
         if npts is None:
             npts = 0
         new_plot = self.force_newplot or npts < 3
-        lgroup, gname = self.lgroup, SCANGROUP
 
-        if lgroup is None or not hasattr(lgroup, 'array_units'):
+        if not hasattr(self.plotinfo, 'units'):
             return
-        ix = self.xarr.GetSelection()
+
         x  = self.xarr.GetStringSelection()
+        arrx = self.plotdata.get(x, None)
+        if arrx is None or arry1 is None:
+            logging.exception("no array data for plotting")
+            return
+
         self.x_label = x
         xlabel = x
         popts = {'labelfontsize': 8, 'xlabel': x,
                  'marker':'o', 'markersize':4}
 
-        try:
-            xunits = lgroup.array_units[ix]
-            xlabel = '%s (%s)' % (xlabel, xunits)
-        except:
-            logging.exception("No units at onPlot")
-            return
+        xunits = self.plotinfo['units'].get(x, None)
+        if xunits is not None:
+            xlabel = f'{xlabel} ({xunits})'
 
+        nroot = '_p_worx310x_'
         def make_array(wids, iy):
-            gn  = SCANGROUP
             op1 = self.yops[iy][0].GetStringSelection()
             op2 = self.yops[iy][1].GetStringSelection()
-            op3 = self.yops[iy][2].GetStringSelection()
-            yy1 = self.yarr[iy][0].GetStringSelection()
-            yy2 = self.yarr[iy][1].GetStringSelection()
-            yy3 = self.yarr[iy][2].GetStringSelection()
-            if yy1 in ('0', '1', '', None) or len(yy1) < 0:
-                return '', ''
-            label = yy1
-            expr = "%s_%s"  % (gn, yy1)
+            y1 = self.yarr[iy][0].GetStringSelection()
+            y2 = self.yarr[iy][1].GetStringSelection()
 
-            if yy2 != '':
-                label = "%s%s%s" % (label, op2, yy2)
-                expr = "%s%s" % (expr, op2)
-                if yy2 in ('1.0', '0.0'):
-                    expr = "%s%s" % (expr, yy2)
-                else:
-                    expr = "%s%s_%s"  % (expr, gn, yy2)
-
-            if yy3 != '':
-                label = "(%s)%s%s" % (label, op3, yy3)
-                expr = "(%s)%s" % (expr, op3)
-                if yy3 in ('1.0', '0.0'):
-                    expr = "%s%s"  % (expr, yy3)
-                else:
-                    expr = "%s%s_%s" % (expr, gn, yy3)
+            label = y1
+            expr = f'{nroot}{iy}_1'
+            if y2 != '':
+                expr = f"{nroot}{iy}_1{op2}{nroot}{iy}_2"
+                label = f"{label}{op2}{y2}"
 
             if op1 != '':
-                end = ''
-                if '(' in op1: end = ')'
-                label = "%s(%s)%s" % (op1, label, end)
-                expr  = "%s(%s)%s" % (op1, expr, end)
-            return label, expr
+                dend = ')' if '(' in op1 else ''
+                expr  = f"{op1}({expr}){dend}"
+                label = f"{op1}({label}){dend}"
+            return y1, y2, expr, label
 
-        ylabel, yexpr = make_array(self.yops, 0)
-        if yexpr == '':
+        y1, y2, expr, ylabel = make_array(self.yops, 0)
+        if y1 in ('0', '1', '', None) or len(y1) < 0:
             return
-        self.mkernel.run("%s_arr_x = %s_%s" % (gname, gname, x))
-        self.mkernel.run("%s_arr_y1 = %s"   % (gname, yexpr))
 
-        arrx = getattr(lgroup, 'arr_x', None)
-        arry1 =getattr(lgroup, 'arr_y1', None)
-        if arrx is None or arry1 is None:
-            logging.exception("no array data for plotting")
-            return
+        self.mkernel.set_symbol(f'{nroot}0_1', self.plotdata[y1])
+        if y2 not in ('1', '', None):
+            self.mkernel.set_symbol(f'{nroot}0_2', self.plotdata[y2])
+
+        self.mkernel.run(f"{nroot}_p1 = {expr}")
+
+        arry1 = self.mkernel.get_symbol(f"{nroot}_p1")
 
         try:
             npts = min(len(arrx), len(arry1))
@@ -411,57 +384,60 @@ class ScanViewerFrame(wx.Frame):
             logging.exception("empty array data for plotting")
             return
 
-        y2label, y2expr = make_array(self.yops, 1)
-        if y2expr != '':
-            self.mkernel.run("%s_arr_y2 = %s" % (gname, y2expr))
+        y1, y2, expr2, y2label = make_array(self.yops, 1)
+
+        if expr != '':
+            self.mkernel.set_symbol(f'{nroot}1_1', self.plotdata[y1])
+            if y2 not in ('1', '', None):
+                self.mkernel.set_symbol(f'{nroot}1_2', self.plotdata[y2])
+
+            self.mkernel.run(f"{nroot}_p2 = {expr2}")
+            arry2 = self.mkernel.get_symbol(f"{nroot}_p2")
+
             n2pts = npts
             try:
-                n2pts = min(len(lgroup.arr_x), len(lgroup.arr_y1),
-                            len(lgroup.arr_y2))
-                lgroup.arr_y2 = np.array( lgroup.arr_y2[:n2pts])
+                n2pts = min(len(arrx), len(arry1), len(arry2))
+                arry2 = np.array(arry2[:n2pts])
             except:
-                y2expr = ''
+                pass
             npts = n2pts
 
-        lgroup.arr_y1 = np.array( lgroup.arr_y1[:npts])
-        lgroup.arr_x  = np.array( lgroup.arr_x[:npts])
+        arry1 = np.array(arry1[:npts])
+        arrx  = np.array(arrx[:npts])
 
         path, fname = os.path.split(self.live_scanfile)
         popts.update({'title': fname, 'xlabel': xlabel,
                       'ylabel': ylabel, 'y2label': y2label})
-        if len(lgroup.arr_x) < 2 or len(lgroup.arr_y1) < 2:
+        if len(arrx) < 2 or len(arry1) < 2:
             return
 
-        if len(lgroup.arr_x) != len(lgroup.arr_y1):
-            print( 'data length mismatch ', len(lgroup.arr_x), len(lgroup.arr_y1))
-            return
         ppnl = self.plotpanel
         if new_plot:
             ppnl.conf.zoom_lims = []
-            ppnl.plot(lgroup.arr_x, lgroup.arr_y1,
-                      label= "%s: %s" % (fname, ylabel), **popts)
+            ppnl.plot(arrx, arry1,
+                      label= f"{fname}: {ylabel}", **popts)
             if y2expr != '':
-                ppnl.oplot(lgroup.arr_x, lgroup.arr_y2, side='right',
-                           label= "%s: %s" % (fname, y2label), **popts)
-            xmin, xmax = min(lgroup.arr_x), max(lgroup.arr_x)
+                ppnl.oplot(arrx, arry2, side='right',
+                           label= f"{fname}: {y2label}", **popts)
+            xmin, xmax = min(arrx), max(arrx)
             ppnl.axes.set_xlim((xmin, xmax), emit=True)
             ppnl.canvas.draw()
         else:
             ppnl.set_xlabel(xlabel)
             ppnl.set_ylabel(ylabel)
-            ppnl.update_line(0, lgroup.arr_x, lgroup.arr_y1, draw=True,
+            ppnl.update_line(0, arrx, arry1, draw=True,
                              update_limits=True)
             ax = ppnl.axes
-            ppnl.user_limits[ax] = (min(lgroup.arr_x),  max(lgroup.arr_x),
-                                    min(lgroup.arr_y1), max(lgroup.arr_y1))
+            ppnl.user_limits[ax] = (min(arrx),  max(arrx),
+                                    min(arry1), max(arry1))
 
             if y2expr != '':
                 ppnl.set_y2label(y2label)
-                ppnl.update_line(1, lgroup.arr_x, lgroup.arr_y2, side='right',
+                ppnl.update_line(1, arrx, arry2, side='right',
                                  draw=True, update_limits=True)
                 ax = ppnl.get_right_axes()
-                ppnl.user_limits[ax] = (min(lgroup.arr_x), max(lgroup.arr_x),
-                                        min(lgroup.arr_y2), max(lgroup.arr_y2))
+                ppnl.user_limits[ax] = (min(arrx), max(arrx),
+                                        min(arry2), max(arry2))
 
         self.force_newplot = False
 
