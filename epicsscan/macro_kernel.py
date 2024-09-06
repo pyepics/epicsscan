@@ -11,11 +11,11 @@ from pathlib import Path
 from .file_utils import nativepath
 from .utils import plain_ascii
 from .scandb import ScanDB, InstrumentDB
+from .macros_init import INITSYMS
 
 from asteval import Interpreter
 from asteval.astutils import Procedure
 
-from . import macros_init
 
 class MessageWriter(object):
     """Message Writer for MacrosKernel:
@@ -58,21 +58,23 @@ class MacroKernel(object):
 
         # take all symbols from macros_init, add, _scandb, _instdb,
         # and add some scanning primitives
-        syms = {s: getattr(macros_init, s) for s in macros_init.__all__}
-
-        syms['_scandb'] = self.scandb
-        syms['_instdb'] = self.instdb
-
-        readonly = [s for s in syms]
-
-        self.eval = Interpreter(user_symbols=syms,
-                                readonly_symbols=readonly,
-                                builtins_readonly=True,
+        self.eval = Interpreter(builtins_readonly=True,
                                 writer=self.writer,
                                 err_writer=self.writer,
                                 with_import=True,
                                 with_importfrom=True)
 
+        self.symtable = self.eval.symtable
+        self.symtable['_scandb'] = self.scandb
+        self.symtable['_instdb'] = self.instdb
+        parent = Path(__file__).parent
+        with open(Path(parent, 'macros_init.py'), 'r') as fh:
+            text = fh.read() + '\n'
+        self.eval(text)
+        read_only = list(self.eval.readonly_symbols)
+        read_only.extend(INITSYMS)
+        read_only.extend(['_scandb', '_instdb'])
+        self.eval.readonly_symbols = set(read_only)
         if load_macros:
             self.load_macros()
 
@@ -94,6 +96,8 @@ class MacroKernel(object):
         if root.endswith('/'):
             root = root[:-1]
 
+        self.macros = self.get_macros()
+        nstart = len(self.macros)
         macpath = Path(root, macrodir).absolute()
         macpathname = macpath.as_posix()
         if not macpath.exists():
@@ -125,7 +129,7 @@ class MacroKernel(object):
             print("error loading macros")
         self.scandb.set_workdir()
         self.macros = self.get_macros()
-        print(f"Loaded {len(self.macros)} macro functions from {macpathname}")
+        print(f"Loaded {len(self.macros)-nstart} macro functions from {macpathname}")
 
     def __call__(self, arg):
         return self.run(arg)
