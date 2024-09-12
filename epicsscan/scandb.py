@@ -102,14 +102,15 @@ class ScanDB(SimpleDB):
             time.sleep(0.5)
             self.connect(dbname, **kws)
 
-    def set_workdir(self, basedir=None, fileroot=None):
+    def set_workdir(self, basedir=None, fileroot=None, verbose=True):
         def _setfolder(f):
             p = f.absolute()
             if p.exists():
                 pname = p.as_posix()
                 os.chdir(pname)
                 self.set_info('user_folder', pname)
-                print("Set user folder ", pname)
+                if verbose:
+                    print("Set user folder ", pname)
                 return True
             return False
 

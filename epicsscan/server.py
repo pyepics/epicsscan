@@ -83,13 +83,13 @@ class ScanServer():
         if self.epicsdb is not None:
             self.epicsdb.status = status.title()
 
-    def set_workdir(self):
-        self.scandb.set_workdir()
+    def set_workdir(self, verbose=True):
+        self.scandb.set_workdir(verbose=False)
         self.fileroot = self.scandb.get_info('server_fileroot')
 
     def do_command(self, cmd_row):
         """execute a single command: a row from the commands table"""
-        self.set_workdir()
+        self.set_workdir(verbose=False)
         cmdid = cmd_row.id
         command = plain_ascii(cmd_row.command)
 
