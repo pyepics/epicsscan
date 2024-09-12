@@ -65,7 +65,7 @@ class SettingsPanel(scrolled.ScrolledPanel):
             self.scandb.set_info(label, value)
 
     def onPanelExposed(self, evt=None):
-        for row in self.scandb.get_info(prefix='experiment_', full_row=True):
+        for row in self.scandb.get_info(prefix='experiment_', full_row=True).values():
             if row.key in self.wids:
                 self.wids[row.key].SetValue(row.value)
 
