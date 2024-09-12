@@ -20,7 +20,7 @@ from .gui_utils import (GUIColors, SimpleText, FloatCtrl, HyperText,
                         pack, add_choice, hms, check, LEFT, RIGHT,
                         CEN, add_button)
 
-from ..utils import normalize_pvname, atGSECARS
+from ..utils import normalize_pvname
 from ..xafs_scan import etok, ktoe, XAFS_Scan
 from ..scan import StepScan
 from ..positioner import Positioner
@@ -257,8 +257,6 @@ class GenericScanPanel(scrolled.ScrolledPanel):
 
     @EpicsFunction
     def update_position_from_pv(self, index, name=None):
-        if not atGSECARS():
-            return
         if not hasattr(self, 'pos_settings'):
             return
         if name is None:
@@ -1098,12 +1096,8 @@ class MeshScanPanel(GenericScanPanel):
             npts.SetValue(posdat[4])
             self.update_position_from_pv(irow)
 
-        print("Mesh load scandict ", scan)
         for det in scan['detectors']:
             print(det)
-        print("??")
-
-
 
     def update_positioners(self):
         """meant to be overwritten"""

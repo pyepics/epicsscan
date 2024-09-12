@@ -53,7 +53,7 @@ from .gui_utils import (SimpleText, FloatCtrl, pack, add_button,
                         FileSave, LEFT, CEN, FRAMESTYLE, FNB_STYLE,
                         Font, GUIColors, flatnotebook)
 
-from ..utils import normalize_pvname, atGSECARS
+from ..utils import normalize_pvname
 
 from ..xafs_scan import XAFS_Scan
 
@@ -254,7 +254,7 @@ class ScanFrame(wx.Frame):
         """generate scan definition from current values on GUI
         return scanname, scan_dict
         """
-        print("This is generate_scan... ")
+        # print("This is generate_scan... ")
         if scanname is None:
             scanname = time.strftime("__%b%d_%H:%M:%S__")
 
@@ -273,7 +273,7 @@ class ScanFrame(wx.Frame):
             scan['extra_pvs'] = []
         # print("Generate Scan: set detectors")
         for det in sdb.get_rows('scandetectors', use=1):
-            print("SCAN detectors:  ", det.name, det.use)
+            # print("SCAN detectors:  ", det.name, det.use)
             #if det.name.startswith('eiger'):
             #    continue
             if det.use  == 1:
@@ -347,7 +347,7 @@ class ScanFrame(wx.Frame):
 
     def onDebugScan(self, evt=None):
         sname, scan = self.generate_scan()
-        print("DEBUG generated scan name  ", sname)
+        # print("DEBUG generated scan name  ", sname)
         fname  = scan.get('filename', 'scan.001')
         nscans = int(scan.get('nscans', 1))
         comments = scan.get('comments', '')
@@ -364,7 +364,7 @@ class ScanFrame(wx.Frame):
             nscans = 1
 
         command = fmt % (command, sname, fname, nscans, comments)
-        print("would do command: ", command)
+        # print("would do command: ", command)
         dfname = fix_filename('%s.ini' % sname)
         fout = open(dfname, 'w')
         fout.write("%s\n" % json.dumps(scan))

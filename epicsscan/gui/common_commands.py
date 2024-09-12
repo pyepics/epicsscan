@@ -14,7 +14,7 @@ from .gui_utils import (SimpleText, FloatCtrl, HyperText,
                         pack, add_choice, add_button,  check, CEN, LEFT, RIGHT)
 
 from ..scandb import InstrumentDB
-from ..utils import normalize_pvname, atGSECARS
+from ..utils import normalize_pvname
 
 LINWID = 700
 # from ..scan_panels import ELEM_LIST

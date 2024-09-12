@@ -23,12 +23,6 @@ def hms(secs):
     "format time in seconds to H:M:S"
     return str(timedelta(seconds=int(secs)))
 
-def atGSECARS():
-    hostname, aliaslist, ipaddrs = socket.gethostbyname_ex(socket.gethostname())
-    hostname = socket.getfqdn()
-    return 'cars.aps.anl.gov' in hostname.lower()
-
-
 def strip_quotes(t):
     d3, s3, d1, s1 = '"""', "'''", '"', "'"
     if hasattr(t, 'startswith'):
