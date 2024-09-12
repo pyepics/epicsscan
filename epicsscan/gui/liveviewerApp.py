@@ -61,8 +61,8 @@ class ScanViewerFrame(wx.Frame):
         self.scandb = getattr(parent, 'scandb', None)
         self.mkernel = mkernel
 
-        print("LIVE viewer: ", self.mkernel, self.scandb)
-        print("LIVE: ", self.mkernel.get_symbol('_scandb'))
+        # print("LIVE viewer: ", self.mkernel, self.scandb)
+        # print("LIVE: ", self.mkernel.get_symbol('_scandb'))
 
         if self.scandb is None and dbname is not None:
             self.scandb = ScanDB(dbname=dbname, server=server, host=host,
@@ -118,6 +118,7 @@ class ScanViewerFrame(wx.Frame):
 
             scan_stat = self.get_info('scan_status')
             msg       = self.get_info('scan_progress')
+            # print("Got Scan Data ", len(sdata))
         except:
             logging.exception("No Scan at ScanTime")
             return
@@ -127,15 +128,17 @@ class ScanViewerFrame(wx.Frame):
         try:
             for s in sdata:
                 n = len(s.data)
-                if n > 0:
+                if npts == -1:
+                    npts = n
+                elif n > 0:
                     npts = min(npts, n)
         except:
-            npts = -1
-        if npts <= 0 or msg.lower().startswith('preparing'):
+            npts = -2
+        if npts <= 1 or msg.lower().startswith('preparing'):
             self.need_column_update = True
 
         do_newplot = False
-
+        # print("npts ", npts, self.need_column_update)
         if ((curfile != self.live_scanfile) or
             (npts > 0 and self.need_column_update)):
             self.scan_inprogress = True
@@ -159,9 +162,7 @@ class ScanViewerFrame(wx.Frame):
             self.last_status_msg = msg
             self.SetStatusText(msg)
 
-        # print(" Scan Timer ", do_newplot, npts)
         if not (self.scan_inprogress or do_newplot):
-            # print 'Scan Timer no reason to plot', do_newplot, self.scan_inprogress
             return
 
         for row in sdata:
@@ -172,6 +173,7 @@ class ScanViewerFrame(wx.Frame):
             if len(dat) > npts:
                 dat = dat[:npts]
             self.plotdata[row.name] = dat
+        # print("Set plot data ", self.plotdata.keys(), npts, self.live_cpt, do_newplot)
 
         if ((npts > 1 and npts != self.live_cpt)  or
             (time.time() - self.last_plot_update) > 15.0):
@@ -325,17 +327,20 @@ class ScanViewerFrame(wx.Frame):
 
     def onPlot(self, evt=None, npts=None):
         """draw plot of newest data"""
+        # print("onPlot ", npts)
         if npts is None:
             npts = 0
         new_plot = self.force_newplot or npts < 3
 
-        if not hasattr(self.plotinfo, 'units'):
+        if self.plotinfo.get('units', None) is None:
+            # print("onPlot no units")
             return
 
         x  = self.xarr.GetStringSelection()
         arrx = self.plotdata.get(x, None)
-        if arrx is None or arry1 is None:
+        if arrx is None:
             logging.exception("no array data for plotting")
+            # print("onPlot no x ", x, arrx)
             return
 
         self.x_label = x
@@ -347,7 +352,7 @@ class ScanViewerFrame(wx.Frame):
         if xunits is not None:
             xlabel = f'{xlabel} ({xunits})'
 
-        nroot = '_p_worx310x_'
+        nroot = 'lplt_b'
         def make_array(wids, iy):
             op1 = self.yops[iy][0].GetStringSelection()
             op2 = self.yops[iy][1].GetStringSelection()
@@ -369,9 +374,10 @@ class ScanViewerFrame(wx.Frame):
         y1, y2, expr, ylabel = make_array(self.yops, 0)
         if y1 in ('0', '1', '', None) or len(y1) < 0:
             return
-
+        # print("Y: ", y1, y2, expr, ylabel, self.plotdata.keys())
+        # print("Y: ", type(y1), self.plotdata.get(y1, '?'), self.plotdata.get(y2, '?'))
         self.mkernel.set_symbol(f'{nroot}0_1', self.plotdata[y1])
-        if y2 not in ('1', '', None):
+        if y2 not in ('', None):
             self.mkernel.set_symbol(f'{nroot}0_2', self.plotdata[y2])
 
         self.mkernel.run(f"{nroot}_p1 = {expr}")
@@ -385,8 +391,8 @@ class ScanViewerFrame(wx.Frame):
             return
 
         y1, y2, expr2, y2label = make_array(self.yops, 1)
-
-        if expr != '':
+        arry2 = None
+        if y1 not in ('0', '1', '', None) and len(y1) > 0 and expr2 != '':
             self.mkernel.set_symbol(f'{nroot}1_1', self.plotdata[y1])
             if y2 not in ('1', '', None):
                 self.mkernel.set_symbol(f'{nroot}1_2', self.plotdata[y2])
@@ -416,7 +422,7 @@ class ScanViewerFrame(wx.Frame):
             ppnl.conf.zoom_lims = []
             ppnl.plot(arrx, arry1,
                       label= f"{fname}: {ylabel}", **popts)
-            if y2expr != '':
+            if arry2 is not None:
                 ppnl.oplot(arrx, arry2, side='right',
                            label= f"{fname}: {y2label}", **popts)
             xmin, xmax = min(arrx), max(arrx)
@@ -431,7 +437,7 @@ class ScanViewerFrame(wx.Frame):
             ppnl.user_limits[ax] = (min(arrx),  max(arrx),
                                     min(arry1), max(arry1))
 
-            if y2expr != '':
+            if arry2 is not None:
                 ppnl.set_y2label(y2label)
                 ppnl.update_line(1, arrx, arry2, side='right',
                                  draw=True, update_limits=True)
