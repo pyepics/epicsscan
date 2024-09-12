@@ -127,7 +127,7 @@ class MacroKernel(object):
             os.chdir(origdir)
         except OSError:
             print("error loading macros")
-        self.scandb.set_workdir()
+        self.scandb.set_workdir(verbose=False)
         self.macros = self.get_macros()
         print(f"Loaded {len(self.macros)-nstart} macro functions from {macpathname}")
 
