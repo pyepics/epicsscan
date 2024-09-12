@@ -177,11 +177,10 @@ class PositionerFrame(wx.Frame) :
                                    name=name, use=1, drivepv=drivepv, readpv=readpv)
 
 
-        print("PARENT ", self.parent)
         for page in self.parent.nb.pagelist:
             if hasattr(page, 'update_positioners'):
                 page.update_positioners()
-                print("updated positioners for ", page)
+                # print("updated positioners for ", page)
         self.Destroy()
 
 
