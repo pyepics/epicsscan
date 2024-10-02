@@ -582,7 +582,7 @@ class StepScan(object):
         return time_est
 
 
-    def prepare_scan(self):
+    def prepare_scan(self, debug=False):
         """prepare stepscan"""
         self.pos_settle_time = max(MIN_POLL_TIME, self.pos_settle_time)
         self.det_settle_time = max(MIN_POLL_TIME, self.det_settle_time)
@@ -610,11 +610,12 @@ class StepScan(object):
         for det in self.detectors:
             det.arm(mode=self.detmode, fnum=1, numframes=1)
             fname = fix_varname(fix_filename("%s_%s" % (self.filename, det.label)))
-            det.config_filesaver(path=userdir, name=fname,
-                                 numcapture=npts)
+            det.config_filesaver(path=userdir, name=fname, numcapture=npts)
 
+        self.dtimer.add('PRE: armed detectors ')
         self.message_points = min(100, max(10, 25*round(npts/250.0)))
         self.dwelltime_varys = False
+
         if self.dwelltime is not None:
             self.min_dwelltime = self.dwelltime
             self.max_dwelltime = self.dwelltime
@@ -634,6 +635,7 @@ class StepScan(object):
             time_est += npts*self.dwelltime
             for d in self.detectors:
                 d.set_dwelltime(self.dwelltime)
+        self.dtimer.add('PRE: set dwelltime')
 
         if self.scandb is not None:
             self.set_info('scan_progress', 'preparing scan')
@@ -646,6 +648,7 @@ class StepScan(object):
 
         self.datafile.write_data(breakpoint=0)
         self.filename = self.datafile.filename
+        self.dtimer.add('PRE: opened output file')
         self.clear_data()
         if self.scandb is not None:
             self.init_scandata()
@@ -655,7 +658,7 @@ class StepScan(object):
             self.set_info('scan_current_point', 0)
             self.scandb.set_filename(self.filename)
 
-        self.dtimer.add('PRE: wrote data 0')
+        self.dtimer.add('PRE: initialized scandata')
         # self.set_info('scan_progress', 'starting scan')
 
         self.publish_thread = ScanPublisher(func=self.publish_data,
@@ -670,7 +673,8 @@ class StepScan(object):
             d.read()
             d.clear()
         self.dtimer.add('PRE: start scan')
-
+        if debug:
+            self.dtimer.show()
 
     def run(self, filename=None, comments=None, debug=False):
         """ run a stepscan:
@@ -687,11 +691,11 @@ class StepScan(object):
 
         # caput('13XRM:map:filename', filename)
         self.complete = False
-        self.dtimer = debugtime(verbose=debug)
+        self.dtimer = debugtime()
         self.publishing_scandata = False
 
         ts_start = time.time()
-        self.prepare_scan()
+        self.prepare_scan(debug=debug)
         ts_init = time.time()
         self.inittime = ts_init - ts_start
 
@@ -857,6 +861,6 @@ class StepScan(object):
         self.runtime  = ts_exit - ts_start
         self.dtimer.add('Post: fully done')
 
-        # if debug:
-        self.dtimer.show()
+        if debug:
+            self.dtimer.show()
         return self.datafile.filename
