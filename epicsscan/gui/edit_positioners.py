@@ -171,7 +171,7 @@ class PositionerFrame(wx.Frame) :
                 elif wtype == 'slew':
                     self.scandb.add_slewpositioner(name, drivepv, readpv=readpv)
             elif erase:
-                self.scandb.delete_row(tablename, where={'id': obj.id})
+                self.scandb.delete_rows(tablename, where={'id': obj.id})
             else:
                 self.scandb.update(tablename, where={'id': obj.id},
                                    name=name, use=1, drivepv=drivepv, readpv=readpv)
