@@ -40,7 +40,9 @@ class ExtraPVsFrame(wx.Frame) :
                   (ir, 3), (1, 1), LEFT, 2)
 
         self.widlist = []
+        self.current_extrapvs = {}
         for this in self.scandb.get_rows('extrapvs'):
+            self.current_extrapvs[this.name] = this.pvname
             pvctrl = wx.TextCtrl(panel, value=this.pvname,  size=(200, -1))
             desc   = wx.TextCtrl(panel, -1, value=this.name, size=(200, -1))
             usepv  = check(panel, default=this.use)
@@ -100,12 +102,18 @@ class ExtraPVsFrame(wx.Frame) :
                 continue
             if erase and obj is not None:
                 self.scandb.del_extrapv(obj.name)
-            elif obj is not None:
-                obj.name = name
-                obj.pvname = pvname
-                obj.use  = int(usepv)
-            elif obj is None:
+            elif name not in self.current_extrapvs:
                 self.scandb.add_extrapv(name, pvname, use=usepv)
+            else:
+                vals = {}
+                if obj.name != name:
+                    vals['name'] = name
+                if obj.pvname != pvname:
+                    vals['pvname'] = pvname
+                if obj.use != usepv:
+                    vals['use'] = usepv
+                if len(vals) > 0:
+                    self.scandb.update('extrapvs', where={'name': obj.name}, **vals)
 
         self.Destroy()
 
