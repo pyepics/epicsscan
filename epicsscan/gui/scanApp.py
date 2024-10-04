@@ -624,7 +624,6 @@ class ScanFrame(wx.Frame):
         if dlg.ShowModal() == wx.ID_OK:
             sname =  dlg.GetValue()
         dlg.Destroy()
-        print("onSaveScanDef--> sname ", (sname is None), sname)
         if sname is not None:
             scannames = [s.name for s in self.scandb.get_rows('scandefs')]
             if sname in scannames:
@@ -637,18 +636,13 @@ class ScanFrame(wx.Frame):
                                  style=wx.YES_NO|wx.NO_DEFAULT|wx.ICON_QUESTION)
 
                 if (_ok == wx.ID_YES):
-                    print("DELETE SCANDEF ", sname)
                     self.scandb.del_scandef(sname)
-                    print("DELETE SCANDEF done")
                 else:
                     sname = ''
             if len(sname) > 0:
-                print("onSaveScanDef--> GEN SCAN ", sname)
                 name, scan = self.generate_scan(scanname=sname, force_save=True)
-                print("onSaveScanDef--> scan generated ", name)
                 thisscan = self.scandb.get_scandef(name)
                 self.statusbar.SetStatusText("Saved scan '%s'" % sname)
-                print("onSaveScanDef--> scan save message posted")
             else:
                 self.statusbar.SetStatusText("Could not overwrite scan '%s'" % sname)
 
