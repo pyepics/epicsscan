@@ -409,7 +409,7 @@ class DetectorFrame(wx.Frame) :
 
             if kind is not None:
                 kws['kind'] = kind.GetStringSelection()
-
+            # print("onOK ", name, pvname, wtype, erase, kws)
             if erase:
                 if wtype == 'old_det':
                     self.scandb.delete_rows('scandetectors', where={'id': obj.id})
@@ -419,14 +419,16 @@ class DetectorFrame(wx.Frame) :
             elif wtype=='old_det' and obj is not None:
                 self.scandb.update('scandetectors', where={'id': obj.id},
                                    name=name, pvname=pvname, **kws)
+            elif wtype=='new_det':
+                kws['options'] = json.dumps(DET_DEFAULT_OPTS.get(kind, {}))
+                self.scandb.add_detector(name, pvname, **kws)
 
             elif wtype=='old_counter' and obj is not None:
                 self.scandb.update('scancounters', where={'id': obj.id},
                                    name=name, pvname=pvname, **kws)
+            elif wtype=='new_counter':
+                self.scandb.add_counter(name, pvname, **kws)
 
-            elif wtype=='new_det':
-                kws['options'] = json.dumps(DET_DEFAULT_OPTS.get(kind, {}))
-                self.scandb.add_detector(name, pvname, **kws)
 
         self.Destroy()
 
