@@ -74,14 +74,13 @@ class ScanViewerFrame(wx.Frame):
             self.mkernel = MacroKernel()
         self.mkernel('deriv = diff')
 
-        self.plotdata = {}
+        self.plotdata = {'1': 1, '1.0': 1, '0.0': 0, '0': 0}
         self.plotinfo = {}
         self.last_cpt = -1
         self.force_newplot = False
         self.scan_inprogress = False
         self.last_plot_update = 0.0
         self.need_column_update = True
-        self.positioner_pvs = {}
         self.x_cursor = None
         self.x_label = None
         self.SetTitle(title)
@@ -118,7 +117,6 @@ class ScanViewerFrame(wx.Frame):
 
             scan_stat = self.get_info('scan_status')
             msg       = self.get_info('scan_progress')
-            # print("Got Scan Data ", len(sdata))
         except:
             logging.exception("No Scan at ScanTime")
             return
@@ -298,12 +296,10 @@ class ScanViewerFrame(wx.Frame):
 
 
     def onMoveTo(self, evt=None):
-        pvname = self.positioner_pvs.get(self.x_label, None)
+        pvname = self.plotinfo['pvnames'].get(self.x_label, None)
 
         if pvname is not None and self.x_cursor is not None:
-            msg = " Move To Position:\n  %s (%s) to %.4f " % (self.x_label,
-                                                              pvname,
-                                                              self.x_cursor)
+            msg = f" Move PV {pvname.strip()}\n to {self.x_label.strip()} = {self.x_cursor:.4f}"
             ret = popup(self, msg, "Move to Position?",
                         style=wx.YES_NO|wx.NO_DEFAULT|wx.ICON_QUESTION)
             if ret == wx.ID_YES:
@@ -374,11 +370,9 @@ class ScanViewerFrame(wx.Frame):
         y1, y2, expr, ylabel = make_array(self.yops, 0)
         if y1 in ('0', '1', '', None) or len(y1) < 0:
             return
-        # print("Y: ", y1, y2, expr, ylabel, self.plotdata.keys())
-        # print("Y: ", type(y1), self.plotdata.get(y1, '?'), self.plotdata.get(y2, '?'))
-        self.mkernel.set_symbol(f'{nroot}0_1', self.plotdata[y1])
+        self.mkernel.set_symbol(f'{nroot}0_1', self.plotdata.get(y1, 1.0))
         if y2 not in ('', None):
-            self.mkernel.set_symbol(f'{nroot}0_2', self.plotdata[y2])
+            self.mkernel.set_symbol(f'{nroot}0_2', self.plotdata.get(y2, 1.0))
 
         self.mkernel.run(f"{nroot}_p1 = {expr}")
 
@@ -393,9 +387,9 @@ class ScanViewerFrame(wx.Frame):
         y1, y2, expr2, y2label = make_array(self.yops, 1)
         arry2 = None
         if y1 not in ('0', '1', '', None) and len(y1) > 0 and expr2 != '':
-            self.mkernel.set_symbol(f'{nroot}1_1', self.plotdata[y1])
+            self.mkernel.set_symbol(f'{nroot}1_1', self.plotdata.get(y1, 1))
             if y2 not in ('1', '', None):
-                self.mkernel.set_symbol(f'{nroot}1_2', self.plotdata[y2])
+                self.mkernel.set_symbol(f'{nroot}1_2', self.plotdata.get(y2, 1))
 
             self.mkernel.run(f"{nroot}_p2 = {expr2}")
             arry2 = self.mkernel.get_symbol(f"{nroot}_p2")
@@ -419,6 +413,7 @@ class ScanViewerFrame(wx.Frame):
 
         ppnl = self.plotpanel
         if new_plot:
+            # print("Will Plot ", len(arrx), len(arry1), arry1)
             ppnl.conf.zoom_lims = []
             ppnl.plot(arrx, arry1,
                       label= f"{fname}: {ylabel}", **popts)
