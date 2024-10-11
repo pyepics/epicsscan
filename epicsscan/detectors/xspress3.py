@@ -142,7 +142,6 @@ class Xspress3(Device, ADFileMixin):
                 self.put("C%dSCA:%s" % (i, scaf.npts), numframes)
             except:
                 print("could not set SCA Timeseries with numframes= ", numframes)
-
         dt.add('set_timeseries done %d ' % self.nmcas)
         # dt.show()
 
@@ -359,7 +358,7 @@ class Xspress3Detector(DetectorMixin):
         self.label = label
         if self.label is None:
             self.label = self.prefix
-        self.arm_delay = 0.075
+        self.arm_delay = 0.20
         self.start_delay_arraymode = 0.25
         self.start_delay_roimode   = 0.25
         self.start_delay = self.start_delay_roimode
@@ -442,6 +441,7 @@ class Xspress3Detector(DetectorMixin):
             self._xsp3.put('NumImages', npulses)
 
         dt.add('xspress3: set dtime, npulses')
+        # print("xspress3-> Config file saver ",filename)
         self.config_filesaver(number=1,
                               name=fix_varname(filename),
                               numcapture=npulses,
@@ -461,7 +461,7 @@ class Xspress3Detector(DetectorMixin):
         # self._counter._get_counters()
         # self.counters = self._counter.counters
         # self.extra_pvs = self._counter.extra_pvs
-        dt.add('Xspress3 PreScan: done')
+        # dt.add('Xspress3 PreScan: done')
         # dt.show()
 
     def post_scan(self, **kws):
@@ -576,17 +576,22 @@ class Xspress3Detector(DetectorMixin):
         return self._xsp3.getLastFileName()
 
     def finish_capture(self):
+        # print("FINISH CAPTURE ")
         self._xsp3.FileCaptureOff()
         time.sleep(0.1)
 
     def arm(self, mode=None, fnum=None, wait=True, numframes=None):
         t0 = time.time()
+        time.sleep(0.02)
         if mode is not None:
             self.mode = mode
         if self._xsp3.DetectorState_RBV > 0:
             self._xsp3.put('Acquire', 0)
+        # print("Xspress3 Erase ")
         self._xsp3.put('ERASE', 1, use_complete=True)
+        # print("Xspress3 Erase done ")
         self._xsp3.put('EraseOnStart', 0)
+        # print("Xspress3 EraseOnStart set ")
         if fnum is not None:
             self.fnum = fnum
             self._xsp3.setFileNumber(fnum)
@@ -597,6 +602,7 @@ class Xspress3Detector(DetectorMixin):
         self.start_delay = self.start_delay_roimode
         enable_rois_ts = True
         if self.mode == NDARRAY_MODE:
+            # print("Xspress3 start file capture")
             self._xsp3.FileCaptureOn(verify_rbv=True)
             self.start_delay = self.start_delay_arraymode
             enable_rois_ts = False
@@ -608,16 +614,18 @@ class Xspress3Detector(DetectorMixin):
                 self._xsp3.FileCaptureOn(verify_rbv=True)
             else:
                 self._xsp3.FileCaptureOff()
-
+        # print("Xspress3 set timeseries")
         self._xsp3.set_timeseries(mode='start', numframes=numframes, enable_rois=enable_rois_ts)
-
+        # print("Xspress3 set timeseries done wait ", wait, self.arm_delay)
         if self._xsp3.DetectorState_RBV > 0:
+            tout = 0.
+           #  print("Xspress3 set acquire to 0 ? ")
             self._xsp3.put('Acquire', 0, wait=True)
         if wait:
             tout = time.time()+2.0
             while not (self._xsp3._pvs['ERASE'].put_complete or time.time()>tout):
                  time.sleep(0.002)
-        # print("xspress3 arm might be ready at %.4f" % (time.time()-t0))
+        print("xspress3 arm might be ready at %.4f" % (time.time()-t0))
         while (time.time() < (t0 + self.arm_delay)):
             time.sleep(0.002)
 
@@ -637,6 +645,7 @@ class Xspress3Detector(DetectorMixin):
             self.mode = mode
         if arm:
             self.arm(mode=mode, wait=wait)
+        # print("Xpsress3 Acquire: ", wait)
         self._xsp3.put('Acquire', 1, wait=False)
         if wait:
             time.sleep(self.start_delay)
