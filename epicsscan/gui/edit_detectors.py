@@ -164,7 +164,7 @@ class DetectorDetailsFrame(wx.Frame):
         optkeys.sort()
         irow = 2
         for key in optkeys:
-            if key in ('use', 'kind', 'label'):
+            if key in ('use', 'kind', 'notes', 'label'):
                 continue
             val = opts[key]
             label = key
@@ -190,7 +190,7 @@ class DetectorDetailsFrame(wx.Frame):
             elif isinstance(val, (int, float)):
                 wid = FloatCtrl(self, value=val, size=(150, -1))
             else:
-                wid = wx.TextCtrl(self, value=val, size=(150, -1))
+                wid = wx.TextCtrl(self, value=str(val), size=(150, -1))
             sizer.Add(label, (irow, 0), (1, 1), LEFT,  2)
             sizer.Add(wid,   (irow, 1), (1, 1), RIGHT,  2)
             self.wids[key] = wid
