@@ -29,15 +29,17 @@ class USBCTR(Device):
     _nonpvs = ('_prefix', '_pvs', '_delim', '_nchan',
                'clockrate', 'scaler', 'mcas', 'ast_interp', 'scaler_config')
 
-    def __init__(self, prefix, scaler=None, nchan=8, clockrate=9.6):
+    def __init__(self, prefix, scaler=None, nchan=8, clockrate=24.0):
         self._nchan = nchan
         self.scaler = None
-        self.clockrate = clockrate # clock rate in MHz
         self._mode = SCALER_MODE
 
         if scaler is not None:
             self.scaler = Scaler(scaler, nchan=nchan)
+            clockrate = self.scaler.get('FREQ')
+            clockrate /= 1.e6
 
+        self.clockrate = clockrate # clock rate in MHz
         self.mcas = []
         for i in range(nchan):
             self.mcas.append(MCA(prefix, mca=i+1, nrois=2))
@@ -53,7 +55,7 @@ class USBCTR(Device):
         self.scaler_config = self.read_scaler_config()
 
     def ExternalMode(self, point0_action=1, prescale_counter=0,
-                     realtime=0.010, prescale=1):
+                     realtime=0.0, prescale=1):
         """put MCS in External Mode, with the following options:
         option            meaning                   default value
         ----------------------------------------------------------
@@ -294,7 +296,7 @@ class USBCTR(Device):
             label = "%s | %s" % ("%smca%i" % (self._prefix, nchan), varname)
             if icol == 1 or len(calc) > 1:
                 if icol == 1:
-                    calc = 'A / 9.60'
+                    calc = f'A / {self.clockrate}'
                 label = f"calculated | {calc}"
                 rdata.append((f"{name}_raw", nchan, varname, dat))
 
@@ -340,7 +342,7 @@ class USBCTR(Device):
 
 class USBCTRDetector(DetectorMixin):
     """Measurement Computing USB-CTR Detector"""
-    trigger_suffix = '?'
+    trigger_suffix = 'EraseStart'
     def __init__(self, prefix, nchan=8, use_calc=True, label='mcs',
                  mode='scaler',  scaler=None, rois=None, **kws):
         nchan = int(nchan)
