@@ -17,18 +17,18 @@ from xraydb import (atomic_density, atomic_mass, atomic_name, atomic_number,
           xray_delta_beta, xray_edge, xray_edges, xray_line, xray_lines)
 
 INITSYMS = ['caget', 'caput', 'get_pv', 'PV', 'consts', 'etok', 'ktoe', 'AMU',
-           'ATOM_NAMES', 'ATOM_SYMS', 'AVOGADRO', 'DEG2RAD', 'E_MASS', 'PI',
-           'PLANCK_HBARC', 'PLANCK_HC', 'RAD2DEG', 'RYDBERG', 'R_ELECTRON_ANG',
-           'R_ELECTRON_CM', 'SI_PREFIXES', 'TAU', 'XAFS_KTOE',
-           'atomic_density', 'atomic_mass', 'atomic_name', 'atomic_number',
-           'atomic_symbol', 'chemparse', 'core_width', 'darwin_width', 'f0',
-           'f1_chantler', 'f2_chantler', 'fluor_yield', 'get_material',
-           'guess_edge', 'index_nearest', 'index_of', 'ionchamber_fluxes',
-           'ionization_potential', 'material_mu', 'material_mu_components',
-           'mirror_reflectivity', 'mu_elam', 'xray_delta_beta', 'xray_edge',
-           'xray_edges', 'xray_line', 'xray_lines', 'get_dbinfo', 'set_dbinfo',
-           'check_scan_abort', 'scan_from_db', 'do_scan', 'move_instrument',
-           'move_samplestage']
+            'ATOM_NAMES', 'ATOM_SYMS', 'AVOGADRO', 'DEG2RAD', 'E_MASS', 'PI',
+            'PLANCK_HBARC', 'PLANCK_HC', 'RAD2DEG', 'RYDBERG', 'R_ELECTRON_ANG',
+            'R_ELECTRON_CM', 'SI_PREFIXES', 'TAU', 'XAFS_KTOE',
+            'atomic_density', 'atomic_mass', 'atomic_name', 'atomic_number',
+            'atomic_symbol', 'chemparse', 'core_width', 'darwin_width', 'f0',
+            'f1_chantler', 'f2_chantler', 'fluor_yield', 'get_material',
+            'guess_edge', 'index_nearest', 'index_of', 'ionchamber_fluxes',
+            'ionization_potential', 'material_mu', 'material_mu_components',
+            'mirror_reflectivity', 'mu_elam', 'xray_delta_beta', 'xray_edge',
+            'xray_edges', 'xray_line', 'xray_lines', 'get_dbinfo', 'set_dbinfo',
+            'check_scan_abort', 'scan_from_db', 'do_scan', 'do_slewscan',
+            'move_instrument', 'move_samplestage']
 
 physical_constants = consts.physical_constants
 
@@ -229,6 +229,36 @@ def do_scan(scanname, filename="scan.001", nscans=1, comments=""):
             nscans = int(_scandb.get_info("nscans"))
             abort  = _scandb.get_info("request_abort", as_bool=True)
         return scan
+
+def do_slewscan(scanname, filename="scan.001", nscans=1, comments=""):
+    """do_scan(scanname, filename="scan.001", nscans=1, comments="")
+
+    execute a slew scan as defined in Scan database
+
+    Arguments
+    ---------
+    scanname (string):  name of scan
+    filename (string):  name of output data file ['scan.001']
+    comments (string): user comments for file ['']
+    nscans (integr):   number of repeats to make. [1]
+
+    Examples
+    --------
+      do_slewscan("cu_xafs", "cu_sample1.001", nscans=3)
+
+    Notes
+    -----
+      1. The filename will be incremented so that each scan uses a new filename.
+    """
+    if nscans is not None:
+        _scandb.set_info("nscans", nscans)
+
+    scan = scan_from_db(scanname, filename=filename)
+    scan.comments = comments
+    if scan.scantype != "slew":
+        return do_scan(scanname, filename=filename, nscans=nscans, comments=comments)
+    else:
+        return scan.run(filename=filename, comments=comments)
 
 def get_dbinfo(key, default=None, as_bool=False, as_int=False, full_row=False):
     """get a value for a keyword in the scan info table,
