@@ -68,6 +68,7 @@ class Slew_Scan(StepScan):
         inner_pos = self.scandb.get_slewpositioner(self.inner[0])
         conf = self.scandb.get_config_id(inner_pos.config_id)
         scnf = self.slewscan_config = json.loads(conf.notes)
+        # print("CREATE NEWPORT XPS ", scnf)
         self.xps = NewportXPS(scnf['host'],
                               username=scnf['username'],
                               password=scnf['password'],
@@ -80,7 +81,8 @@ class Slew_Scan(StepScan):
         userdir = self.scandb.get_info('user_folder')
         basedir = os.path.join(fileroot, userdir, 'Maps')
         if not os.path.exists(basedir):
-            os.mkdir(basedir)
+            os.mkdir(basedir, mode=509)
+            os.chmod(basedir, 509)
 
         mappref = self.scandb.get_info('epics_map_prefix')
         if mappref is not None:
@@ -99,8 +101,9 @@ class Slew_Scan(StepScan):
             counter += 1
 
         self.filename = fname
+        os.mkdir(mapdir, mode=509)
+        os.chmod(mapdir, 509)
 
-        os.mkdir(mapdir)
 
         hfname= os.path.join(basedir, self.filename)
         self.set_info('filename', fname)
@@ -164,9 +167,9 @@ class Slew_Scan(StepScan):
         if axis is None:
             raise ValueError("Could not find XPS Axis for %s" % pospv)
 
-        self.xps.define_line_trajectories(axis,
+        self.xps.define_line_trajectories(axis, pixeltime=self.dwelltime,
                                           start=start, stop=stop,
-                                          step=step, scantime=dtime)
+                                          step=step)
 
         self.comments = self.comments.replace('\n', ' | ')
 
@@ -255,6 +258,7 @@ class Slew_Scan(StepScan):
             det.data_dir = mapdir
             try:
                 det.stop()
+                print("CONF FILE SAVER ", detpath)
                 det.config_filesaver(path=detpath)
             except AttributeError:
                 pass
@@ -392,6 +396,7 @@ class Slew_Scan(StepScan):
                 break
 
             irow += 1
+            # print("ROW ", irow)
             dtimer.add('=== row start %i ====' % irow)
             self.set_info('scan_progress', 'row %i of %i' % (irow, npts))
             if mappref is not None:
@@ -421,24 +426,29 @@ class Slew_Scan(StepScan):
             rowdata_ok = True
 
             dtimer.add('inner pos move started irow=%i' % irow)
+            # print("ready to arm detectors row ", irow)
             for det in self.detectors:
                 det.arm(mode='ndarray', numframes=npulses, fnum=irow, wait=False)
+                # print("armed ", det)
             time.sleep(0.005)
+            time.sleep(0.020)
 
             # wait for detectors to be armed
+            # print("SCAN check arm complete ")
             tout = time.time()+2.0
             while not all([det.arm_complete for det in self.detectors]):
                 if time.time() > tout:
                     break
                 time.sleep(0.005)
-
+            # print("Detectors ARMED , ready to start")
             dtimer.add('detectors armed %.3f' % det_arm_delay)
             for det in self.detectors:
                 det.start(arm=False, wait=False)
 
             time.sleep(det_start_delay)
+            # print("Detectors started")
             dtimer.add('detectors started  %.3f' % det_start_delay)
-            self.xps.arm_trajectory(trajname)
+            self.xps.arm_trajectory(trajname, verbose=debug)
             if irow < 2 or not lastrow_ok:
                 time.sleep(0.05)
             dtimer.add('XPS trajectory armed')
@@ -454,7 +464,8 @@ class Slew_Scan(StepScan):
             dtimer.add('positioner moves done')
             # start trajectory in another thread
             scan_thread = Thread(target=self.xps.run_trajectory,
-                                 kwargs=dict(save=False), name='trajectory_thread')
+                                 kwargs=dict(save=False, verbose=debug),
+                                 name='trajectory_thread')
             scan_thread.start()
             dtimer.add('scan thread started')
             posfile = "xps.%4.4i" % (irow)
@@ -522,17 +533,25 @@ class Slew_Scan(StepScan):
                 ncsa, npts_sca = scadet.save_arraydata(filename=sisfile, npts=npulses)
             dtimer.add('saved SIS data')
 
+            time.sleep(0.01)
             nxrf = nxrd = 0
+            # print("## Make sure XRFDET is complete")
             if xrfdet is not None:
                 xrfdet.stop()
+                time.sleep(0.01)
                 t0 = time.time()
+                # print("## check complete: ", xrfdet)
                 write_complete = xrfdet.file_write_complete()
+                # print("## reported complete: ", write_complete)
                 ntry = 0
                 while not write_complete and (time.time()-t0 < 10.0):
+                    # print("## ask for complete")
                     write_complete = xrfdet.file_write_complete()
-                    time.sleep(0.05)
                     ntry = ntry + 1
+                    time.sleep(0.01*ntry)
+                # print("## get numcap: ", xrfdet)
                 nxrf = xrfdet.get_numcaptured()
+                #print("## numcap: ", nxrf, npulses, write_complete)
                 if (nxrf < npulses-1) or not write_complete:
                     time.sleep(0.250)
                     xrfdet.finish_capture()
@@ -549,6 +568,7 @@ class Slew_Scan(StepScan):
                     rowdata_ok = False
                     xrfdet.stop()
                     time.sleep(0.1)
+            # print("## read XRF done")
             dtimer.add('saved XRF data')
 
             if xrddet is not None:
@@ -564,6 +584,7 @@ class Slew_Scan(StepScan):
             if pos_saver_thread.is_alive():
                 print('ERROR:  NewportXPS gathering thread is still alive')
             dtimer.add('saved XPS data')
+            # print("SAVED positioner data")
 
             rowdata_ok = (rowdata_ok and
                           (npts_sca >= npulses-2) and
@@ -571,7 +592,7 @@ class Slew_Scan(StepScan):
                           (nxrf >= npulses-2) and
                           (not pos_saver_thread.is_alive()))
 
-            if debug:
+            if debug or True:
                 print("#== Row %d nXPS=%d, nSIS=%d, nXRF=%d, nXRD=%d  npulses=%d, OK=%s" %
                       (irow, self.xps.ngathered, npts_sca, nxrf, nxrd, npulses, repr(rowdata_ok)))
             if not rowdata_ok:

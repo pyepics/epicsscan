@@ -77,9 +77,9 @@ class Slew_Scan1D(StepScan):
         if axis is None:
             raise ValueError("Could not find XPS Axis for %s" % pospv)
 
-        self.xps.define_line_trajectories(axis,
+        self.xps.define_line_trajectories(axis, pixeltime=self.dwelltime,
                                           start=start, stop=stop,
-                                          step=step, scantime=dtime)
+                                          step=step)
 
         self.comments = self.comments.replace('\n', ' | ')
 
@@ -184,7 +184,7 @@ class Slew_Scan1D(StepScan):
         xrfdir   = os.path.join(userdir, 'XAFSXRF')
         xrfdir_server = os.path.join(fileroot, xrfdir)
         if not os.path.exists(xrfdir_server):
-            os.mkdir(xrfdir_server)
+            os.mkdir(xrfdir_server, mode=509)
 
         det_arm_delay = 0.1
         det_start_delay = 0.5

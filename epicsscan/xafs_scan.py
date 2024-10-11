@@ -387,7 +387,7 @@ class QXAFS_Scan(XAFS_Scan):
         xrfdir   = os.path.join(userdir, 'XAFSXRF')
         xrfdir_server = os.path.join(fileroot, xrfdir)
         if not os.path.exists(xrfdir_server):
-            os.mkdir(xrfdir_server)
+            os.mkdir(xrfdir_server, mode=509)
         dtimer.add('folders and timer setup')
 
         self.xps.arm_trajectory('qxafs', verbose=False)
