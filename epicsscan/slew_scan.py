@@ -287,6 +287,13 @@ class Slew_Scan(StepScan):
         os.utime(destfile, None)
         time.sleep(0.025)
 
+    def save_mcs_data(self, filename='mcsdata.001', npts=1):
+        scafile = self.scadet.get_next_filename()
+        filename = os.path.abspath(os.path.join(self.mapdir, scafile))
+        print("SAVE MCS DATA ", filename, self.npts_sca, self.scadet)
+        _, self.npts_sca = self.scadet.save_arraydata(filename=filename,
+                                                   npts=self.npts_sca)
+
 
     def run(self, filename='map.001', comments=None, debug=False, npts=None):
         """
@@ -514,7 +521,7 @@ class Slew_Scan(StepScan):
                 for p in self.positioners:
                     p.move_to_pos(irow, wait=False)
 
-            dtimer.add('started move to next point, reading')
+            dtimer.add('started next move, reading')
 
             pos_file = os.path.abspath(os.path.join(self.mapdir, posfile))
             pos_saver_thread = Thread(target=self.xps.read_and_save,
@@ -522,13 +529,13 @@ class Slew_Scan(StepScan):
             pos_saver_thread.start()
             dtimer.add('started XPS save')
 
-            npts_sca = npulses
-            nsca = -1
+            self.npts_sca = npulses
             if scadet is not None:
                 scadet.stop()
-                sisfile = os.path.abspath(os.path.join(self.mapdir, scafile))
-                ncsa, npts_sca = scadet.save_arraydata(filename=sisfile, npts=npulses)
-            dtimer.add('saved MCS data')
+                self.scadet = scadet
+                mcs_saver_thread = Thread(target=self.save_mcs_data,  name='mcs_saver')
+                mcs_saver_thread.start()
+            dtimer.add('started MCS data save')
 
             time.sleep(0.01)
             nxrf = nxrd = 0
@@ -577,24 +584,25 @@ class Slew_Scan(StepScan):
                 xrddet.stop()
                 dtimer.add('saved XRD data')
 
-            pos_saver_thread.join(timeout=10)
+            mcs_saver_thread.join(timeout=2)
+            pos_saver_thread.join(timeout=5)
             if pos_saver_thread.is_alive():
                 print('ERROR:  NewportXPS gathering thread is still alive')
             dtimer.add('saved XPS data')
             # print("SAVED positioner data")
 
             rowdata_ok = (rowdata_ok and
-                          (npts_sca >= npulses-2) and
+                          (self.npts_sca >= npulses-2) and
                           (self.xps.ngathered >= npulses-2) and
                           (nxrf >= npulses-2) and
                           (not pos_saver_thread.is_alive()))
 
             if debug or True:
                 print("#== Row %d nXPS=%d, nSIS=%d, nXRF=%d, nXRD=%d  npulses=%d, OK=%s" %
-                      (irow, self.xps.ngathered, npts_sca, nxrf, nxrd, npulses, repr(rowdata_ok)))
+                      (irow, self.xps.ngathered, self.npts_sca, nxrf, nxrd, npulses, repr(rowdata_ok)))
             if not rowdata_ok:
                 fmt=  '#BAD Row %d nXPS=%d, nSIS=%d, nXRF=%d, nXRD=%d: (npulses=%d) redo!\n'
-                self.write(fmt % (irow, self.xps.ngathered, npts_sca, nxrf, nxrd, npulses))
+                self.write(fmt % (irow, self.xps.ngathered, self.npts_sca, nxrf, nxrd, npulses))
                 irow -= 1
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
                 time.sleep(0.25)
@@ -613,7 +621,7 @@ class Slew_Scan(StepScan):
                 if mappref is not None:
                     caput('%sstatus' % (mappref), 'Aborting')
                 break
-            if debug:
+            if debug or True:
                 dtimer.show()
             time.sleep(0.01)
 
