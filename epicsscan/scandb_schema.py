@@ -219,7 +219,7 @@ def create_scandb(dbname, server='postgresql', create=True,
     metadata.create_all(bind=engine)
     time.sleep(0.5)
 
-    db = SimpleDB(dbname, server=server, **conn)
+    db = SimpleDB(dbname, **conn)
 
     # add some initial data:
     for name in CMD_STATUS:
