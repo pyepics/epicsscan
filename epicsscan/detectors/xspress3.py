@@ -1,4 +1,4 @@
-"""
+xs"""
 Quantum Xspress3 detector
 """
 import time
@@ -64,48 +64,43 @@ class Xspress3(Device, ADFileMixin):
         self.mcas = []
 
         scaf = get_scaformats(ad_version) # ('acq', 'npts', 'valform', 'tsform')
-        for i in range(nmcas):
-            imca = i+1
-            dprefix = "%sdet1:" % prefix
-            rprefix = "%sMCA%dROI" % (prefix, imca)
-            data_pv = "%sMCA%d:ArrayData" % (prefix, imca)
+        for imca in range(1, nmcas+1):
+            dprefix = f"{prefix}det1:"
+            rprefix = f"{prefix}MCA{imca}ROI"
+            data_pv = f"{prefix}MCA{imca}:ArrayData"
             mca = ADMCA(dprefix, data_pv=data_pv, roi_prefix=rprefix)
             self.mcas.append(mca)
-            attrs.append("MCA%dROI:TSControl" % (imca))
-            attrs.append("MCA%dROI:TSNumPoints" % (imca))
-            attrs.append("MCA%dROI:EnableCallbacks" % (imca))
-            attrs.append("MCA%dROI:BlockingCallbacks" % (imca))
-            attrs.append("C%dSCA:%s" % (imca, scaf.acq))
-            attrs.append("C%dSCA:%s" % (imca, scaf.npts))
+            attrs.append(f"MCA{imca}ROI:TSControl")
+            attrs.append(f"MCA{imca}:TSNumPoints")
+            attrs.append(f"C{imca}SCA:{scaf.acq}")
+            attrs.append(f"C{imca}SCA:{scaf.npts}")
+
         Device.__init__(self, prefix, attrs=attrs, delim='')
         for attr in self.det_attrs:
-            self.add_pv("%sdet1:%s" % (prefix, attr), attr)
+            self.add_pv(f"{prefix}det1:{attr}", attr)
         for imca in range(1, nmcas+1):
             for isca in range(1, 9):
                 attr = scaf.valform % (imca, isca)
-                self.add_pv("%s%s" % (prefix, attr), attr)
+                self.add_pv(f"{prefix}{attr}", attr)
         poll(0.003, 0.25)
-        for i in range(1, self.nmcas+1):
-            self.get('MCA%dROI:EnableCallbacks' % i)
-            self.get('MCA%dROI:BlockingCallbacks' % i)
-            self.get('MCA%dROI:TSControl' % i)
-            self.get('MCA%dROI:TSNumPoints' % i)
-            self.get("C%dSCA:%s" % (i, scaf.acq))
-            self.get("C%dSCA:%s" % (i, scaf.npts))
-
-
+        for imca in range(1, self.nmcas+1):
+            self.get(f"MCA{imca}ROI:TSControl")
+            self.get(f"MCA{imca}ROI:TSNumPoints")
+            self.get(f"C{imca}SCA:{scaf.acq}")
+            self.get(f"C{imca}SCA:{scaf.npts}")
 
     def set_timeseries(self, mode='stop', numframes=MAX_FRAMES, enable_rois=True):
         if numframes is None:
             numframes = MAX_FRAMES
 
         dt = debugtime()
-        dt.add('set_timeseries')
+        dt.add(f'set_timeseries {enable_rois}')
         scaf = get_scaformats(self._ad_version) # ('acq', 'npts', 'valform', 'tsform')
         dt.add('set_timeseries scaf')
+
+
         # ROI stats:  0=Erase/Start, 1=Start, 2=Stop
         # SCA TS:     0=Done, 1=Acquire
-
         sca_val = 1 # start!
         roi_val = 0 # start!
         roi_cb = 1
@@ -116,33 +111,27 @@ class Xspress3(Device, ADFileMixin):
         if not enable_rois:
             roi_val = 2 # stop  - we are not going to save rois
             roi_cb = 0
-        for i in range(1, self.nmcas+1):
-            self.get('MCA%dROI:EnableCallbacks' % i)
-            self.get('MCA%dROI:BlockingCallbacks' % i)
-            self.get('MCA%dROI:TSControl' % i)
-            self.get('MCA%dROI:TSNumPoints' % i)
-            self.get("C%dSCA:%s" % (i, scaf.acq))
-            self.get("C%dSCA:%s" % (i, scaf.npts))
+
+        for imca in range(1, self.nmcas+1):
+            # the gets here are mostly to make sure PVs are connected
+            if enable_rois:
+                self.get(f"MCA{imca}ROI:TSControl")
+                self.get(f"MCA{imca}ROI:TSNumPoints")
+            self.get(f"C{imca}SCA:{scaf.acq}")
+            self.get(f"C{imca}SCA:{scaf.npts}")
+            self.put(f"C{imca}SCA:{scaf.npts}", numframes)
+            if enable_rois:
+                self.put(f'MCA{imca}ROI:TSNumPoints', numframes)
 
         dt.add('set_timeseries ensured all PVs are connected')
-        for i in range(1, self.nmcas+1):
-            self.put('MCA%dROI:EnableCallbacks' % i, roi_cb)
         time.sleep(0.005)
-
         dt.add('set_timeseries enable callbacks')
-        for i in range(1, self.nmcas+1):
-            self.put('MCA%dROI:BlockingCallbacks' % i, roi_cb)
-            self.put('MCA%dROI:TSControl' % i, roi_val)
-            try:
-                self.put('MCA%dROI:TSNumPoints' % i, numframes)
-            except:
-                print("could not set ROI Timeseries with numframes= ", numframes)
-            self.put("C%dSCA:%s" % (i, scaf.acq), sca_val)
-            try:
-                self.put("C%dSCA:%s" % (i, scaf.npts), numframes)
-            except:
-                print("could not set SCA Timeseries with numframes= ", numframes)
-        dt.add('set_timeseries done %d ' % self.nmcas)
+        for imca in range(1, self.nmcas+1):
+            self.put(f"C{imca}SCA:{scaf.acq}", sca_val)
+            if enable_rois:
+                self.put(f'MCA{imca}ROI:TSControl', roi_val)
+        time.sleep(0.01)
+        dt.add(f'set_timeseries done {self.nmcas}')
         # dt.show()
 
     def set_dwelltime(self, dwelltime):
@@ -358,8 +347,8 @@ class Xspress3Detector(DetectorMixin):
         self.label = label
         if self.label is None:
             self.label = self.prefix
-        self.arm_delay = 0.20
-        self.start_delay_arraymode = 0.25
+        self.arm_delay = 0.075
+        self.start_delay_arraymode = 0.10
         self.start_delay_roimode   = 0.25
         self.start_delay = self.start_delay_roimode
         self._counter = None
@@ -441,13 +430,14 @@ class Xspress3Detector(DetectorMixin):
             self._xsp3.put('NumImages', npulses)
 
         dt.add('xspress3: set dtime, npulses')
-        # print("xspress3-> Config file saver ",filename)
+        print("xspress3-> Config file saver ",filename)
         self.config_filesaver(number=1,
                               name=fix_varname(filename),
                               numcapture=npulses,
                               template=template,
                               auto_increment=False,
                               auto_save=True)
+
         dt.add('xspress3: config filesaver')
         if self._counter is None:
             self.connect_counters()
@@ -582,16 +572,18 @@ class Xspress3Detector(DetectorMixin):
 
     def arm(self, mode=None, fnum=None, wait=True, numframes=None):
         t0 = time.time()
-        time.sleep(0.02)
         if mode is not None:
             self.mode = mode
-        if self._xsp3.DetectorState_RBV > 0:
-            self._xsp3.put('Acquire', 0)
-        # print("Xspress3 Erase ")
-        self._xsp3.put('ERASE', 1, use_complete=True)
-        # print("Xspress3 Erase done ")
+        if self._xsp3.DetectorState_RBV not in (0, 10):
+            t0 = time.time()
+            while self._xsp3.DetectorState_RBV not in (0, 10):
+                time.sleep(0.02)
+                if time.time() >  t0+1:
+                    break
+
+        # self._xsp3.put('ERASE', 1, use_complete=True)
+        self._xsp3.put('ERASE', 1, wait=True)
         self._xsp3.put('EraseOnStart', 0)
-        # print("Xspress3 EraseOnStart set ")
         if fnum is not None:
             self.fnum = fnum
             self._xsp3.setFileNumber(fnum)
@@ -602,7 +594,6 @@ class Xspress3Detector(DetectorMixin):
         self.start_delay = self.start_delay_roimode
         enable_rois_ts = True
         if self.mode == NDARRAY_MODE:
-            # print("Xspress3 start file capture")
             self._xsp3.FileCaptureOn(verify_rbv=True)
             self.start_delay = self.start_delay_arraymode
             enable_rois_ts = False
@@ -614,20 +605,19 @@ class Xspress3Detector(DetectorMixin):
                 self._xsp3.FileCaptureOn(verify_rbv=True)
             else:
                 self._xsp3.FileCaptureOff()
-        # print("Xspress3 set timeseries")
-        self._xsp3.set_timeseries(mode='start', numframes=numframes, enable_rois=enable_rois_ts)
-        # print("Xspress3 set timeseries done wait ", wait, self.arm_delay)
-        if self._xsp3.DetectorState_RBV > 0:
-            tout = 0.
-           #  print("Xspress3 set acquire to 0 ? ")
-            self._xsp3.put('Acquire', 0, wait=True)
+
+        self._xsp3.set_timeseries(mode='start', numframes=numframes,
+                                  enable_rois=enable_rois_ts)
+        time.sleep(0.01)
+        if self._xsp3.DetectorState_RBV not in (0, 10):
+            time.sleep(0.05)
         if wait:
             tout = time.time()+2.0
             while not (self._xsp3._pvs['ERASE'].put_complete or time.time()>tout):
                  time.sleep(0.002)
-        print("xspress3 arm might be ready at %.4f" % (time.time()-t0))
         while (time.time() < (t0 + self.arm_delay)):
             time.sleep(0.002)
+        # print("XSPRESS3 arm done: %.4f" % (time.time()-t0))
 
     def arm_complete(self):
         return self._xsp3._pvs['ERASE'].put_complete
@@ -645,7 +635,6 @@ class Xspress3Detector(DetectorMixin):
             self.mode = mode
         if arm:
             self.arm(mode=mode, wait=wait)
-        # print("Xpsress3 Acquire: ", wait)
         self._xsp3.put('Acquire', 1, wait=False)
         if wait:
             time.sleep(self.start_delay)
