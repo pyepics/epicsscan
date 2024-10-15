@@ -1,4 +1,4 @@
-xs"""
+"""
 Quantum Xspress3 detector
 """
 import time
@@ -124,14 +124,13 @@ class Xspress3(Device, ADFileMixin):
                 self.put(f'MCA{imca}ROI:TSNumPoints', numframes)
 
         dt.add('set_timeseries ensured all PVs are connected')
-        time.sleep(0.005)
-        dt.add('set_timeseries enable callbacks')
         for imca in range(1, self.nmcas+1):
             self.put(f"C{imca}SCA:{scaf.acq}", sca_val)
             if enable_rois:
                 self.put(f'MCA{imca}ROI:TSControl', roi_val)
-        time.sleep(0.01)
-        dt.add(f'set_timeseries done {self.nmcas}')
+
+        # time.sleep(0.005)
+        # dt.add(f'set_timeseries done {self.nmcas}')
         # dt.show()
 
     def set_dwelltime(self, dwelltime):
@@ -330,7 +329,6 @@ class Xspress3Detector(DetectorMixin):
         # get AD Version, as TimeSeries PV names changed between 2 and 3.
         self.ad_version = get_adversion(prefix, cam='det1:')
 
-
         DetectorMixin.__init__(self, prefix, label=label, **kws)
         self._xsp3 = Xspress3(prefix, nmcas=nmcas,
                               fileroot=fileroot,
@@ -342,7 +340,7 @@ class Xspress3Detector(DetectorMixin):
         self.use_full = use_full
 
         self.dwelltime_pv = get_pv('%sdet1:AcquireTime' % prefix)
-        self.extra_pvs = self.add_extrapvs_GSE()
+        self.extra_pvs = []
         self.use_dtc = use_dtc  # KLUDGE DTC!!
         self.label = label
         if self.label is None:
@@ -369,15 +367,7 @@ class Xspress3Detector(DetectorMixin):
                                                         self.prefix, self.label,
                                                         self.mode, self._repr_extra)
 
-    def add_extrapvs_GSE(self):
-        e = [('mca1 tau(nsec)', '13IDE:userTran3.A'),
-             ('mca2 tau(nsec)', '13IDE:userTran3.B'),
-             ('mca3 tau(nsec)', '13IDE:userTran3.C'),
-             ('mca4 tau(nsec)', '13IDE:userTran3.D')]
-        return e
-
     def connect_counters(self):
-        # print("Xspress3 connect counters ", self.prefix, self.mode, self._connect_args)
         self._counter = Xspress3Counter(self.prefix, **self._connect_args)
         self._counter._get_counters()
         self.counters = self._counter.counters
@@ -608,9 +598,9 @@ class Xspress3Detector(DetectorMixin):
 
         self._xsp3.set_timeseries(mode='start', numframes=numframes,
                                   enable_rois=enable_rois_ts)
-        time.sleep(0.01)
+        time.sleep(0.003)
         if self._xsp3.DetectorState_RBV not in (0, 10):
-            time.sleep(0.05)
+            time.sleep(0.025)
         if wait:
             tout = time.time()+2.0
             while not (self._xsp3._pvs['ERASE'].put_complete or time.time()>tout):
