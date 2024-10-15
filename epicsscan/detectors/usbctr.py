@@ -184,17 +184,20 @@ class USBCTR(Device):
         return espv.put(1, wait=wait)
 
     def stop(self):
-        "Stop MCS Collection: is sometimes not reliable"
+        "Stop MCS Collection"
         self.put('StopAll', 1)
-        time.sleep(0.010)
-        for i in range(3):
+        time.sleep(0.005)
+        """
+        for i in range(5):
             if self.get('Acquiring'):
                 if self.scaler is not None:
-                    self.scaler.put('CNT', 0, wait=False)# True)
-                    time.sleep(0.010)
+                    self.scaler.put('CNT', 0, wait=False)
+                    time.sleep(0.0010)
                 self.put('StopAll', 1)
             if self.get('Acquiring'):
-                time.sleep(0.01 * (i+1))
+                print("USB MCS sleep ", i)
+                time.sleep(0.002 * (i+1))
+        """
         return
 
     def erase(self):
