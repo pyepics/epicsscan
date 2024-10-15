@@ -347,8 +347,8 @@ class USBCTRDetector(DetectorMixin):
                  mode='scaler',  scaler=None, rois=None, **kws):
         nchan = int(nchan)
         self.mode = mode
-        self.arm_delay = 0.025
-        self.start_delay = 0.025
+        self.arm_delay = 0.010
+        self.start_delay = 0.010
         self.mcs = USBCTR(prefix, scaler=scaler, nchan=nchan)
         DetectorMixin.__init__(self, prefix, **kws)
         self.label = label
