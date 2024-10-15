@@ -132,13 +132,13 @@ class ScanDB(SimpleDB):
 
         return _setfolder(Path('.'))
 
-    def isScanDB(self, dbname, server='sqlite',
-                 user='', password='', host='', port=None):
-        """test if a file is a valid scan database:
-        must be a sqlite db file, with tables named
-        'postioners', 'detectors', and 'scans'
-        """
-        return True
+#     def isScanDB(self, dbname, server='sqlite',
+#                  user='', password='', host='', port=None):
+#         """test if a file is a valid scan database:
+#         must be a sqlite db file, with tables named
+#         'postioners', 'detectors', and 'scans'
+#         """
+#         return True
 
     def getrow(self, table, name):
         """return named row from a table"""
