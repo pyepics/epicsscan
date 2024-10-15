@@ -262,10 +262,7 @@ class Slew_Scan(StepScan):
                 det.config_filesaver(path=detpath)
             except AttributeError:
                 pass
-        for det in self.detectors:
-            det.arm(mode='ndarray', numframes=npts, fnum=1, wait=False)
 
-        return sname
 
     def post_slew_scan(self, **kws):
         for det in self.detectors:
@@ -396,7 +393,7 @@ class Slew_Scan(StepScan):
                 break
 
             irow += 1
-            # print("ROW ", irow)
+            # print("Start row ", irow)
             dtimer.add('=== row start %i ====' % irow)
             self.set_info('scan_progress', 'row %i of %i' % (irow, npts))
             if mappref is not None:
@@ -419,7 +416,7 @@ class Slew_Scan(StepScan):
                     self.set_info('prescan_lasttime', "%i" % int(now))
 
             for pv, v1, v2 in self.motor_vals.values():
-                val = v2  if (trajname == 'backward') else v1
+                val = v1 if (trajname == 'foreward') else v2
                 pv.put(val, wait=False)
 
             lastrow_ok = rowdata_ok
@@ -429,9 +426,7 @@ class Slew_Scan(StepScan):
             # print("ready to arm detectors row ", irow)
             for det in self.detectors:
                 det.arm(mode='ndarray', numframes=npulses, fnum=irow, wait=False)
-                # print("armed ", det)
-            time.sleep(0.005)
-            time.sleep(0.020)
+                print("armed ", det)
 
             # wait for detectors to be armed
             # print("SCAN check arm complete ")
@@ -448,25 +443,26 @@ class Slew_Scan(StepScan):
             time.sleep(det_start_delay)
             # print("Detectors started")
             dtimer.add('detectors started  %.3f' % det_start_delay)
-            self.xps.arm_trajectory(trajname, verbose=debug)
-            if irow < 2 or not lastrow_ok:
-                time.sleep(0.05)
-            dtimer.add('XPS trajectory armed')
 
             for p in self.positioners:
                 p.move_to_pos(irow-1, wait=True)
 
             for pv, v1, v2 in self.motor_vals.values():
-                val = v1
-                if trajname == 'backward': val = v2
+                val = v1 if (trajname == 'foreward') else v2
                 pv.put(val, wait=True)
+
+            self.xps.arm_trajectory(trajname, verbose=False)
+            if irow < 2 or not lastrow_ok:
+                time.sleep(0.10)
+            dtimer.add('XPS trajectory armed')
 
             dtimer.add('positioner moves done')
             # start trajectory in another thread
             scan_thread = Thread(target=self.xps.run_trajectory,
-                                 kwargs=dict(save=False, verbose=debug),
+                                 kwargs=dict(save=False, verbose=False),
                                  name='trajectory_thread')
             scan_thread.start()
+
             dtimer.add('scan thread started')
             posfile = "xps.%4.4i" % (irow)
             if scadet is not None:
@@ -518,12 +514,13 @@ class Slew_Scan(StepScan):
                 for p in self.positioners:
                     p.move_to_pos(irow, wait=False)
 
-            dtimer.add('start read')
+            dtimer.add('started move to next point, reading')
 
             pos_file = os.path.abspath(os.path.join(self.mapdir, posfile))
             pos_saver_thread = Thread(target=self.xps.read_and_save,
                                   args=(pos_file,), name='pos_saver')
             pos_saver_thread.start()
+            dtimer.add('started XPS save')
 
             npts_sca = npulses
             nsca = -1
@@ -531,7 +528,7 @@ class Slew_Scan(StepScan):
                 scadet.stop()
                 sisfile = os.path.abspath(os.path.join(self.mapdir, scafile))
                 ncsa, npts_sca = scadet.save_arraydata(filename=sisfile, npts=npulses)
-            dtimer.add('saved SIS data')
+            dtimer.add('saved MCS data')
 
             time.sleep(0.01)
             nxrf = nxrd = 0
@@ -580,7 +577,7 @@ class Slew_Scan(StepScan):
                 xrddet.stop()
                 dtimer.add('saved XRD data')
 
-            pos_saver_thread.join(timeout=15)
+            pos_saver_thread.join(timeout=10)
             if pos_saver_thread.is_alive():
                 print('ERROR:  NewportXPS gathering thread is still alive')
             dtimer.add('saved XPS data')
@@ -600,8 +597,6 @@ class Slew_Scan(StepScan):
                 self.write(fmt % (irow, self.xps.ngathered, npts_sca, nxrf, nxrd, npulses))
                 irow -= 1
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
-                # for det in self.detectors:
-                #     det.arm(mode='ndarray', numframes=npulses, fnum=irow-1, wait=False)
                 time.sleep(0.25)
 
             elif irow < npts-1:
