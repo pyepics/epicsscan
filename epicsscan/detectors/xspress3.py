@@ -420,7 +420,7 @@ class Xspress3Detector(DetectorMixin):
             self._xsp3.put('NumImages', npulses)
 
         dt.add('xspress3: set dtime, npulses')
-        print("xspress3-> Config file saver ",filename)
+        # print("xspress3-> Config file saver ",filename)
         self.config_filesaver(number=1,
                               name=fix_varname(filename),
                               numcapture=npulses,
