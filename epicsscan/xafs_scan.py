@@ -265,9 +265,12 @@ class QXAFS_Scan(XAFS_Scan):
                 'npulses': npts, 'nsegments': npts}
 
         xpstraj = {'axes': ['THETA', 'HEIGHT'],
+                   'type': 'array',
+                   'start': {'THETA':theta[0]-the0,
+                             'HEIGHT': width[0]-wid0},
                    'pixeltime': self.dwelltime[0],
-                   'nsegments': npts}
-        #  print("QXAFS Trajectory ", traj['axes'], traj['pixeltime'], npts)
+                   'npulses': npts,
+                   'nsegments': npts, 'uploaded': True}
         self.xps.trajectories['qxafs'] = xpstraj
         self.xps.upload_trajectory('qxafs.trj', buff)
         return traj
@@ -358,8 +361,7 @@ class QXAFS_Scan(XAFS_Scan):
                 caput(qconf['id_drive_pv'], idarray[0], wait=False)
             except CASeverityException:
                 pass
-
-        caput(qconf['energy_pv'],  traj['energy'][0]-0.01, wait=False)
+        caput(qconf['energy_pv'],  traj['energy'][0]-0.5, wait=False)
         det_arm_delay = 0.025
         det_start_delay = 0.1
         for det in self.detectors:
@@ -389,8 +391,9 @@ class QXAFS_Scan(XAFS_Scan):
         if not os.path.exists(xrfdir_server):
             os.mkdir(xrfdir_server, mode=509)
         dtimer.add('folders and timer setup')
-
-        self.xps.arm_trajectory('qxafs', verbose=False)
+        # print("move energy to start: ", qconf['energy_pv'],  traj['energy'][0]-0.5)
+        caput(qconf['energy_pv'],  traj['energy'][0]-0.5, wait=True)
+        self.xps.arm_trajectory('qxafs', verbose=False, move_to_start=True)
         dtimer.add('trajectory armed')
         out = self.pre_scan(npulses=1+traj['npulses'],
                             dwelltime=dtime,
@@ -519,22 +522,34 @@ class QXAFS_Scan(XAFS_Scan):
         self.finish_qscan()
         dtimer.add('scan finished')
 
-        caput(qconf['energy_pv'], energy_orig-1.0)
-        self.check_outputs(out, msg='post scan')
+        caput(qconf['energy_pv'], energy_orig-1.0, wait=False)
+        # self.check_outputs(out, msg='post scan')
+        dtimer.add('check outputs')
         time.sleep(0.05)
+        db_data = {}
+        for row in self.scandb.get_scandata():
+            db_data[row.name.lower()] = row.data
+        dtimer.add(f'read scandb data')
 
-        [c.read() for c in self.counters]
+        for c in self.counters:
+            label = c.label.lower()
+            c.read()
+            # effectively looking for missing data:
+            if label in db_data and len(c.buff) < len(db_data[label])-5:
+                c.buff = db_data[label][:]
+                # print('using data from database  for ' , label)
+
         ndat = [len(c.buff[1:]) for c in self.counters]
-        # print("N energy and counters: ", ne, ndat)
         narr = min(ndat)
-        dtimer.add(f'read counters (narr, ne={narr}, {ne})')
+
+        dtimer.add(f'read counters 1 ({narr}, {ne})')
         t0  = time.monotonic()
         while narr < (ne-1) and (time.monotonic()-t0) < 5.0:
             time.sleep(0.1)
             [c.read() for c in self.counters]
             ndat = [len(c.buff[1:]) for c in self.counters]
             narr = min(ndat)
-        dtimer.add(f'read counters ndat= [{min(ndat)}, {max(ndat)}])')
+        dtimer.add(f'read counters 2 [{min(ndat)}, {max(ndat)}])')
 
         mca_offsets = {}
         counter_buffers = []
