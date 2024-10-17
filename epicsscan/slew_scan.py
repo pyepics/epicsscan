@@ -621,7 +621,7 @@ class Slew_Scan(StepScan):
                 if mappref is not None:
                     caput('%sstatus' % (mappref), 'Aborting')
                 break
-            if debug or True:
+            if debug:
                 dtimer.show()
             time.sleep(0.01)
 
