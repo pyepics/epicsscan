@@ -43,7 +43,7 @@ class QXAFS_ScanWatcher(object):
         self.last = self.pulse = -1
         self.last_move_time = 0
         self.config = None
-        self.dead_time = 0.5
+        self.dead_time = 0.75
         self.id_lookahead = 2
         self.with_id = True
         self.counters = []
@@ -61,6 +61,7 @@ class QXAFS_ScanWatcher(object):
     def connect(self):
         self.confname = self.scandb.get_info('qxafs_config', 'qxafs')
         self.config = json.loads(self.scandb.get_config(self.confname).notes)
+        # print("QXAFS Config ", self.config)
         mcs_prefix = self.config.get('mcs_prefix', '13IDE:SIS1:')
         pulse_channel = f"{mcs_prefix}CurrentChannel"
         self.pulse_pv = PV(pulse_channel, callback=self.onPulse)
@@ -70,12 +71,12 @@ class QXAFS_ScanWatcher(object):
             self.idarray_pv = PV(self.config['id_array_pv'])
             self.iddrive_pv = PV(self.config['id_drive_pv'])
             self.idbusy_pv = PV(self.config['id_busy_pv'])
-            pvroot = self.config['id_busy_pv'].replace('Busy', '')
+            pvroot = self.config['id_busy_pv'].replace('BusyM.VAL', '')
 
-            self.idstop_pv   = PV("%sStop" % pvroot)
-            self.idgapsym_pv = PV('%sGapSymmetry' % pvroot)
-            self.idtaper_pv  = PV('%sTaperEnergy' % pvroot)
-            self.idtaperset_pv  = PV('%sTaperEnergySet' % pvroot)
+            self.idstop_pv   = PV("%sStopC" % pvroot)
+            self.idgapsym_pv = PV('%sGapSymmetryM' % pvroot)
+            self.idtaper_pv  = PV('%sTaperEnergyM' % pvroot)
+            self.idtaperset_pv  = PV('%sTaperEnergySetC' % pvroot)
             time.sleep(0.25)
 
         time.sleep(0.1)
@@ -143,18 +144,23 @@ class QXAFS_ScanWatcher(object):
             now = time.time()
             # look for and prevent out-of-ordinary values for Taper (50 eV)
             # or for Gap Symmetry
-            if self.with_id:
-                gapsym = self.idgapsym_pv.get()
-                taper  = self.idtaper_pv.get()
-                if abs(gapsym) > 0.050 or abs(taper) > 0.050:
-                    self.idtaperset_pv.put(0, wait=True)
-                    time.sleep(0.250)
-                    val = self.idarray[last_pulse + self.id_lookahead]
-                    try:
-                        self.iddrive_pv.put(val, wait=True, timeout=5.0)
-                    except CASeverityException:
-                        pass
-                    time.sleep(0.250)
+            # if self.with_id:
+                #gapsym = self.idgapsym_pv.get()
+                #taper  = self.idtaper_pv.get()
+                #if abs(gapsym) > 0.050 or abs(taper) > 0.050:
+                #    self.idtaperset_pv.put(0, wait=True)
+                # self.idtaperset_pv.put(0, wait=False)
+
+                # val = self.idarray[last_pulse + self.id_lookahead]
+                # self.iddrive_pv.put(val, wait=True, timeout=5.0)
+                # time.sleep(0.250)
+
+                #    val = self.idarray[last_pulse + self.id_lookahead]
+                #    try:
+                #        self.iddrive_pv.put(val, wait=True, timeout=5.0)
+                #    except CASeverityException:
+                #        pass
+                #    time.sleep(0.250)
 
             if self.pulse > last_pulse:
                 if self.pulsecount_pv is not None:
@@ -162,7 +168,7 @@ class QXAFS_ScanWatcher(object):
                 self.scandb.set_info('scan_current_point', self.pulse)
                 if self.heartbeat_pv is not None:
                     self.heartbeat_pv.put("%i" % int(time.time()))
-
+                # print("PULSE ", self.pulse)
                 # if the ID has been moving for more than 0.75 sec, stop it
                 if self.with_id:
                     if ((self.pulse > 2) and
@@ -176,13 +182,13 @@ class QXAFS_ScanWatcher(object):
                     if self.verbose and self.pulse % 25 == 0:
                         self.write("QXAFS: %d/%d ID Energy=%.3f " % (self.pulse, npts, val))
 
-                    if ((self.idbusy_pv.get() == 0) and
+                    if (# (self.idbusy_pv.get() == 0) and
                         (now > self.last_move_time + self.dead_time) and
                         (val > MIN_ID_ENERGY) and (val < MAX_ID_ENERGY)):
                         try:
                             self.iddrive_pv.put(val, wait=False)
                         except CASeverityException:
-                            pass
+                            print("put for ID failed!")
                         time.sleep(0.1)
                         self.last_move_time = time.time()
                 else:
@@ -200,13 +206,20 @@ class QXAFS_ScanWatcher(object):
                     self.scandb.set_info('scan_progress',  msg)
                     self.scandb.set_info('heartbeat', tstamp())
                     msg_counter += 1
+                # print("set data for counters ", len(self.counters))
+                ndat = {}
                 for counter in self.counters:
                     try:
                         dat = counter.read()
+                        ndat[counter.label] = len(dat)
                         if len(dat) > 1:
                             self.scandb.set_scandata(counter.label, dat[1:])
+                        else:
+                            if self.pulse > 2:
+                                print("no data for counter ", counter.label)
                     except:
                         self.write("Could not set scandata for %r, %i" % (counter.label, cpt))
+
         if self.pulsecount_pv is not None:
             self.pulsecount_pv.put("%i" % self.pulse)
         self.scandb.set_info('scan_current_point', self.pulse)
