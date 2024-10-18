@@ -67,13 +67,14 @@ class MacroKernel(object):
         self.symtable = self.eval.symtable
         self.symtable['_scandb'] = self.scandb
         self.symtable['_instdb'] = self.instdb
+        self.symtable['_mkernel'] = self
         parent = Path(__file__).parent
         with open(Path(parent, 'macros_init.py'), 'r') as fh:
             text = fh.read() + '\n'
         self.eval(text)
         read_only = list(self.eval.readonly_symbols)
         read_only.extend(INITSYMS)
-        read_only.extend(['_scandb', '_instdb'])
+        read_only.extend(['_scandb', '_instdb', '_mkernel'])
         self.eval.readonly_symbols = set(read_only)
         if load_macros:
             self.load_macros()
