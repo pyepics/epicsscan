@@ -373,7 +373,7 @@ class StepScan(object):
 
         if self.mkernel is not None:
             try:
-                self.mkernel.run("post_scan_command(row=%i)" % row)
+                self.mkernel.run(f"post_scan_command(row={row})")
             except:
                 self.write("Failed to run post_scan_command()\n")
         self.set_info('scan_progress', 'finishing')
