@@ -68,9 +68,11 @@ class QXAFS_ScanWatcher(object):
         # print("QXAFS Config ", self.config)
         mcs_prefix = self.config.get('mcs_prefix', '13IDE:SIS1:')
         pulse_channel = f"{mcs_prefix}CurrentChannel"
+        id_tracking = int(self.scandb.get_info('qxafs_id_tracking', '1'))
+
         self.pulse_pv = PV(pulse_channel, callback=self.onPulse)
         self.with_id = ('id_array_pv' in self.config and
-                        'id_drive_pv' in self.config)
+                        'id_drive_pv' in self.config and id_tracking)
         if self.with_id:
             self.idarray_pv = PV(self.config['id_array_pv'])
             self.iddrive_pv = PV(self.config['id_drive_pv'])
@@ -200,35 +202,34 @@ class QXAFS_ScanWatcher(object):
 
             time.sleep(0.1)
             now = time.time()
-            if self.pulse > last_pulse:
+            if self.pulse > last_pulse and self.with_id:
                 try:
                     id_busy= self.idbusy_pv.get() == 1
                 except:
                     id_busy = False
-                if self.with_id:
-                    if ((self.pulse > 2) and id_busy and
-                        (now >  self.last_move_time + 2.00)):
-                        print("Stopping ID ", self.pulse, val, time.time()-self.last_move_time)
-                        self.idstop_pv.put(1)
-                        time.sleep(0.1)
 
-                    val = self.idarray[self.pulse + self.id_lookahead]
-                    if ((now > self.last_move_time + self.dead_time) and
-                        (val > self.last_put_value + self.id_deadband) and
-                        (val > MIN_ID_ENERGY) and (val < MAX_ID_ENERGY)):
-                        try:
-                            print(f"Pushing ID to {val:.5f}, {self.pulse}, {self.id_lookahead}")
-                            self.iddrive_pv.put(val, wait=True, timeout=3.0)
-                            self.last_put_value = val
-                        except CASeverityException:
-                            print("put for ID failed!")
-                        self.last_move_time = time.time()
-                        time.sleep(0.25)
+                if ((self.pulse > 2) and id_busy and
+                    (now >  self.last_move_time + 2.00)):
+                    print("Stopping ID ", self.pulse, val, time.time()-self.last_move_time)
+                    self.idstop_pv.put(1)
+                    time.sleep(0.1)
+
+                val = self.idarray[self.pulse + self.id_lookahead]
+                if ((now > self.last_move_time + self.dead_time) and
+                    (val > self.last_put_value + self.id_deadband) and
+                    (val > MIN_ID_ENERGY) and (val < MAX_ID_ENERGY)):
+                    try:
+                        print(f"Pushing ID to {val:.5f}, {self.pulse}, {self.id_lookahead}")
+                        self.iddrive_pv.put(val, wait=True, timeout=3.0)
+                        self.last_put_value = val
+                    except CASeverityException:
+                        print("put for ID failed!")
+                    self.last_move_time = time.time()
+                    time.sleep(0.25)
 
                 last_pulse = self.pulse
                 cpt = int(self.pulse)
         last_pulse = self.pulse = 0
-        print("sync und done")
 
     def set_state(self, val):
         return self.scandb.set_info('qxafs_running', val)
@@ -274,16 +275,10 @@ class QXAFS_ScanWatcher(object):
             state = self.get_state()
             if state == 0 and self.needs_complete:
                 self.needs_complete = False
-                print("Scan Done , finalizing")
                 if self.writer_thread is not None:
                     self.writer_thread.join()
                     time.sleep(0.1)
                     self.writer_thread = None
-                #if self.idsync_thread is not None:
-                #    self.idsync_thread.join()
-                #    time.sleep(0.1)
-                #    self.idsync_thread = None
-
             if state > 0:
                 try:
                     confname = self.scandb.get_info('qxafs_config', 'qxafs')
@@ -292,10 +287,8 @@ class QXAFS_ScanWatcher(object):
                     if self.writer_thread is None:
                         self.writer_thread = Thread(target=self.write_scandata, name='writer')
                         self.writer_thread.start()
+
                     self.sync_undulator()
-                    #if self.idsync_thread is None:
-                    #    self.idsync_thread = Thread(target=self.sync_undulator, name='idsync')
-                    #    self.idsync_thread.start()
 
                 except:
                     self.write("QXAFS monitor gave an exception")
@@ -304,9 +297,6 @@ class QXAFS_ScanWatcher(object):
             time.sleep(0.5)
             if self.heartbeat_pv is not None:
                 self.heartbeat_pv.put("%i"%int(time.time()))
-                th = None
-
-
         self.write("QXAFS monitor  mainloop done ")
 
 if __name__ == '__main__':
