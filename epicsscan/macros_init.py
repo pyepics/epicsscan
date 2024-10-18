@@ -188,6 +188,7 @@ def scan_from_db(scanname, filename="scan.001"):
     try:
         scan = _scandb.make_scan(scanname)
         scan.filename = filename
+        scan.mkernel = _mkernel
     except ScanDBException:
         raise ScanDBException(f"no scan definition '{scanname}' found")
     return scan
