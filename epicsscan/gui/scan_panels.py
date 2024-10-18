@@ -160,7 +160,7 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         self.scan_message.SetLabel(text)
         self.scanmsg_timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.remove_scan_message, self.scanmsg_timer)
-        self.scanmsg_timer.Start(timeout*1000.0)
+        self.scanmsg_timer.Start(int(timeout*1000.0))
 
     def remove_scan_message(self, evt=None):
         self.scan_message.SetLabel(" ")
