@@ -74,7 +74,7 @@ class StepScanData(object):
             icol = self.__arraymap.get(key.lower(), None)
 
         if icol is None:
-            print( 'cannot find column %s' % repr(key))
+            print(f"cannot find column {key}")
             return None
         return self.data[icol]
 
@@ -88,7 +88,7 @@ class StepScanData(object):
         lines = fh.readlines()
         line0 = lines.pop(0)
         if not line0.startswith(FILETOP):
-            print( '%s is not a valid Epics Scan file' % self.filename)
+            print(f"'{self.filename}' is not a valid Epics Scan file")
             return
 
         def split_header(line):
@@ -237,82 +237,85 @@ class ASCIIScanFile(ScanFile):
         "write array of text lines"
         if not self.check_writeable():
             self.open_for_write(mode='a')
-            self.write("%s / %s\n" % (FILETOP, self.version))
-        self.write('%s\n' % '\n'.join(buff))
+            self.write(f"{FILETOP} / {self.version}\n")
+        buff.append('')
+        self.write('\n'.join(buff))
         self.flush()
 
     def write_extrapvs(self):
         "write extra PVS"
-        out = ['%s ExtraPVs.Start: Family.Member: Value | PV' % COM1]
-        for desc, pvname, val in self.scan.read_extra_pvs():
+        extra_pvs = self.scan.read_extra_pvs()
+        if extra_pvs is None or len(extra_pvs) < 1:
+            return
+
+        out = [f'{COM1} ExtraPVs.Start: Family.Member: Value | PV']
+        for desc, pvname, val in extra_pvs:
             if not isinstance(val, str):
                 val = repr(val)
             # require a '.' in the description!!
             if '.' not in desc:
                 isp = desc.find(' ')
                 if isp > 0:
-                    desc = "%s.%s" % (desc[:isp], desc[isp+1:])
+                    desc = f"{desc[:isp]}.{desc[isp+1:]}"
                 else:
-                    desc = '%s.Value' % desc
+                    desc = f"{desc}.Value"
                 desc = fix_filename(desc)
-            sthis = "%s %s: %s" % (COM1, desc, val)
+            sthis = f"{COM1} {desc}: {val}"
             if len(sthis) < 42:
                 sthis = (sthis + ' '*42)[:42]
-            out.append("%s %s %s" % (sthis, SEP, pvname))
+            out.append("{sthis} {SEP} {pvname}")
 
-        out.append('%s ExtraPVs.End: here' % COM1)
+        out.append(f'{COM1} ExtraPVs.End: here')
         self.write_lines(out)
 
     def write_scanparams(self):
         "write scan parameters"
-        out = ['%s ScanParameters.Start: Scan.Member: Value' % COM1]
         s = self.scan
-        # print("WRITE SCAN PARAMS", s, s.elem, s.edge, s.e0)
-
-        out.append('%s ScanParameters.ScanType: %s' % (COM1, s.scantype))
-        regfmt = '%9.3f, %9.3f, %9.3f  %s  %.2f'
+        if 'xafs' not in s.scantype.lower():
+            return
+        out = [f'{COM1} ScanParameters.Start: Scan.Member: Value']
+        out.append(f'{COM1} ScanParameters.ScanType: {s.scantype}')
+        # regfmt = '%9.3f, %9.3f, %9.3f  %s  %.2f'
         if 'xafs' in s.scantype.lower():
             elem = getattr(s, 'elem', 'Unknown')
             edge = getattr(s, 'edge', 'Unknown')
-            out.append('%s ScanParameters.element: %s' % (COM1, elem))
-            out.append('%s ScanParameters.edge: %s' % (COM1, edge))
-            out.append('%s ScanParameters.E0: %.3f' % (COM1, s.e0))
-            out.append('%s ScanParameters.Legend:  Start, Stop, Step, K-space, Time' % COM1)
+            out.append(f'{COM1} ScanParameters.element: {elem}')
+            out.append(f'{COM1} ScanParameters.edge: {edges}')
+            out.append(f'{COM1} ScanParameters.E0: {s.e0:.3f}')
+            out.append(f'{COM1} ScanParameters.Legend:  Start, Stop, Step, K-space, Time')
             for ireg, reg in enumerate(s.regions):
                 start, stop, npts, rel, e0, use_k, dt0, dt1, dtw = reg
                 step = abs(stop-start)/(npts-1.0)
-                regtxt = regfmt % (start, stop, step, repr(use_k), dt0)
+                regtxt = f"{start:9.3f}, {stop:9.3f}, {step:9.3f} {use_k} {dt0:.2f}"
                 if dt1 is not None:
-                    regtxt = '%s .. %.2f (weight=%i)' % (regtxt, dt1, dtw)
-                out.append('%s ScanParameters.Region%i:  %s' % (COM1, ireg+1, regtxt))
-        out.append('%s ScanParameters.End: here' % COM1)
+                    regtxt = f"{regtxt} .. {dt1:.2f} (weight={dtw})"
+                out.append(f"{COM1} ScanParameters.Region{ireg+1}:  {regtxt}")
+        out.append(f"{COM1} ScanParameters.End: ~~~~~~~~~~")
         self.write_lines(out)
 
     def write_timestamp(self, label='Now'):
         "write timestamp"
-        self.write_lines(["%s Scan.%s: %s" % (COM1, label,
-                                              get_timestamp())])
+        self.write_lines([f"{COM1} Scan.{label}: {get_timestamp()}"])
 
     def write_comments(self):
         "write comment lines"
         if self.comments is None:
             print("Warning: no comments to write!")
             return
-        lines = self.comments.split('\n')
-        self.write_lines(["%s %s" % (COM1, COM2)])
-        self.write_lines(['%s %s' % (COM1, l) for l in lines])
+        self.write_lines([f"{COM1} {COM2}"])
+        self.write_lines([f"{COM1} {line}" for line in self.comments.split('\n')])
 
     def write_legend(self):
         "write legend"
         cols = []
         icol = 0
-        out = ['%s Legend.Start: Column.N: Name  units || EpicsPV' % COM1]
+        out = [f"{COM1} Legend.Start: Column.N: Name  units || EpicsPV"]
         for vars  in ((self.scan.positioners, 'positioner', 'unknown'),
                       (self.scan.counters, 'counter', 'counts')):
             objs, objtype, objunits = vars
             for obj in objs:
                 icol += 1
-                key = '%s Column.%i' % (COM1, icol)
+                key = f"{COM1} Column.{icol}"
                 typ, units =  objtype, objunits
                 pv = getattr(obj, 'pv', None)
                 pvname = getattr(obj, 'pvname', None)
@@ -328,19 +331,19 @@ class ASCIIScanFile(ScanFile):
                 if units in (None, 'None', ''):
                     units = objunits
                 lab = fix_filename(obj.label)
-                sthis = "%s: %s %s" %(key, lab, units)
+                sthis = f"{key}: {lab} {units}"
                 extra = getattr(obj, 'extra_label', '')
                 if len(extra) > 0:
-                    sthis = sthis + ' = %s' % extra
+                    sthis = sthis + f" = {extra}"
                 if len(sthis) < 42:
                     sthis = (sthis + ' '*42)[:42]
-                sthis = "%s %s %s" %(sthis, SEP, pvname)
+                sthis = f"{sthis} {SEP} {pvname}"
                 out.append(sthis)
                 cols.append(lab)
 
-        out.append('%s Legend.End: here' % COM1)
+        out.append(f"{COM1} Legend.End: ~~~~~~~~~~")
         self.write_lines(out)
-        self.column_label = '%s %s' % (COM1, '\t'.join(cols))
+        self.column_label = f"{COM1} {'\t'.join(cols)}"
 
     def write_data(self, breakpoint=0, clear=False, close_file=False, verbose=False):
         "write data"
@@ -352,7 +355,7 @@ class ASCIIScanFile(ScanFile):
         self.write_extrapvs()
         self.write_scanparams()
         self.write_comments()
-        out = ["%s %s" % (COM1, COM3), self.column_label]
+        out = [f"{COM1} {COM3}", self.column_label]
         npts_all = [len(c.buff) for c in self.scan.counters]
         npts_all.append(len(self.scan.pos_actual))
         # print("DataFile: Npts: ", npts_all)
@@ -377,7 +380,7 @@ class ASCIIScanFile(ScanFile):
         if close_file:
             self.close()
             if verbose:
-                print( "Wrote and closed %s" % self.filename)
+                print(f"Wrote and closed {self.filename}")
 
     def read(self, filename=None):
         return StepScanData(filename)
