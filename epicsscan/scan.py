@@ -415,6 +415,8 @@ class StepScan(object):
     def read_extra_pvs(self):
         "read values for extra PVs and 'extra_pvs' values from database"
         out = []
+        if self.scandb is None:
+            return out
         db_prefix = self.scandb.get_info('extra_pvs_prefix')
         if len(db_prefix) > 0:
             prefix = fix_varname(db_prefix).title()
@@ -688,6 +690,8 @@ class StepScan(object):
             self.filename  = filename
         if comments is not None:
             self.comments = comments
+        if self.comments is None:
+            self.comments = ''
 
         # caput('13XRM:map:filename', filename)
         self.complete = False
@@ -698,7 +702,6 @@ class StepScan(object):
         self.prepare_scan(debug=debug)
         ts_init = time.time()
         self.inittime = ts_init - ts_start
-
         i = -1
         while not self.abort:
             i += 1
@@ -726,7 +729,6 @@ class StepScan(object):
                 self.dtimer.add('Pt %i : move_to_pos (%i)' % (i, len(self.positioners)))
 
                 self.set_info('scan_current_point', i)
-
                 # move positioners
                 t0 = time.time()
                 while (not all([p.done for p in self.positioners]) and
@@ -740,7 +742,6 @@ class StepScan(object):
 
                 # trigger detectors
                 [trig.start() for trig in self.triggers]
-                # print("TRIGGERS ", self.triggers)
                 #for det in self.detectors:
                 #    det.start(mode=self.detmode, arm=False, wait=False)
                 self.dtimer.add('Pt %i : triggers fired, (%d)' % (i, len(self.triggers)))
@@ -787,7 +788,7 @@ class StepScan(object):
                         'counttime' in counter.label.lower()):
                         dready.append((val > 0))
                 if not all(dready):
-                    print("## waiting for valid clock data, point %d" % i)
+                    print(f"## waiting for valid clock data, point {i}")
                     time.sleep(0.05 + self.det_settle_time)
                     dready = [True]
                     for counter in self.counters:
@@ -802,9 +803,8 @@ class StepScan(object):
                     if time.time() - t0 > 10:
                         dready = [True]
                 dat = [c.read() for c in self.counters]
-                # print("read % counters in %.3f sec" % (len(dat), time.time()-t0))
+                # print("read counters: ", dat, time.time()-t0)
                 self.dtimer.add('Pt %i : read counters' % i)
-
                 self.pos_actual.append([p.current() for p in self.positioners])
                 if self.publish_thread is not None:
                     self.publish_thread.cpt = self.cpt

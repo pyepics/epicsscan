@@ -6,3 +6,5 @@ from .simpledb import get_credentials, SimpleDB
 from .scandb_schema import create_scandb
 from .scandb import ScanDB, InstrumentDB
 from .server import ScanServer
+from .scan import StepScan
+from .positioner import Positioner
