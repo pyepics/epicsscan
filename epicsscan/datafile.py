@@ -27,7 +27,7 @@ from .file_utils import new_filename, get_timestamp, fix_filename
 
 COM1 = '#'
 COM2 = '/'*3 + '  Users Comments  ' + '/'*3
-COM3 = '-'*len(COM2)
+COM3 = '-'*65
 SEP = ' || '   # separater between value, pvname in header
 FILETOP = '#XDI/1.1    Epics StepScan File'
 
@@ -330,7 +330,7 @@ class ASCIIScanFile(ScanFile):
                     units = obj.units
                 if units in (None, 'None', ''):
                     units = objunits
-                lab = fix_filename(obj.label)
+                lab = fix_filename(obj.label.strip())
                 sthis = f"{key}: {lab} {units}"
                 extra = getattr(obj, 'extra_label', '')
                 if len(extra) > 0:
@@ -343,7 +343,7 @@ class ASCIIScanFile(ScanFile):
 
         out.append(f"{COM1} Legend.End: ~~~~~~~~~~")
         self.write_lines(out)
-        self.column_label = f"{COM1} {'\t'.join(cols)}"
+        self.array_labels = [f"{c:>13s}" for c in cols]
 
     def write_data(self, breakpoint=0, clear=False, close_file=False, verbose=False):
         "write data"
@@ -355,10 +355,11 @@ class ASCIIScanFile(ScanFile):
         self.write_extrapvs()
         self.write_scanparams()
         self.write_comments()
-        out = [f"{COM1} {COM3}", self.column_label]
+
+        out = [f"{COM1}------------------------------",
+               f"{COM1} {' '.join(self.array_labels)}"]
         npts_all = [len(c.buff) for c in self.scan.counters]
         npts_all.append(len(self.scan.pos_actual))
-        # print("DataFile: Npts: ", npts_all)
         for i in range(max(npts_all)):
             words =  self.scan.pos_actual[i][:]
             for c in self.scan.counters:
@@ -368,7 +369,7 @@ class ASCIIScanFile(ScanFile):
                     val = -1.0
                 words.append(val)
             try:
-                thisline = ' '.join([self.num_format % w for w in words])
+                thisline = ' '.join([f"{w: 15f}" for w in words])
             except:
                 thisline = ' '.join([repr(w) for w in words])
             out.append(thisline)
