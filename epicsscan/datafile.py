@@ -263,8 +263,7 @@ class ASCIIScanFile(ScanFile):
             sthis = f"{COM1} {desc}: {val}"
             if len(sthis) < 42:
                 sthis = (sthis + ' '*42)[:42]
-            out.append("{sthis} {SEP} {pvname}")
-
+            out.append(f"{sthis} {SEP} {pvname}")
         out.append(f'{COM1} ExtraPVs.End: here')
         self.write_lines(out)
 
@@ -280,7 +279,7 @@ class ASCIIScanFile(ScanFile):
             elem = getattr(s, 'elem', 'Unknown')
             edge = getattr(s, 'edge', 'Unknown')
             out.append(f'{COM1} ScanParameters.element: {elem}')
-            out.append(f'{COM1} ScanParameters.edge: {edges}')
+            out.append(f'{COM1} ScanParameters.edge: {edge}')
             out.append(f'{COM1} ScanParameters.E0: {s.e0:.3f}')
             out.append(f'{COM1} ScanParameters.Legend:  Start, Stop, Step, K-space, Time')
             for ireg, reg in enumerate(s.regions):
@@ -335,8 +334,8 @@ class ASCIIScanFile(ScanFile):
                 extra = getattr(obj, 'extra_label', '')
                 if len(extra) > 0:
                     sthis = sthis + f" = {extra}"
-                if len(sthis) < 42:
-                    sthis = (sthis + ' '*42)[:42]
+                if len(sthis) < 45:
+                    sthis = (sthis + ' '*45)[:45]
                 sthis = f"{sthis} {SEP} {pvname}"
                 out.append(sthis)
                 cols.append(lab)
