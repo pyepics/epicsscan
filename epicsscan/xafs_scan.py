@@ -167,8 +167,9 @@ class QXAFS_Scan(XAFS_Scan):
         self.scandb.set_info('qxafs_config', 'qxafs')
         cname = self.scandb.get_info('qxafs_config')
         self.config = json.loads(self.scandb.get_config(cname).notes)
+        id_tracking = int(self.scandb.get_info('qxafs_id_tracking', '1'))
         self.with_id = ('id_array_pv' in self.config and
-                        'id_drive_pv' in self.config)
+                        'id_drive_pv' in self.config and id_tracking)
 
         conf = self.config
         if self.xps is None:
@@ -179,7 +180,11 @@ class QXAFS_Scan(XAFS_Scan):
                                   outputs=conf['outputs'])
             print("connect to NewportXPS: ", self.xps)
         qconf = self.config
-        caput(qconf['id_track_pv'], 1)
+        if id_tracking:
+            caput(qconf['id_track_pv'], 1)
+        else:
+            caput(qconf['id_track_pv'], 0)
+
         caput(qconf['y2_track_pv'], 1)
         self.scandb.set_info('qxafs_running', 0)
         if self.with_id:
@@ -278,7 +283,7 @@ class QXAFS_Scan(XAFS_Scan):
     def finish_qscan(self):
         """initialize a QXAFS scan"""
         qconf = self.config
-        caput(qconf['id_track_pv'],  1)
+        # caput(qconf['id_track_pv'],  1)
         caput(qconf['y2_track_pv'],  1)
 
     def gathering2energy(self, text):
