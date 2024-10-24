@@ -386,10 +386,10 @@ class ScanFrame(wx.Frame):
             self.scan_started = False
             ipan, pan = self.get_nbpage(self.scantype)
             fname = self.scandb.get_info('filename')
-            try:
-                pan.filename.SetValue(new_filename(fname))
-            except:
-                pass
+            #try:
+            #    pan.filename.SetValue(new_filename(fname))
+            #except:
+            #    pass
             self.scantimer.Stop()
 
     def onCtrlScan(self, evt=None, cmd=''):
