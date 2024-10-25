@@ -109,7 +109,7 @@ class MacroKernel(object):
         try:
             origdir = os.getcwd()
             os.chdir(macpathname)
-            for name in glob.glob('*.lar') + glob.glob('*.py'):
+            for name in glob.glob('*.py'):
                 self.eval.error = []
                 if verbose:
                     print('importing macros from : ', name)
@@ -128,9 +128,9 @@ class MacroKernel(object):
             os.chdir(origdir)
         except OSError:
             print("error loading macros")
-        self.scandb.set_workdir(verbose=False)
         self.macros = self.get_macros()
-        print(f"Loaded {len(self.macros)-nstart} macro functions from {macpathname}")
+        nmac = len(self.macros)
+        print(f"Loaded {nmac-nstart} new ({nmac} total) macro functions from {macpathname}")
 
     def __call__(self, arg):
         return self.run(arg)
