@@ -202,6 +202,11 @@ class ScanServer():
                 self.req_abort = 1
             if self.epicsdb.Shutdown == 1:
                 self.req_shutdown = 1
+
+        if not self.scandb.check_hostpid():
+            print("No Longer Host, exiting")
+            time.sleep(5)
+            self.req_shutdown = 1
         return self.req_abort
 
     def clear_interrupts(self):
@@ -234,7 +239,7 @@ class ScanServer():
         # or interrupts, so does not need to go super fast.
         while True:
             epics.poll(0.025, 1.0)
-            time.sleep(0.25)
+            time.sleep(0.1)
             now = time.time()
 
             # update server heartbeat / message
