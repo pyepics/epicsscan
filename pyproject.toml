@@ -26,7 +26,7 @@ authors = [
 description = "Scanning and Data Acquistion with PyEpics"
 readme = "README.rst"
 license = {file = "LICENSE"}
-keywords = ["curve-fitting, least-squares minimization"]
+keywords = ["data collection, data acquisition"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
