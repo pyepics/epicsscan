@@ -102,43 +102,31 @@ class ScanDB(SimpleDB):
             time.sleep(0.5)
             self.connect(dbname, **kws)
 
-    def set_workdir(self, basedir=None, fileroot=None, verbose=True):
-        def _setfolder(f):
-            p = f.absolute()
-            if p.exists():
-                pname = p.as_posix()
-                os.chdir(pname)
-                self.set_info('user_folder', pname)
-                if verbose:
-                    print("Set user folder ", pname)
-                return True
-            return False
+    def set_workdir(self, user_folder=None, verbose=True):
+        key = 'windows_filerooot' if os.name == 'nt' else 'server_fileroot'
+        fileroot = self.get_info(key)
+        msg = None
+        if user_folder is None:
+            user_folder = self.get_info('user_folder')
+        else:
+            if user_folder.startswith(fileroot):
+                user_folder = user_folder[1+len(fileroot):]
+        if user_folder.startswith('/'):
+            user_folder = user_folder[1:]
+        self.set_info('user_folder', user_folder)
+        if verbose:
+            msg = f"user folder='{user_folder}'"
 
-        wdir = basedir
-        if wdir is None:
-            wdir = self.get_info('user_folder')
-        if _setfolder(Path(wdir)):
-            return True
-
-        if fileroot is None:
-            fileroot = self.get_info('server_fileroot')
-            if os.name == 'nt':
-                fileroot = self.get_info('windows_fileroot')
-                if not fileroot.endswith('/'):
-                    fileroot += '/'
-
-        if _setfolder(Path(fileroot, wdir)):
-            return True
-
-        return _setfolder(Path('.'))
-
-#     def isScanDB(self, dbname, server='sqlite',
-#                  user='', password='', host='', port=None):
-#         """test if a file is a valid scan database:
-#         must be a sqlite db file, with tables named
-#         'postioners', 'detectors', and 'scans'
-#         """
-#         return True
+        fullpath = Path(fileroot, user_folder).absolute()
+        fname = fullpath.as_posix()
+        if fullpath.exists():
+            os.chdir(fname)
+            if verbose:
+                msg = f"{msg}, working in '{fname}'"
+        else:
+            msg = f"could not set working directory to {fname}"
+        if verbose or msg is not None:
+            print(msg)
 
     def getrow(self, table, name):
         """return named row from a table"""
