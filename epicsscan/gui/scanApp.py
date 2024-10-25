@@ -32,6 +32,7 @@ import os
 import sys
 import time
 import shutil
+from pathlib import Path
 from functools import partial
 import numpy as np
 import json
@@ -181,7 +182,7 @@ class ScanFrame(wx.Frame):
         self.statusbar.SetStatusText('Macros Ready')
 
         try:
-            fico = os.path.join(larch.site_config.icondir, ICON_FILE)
+            fico = Path(larch.site_config.icondir, ICON_FILE).as_posix()
             self._icon = wx.Icon(fico, wx.BITMAP_TYPE_ICO)
             self.SetIcon(self._icon)
         except:
@@ -601,15 +602,16 @@ class ScanFrame(wx.Frame):
 
     def onFolderSelect(self, evt=None):
         style = wx.DD_DIR_MUST_EXIST|wx.DD_DEFAULT_STYLE
+        self.scandb.set_workdir(verbose=False)
 
         dlg = wx.DirDialog(self, "Select Working Directory:", os.getcwd(),
                            style=style)
 
         if dlg.ShowModal() == wx.ID_OK:
-            basedir = os.path.abspath(str(dlg.GetPath())).replace('\\', '/')
-            self.scandb.set_workdir(basedir=basedir)
+            userdir = Path(dlg.GetPath()).absolute().as_posix()
+            self.scandb.set_workdir(user_folder=userdir, verbose=True)
 
-            pref, username = os.path.split(basedir)
+            pref, username = os.path.split(userdir)
             try:
                 sdb.set_info('user_name', username)
             except:
