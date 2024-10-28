@@ -5,9 +5,58 @@ import time
 from functools import partial
 import wx
 import wx.lib.scrolledpanel as scrolled
+import wx.dataview as dv
 
 from .gui_utils import (GUIColors, add_button, pack, SimpleText, TextCtrl,
-                        HLine, check, okcancel, add_subtitle, LEFT, Font)
+                        HLine, check, okcancel, add_subtitle, LEFT, Font, DVSTYLE)
+
+class ExptSettingsModel(dv.DataViewIndexListModel):
+    def __init__(self, scandb):
+        dv.DataViewIndexListModel.__init__(self, 0)
+        self.scandb = scandb
+        self.data = []
+        self.keys = {}
+        self.read_data()
+
+    def read_data(self):
+        self.data = []
+        expt_rows = self.scandb.get_info(prefix='experiment_',
+                                    order_by='display_order', full_row=True)
+        for name, row in expt_rows.items():
+            value = row.value
+            if value is None:
+                value = ''
+            self.data.append([row.notes, row.value])
+            self.keys[row.notes] = row.key
+        self.Reset(len(self.data))
+
+    def GetColumnType(self, col):
+        return "string"
+
+    def GetValueByRow(self, row, col):
+        return self.data[row][col]
+
+    def SetValueByRow(self, value, row, col):
+        self.data[row][col] = value
+        return True
+
+    def GetColumnCount(self):
+        return len(self.data[0])
+
+    def GetCount(self):
+        return len(self.data)
+
+    def DeleteRows(self, rows):
+        rows = list(rows)
+        rows.sort(reverse=True)
+        for row in rows:
+            del self.data[row]
+            self.RowDeleted(row)
+
+    def AddRow(self, value):
+        self.data.append(value)
+        self.RowAppended()
+
 
 class SettingsPanel(scrolled.ScrolledPanel):
     def __init__(self, parent, scandb=None, pvlist=None, title='Settings',
@@ -32,42 +81,58 @@ class SettingsPanel(scrolled.ScrolledPanel):
                            size=(250, -1),
                            colour=GUIColors.title, style=LEFT)
         sizer.Add(title,                      (0, 0), (1, 3), LEFT|wx.ALL)
-        sizer.Add(HLine(self, size=(600, 3)), (1, 0), (1, 3), LEFT)
-        ir = 2
+        sizer.Add(HLine(self, size=(650, 3)), (1, 0), (1, 3), LEFT)
 
-        expt_data = {}
-        expt_rows = scandb.get_info(prefix='experiment_',
-                                    order_by='display_order', full_row=True)
-        for name, row in expt_rows.items():
-            value = row.value
-            if value is None:
-                value = ''
-            expt_data[row.key] = (row.value, row.notes)
-        self.wids = {}
-        for key, dat in expt_data.items():
-            ir += 1
-            val, desc = dat
-            if val is None or len(val) < 1:
-                val = ''
-            if desc is None or len(desc) < 1:
-                desc = key
-            desc = ' %s:  '% desc
-            label = SimpleText(self, desc, size=(225, -1), style=LEFT)
-            ctext = TextCtrl(self, value=val, size=(350, -1),
-                             action=partial(self.onSetValue, label=key))
-            self.wids[key] = ctext
-            sizer.Add(label, (ir, 0),  (1, 1), LEFT)
-            sizer.Add(ctext, (ir, 1),  (1, 1), LEFT)
+        self.dvc = dv.DataViewCtrl(self, style=DVSTYLE)
+        self.dvc.SetMinSize((750, 500))
+
+        self.model = ExptSettingsModel(self.scandb)
+        self.dvc.AssociateModel(self.model)
+
+        i = 0
+        for  dat in (('Setting ', 250,  False),
+                     ('Value',   490,   True)):
+            label, width,  editable = dat
+            mode = dv.DATAVIEW_CELL_INERT
+            if editable:
+                mode = dv.DATAVIEW_CELL_EDITABLE
+            self.dvc.AppendTextColumn(label, i, width=width, mode=mode)
+            c = self.dvc.Columns[i]
+            c.Alignment = wx.ALIGN_LEFT
+            c.Sortable = (i == 0)
+            i +=1
+
+        sizer.Add(self.dvc, (2, 0), (1, 3), LEFT|wx.GROW)
+
+        sizer.Add(add_button(self, label='Update', size=(150, -1),
+                             action=self.onSetValues),
+                          (3, 0), (1, 1), LEFT)
+
         pack(self, sizer)
+        self.dvc.EnsureVisible(self.model.GetItem(0))
+        self.timer = wx.Timer(self)
+        self.Bind(wx.EVT_TIMER, self.onTimer, self.timer)
+        self.timer.Start(30000)
 
-    def onSetValue(self, value, label=None, **kws):
-        if label is not None and len(label) > 0:
-            self.scandb.set_info(label, value)
+    def onTimer(self, event=None, **kws):
+        self.update()
+
+    def update(self):
+        self.model.read_data()
+        self.Refresh()
+        self.dvc.EnsureVisible(self.model.GetItem(0))
+
+    def onSetValues(self, event=None, **kws):
+        for notes, value in self.model.data:
+            key = self.model.keys.get(notes, None)
+            if key is not None:
+                current = self.scandb.get_info(key)
+                if current != value:
+                    self.scandb.set_info(key, value)
+                    print("update value ", key, value)
 
     def onPanelExposed(self, evt=None):
-        for row in self.scandb.get_info(prefix='experiment_', full_row=True).values():
-            if row.key in self.wids:
-                self.wids[row.key].SetValue(row.value)
+        self.update()
 
 
 class SettingsFrame(wx.Frame) :
