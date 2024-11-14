@@ -9,7 +9,7 @@ import glob
 from pathlib import Path
 
 from .file_utils import nativepath
-from .utils import plain_ascii
+from .utils import plain_ascii, ScanDBException
 from .scandb import ScanDB, InstrumentDB
 from .macros_init import INITSYMS
 
@@ -68,6 +68,7 @@ class MacroKernel(object):
         self.symtable['_scandb'] = self.scandb
         self.symtable['_instdb'] = self.instdb
         self.symtable['_mkernel'] = self
+        self.symtable['ScanDBException'] = ScanDBException
         parent = Path(__file__).parent
         with open(Path(parent, 'macros_init.py'), 'r') as fh:
             text = fh.read() + '\n'

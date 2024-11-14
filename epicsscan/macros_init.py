@@ -16,6 +16,8 @@ from xraydb import (atomic_density, atomic_mass, atomic_name, atomic_number,
           material_mu_components, mirror_reflectivity, mu_chantler, mu_elam,
           xray_delta_beta, xray_edge, xray_edges, xray_line, xray_lines)
 
+from epicsscan.utils import ScanDBException
+
 INITSYMS = ['caget', 'caput', 'get_pv', 'PV', 'consts', 'etok', 'ktoe', 'AMU',
             'ATOM_NAMES', 'ATOM_SYMS', 'AVOGADRO', 'DEG2RAD', 'E_MASS', 'PI',
             'PLANCK_HBARC', 'PLANCK_HC', 'RAD2DEG', 'RYDBERG', 'R_ELECTRON_ANG',
@@ -189,7 +191,7 @@ def scan_from_db(scanname, filename="scan.001"):
         scan = _scandb.make_scan(scanname)
         scan.filename = filename
         scan.mkernel = _mkernel
-    except ScanDBException:
+    except:
         raise ScanDBException(f"no scan definition '{scanname}' found")
     return scan
 
