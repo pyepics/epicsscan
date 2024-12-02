@@ -8,7 +8,7 @@ import numpy as np
 import scipy.constants as consts
 
 from epics import caget, caput, get_pv, PV
-
+from time import monotonic as clock, sleep
 from xraydb import (atomic_density, atomic_mass, atomic_name, atomic_number,
           atomic_symbol, chemparse, core_width, darwin_width, f0, f1_chantler,
           f2_chantler, fluor_yield, get_material, guess_edge,
@@ -18,17 +18,18 @@ from xraydb import (atomic_density, atomic_mass, atomic_name, atomic_number,
 
 from epicsscan.utils import ScanDBException
 
-INITSYMS = ['caget', 'caput', 'get_pv', 'PV', 'consts', 'etok', 'ktoe', 'AMU',
-            'ATOM_NAMES', 'ATOM_SYMS', 'AVOGADRO', 'DEG2RAD', 'E_MASS', 'PI',
-            'PLANCK_HBARC', 'PLANCK_HC', 'RAD2DEG', 'RYDBERG', 'R_ELECTRON_ANG',
-            'R_ELECTRON_CM', 'SI_PREFIXES', 'TAU', 'XAFS_KTOE',
-            'atomic_density', 'atomic_mass', 'atomic_name', 'atomic_number',
-            'atomic_symbol', 'chemparse', 'core_width', 'darwin_width', 'f0',
-            'f1_chantler', 'f2_chantler', 'fluor_yield', 'get_material',
-            'guess_edge', 'index_nearest', 'index_of', 'ionchamber_fluxes',
-            'ionization_potential', 'material_mu', 'material_mu_components',
-            'mirror_reflectivity', 'mu_elam', 'xray_delta_beta', 'xray_edge',
-            'xray_edges', 'xray_line', 'xray_lines', 'get_dbinfo', 'set_dbinfo',
+INITSYMS = ['clock', 'sleep', 'caget', 'caput', 'get_pv', 'PV', 'consts',
+            'etok', 'ktoe', 'AMU', 'ATOM_NAMES', 'ATOM_SYMS', 'AVOGADRO',
+            'DEG2RAD', 'E_MASS', 'PI', 'PLANCK_HBARC', 'PLANCK_HC', 'RAD2DEG',
+            'RYDBERG', 'R_ELECTRON_ANG', 'R_ELECTRON_CM', 'SI_PREFIXES',
+            'TAU', 'XAFS_KTOE', 'atomic_density', 'atomic_mass',
+            'atomic_name', 'atomic_number', 'atomic_symbol', 'chemparse',
+            'core_width', 'darwin_width', 'f0', 'f1_chantler', 'f2_chantler',
+            'fluor_yield', 'get_material', 'guess_edge', 'index_nearest',
+            'index_of', 'ionchamber_fluxes', 'ionization_potential',
+            'material_mu', 'material_mu_components', 'mirror_reflectivity',
+            'mu_elam', 'xray_delta_beta', 'xray_edge', 'xray_edges',
+            'xray_line', 'xray_lines', 'get_dbinfo', 'set_dbinfo',
             'check_scan_abort', 'scan_from_db', 'do_scan', 'do_slewscan',
             'move_instrument', 'move_samplestage']
 
@@ -293,7 +294,7 @@ def check_scan_abort():
     """returns whether Abort has been requested"""
     return get_dbinfo('request_abort', as_bool=True)
 
-def move_instrument(inst_name, position_name, wait=True, timeout=60.0):
+def move_instrument(inst_name, position_name, wait=True, infoname=None, timeout=60.0):
     """move an Epics Instrument to a named position
 
     Arguments
@@ -309,6 +310,9 @@ def move_instrument(inst_name, position_name, wait=True, timeout=60.0):
 
     """
     _instdb.restore_position(inst_name, position_name, wait=wait, timeout=timeout)
+    if infoname is not None:
+        _scandb.set_info(infoname, position_name)
+
 
 def move_samplestage(position_name, wait=True, timeout=60.0):
     """move Instrument for Samplestage to a named position
