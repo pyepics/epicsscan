@@ -346,7 +346,7 @@ class Xspress3Detector(DetectorMixin):
         if self.label is None:
             self.label = self.prefix
         self.arm_delay = 0.075
-        self.start_delay_arraymode = 0.10
+        self.start_delay_arraymode = 0.25
         self.start_delay_roimode   = 0.25
         self.start_delay = self.start_delay_roimode
         self._counter = None
@@ -580,7 +580,7 @@ class Xspress3Detector(DetectorMixin):
 
         if numframes is not None:
             self._xsp3.put('NumImages', numframes)
-
+        # print("ARM xspress3 ", mode, fnum, numframes)
         self.start_delay = self.start_delay_roimode
         enable_rois_ts = True
         if self.mode == NDARRAY_MODE:
@@ -598,7 +598,7 @@ class Xspress3Detector(DetectorMixin):
 
         self._xsp3.set_timeseries(mode='start', numframes=numframes,
                                   enable_rois=enable_rois_ts)
-        time.sleep(0.003)
+        time.sleep(0.005)
         if self._xsp3.DetectorState_RBV not in (0, 10):
             time.sleep(0.025)
         if wait:
