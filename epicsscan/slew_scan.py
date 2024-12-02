@@ -64,7 +64,6 @@ class Slew_Scan(StepScan):
             pvs['finex'].put(0, wait=True)
             pvs['finey'].put(0, wait=True)
             time.sleep(0.1)
-
         inner_pos = self.scandb.get_slewpositioner(self.inner[0])
         conf = self.scandb.get_config_id(inner_pos.config_id)
         scnf = self.slewscan_config = json.loads(conf.notes)
@@ -75,7 +74,7 @@ class Slew_Scan(StepScan):
                               group=scnf['group'],
                               outputs=scnf['outputs'],
                               extra_triggers=scnf.get('extra_triggers', 0))
-
+        # print("newport done")
         currscan = 'CurrentScan.ini'
         fileroot = self.scandb.get_info('server_fileroot')
         userdir = self.scandb.get_info('user_folder')
@@ -103,7 +102,6 @@ class Slew_Scan(StepScan):
         self.filename = fname
         os.mkdir(mapdir, mode=509)
         os.chmod(mapdir, 509)
-
 
         hfname= os.path.join(basedir, self.filename)
         self.set_info('filename', fname)
@@ -172,7 +170,6 @@ class Slew_Scan(StepScan):
                                           step=step)
 
         self.comments = self.comments.replace('\n', ' | ')
-
         txt.extend(['#------------------#', '[scan]',
                     'filename = %s' % self.filename,
                     'comments = %s' % self.comments,
@@ -200,7 +197,6 @@ class Slew_Scan(StepScan):
         xrd_det = None
         xrf_det = None
         for det in self.detectors:
-            # print("prepare detector ", det)
             if isinstance(det, AreaDetector):
                 xrd_det = det
                 self.set_info('xrd_1dint_status', 'starting')
@@ -236,7 +232,6 @@ class Slew_Scan(StepScan):
         f = open(sname, 'w')
         f.write('\n'.join(txt))
         f.close()
-        # print("Wrote Simple Scan Config: ", sname)
 
         trajs = self.xps.trajectories
         self.motor_vals = {}
@@ -258,7 +253,6 @@ class Slew_Scan(StepScan):
             det.data_dir = mapdir
             try:
                 det.stop()
-                print("CONF FILE SAVER ", detpath)
                 det.config_filesaver(path=detpath)
             except AttributeError:
                 pass
@@ -275,7 +269,6 @@ class Slew_Scan(StepScan):
             self.scandb.add_slewscanstatus(text)
 
         self.mastertext.extend(textlines)
-        # print("Write Master ", len(self.mastertext))
         oldfile = os.path.join(self.mapdir, '_Master_.dat')
         destfile = os.path.join(self.mapdir, 'Master.dat')
         if os.path.exists(destfile):
@@ -290,7 +283,6 @@ class Slew_Scan(StepScan):
     def save_mcs_data(self, filename='mcsdata.001', npts=1):
         scafile = self.scadet.get_next_filename()
         filename = os.path.abspath(os.path.join(self.mapdir, scafile))
-        print("SAVE MCS DATA ", filename, self.npts_sca, self.scadet)
         _, self.npts_sca = self.scadet.save_arraydata(filename=filename,
                                                    npts=self.npts_sca)
 
@@ -366,7 +358,6 @@ class Slew_Scan(StepScan):
         scafile = xrffile = xrdfile = '_unused_'
         for det in self.detectors:
             dlabel = det.label.lower()
-            # print('detector ', det, dlabel)
             if dlabel in ('struck', 'usbctr', 'mcs'):
                 scadet = det
             elif dlabel in ('xspress3', 'multimca')  or 'mca' in dlabel:
@@ -400,7 +391,6 @@ class Slew_Scan(StepScan):
                 break
 
             irow += 1
-            # print("Start row ", irow)
             dtimer.add('=== row start %i ====' % irow)
             self.set_info('scan_progress', 'row %i of %i' % (irow, npts))
             if mappref is not None:
@@ -433,22 +423,19 @@ class Slew_Scan(StepScan):
             # print("ready to arm detectors row ", irow)
             for det in self.detectors:
                 det.arm(mode='ndarray', numframes=npulses, fnum=irow, wait=False)
-                print("armed ", det)
 
             # wait for detectors to be armed
-            # print("SCAN check arm complete ")
             tout = time.time()+2.0
             while not all([det.arm_complete for det in self.detectors]):
                 if time.time() > tout:
                     break
                 time.sleep(0.005)
-            # print("Detectors ARMED , ready to start")
+
             dtimer.add('detectors armed %.3f' % det_arm_delay)
             for det in self.detectors:
                 det.start(arm=False, wait=False)
 
             time.sleep(det_start_delay)
-            # print("Detectors started")
             dtimer.add('detectors started  %.3f' % det_start_delay)
 
             for p in self.positioners:
@@ -537,28 +524,24 @@ class Slew_Scan(StepScan):
                 mcs_saver_thread.start()
             dtimer.add('started MCS data save')
 
-            time.sleep(0.01)
+            time.sleep(0.02)
             nxrf = nxrd = 0
-            # print("## Make sure XRFDET is complete")
             if xrfdet is not None:
                 xrfdet.stop()
-                time.sleep(0.01)
+                time.sleep(0.02)
                 t0 = time.time()
-                # print("## check complete: ", xrfdet)
                 write_complete = xrfdet.file_write_complete()
-                # print("## reported complete: ", write_complete)
                 ntry = 0
                 while not write_complete and (time.time()-t0 < 10.0):
-                    # print("## ask for complete")
                     write_complete = xrfdet.file_write_complete()
                     ntry = ntry + 1
                     time.sleep(0.01*ntry)
-                # print("## get numcap: ", xrfdet)
+                time.sleep(0.01)
                 nxrf = xrfdet.get_numcaptured()
-                #print("## numcap: ", nxrf, npulses, write_complete)
                 if (nxrf < npulses-1) or not write_complete:
-                    time.sleep(0.250)
+                    time.sleep(0.10)
                     xrfdet.finish_capture()
+                    time.sleep(0.10)
                     nxrf = xrfdet.get_numcaptured()
                     write_complete = xrfdet.file_write_complete()
                 if (nxrf < npulses-1) or not write_complete:
@@ -567,12 +550,10 @@ class Slew_Scan(StepScan):
                     nxrf = xrfdet.get_numcaptured()
                     write_complete = xrfdet.file_write_complete()
                 if (nxrf < npulses-2) or not write_complete:
-                    print("XRF file write failed ", write_complete, nxrf,
-                          npulses, ntry)
+                    print("XRF file write failed ", write_complete, nxrf, npulses, ntry)
                     rowdata_ok = False
                     xrfdet.stop()
                     time.sleep(0.1)
-            # print("## read XRF done")
             dtimer.add('saved XRF data')
 
             if xrddet is not None:
@@ -589,7 +570,6 @@ class Slew_Scan(StepScan):
             if pos_saver_thread.is_alive():
                 print('ERROR:  NewportXPS gathering thread is still alive')
             dtimer.add('saved XPS data')
-            # print("SAVED positioner data")
 
             rowdata_ok = (rowdata_ok and
                           (self.npts_sca >= npulses-2) and
@@ -598,10 +578,10 @@ class Slew_Scan(StepScan):
                           (not pos_saver_thread.is_alive()))
 
             if debug or True:
-                print("#== Row %d nXPS=%d, nSIS=%d, nXRF=%d, nXRD=%d  npulses=%d, OK=%s" %
+                print("#== Row %d nXPS=%d, nMCS=%d, nXRF=%d, nXRD=%d  npulses=%d, OK=%s" %
                       (irow, self.xps.ngathered, self.npts_sca, nxrf, nxrd, npulses, repr(rowdata_ok)))
             if not rowdata_ok:
-                fmt=  '#BAD Row %d nXPS=%d, nSIS=%d, nXRF=%d, nXRD=%d: (npulses=%d) redo!\n'
+                fmt=  '#BAD Row %d nXPS=%d, nMCS=%d, nXRF=%d, nXRD=%d: (npulses=%d) redo!\n'
                 self.write(fmt % (irow, self.xps.ngathered, self.npts_sca, nxrf, nxrd, npulses))
                 irow -= 1
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
@@ -629,7 +609,6 @@ class Slew_Scan(StepScan):
             caput('%sstatus' % (mappref), 'Finishing')
 
         self.post_scan()
-        print('Scan done.')
         self.set_info('scan_progress', 'done')
         return
 
