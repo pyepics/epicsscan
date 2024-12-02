@@ -46,7 +46,7 @@ class QXAFS_ScanWatcher(object):
         # self.idsync_thread = None
         self.needs_complete = False
         self.config = None
-        self.id_deadband = 0.003
+        self.id_deadband = 0.002
         self.dead_time = 1.0
         self.id_lookahead = 4
         self.with_id = True
@@ -55,9 +55,9 @@ class QXAFS_ScanWatcher(object):
         self.pulsecount_pv = None
         self.heartbeat_pv = None
         if pulsecount_pvname is not None:
-            self.pulsecount_pv = PV(pulsecount_pvname)
+            self.pulsecount_pv = get_pv(pulsecount_pvname)
         if heartbeat_pvname is not None:
-            self.heartbeat_pv = PV(heartbeat_pvname)
+            self.heartbeat_pv = get_pv(heartbeat_pvname)
         self.connected = False
         self.confname = None
         self.connect()
@@ -70,19 +70,22 @@ class QXAFS_ScanWatcher(object):
         pulse_channel = f"{mcs_prefix}CurrentChannel"
         id_tracking = int(self.scandb.get_info('qxafs_id_tracking', '1'))
 
-        self.pulse_pv = PV(pulse_channel, callback=self.onPulse)
+        self.pulse_pv = get_pv(pulse_channel, callback=self.onPulse)
         self.with_id = ('id_array_pv' in self.config and
                         'id_drive_pv' in self.config and id_tracking)
         if self.with_id:
-            self.idarray_pv = PV(self.config['id_array_pv'])
-            self.iddrive_pv = PV(self.config['id_drive_pv'])
-            self.idbusy_pv = PV(self.config['id_busy_pv'])
+            self.idarray_pv = get_pv(self.config['id_array_pv'])
+            self.iddrive_pv = get_pv(self.config['id_drive_pv'])
+            self.idbusy_pv = get_pv(self.config['id_busy_pv'])
             pvroot = self.config['id_busy_pv'].replace('BusyM.VAL', '')
 
-            self.idstop_pv   = PV("%sStopC" % pvroot)
-            self.idgapsym_pv = PV('%sGapSymmetryM' % pvroot)
-            self.idtaper_pv  = PV('%sTaperEnergyM' % pvroot)
-            self.idtaperset_pv  = PV('%sTaperEnergySetC' % pvroot)
+            self.id_en_drv   = get_pv('%sEnergySetC.VAL' % pvroot)
+            self.id_en_rbv   = get_pv('%sEnergyM.VAL' % pvroot)
+            self.idstart_pv  = get_pv("%sStartC" % pvroot)
+            self.idstop_pv   = get_pv("%sStopC" % pvroot)
+            self.idgapsym_pv = get_pv('%sGapSymmetryM' % pvroot)
+            self.idtaper_pv  = get_pv('%sTaperEnergyM' % pvroot)
+            self.idtaperset_pv  = get_pv('%sTaperEnergySetC' % pvroot)
             time.sleep(0.25)
 
         time.sleep(0.1)
@@ -185,7 +188,7 @@ class QXAFS_ScanWatcher(object):
     def sync_undulator(self):
         last_pulse = 0
         self.pulse = 0
-        self.last_move_time = 0
+        self.last_move_time = time.time() - 30.0
         self.last_put_value = -1.0
         if self.with_id:
             self.idarray = self.idarray_pv.get()
@@ -196,37 +199,42 @@ class QXAFS_ScanWatcher(object):
             self.write(f"Sync Undulator QXAFS begin {len(self.idarray)} ID Points")
 
         while True:
+            time.sleep(0.1)
+            now = time.time()
             npts = int(self.scandb.get_info(key='scan_total_points', default=0))
             if self.get_state() == 0 or self.scandb.get_info(key='request_abort', as_bool=True):
                 break
 
-            time.sleep(0.1)
-            now = time.time()
             if self.pulse > last_pulse and self.with_id:
                 try:
-                    id_busy= self.idbusy_pv.get() == 1
+                    id_busy = (self.idbusy_pv.get() == 1)
                 except:
                     id_busy = False
-
+                print(f"Pulse  {self.pulse} id_busy={id_busy} last_move={(now-self.last_move_time):.2f}")
                 if ((self.pulse > 2) and id_busy and
-                    (now >  self.last_move_time + 2.00)):
-                    print("Stopping ID ", self.pulse, val, time.time()-self.last_move_time)
+                    (now > self.last_move_time + self.dead_time)):
+                    print(f"ID STOP:  pulse={self.pulse} dtime={(now-self.last_move_time):.2f}sec")
                     self.idstop_pv.put(1)
-                    time.sleep(0.1)
+                    time.sleep(0.5)
 
                 val = self.idarray[self.pulse + self.id_lookahead]
                 if ((now > self.last_move_time + self.dead_time) and
                     (val > self.last_put_value + self.id_deadband) and
                     (val > MIN_ID_ENERGY) and (val < MAX_ID_ENERGY)):
                     try:
-                        print(f"Pushing ID to {val:.5f}, {self.pulse}, {self.id_lookahead}")
-                        self.iddrive_pv.put(val, wait=True, timeout=3.0)
+                        print(f"ID: pulse={self.pulse}, push {self.id_en_drv.pvname} to {val:.4f}")
+                        self.id_en_drv.put(val)
+                        time.sleep(0.025)
+                        self.idstart_pv.put(1)
                         self.last_put_value = val
                     except CASeverityException:
-                        print("put for ID failed!")
-                    self.last_move_time = time.time()
-                    time.sleep(0.25)
+                        print("ID: put for ID failed!")
+                    time.sleep(0.10)
+                    id_energy_rbv = self.id_en_rbv.get()
+                    if abs(val - id_energy_rbv) < 5.*self.id_deadband:
+                        self.last_move_time = time.time()
 
+                print(f"## {self.pulse} energy_drive={val:.3f}, energy_rbv={id_energy_rbv:.3f}")
                 last_pulse = self.pulse
                 cpt = int(self.pulse)
         last_pulse = self.pulse = 0
