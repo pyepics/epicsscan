@@ -10,8 +10,9 @@ import array
 
 import numpy
 HAS_NUMPY = True
+from pyshortcuts import fix_filename
 
-from wxutils import (fix_filename, FileOpen, FileSave, SelectWorkdir, TextCtrl,
+from wxutils import (FileOpen, FileSave, SelectWorkdir, TextCtrl,
                      SimpleText, HyperText, YesNo, FloatCtrl, hms, Font, HLine,
                      LEFT, RIGHT, CEN, FRAMESTYLE, LTEXT, GUIColors)
 
