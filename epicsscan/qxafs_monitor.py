@@ -46,8 +46,8 @@ class QXAFS_ScanWatcher(object):
         # self.idsync_thread = None
         self.needs_complete = False
         self.config = None
-        self.id_deadband = 0.002
-        self.dead_time = 1.0
+        self.id_deadband = 0.0015
+        self.dead_time = 3.0
         self.id_lookahead = 4
         self.with_id = True
         self.counters = []
@@ -65,10 +65,10 @@ class QXAFS_ScanWatcher(object):
     def connect(self):
         self.confname = self.scandb.get_info('qxafs_config', 'qxafs')
         self.config = json.loads(self.scandb.get_config(self.confname).notes)
-        # print("QXAFS Config ", self.config)
         mcs_prefix = self.config.get('mcs_prefix', '13IDE:SIS1:')
         pulse_channel = f"{mcs_prefix}CurrentChannel"
         id_tracking = int(self.scandb.get_info('qxafs_id_tracking', '1'))
+        self.id_lookahead = int(self.scandb.get_info('qxafs_id_lookahead', 4))
 
         self.pulse_pv = get_pv(pulse_channel, callback=self.onPulse)
         self.with_id = ('id_array_pv' in self.config and
@@ -197,44 +197,54 @@ class QXAFS_ScanWatcher(object):
         self.dtime = float(self.scandb.get_info(key='qxafs_dwelltime', default=0.5))
         if self.verbose:
             self.write(f"Sync Undulator QXAFS begin {len(self.idarray)} ID Points")
-
+        id_lookahead = self.id_lookahead
+        id_energy_rbv = -1.0
         while True:
             time.sleep(0.1)
             now = time.time()
             npts = int(self.scandb.get_info(key='scan_total_points', default=0))
             if self.get_state() == 0 or self.scandb.get_info(key='request_abort', as_bool=True):
                 break
-
             if self.pulse > last_pulse and self.with_id:
                 try:
                     id_busy = (self.idbusy_pv.get() == 1)
                 except:
                     id_busy = False
-                print(f"Pulse  {self.pulse} id_busy={id_busy} last_move={(now-self.last_move_time):.2f}")
+                val0 = self.idarray[self.pulse]
+                val = self.idarray[self.pulse + id_lookahead]
+                dt = now-self.last_move_time
+                # print(f"Pulse {self.pulse} ID_En_target={val0:.4f} id_busy={id_busy} lookahead={id_lookahead} last_move={dt:.2f} sec ago")
                 if ((self.pulse > 2) and id_busy and
                     (now > self.last_move_time + self.dead_time)):
-                    print(f"ID STOP:  pulse={self.pulse} dtime={(now-self.last_move_time):.2f}sec")
+                    print(f"    stopping ID")
                     self.idstop_pv.put(1)
-                    time.sleep(0.5)
+                    time.sleep(0.75)
+                    id_busy = False
+                    #try:
+                    # id_busy = (self.idbusy_pv.get() == 1)
+                    # except:
+                    #     id_busy = False
+                    # time.sleep(0.1)
 
-                val = self.idarray[self.pulse + self.id_lookahead]
+
                 if ((now > self.last_move_time + self.dead_time) and
                     (val > self.last_put_value + self.id_deadband) and
-                    (val > MIN_ID_ENERGY) and (val < MAX_ID_ENERGY)):
+                    (val > MIN_ID_ENERGY) and (val < MAX_ID_ENERGY) and
+                    not id_busy):
                     try:
-                        print(f"ID: pulse={self.pulse}, push {self.id_en_drv.pvname} to {val:.4f}")
                         self.id_en_drv.put(val)
                         time.sleep(0.025)
                         self.idstart_pv.put(1)
                         self.last_put_value = val
+                        self.last_move_time = time.time()
                     except CASeverityException:
                         print("ID: put for ID failed!")
                     time.sleep(0.10)
                     id_energy_rbv = self.id_en_rbv.get()
-                    if abs(val - id_energy_rbv) < 5.*self.id_deadband:
-                        self.last_move_time = time.time()
+                    print(f"#Put Pulse {self.pulse} ID En target={val0:.3f} (putval={val:.3f}), readback={id_energy_rbv:.3f}")
+                    if (self.pulse % 2) == 0 and ((val0 - id_energy_rbv) > 0.008):
+                        id_lookahead = id_lookahead + 1
 
-                print(f"## {self.pulse} energy_drive={val:.3f}, energy_rbv={id_energy_rbv:.3f}")
                 last_pulse = self.pulse
                 cpt = int(self.pulse)
         last_pulse = self.pulse = 0
