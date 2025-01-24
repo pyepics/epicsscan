@@ -91,9 +91,10 @@ class ScanDB(SimpleDB):
 
         self.status_codes = {}
         self.status_names = {}
-        for row in self.get_rows('status'):
-            self.status_codes[row.name] = row.id
-            self.status_names[row.id] = row.name
+        if 'status' in self.tables:
+            for row in self.get_rows('status'):
+                self.status_codes[row.name] = row.id
+                self.status_names[row.id] = row.name
 
     def create_newdb(self, dbname, connect=False, **kws):
         "create a new, empty database"
@@ -200,7 +201,7 @@ class ScanDB(SimpleDB):
     def add_row_attr(self, tablename, **kws):
         """add generic row"""
         if 'attributes' in kws:
-            kws['attributes'] = json_encode(val)
+            kws['attributes'] = json_encode(kws['attributes'])
         self.add_row(tablename, **kws)
         where = {}
         if 'name' in kws:
@@ -697,19 +698,18 @@ class InstrumentDB(object):
         self.pvmap = dict([(r.id, r.name) for r in self.scandb.get_rows('pv')])
 
     ### Instrument Functions
-    def add_instrument(self, name, pvs=None, notes=None, attributes=None, **kws):
+    def add_instrument(self, name, pvs=None, notes=None, **kws):
         """add instrument
         notes and attributes optional
         returns Instruments instance
         """
         print("would add instrument!! ", name, pvs)
         name = name.strip()
-        kws['name'] = notes
+        kws['name'] = name
         kws['notes'] = notes
-        kws['attributes'] = attributes
         inst = self.get_instrument(name)
         if inst is None:
-            out = self.scandb.add_row_attr(**kws)
+            out = self.scandb.add_row('instrument', name=name)
             inst = self.get_instrument(name)
 
         if pvs is not None:
@@ -764,7 +764,8 @@ class InstrumentDB(object):
                           'instrument_postcommand'):
             self.scandb.delete_rows(tablename, {'instrument_id': inst.id})
 
-    def save_position(self, instname, posname, values, image=None, notes=None, **kw):
+    def save_position(self, instname, posname, values, image=None, notes=None,
+                      ignore_missing_pvs=True, **kw):
         """save position for instrument
         """
         inst = self.get_instrument(instname)
@@ -799,15 +800,18 @@ class InstrumentDB(object):
                 missing_pvs.append(pv)
 
         if len(missing_pvs) > 0:
-            raise ScanDBException('save_position: missing pvs:\n %s' %
-                                        missing_pvs)
+            msg = f'save_position: missing pvs:\n {missing_pvs}'
+            if ignore_missing_pvs:
+                print(f"Warning: {msg}")
+            else:
+                raise ScanDBException(msg)
 
         self.scandb.delete_rows('position_pv', {'position_id': pos.id})
         self.scandb.delete_rows('position_pv', {'position_id': None})
 
         for name in pvnames:
             thispv = self.scandb.get_pvrow(name)
-            val = values[name]
+            val = values.get(name, None)
             if val is not None:
                 try:
                     val = float(val)
@@ -855,7 +859,7 @@ class InstrumentDB(object):
         for row in self.scandb.get_rows('position_pv', where={'position_id':  pos.id}):
             if row.pv_id not in self.pvmap:
                 self.make_pvmap()
-            out[self.pvmap[row.pv_id]]= float(row.value)
+            out[self.pvmap[row.pv_id]]= row.value
         return out
 
     def get_positionlist(self, instname, reverse=False):
