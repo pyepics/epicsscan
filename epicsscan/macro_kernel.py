@@ -159,10 +159,10 @@ class MacroKernel(object):
         symtab = self.eval.symtable
         for name, val in self.eval.symtable.items():
             if isinstance(val, Procedure):
-                docstring = val._getdoc()
+                docstring = val.__getdoc__()
                 if docstring is None:
                     docstring = ''
-                sig = getattr(val, '_signature', None)
+                sig = getattr(val, '__signature__', None)
                 if callable(sig):
                     sig = sig()
                 if 'PRIVATE' not in docstring:
