@@ -362,11 +362,7 @@ class QXAFS_Scan(XAFS_Scan):
         dtimer.add('orig positions')
         if self.with_id:
             caput(qconf['id_array_pv'], idarray)
-            try:
-                caput(qconf['id_drive_pv'], idarray[0], wait=False)
-            except CASeverityException:
-                pass
-        caput(qconf['energy_pv'],  traj['energy'][0]-0.5, wait=False)
+
         det_arm_delay = 0.025
         det_start_delay = 0.1
         for det in self.detectors:
@@ -384,9 +380,6 @@ class QXAFS_Scan(XAFS_Scan):
         estimated_scantime = npts*dtime
         dtimer.add('set dwelltime')
         self.set_info('scan_progress', 'preparing scan')
-        extra_vals = []
-        for desc, pv in self.extra_pvs:
-            extra_vals.append((desc, pv.get(as_string=True), pv.pvname))
 
         # get folder name for full data from detectors
         fileroot = self.scandb.get_info('server_fileroot')
@@ -396,15 +389,32 @@ class QXAFS_Scan(XAFS_Scan):
         if not os.path.exists(xrfdir_server):
             os.mkdir(xrfdir_server, mode=509)
         dtimer.add('folders and timer setup')
-        # print("move energy to start: ", qconf['energy_pv'],  traj['energy'][0]-0.5)
-        caput(qconf['energy_pv'],  traj['energy'][0]-0.5, wait=True)
-        self.xps.arm_trajectory('qxafs', verbose=False, move_to_start=True)
         dtimer.add('trajectory armed')
+        #print("Energies Before PRESCAN ")
+        #print(qconf['energy_pv'],
+        #      caget(qconf['energy_pv']),  traj['energy'][0],
+        #      qconf['id_drive_pv'], caget(qconf['id_drive_pv']))
+
         out = self.pre_scan(npulses=1+traj['npulses'],
                             dwelltime=dtime,
                             mode=ROI_MODE, filename=self.filename)
         self.check_outputs(out, msg='pre scan')
         dtimer.add('prescan ran')
+
+        # move to start
+        try:
+            caput(qconf['id_drive_pv'], idarray[0], wait=False)
+        except CASeverityException:
+            pass
+        caput(qconf['energy_pv'],  traj['energy'][0]-0.5, wait=False)
+
+        extra_vals = []
+        for desc, pv in self.extra_pvs:
+            extra_vals.append((desc, pv.get(as_string=True), pv.pvname))
+
+        print("move energy to start: ", qconf['energy_pv'],  traj['energy'][0]-0.5)
+        caput(qconf['energy_pv'],  traj['energy'][0]-0.5, wait=True)
+        self.xps.arm_trajectory('qxafs', verbose=False, move_to_start=True)
 
         self.init_scandata()
         dtimer.add('init scandata')
