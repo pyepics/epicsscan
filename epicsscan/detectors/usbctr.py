@@ -257,7 +257,6 @@ class USBCTR(Device):
             npts = self.NuseAll
         npts_req = npts
         avars = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
-        avars = ['A', 'B', 'C', 'D']
         adat = {}
         for name in avars:
             self.ast_interp.symtable[name] = adat[name] = numpy.zeros(npts)
