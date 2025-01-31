@@ -213,19 +213,15 @@ class QXAFS_ScanWatcher(object):
                 val0 = self.idarray[self.pulse]
                 val = self.idarray[self.pulse + id_lookahead]
                 dt = now-self.last_move_time
-                # print(f"Pulse {self.pulse} ID_En_target={val0:.4f} id_busy={id_busy} lookahead={id_lookahead} last_move={dt:.2f} sec ago")
+                # print(f"""Pulse {self.pulse} ID_En_target={val0:.4f}
+                #         id_busy={id_busy} lookahead={id_lookahead}
+                #         last_move={dt:.2f} sec ago""")
                 if ((self.pulse > 2) and id_busy and
                     (now > self.last_move_time + self.dead_time)):
                     print(f"    stopping ID")
                     self.idstop_pv.put(1)
                     time.sleep(0.75)
                     id_busy = False
-                    #try:
-                    # id_busy = (self.idbusy_pv.get() == 1)
-                    # except:
-                    #     id_busy = False
-                    # time.sleep(0.1)
-
 
                 if ((now > self.last_move_time + self.dead_time) and
                     (val > self.last_put_value + self.id_deadband) and
