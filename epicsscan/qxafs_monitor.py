@@ -320,8 +320,8 @@ class QXAFS_ScanWatcher(object):
 if __name__ == '__main__':
 
     PIDFILE = os.path.join(os.path.expanduser('~'), 'logs', 'qxafs_monitor.pid')
-    HEARTBEAT_PVNAME = '13XRM:edb:info02'
-    PULSECOUNT_PVNAME = '13XRM:edb:info03'
+    HEARTBEAT_PVNAME = '13XRM:QXAFS:UnixTime'
+    PULSECOUNT_PVNAME = '13XRM:QXAFS:ipt'
 
     usage = "usage: %prog [options] file(s)"
 
