@@ -773,19 +773,19 @@ class InstrumentDB(object):
             raise ScanDBException('Save Postion needs valid instrument')
 
         posname = posname.strip()
+        pos = self.get_position(instname, posname)
+        if pos is not None:
+            self.remove_position(instname, posname)
+
+        kws = dict(name=posname, instrument_id=inst.id,
+                   modify_time=datetime.now())
+        if image is not None:
+            kws['image'] = image
+        if notes is not None:
+            kws['notes'] = notes
+
+        self.scandb.insert('position', **kws)
         pos  = self.get_position(instname, posname)
-
-        if pos is None:
-            kws = dict(name=posname, instrument_id=inst.id,
-                       modify_time=datetime.now())
-            if image is not None:
-                kws['image'] = image
-            if notes is not None:
-                kws['notes'] = notes
-
-            self.scandb.insert('position', **kws)
-
-            pos  = self.get_position(instname, posname)
 
         pvnames = []
         for row in self.scandb.get_rows('instrument_pv', where={'instrument_id': inst.id}):
@@ -806,9 +806,6 @@ class InstrumentDB(object):
             else:
                 raise ScanDBException(msg)
 
-        self.scandb.delete_rows('position_pv', {'position_id': pos.id})
-        self.scandb.delete_rows('position_pv', {'position_id': None})
-
         for name in pvnames:
             thispv = self.scandb.get_pvrow(name)
             val = values.get(name, None)
@@ -819,7 +816,7 @@ class InstrumentDB(object):
                     pass
                 self.scandb.insert('position_pv', pv_id=thispv.id,
                                    value=val,  position_id=pos.id,
-                                   notes="'%s' / '%s'" % (inst.name, posname))
+                                   notes=f'{inst.name}/{posname}/{name}')
 
 
     def save_current_position(self, instname, posname, image=None, notes=None):
