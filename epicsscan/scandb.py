@@ -103,7 +103,7 @@ class ScanDB(SimpleDB):
             time.sleep(0.5)
             self.connect(dbname, **kws)
 
-    def set_workdir(self, user_folder=None, verbose=True):
+    def set_workdirb(self, user_folder=None, verbose=False):
         key = 'windows_fileroot' if os.name == 'nt' else 'server_fileroot'
         fileroot = self.get_info(key)
         msg = None
@@ -118,7 +118,6 @@ class ScanDB(SimpleDB):
         if verbose:
             msg = f"user folder='{user_folder}'"
 
-        print("Build File Root : ", fileroot, user_folder)
         fullpath = Path(fileroot, user_folder).absolute()
         fname = fullpath.as_posix()
         if fullpath.exists():
