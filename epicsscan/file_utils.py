@@ -2,56 +2,42 @@
 import time
 import os
 import sys
+from datetime import datetime
 from string import printable
 from random import seed, randint
+from pyshortcuts import get_homedir
 
-if sys.version[0] == '3':
-    maketrans = str.maketrans
-    def bytes2str(s):
-        if isinstance(s, str):
-            return s
-        elif isinstance(s, bytes):
-            return s.decode(sys.stdout.encoding)
-        return str(s, sys.stdout.encoding)
-    def str2bytes(s):
-        'string to byte conversion'
-        if isinstance(s, bytes):
-            return s
-        return bytes(s, sys.stdout.encoding)
 
-else:
-    from string import maketrans
-    bytes2str = str2bytes = str
+def bytes2str(s):
+    if isinstance(s, str):
+        return s
+    elif isinstance(s, bytes):
+        return s.decode(sys.stdout.encoding)
+    return str(s, sys.stdout.encoding)
+
+def str2bytes(s):
+    'string to byte conversion'
+    if isinstance(s, bytes):
+        return s
+    return bytes(s, sys.stdout.encoding)
 
 
 BAD_FILECHARS = ';~,`!%$@?*#:"/|\'\\\t\r\n (){}[]<>'
-BAD_FILETABLE = maketrans(BAD_FILECHARS, '_'*len(BAD_FILECHARS))
+BAD_FILETABLE = str.maketrans(BAD_FILECHARS, '_'*len(BAD_FILECHARS))
 
 def get_timestamp():
     """return ISO format of current timestamp:
     2012-04-27 17:31:12
     """
-    return time.strftime('%Y-%m-%d %H:%M:%S')
+    return datetime.isoformat(datetime.now(), sep=' ', timespec='seconds')
 
-def get_homedir():
-    """return home directory, or best approximation
-    On Windows, this returns the Roaming Profile APPDATA
-    (use CSIDL_LOCAL_APPDATA for Local Profile)
-    """
-    if os.name == 'posix':
-        return os.path.expanduser("~")
-    # For Windows, ask for parent of Roaming 'Application Data' directory
-    try:
-        from win32com.shell import shellcon, shell
-        return shell.SHGetFolderPath(0, shellcon.CSIDL_APPDATA, 0, 0)
-    except ImportError: # if win32com is not found
-        return '.'
 
 def fix_varname(s):
     """fix string to be a 'good' variable name."""
     t = str(s).translate(BAD_FILETABLE)
     t = t.replace('.', '_').replace('-', '_')
-    while t.endswith('_'): t = t[:-1]
+    while t.endswith('_'):
+        t = t[:-1]
     return t
 
 def fix_filename(s):
@@ -62,7 +48,7 @@ def fix_filename(s):
     if t.count('.') > 1:
         for i in range(t.count('.') - 1):
             idot = t.find('.')
-            t = "%s_%s" % (t[:idot], t[idot+1:])
+            t = f"{t[:idot]}_{t[idot+1:]}"
     return t
 
 def unixpath(d):
@@ -97,11 +83,9 @@ def random_string(n):
     return ''.join([chr(randint(97, 122)) for i in range(n)])
 
 def pathOf(dir, base, ext, delim='.'):
-    p = os.path
-    #return p.normpath(p.normcase(p.join(dir,"%s.%s" % (base,ext))))
-    return p.normpath(p.join(dir,"%s%s%s" % (base, delim, ext)))
+    return Path(dir, f"{base}{delim}{ext}").absolute().as_posix()
 
-def increment_filename(inpfile,ndigits=3, delim='.'):
+def increment_filename(inpfile, ndigits=3, delim='.'):
     """
     increment a data filename, returning a new (non-existing) filename
 
@@ -165,7 +149,7 @@ def increment_filename(inpfile,ndigits=3, delim='.'):
                 bparts[-1] = form % (int(bparts[-1])+1)
                 base = '_'.join(bparts)
             except:  # last, add a '_001' appendix
-                base = "%s_001" % base
+                base = f"{base}_001"
         return (base, ext)
 
     # increment once
