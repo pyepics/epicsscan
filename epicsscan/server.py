@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
-
 import time, sys, os
-import json
+
+from collections import deque
+
 import numpy as np
-import glob
 import epics
 
 from .scandb import ScanDB, make_datetime
@@ -83,8 +82,8 @@ class ScanServer():
         if self.epicsdb is not None:
             self.epicsdb.status = status.title()
 
-    def set_workdir(self, verbose=True):
-        self.scandb.set_workdir(verbose=False)
+    def set_workdir(self, verbose=False):
+        self.scandb.set_workdir(verbose=verbose)
         self.fileroot = self.scandb.get_info('server_fileroot')
 
     def do_command(self, cmd_row):
@@ -92,7 +91,7 @@ class ScanServer():
         self.set_workdir(verbose=False)
         cmdid = cmd_row.id
         command = plain_ascii(cmd_row.command)
-
+        print(f"#Server.do_command: <{command}>")
         cmd_stat = self.scandb.get_command_status(cmdid).lower()
         if str(cmd_stat) not in ('requested', 'starting', 'running', 'aborting'):
             msg = f"Warning: skipping command <{command}s> status={cmd_stat}"
@@ -109,6 +108,7 @@ class ScanServer():
             self.epicsdb.workdir = workdir
 
         if not is_complete(command):
+            print(f"#Server.do_command: cancel incomplete command")
             self.set_scan_message(f"Error: command <command> is incomplete")
             self.scandb.set_command_status('canceled', cmdid=cmdid)
             return
@@ -117,6 +117,7 @@ class ScanServer():
         self.set_status('starting')
         self.scandb.set_command_status('starting', cmdid=cmdid)
         self.set_scan_message(f"Executing: <{command}>")
+        print(f"Server.do_command: Executing: <{command}>")
 
         args    = strip_quotes(plain_ascii(cmd_row.arguments)).strip()
         notes   = strip_quotes(plain_ascii(cmd_row.notes)).strip()
@@ -169,12 +170,13 @@ class ScanServer():
 
             msg = 'done'
             try:
-                # print(f"[{tstamp()}] <{cmd}>")
+                print(f"#Server.do_command  run <{cmd}> {time.ctime()}")
                 out = self.mkernel.run(cmd)
             except:
                 pass
             status, msg = 'finished', 'scan complete'
             err = self.mkernel.get_error()
+            print(f"#Server.do_command  errors? {len(err)}")
             if len(err) > 0:
                 err = err[0]
                 exc_type, exc_val, exc_tb = err.exc_info
@@ -189,6 +191,7 @@ class ScanServer():
             self.scandb.set_info('scan_progress', msg)
             self.scandb.set_command_status(status, cmdid=cmdid)
         self.set_status('idle')
+        print(f"#Server.do_command  Done")
         self.command_in_progress = False
 
     def look_for_interrupts(self):
@@ -237,9 +240,12 @@ class ScanServer():
 
         # Note: this loop is really just looking for new commands
         # or interrupts, so does not need to go super fast.
+        counter = 0
+        cmds = deque([])
         while True:
-            epics.poll(0.025, 1.0)
-            time.sleep(0.1)
+            epics.poll(0.05, 1.0)
+
+            counter = counter+1
             now = time.time()
 
             # update server heartbeat / message
@@ -248,7 +254,6 @@ class ScanServer():
                 self.set_heartbeat()
 
             self.look_for_interrupts()
-
             # shutdown?
             if self.req_shutdown:
                 break
@@ -258,24 +263,32 @@ class ScanServer():
                 time.sleep(1.0)
                 continue
 
-            # get ordered list of requested commands
-            cmds = self.scandb.get_rows('commands',
-                                        status=request_id,
-                                        order_by='run_order')
             # abort current command?
             if self.req_abort:
                 if len(cmds) > 0:
-                    cmd = cmds[0]
+                    cmd = cmds.popleft()
                     self.scandb.set_command_status('aborted', cmdid=cmd.id)
-                    cmds = []
                 self.clear_interrupts()
                 time.sleep(1.0)
 
-            # do next command
+
+            if counter % 1000  == 0:
+                print(f"scan server:  {time.ctime()} {len(cmds)} in queue")
+                if counter > 1e7:
+                    counter = 0
+
+            # we are not paused or aborting:
+            # if there are more commands in the queue, do the next one
             if len(cmds) > 0:
-                self.do_command(cmds[0])
+                self.do_command(cmds.popleft())
+
+            # otherwise get ordered list of requested commands
             else:
-                time.sleep(0.25)
+                cmds = deque(self.scandb.get_rows('commands',
+                                            status=request_id,
+                                           order_by='run_order'))
+
+
         # mainloop end
         self.finish()
         return None
