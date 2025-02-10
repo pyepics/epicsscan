@@ -54,8 +54,8 @@ class Positioner(Saveable):
         extra = ''
         if len(self.array) > 0:
             npts = len(self.array)
-            amin = f'{min(self.array):.g}'
-            amax = f'{max(self.array):.g}'
+            amin = f'{min(self.array):g}'
+            amax = f'{max(self.array):g}'
             extra = f": {npts} points, min/max: [{amin}, {amax}]"
         return f"<{out}{extra}>"
 

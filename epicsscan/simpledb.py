@@ -4,14 +4,13 @@ Simple database interface using SQLAlchemy 2.0
 """
 
 import os
-import time
-import random
 import logging
-from datetime import datetime
 
-from sqlalchemy import MetaData, create_engine, text, and_
+from sqlalchemy import MetaData, create_engine, and_
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.sqltypes import INTEGER
+
+from pyshortcuts import isotime
 
 def get_credentials(credfile=None, envvar='ESCAN_CREDENTIALS', ):
     """look up credentials either from `credfile` (if not None)
@@ -49,12 +48,7 @@ password: db_user_password
                 conn[key] = val
     return conn
 
-def isotime(dtime=None, sep=' '):
-    if dtime is None:
-        dtime = datetime.now()
-    return datetime.isoformat(dtime, sep=sep)
-
-class SimpleDB(object):
+class SimpleDB():
     """simple, common interface to Postgres/SQLite3 databases
 
     Intended as mixin class, with attributes:
@@ -116,12 +110,9 @@ class SimpleDB(object):
 
         self.engine = create_engine(connect_str, connect_args=connect_args)
         self.metadata = MetaData()
-        try:
-            self.metadata.reflect(bind=self.engine)
-        except:
-            raise ValueError(f'{dbname:s} is not a valid database')
+        self.metadata.reflect(bind=self.engine)
 
-        tables = self.tables = self.metadata.tables
+        self.tables = self.metadata.tables
 
         if self.logfile is None and server.startswith('sqlit'):
             self.logfile = f"{self.dbname:s}.log"
@@ -130,6 +121,7 @@ class SimpleDB(object):
             logger.addHandler(logging.FileHandler(self.logfile))
 
     def get_session(self):
+        "get the current session"
         return Session(self.engine)
 
     def close(self):
@@ -169,11 +161,12 @@ class SimpleDB(object):
             query = tab.update().where(tab.c.key==key).values(**ivals)
         if do_execute:
             self.execute(query, set_modify_date=True)
-            return
+            return query
         return query
 
     def get_info(self, key=None, default=None, prefix=None, as_int=False,
                  as_bool=False, order_by='modify_time', full_row=False):
+        "get values from info table"
         where = {}
         if key is not None:
             where['key'] = key
@@ -210,7 +203,8 @@ class SimpleDB(object):
                 if len(out) == 0 and (default is not None or
                                       as_int is not None or
                                       as_bool is not None):
-                    if default is None: default = 0
+                    if default is None:
+                        default = 0
                     out = cast(default, as_int, as_bool)
         else:
             out = {}
@@ -236,14 +230,16 @@ class SimpleDB(object):
         self.execute(tab.insert().values(**kws), set_modify_date=True)
 
     def table_error(self, message, tablename, funcname):
+        "wrapper for ValueError for table errors"
         raise ValueError(f"{message} for table '{tablename}' in {funcname}()")
 
     def handle_where(self, tablename, where=None, funcname=None, **kws):
+        "general handling of where clauses"
         if funcname is None:
             funcname = 'handle_where'
         tab = self.tables.get(tablename, None)
         if tab is None:
-            self.table_error(f"no table found", tablename, funcname)
+            self.table_error("no table found", tablename, funcname)
 
         filters = []
         if where is None or isinstance(where, bool) and where:
@@ -260,14 +256,14 @@ class SimpleDB(object):
                     if coldat.primary_key and isinstance(coldat.type, INTEGER):
                         filters.append(getattr(tab.c, colname)==where)
             if len(filters) == 0:
-                self.table_error(f"could not interpret integer `where` value",
-                                      tablename, funcname)
+                self.table_error("could not interpret integer `where` value",
+                                  tablename, funcname)
         elif isinstance(where, dict):
             where.update(kws)
             for keyname, val in where.items():
                 key = getattr(tab.c, keyname, None)
                 if key is None:
-                    key = getattr(tab.c, "%s_id" % keyname, None)
+                    key = getattr(tab.c, f"{keyname}_id", None)
                 if key is None:
                     self.table_error(f"no column '{keyname}'", tablename, funcname)
                 filters.append(key==val)
@@ -296,7 +292,7 @@ class SimpleDB(object):
         """
         tab = self.tables.get(tablename, None)
         if tab is None:
-            self.table_error(f"no table found", tablename, 'get_rows')
+            self.table_error("no table found", tablename, 'get_rows')
 
         where = self.handle_where(tablename, where=where, funcname='get_rows', **kws)
         query = tab.select().where(where)
@@ -349,7 +345,7 @@ class SimpleDB(object):
         """
         tab = self.tables.get(tablename, None)
         if tab is None:
-            self.table_error(f"no table found", tablename, 'update')
+            self.table_error("no table found", tablename, 'update')
 
         where = self.handle_where(tablename, where=where, funcname='update')
         self.execute(tab.update().where(where).values(**kws), set_modify_date=True)
@@ -366,7 +362,7 @@ class SimpleDB(object):
 
         tab = self.tables.get(tablename, None)
         if tab is None:
-            self.table_error(f"no table found", tablename, 'delete')
+            self.table_error("no table found", tablename, 'delete')
 
         where = self.handle_where(tablename, where=where, funcname='delete')
         self.execute(tab.delete().where(where), set_modify_date=True)
