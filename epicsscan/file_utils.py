@@ -1,17 +1,18 @@
 #!/usr/bin/python
-import time
+"""
+file utilities
+"""
 import os
 import sys
+from pathlib import Path
 from datetime import datetime
-from string import printable
-from random import seed, randint
-from pyshortcuts import get_homedir
-
+from random import randint
 
 def bytes2str(s):
+    'bytes2str'
     if isinstance(s, str):
         return s
-    elif isinstance(s, bytes):
+    if isinstance(s, bytes):
         return s.decode(sys.stdout.encoding)
     return str(s, sys.stdout.encoding)
 
@@ -46,33 +47,10 @@ def fix_filename(s):
     avoids nasty cases."""
     t = str(s).translate(BAD_FILETABLE)
     if t.count('.') > 1:
-        for i in range(t.count('.') - 1):
+        for _ in range(t.count('.') - 1):
             idot = t.find('.')
             t = f"{t[:idot]}_{t[idot+1:]}"
     return t
-
-def unixpath(d):
-    d = d.replace('\\','/')
-    if not d.endswith('/'): d = '%s/' % d
-    return d
-
-def winpath(d):
-    if d.startswith('//'): d = d[1:]
-    d = d.replace('/','\\')
-    if not d.endswith('\\'): d = '%s\\' % d
-    return d
-
-def nativepath(d):
-    if os.name == 'nt':
-        return winpath(d)
-    return unixpath(d)
-
-def basepath(d):
-    if d.startswith(WIN_BASE):
-        d = d.replace(WIN_BASE, '')
-    if d.startswith(UNIX_BASE):
-        d = d.replace(UNIX_BASE, '')
-    return nativepath(d)
 
 
 def random_string(n):
@@ -82,10 +60,14 @@ def random_string(n):
     """
     return ''.join([chr(randint(97, 122)) for i in range(n)])
 
-def pathOf(dir, base, ext, delim='.'):
-    return Path(dir, f"{base}{delim}{ext}").absolute().as_posix()
+def pathof(dirname, base, ext, delim='.', absolute=True):
+    "path combine"
+    fpath = Path(dirname, f"{base}{delim}{ext}")
+    if absolute:
+        fpath = fpath.absolute()
+    return fpath.as_posix()
 
-def increment_filename(inpfile, ndigits=3, delim='.'):
+def increment_filename(inpfile, ndigits=3, delim='.', absolute=True):
     """
     increment a data filename, returning a new (non-existing) filename
 
@@ -136,35 +118,33 @@ def increment_filename(inpfile, ndigits=3, delim='.'):
 
     if ext.startswith('.'):
         ext   = ext[1:]
-    if ndigits < 3:
-        ndigits = 3
-    form  = "%%.%ii" % (ndigits)
+    ndig = max(3, ndigits)
 
     def _incr(base, ext):
         try: # first, try incrementing the file extension
-            ext = form % (int(ext)+1)
+            ext = f"{(int(ext)+1):0{ndig}d}"
         except ValueError:
             try: #  try incrementing the part of the base after the last '_'
                 bparts = base.split('_')
-                bparts[-1] = form % (int(bparts[-1])+1)
+                bparts[-1] = f"{(int(bparts[-1])+1):0{ndig}d}"
                 base = '_'.join(bparts)
-            except:  # last, add a '_001' appendix
+            except ValueError:  # last, add a '_001' appendix
                 base = f"{base}_001"
         return (base, ext)
 
     # increment once
 
     base, ext = _incr(base, ext)
-    fout      = pathOf(dirname, base, ext, delim=delim)
+    fout      = pathof(dirname, base, ext, delim=delim, absolute=absolute)
 
     # then gaurantee that file does not exist,
     # continuing to increment if necessary
-    while(os.path.exists(fout)):
+    while os.path.exists(fout):
         base,ext = _incr(base, ext)
-        fout     = pathOf(dirname, base, ext, delim=delim)
+        fout     = pathof(dirname, base, ext, delim=delim, absolute=absolute)
     return fout
 
-def new_filename(fname=None,ndigits=3):
+def new_filename(fname=None, ndigits=3):
     """ generate a new file name, either based on
     filename or generating a random one
 
@@ -172,12 +152,12 @@ def new_filename(fname=None,ndigits=3):
     'x.002'
     # if 'x.001' exists
     """
+    ndig = max(3, ndigits)
     if fname is None:
-        ext = ("%%.%ii" % ndigits) % 1
-        fname = "%s.%s" % (random_string(6), ext)
+        fname = f"{random_string(6)}.{(1):0{ndig}d}"
 
     if os.path.exists(fname):
-        fname = increment_filename(fname, ndigits=ndigits)
+        fname = increment_filename(fname, ndigits=ndig)
 
     return fname
 
@@ -189,18 +169,17 @@ def new_dirname(dirname=None, ndigits=3):
     'x_002'
     # if 'x_001' exists
     """
+    ndig = max(3, ndigits)
     if dirname is None:
-        ext = ("%%_%ii" % ndigits) % 1
-        dirname = "%s_%s" % (random_string(6), ext)
+        dirname = f"{random_string(6)}.{(1):0{ndig}d}"
 
     dirname = dirname.replace('.', '_')
     if os.path.exists(dirname):
-        dirname = increment_filename(dirname, ndigits=ndigits, delim='_')
-
-
+        dirname = increment_filename(dirname, ndigits=ndig, delim='_')
     return dirname
 
-if (__name__ == '__main__'):
+def test_inc():
+    "test"
     test = ( ('a.002', 'a.003'),
              ('a.999', 'a.1000'),
              ('b_017.xrf',  'b_018.xrf'),
@@ -213,12 +192,15 @@ if (__name__ == '__main__'):
              ('a_001.002', 'a_001.003'),
              ('path/a.003',  'path/a.004'))
     npass = nfail = 0
-    for inp,out in test:
-        tval = increment_filename(inp)
+    for inp, out in test:
+        tval = increment_filename(inp, absolute=False)
         if tval != out:
-            print( "Error converting " , inp)
-            print( "Got '%s'  expected '%s'" % (tval, out))
+            print("Error converting " , inp)
+            print(f"Got '{tval}'  expected '{out}'")
             nfail = nfail + 1
         else:
             npass = npass + 1
-    print('Passed %i of %i tests' % (npass, npass+nfail))
+    print(f"Passed {npass} of {npass+nfail} tests")
+
+if __name__ == '__main__':
+    test_inc()
