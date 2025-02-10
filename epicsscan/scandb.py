@@ -229,7 +229,7 @@ class ScanDB(SimpleDB):
     def add_scandef(self, name, text='', notes='', type='', **kws):
         """add scan"""
         name = name.strip()
-        now = make_datetime()
+        now = datetime.now()
         kws.update({'notes': notes, 'text': text,
                     'type': type, 'name': name,
                     'modify_time': now, 'last_used_time': now})

@@ -178,7 +178,7 @@ class QXAFS_Scan(XAFS_Scan):
                                   password=conf['password'],
                                   group=conf['group'],
                                   outputs=conf['outputs'])
-            print("connect to NewportXPS: ", self.xps)
+            print("XAFS SCAN connect to NewportXPS: ", self.xps)
         qconf = self.config
         if id_tracking:
             caput(qconf['id_track_pv'], 1)
