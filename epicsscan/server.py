@@ -1,17 +1,16 @@
 #!/usr/bin/env python
-
-import sys, os
+"""
+scan server
+"""
 import traceback
 from time import time, sleep
 
 from collections import deque
 from datetime import datetime
-import numpy as np
 import epics
 from pyshortcuts import isotime
 
 from .scandb import ScanDB
-from .file_utils import fix_varname
 from .utils import (strip_quotes, plain_ascii, tstamp,
                     is_complete)
 
@@ -23,12 +22,17 @@ from .epics_scandb import EpicsScanDB
 DEBUG_TIMER = False
 
 class ScanServer():
+    """Scan Server"""
     def __init__(self, dbname=None,  **kws):
         self.epicsdb = None
         self.scandb = None
         self.abort = False
         self.command_in_progress = False
         self.req_shutdown = False
+        self.req_abort = False
+        self.req_pause = False
+        self.req_shutdown = False
+        self.fileroot = None
         self.connect(dbname, **kws)
 
     def connect(self, dbname, **kws):
@@ -60,7 +64,7 @@ class ScanServer():
             self.epicsdb.basedir = plain_ascii(basedir)
             self.epicsdb.workdir = plain_ascii(workdir)
 
-    def set_scan_message(self, msg, verbose=True):
+    def set_scan_message(self, msg):
         self.scandb.set_info('scan_message', msg)
         if self.epicsdb is not None:
             self.epicsdb.message = msg
@@ -73,6 +77,7 @@ class ScanServer():
             self.abort = True
 
     def finish(self):
+        "shut down scan server"
         self.set_scan_message('Server Shutting Down')
         self.scandb.set_info('request_pause',    0)
         self.scandb.set_info('request_abort',    1)
@@ -81,11 +86,13 @@ class ScanServer():
         sleep(0.025)
 
     def set_status(self, status):
+        "set status"
         self.scandb.set_info('scan_status', status)
         if self.epicsdb is not None:
             self.epicsdb.status = status.title()
 
     def set_workdir(self, verbose=False):
+        "ser working folder"
         self.scandb.set_workdir(verbose=verbose)
         self.fileroot = self.scandb.get_info('server_fileroot')
 
@@ -111,16 +118,14 @@ class ScanServer():
             self.epicsdb.workdir = workdir
 
         if not is_complete(command):
-            print(f"#Server.do_command: cancel incomplete command")
-            self.set_scan_message(f"Error: command <command> is incomplete")
+            self.set_scan_message("Error: command <command> is incomplete")
             self.scandb.set_command_status('canceled', cmdid=cmdid)
             return
 
         self.command_in_progress = True
         self.set_status('starting')
-        self.scandb.set_command_status('starting', cmdid=cmdid)
         self.set_scan_message(f"Executing: <{command}>")
-        print(f"Server.do_command: Executing: <{command}>")
+        self.scandb.set_command_status('starting', cmdid=cmdid)
 
         args    = strip_quotes(plain_ascii(cmd_row.arguments)).strip()
         notes   = strip_quotes(plain_ascii(cmd_row.notes)).strip()
@@ -133,19 +138,19 @@ class ScanServer():
 
         if command.lower() in ('scan', 'slewscan'):
             scanname = args
-            words = ["'%s'" % scanname]
+            words = [f"'{scanname}'"]
             if nrepeat > 1 and command != 'slewscan':
-                words.append("nscans=%i" % nrepeat)
+                words.append(f"nscans={nrepeat:d}")
                 self.scandb.set_info('nscans', nrepeat)
             if len(notes) > 0:
-                words.append("comments='%s'" % notes)
+                words.append(f"comments='{notes}'")
             if len(filename) > 0:
-                words.append("filename='%s'" % filename)
+                words.append(f"filename='{filename}'")
                 self.scandb.set_filename(filename)
 
             self.scandb.update('scandefs', where={'name': scanname},
                                last_used_time=datetime.now())
-            command = "do_%s" % command
+            command = f"do_{command}"
             args = ', '.join(words)
         elif command.lower().startswith('restart_scanserver'):
             self.scandb.set_info('error_message',   '')
@@ -160,7 +165,7 @@ class ScanServer():
             if len(args) == 0:
                 cmd = command
             else:
-                cmd = "%s(%s)" % (command, args)
+                cmd = f"{command}({args})"
             self.scandb.set_info('scan_progress', 'running')
             self.scandb.set_info('error_message',   '')
             self.scandb.set_info('current_command', cmd)
@@ -171,29 +176,30 @@ class ScanServer():
                 self.epicsdb.cmd_id = cmdid
                 self.epicsdb.command = cmd
 
-            msg = 'done'
             try:
                 print(f"#Server.do_command  run <{cmd}> {isotime()}")
-                out = self.mkernel.run(cmd)
+                self.mkernel.run(cmd)
             except:
                 pass
             status, msg = 'finished', 'scan complete'
             errors = self.mkernel.get_error()
             print(f"#Server.do_command  errors? {len(errors)}")
             if len(errors) > 0:
+                ebuff = []
                 for err in errors:
                     exc_type, exc_val, exc_tb = err.exc_info
-                    emsg = '\n'.join(err.get_error())
-                    self.scandb.set_info('error_message', emsg)
-                    msg = 'scan completed with error'
-                    print('## Error ', emsg)
-                    print(err)
+                    ebuff.append(f'#> Exception {exc_type}: {exc_val}')
+                    ebuff.extend(err.get_error())
+                    print(f'#>Exception {exc_type}: {exc_val}')
                     print(traceback.print_tb(exc_tb))
+                emsg = '\n'.join(ebuff)
+                self.scandb.set_info('error_message', emsg)
+                msg = 'scan completed with error'
+                print('## Error ', emsg)
             sleep(0.1)
             self.scandb.set_info('scan_progress', msg)
             self.scandb.set_command_status(status, cmdid=cmdid)
         self.set_status('idle')
-        print(f"#Server.do_command  Done")
         self.command_in_progress = False
 
     def look_for_interrupts(self):
@@ -228,21 +234,21 @@ class ScanServer():
             self.epicsdb.Shutdown = 0
 
     def set_heartbeat(self):
+        "set scan infor heart beat"
         tmsg = tstamp()
         self.scandb.set_info('heartbeat', tmsg)
         if self.epicsdb is not None:
             self.epicsdb.TSTAMP = tmsg
 
     def mainloop(self):
+        """ main serve loop"""
         self.set_status('idle')
-        msgtime = t0 = time()
+        msgtime = time()
         self.set_scan_message('Server Ready')
-        is_paused = False
         request_id = self.scandb.status_codes['requested']
 
         # Note: this loop is really just looking for new commands
         # or interrupts, so does not need to go super fast.
-        counter = 0
         next_logtime = 0.0
         cmds = deque([])
         while True:
@@ -289,4 +295,3 @@ class ScanServer():
 
         # mainloop end
         self.finish()
-        return None
