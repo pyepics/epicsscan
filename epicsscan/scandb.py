@@ -21,7 +21,7 @@ import epics
 
 from .scandb_schema import create_scandb
 from .simpledb import SimpleDB, isotime
-from .utils import normalize_pvname, ScanDBException, ScanDBAbort
+from .utils import normalize_pvname
 from .create_scan import create_scan
 
 def get_credentials(envvar='ESCAN_CREDENTIALS'):
@@ -239,7 +239,7 @@ class ScanDB(SimpleDB):
         """return dictionary of scan configuration for a named scan"""
         sobj = self.get_scandef(scanname)
         if sobj is None:
-            raise ScanDBException('get_scandict needs valid scan name')
+            raise ValueError('get_scandict needs valid scan name')
         return json.loads(sobj.text)
 
     def make_scan(self, scanname, filename='scan.001',
@@ -258,8 +258,8 @@ class ScanDB(SimpleDB):
         """
         try:
             sdict = self.get_scandict(scanname)
-        except ScanDBException:
-            raise ScanDBException("make.scan(): '%s' not a valid scan name" % scanname)
+        except:
+            raise ValueError(f"make.scan(): '{scanname}' not a valid scan name")
 
         if 'rois' not in sdict:
             sdict['rois'] = json.loads(self.get_info('rois'))
@@ -670,7 +670,7 @@ class ScanDB(SimpleDB):
             self.update('commands', where={'id': row.id}, status_id=canceled)
 
     def test_abort(self, msg='scan abort'):
-        """look for abort, raise ScanDBAbort if set"""
+        """look for abort"""
         return self.get_info('request_abort', as_bool=True)
 
     def wait_for_pause(self, timeout=86400.0):
@@ -736,13 +736,12 @@ class InstrumentDB(object):
     def remove_position(self, instname, posname):
         inst = self.get_instrument(instname)
         if inst is None:
-            raise ScanDBException('remove_position needs valid instrument')
+            raise ValueError('remove_position needs valid instrument')
 
         posname = posname.strip()
         pos  = self.get_position(instname, posname)
         if pos is None:
-            raise ScanDBException("Postion '%s' not found for '%s'" %
-                                        (posname, inst.name))
+            raise ValueError(f"Postion '{posname}' not found for '{instname}'")
 
         self.scandb.delete_rows('position_pv', {'position_id': pos.id})
         self.scandb.delete_rows('position_pv', {'position_id': None})
@@ -755,7 +754,7 @@ class InstrumentDB(object):
     def remove_instrument(self, inst):
         inst = self.get_instrument(inst)
         if inst is None:
-            raise ScanDBException('Save Postion needs valid instrument')
+            raise ValueError('Save Postion needs valid instrument')
 
         self.scandb.delete_rows('inststrument', {'id': inst.id})
 
@@ -769,7 +768,7 @@ class InstrumentDB(object):
         """
         inst = self.get_instrument(instname)
         if inst is None:
-            raise ScanDBException('Save Postion needs valid instrument')
+            raise ValueError('Save Postion needs valid instrument')
 
         posname = posname.strip()
         pos = self.get_position(instname, posname)
@@ -803,7 +802,7 @@ class InstrumentDB(object):
             if ignore_missing_pvs:
                 print(f"Warning: {msg}")
             else:
-                raise ScanDBException(msg)
+                raise ValueError(msg)
 
         for name in pvnames:
             thispv = self.scandb.get_pvrow(name)
@@ -823,7 +822,7 @@ class InstrumentDB(object):
         """
         inst = self.get_instrument(instname)
         if inst is None:
-            raise ScanDBException('Save Postion needs valid instrument')
+            raise ValueError('Save Postion needs valid instrument')
         vals = {}
         for pv in inst.pvs:
             vals[pv.name] = epics.caget(pv.name)
@@ -877,13 +876,12 @@ class InstrumentDB(object):
         """
         inst = self.get_instrument(instname)
         if inst is None:
-            raise ScanDBException('restore_postion needs valid instrument')
+            raise ValueError('restore_postion needs valid instrument')
 
         posname = posname.strip()
         pos  = self.get_position(instname, posname)
         if pos is None:
-            raise ScanDBException(
-                "restore_postion  position '%s' not found" % posname)
+            raise ValueError(f"restore_postion  position '{posname}' not found")
 
         if exclude_pvs is None:
             exclude_pvs = []

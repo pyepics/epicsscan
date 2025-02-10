@@ -96,7 +96,7 @@ from .file_utils import fix_varname, fix_filename, increment_filename
 
 from epics import PV, poll, get_pv, caget, caput
 
-from .utils import ScanDBException, ScanDBAbort, hms
+from .utils import hms
 from .detectors import (Counter, Trigger, AreaDetector, SCALER_MODE)
 from .datafile import ASCIIScanFile
 from .positioner import Positioner
