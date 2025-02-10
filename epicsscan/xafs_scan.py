@@ -19,7 +19,7 @@ from .scan import StepScan
 from .positioner import Positioner
 from .saveable import Saveable
 from .file_utils import fix_varname, new_filename
-from .utils import ScanDBAbort, hms, normalize_pvname
+from .utils import hms, normalize_pvname
 from .debugtime import debugtime
 from .detectors.counter import ROISumCounter, EVAL4PLOT
 from .detectors import  ROI_MODE, SCALER_MODE

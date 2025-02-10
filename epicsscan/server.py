@@ -10,7 +10,7 @@ import epics
 from .scandb import ScanDB, make_datetime
 from .file_utils import fix_varname, nativepath
 from .utils import (strip_quotes, plain_ascii, tstamp,
-                    is_complete, ScanDBException, ScanDBAbort)
+                    is_complete)
 
 from .macro_kernel import MacroKernel
 
@@ -180,13 +180,9 @@ class ScanServer():
             if len(err) > 0:
                 err = err[0]
                 exc_type, exc_val, exc_tb = err.exc_info
-                if 'ScanDBAbort' in repr( exc_type):
-                    status = 'aborted'
-                    msg = 'scan aborted'
-                else:
-                    emsg = '\n'.join(err.get_error())
-                    self.scandb.set_info('error_message', emsg)
-                    msg = 'scan completed with error'
+                emsg = '\n'.join(err.get_error())
+                self.scandb.set_info('error_message', emsg)
+                msg = 'scan completed with error'
             time.sleep(0.1)
             self.scandb.set_info('scan_progress', msg)
             self.scandb.set_command_status(status, cmdid=cmdid)

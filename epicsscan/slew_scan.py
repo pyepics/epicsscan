@@ -14,7 +14,6 @@ from .scan import StepScan
 from .positioner import Positioner
 from .saveable import Saveable
 
-from .utils import ScanDBAbort
 from .detectors import (Counter, Trigger, AreaDetector, write_poni)
 from .file_utils import fix_varname, fix_filename, increment_filename
 

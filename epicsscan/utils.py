@@ -4,18 +4,6 @@ import time
 import json
 from datetime import timedelta
 
-class ScanDBException(Exception):
-    """Scan Exception: General Errors"""
-    def __init__(self, *args):
-        Exception.__init__(self, *args)
-        sys.excepthook(*sys.exc_info())
-
-class ScanDBAbort(Exception):
-    """Scan Abort Exception"""
-    def __init__(self, *args):
-        Exception.__init__(self, *args)
-        sys.excepthook(*sys.exc_info())
-
 def tstamp():
     return time.strftime("%Y-%b-%d %H:%M:%S")
 
