@@ -19,10 +19,7 @@ ScanFile supports several methods:
 
 which  can be overridden to create a new Output file type
 """
-import os
-import time
 import numpy as np
-import json
 from .file_utils import new_filename, get_timestamp, fix_filename
 
 COM1 = '#'
@@ -31,7 +28,7 @@ COM3 = '-'*65
 SEP = ' || '   # separater between value, pvname in header
 FILETOP = '#XDI/1.1    Epics StepScan File'
 
-class StepScanData(object):
+class StepScanData():
     """
     Holds data as read from a Scan Data File.
     """
@@ -53,7 +50,7 @@ class StepScanData(object):
         if filename is not None:
             self.read(filename)
 
-    def get_data(self, key, fold_breakpoints=False):
+    def get_data(self, key):
         """get positioner or detector array either by key, name, or index
         key can be any of (case-insensitive):
             column number, starting at 0
@@ -68,7 +65,8 @@ class StepScanData(object):
                 for i, nam in enumerate(a):
                     self.__arraymap[nam.lower()] = i
         #
-        if isinstance(key, int) and key > -1 and key < len(self.column_keys):
+        if (isinstance(key, int) and (key > -1) and
+           (key < len(self.column_keys))):
             icol = key
         else:
             icol = self.__arraymap.get(key.lower(), None)
@@ -79,13 +77,13 @@ class StepScanData(object):
         return self.data[icol]
 
     def read(self, filename=None):
+        "read file"
         if filename is not None:
             self.filename = filename
         self._valid = False
-        fh = open(self.filename, 'r')
+        with open(self.filename, 'r') as fh:
+            lines = fh.readlines()
 
-
-        lines = fh.readlines()
         line0 = lines.pop(0)
         if not line0.startswith(FILETOP):
             print(f"'{self.filename}' is not a valid Epics Scan file")
@@ -104,7 +102,8 @@ class StepScanData(object):
         for line in lines:
             if line.startswith(COM1):
                 key, val = split_header(line[:-1])
-                if key.startswith('----'): key = '----'
+                if key.startswith('----'):
+                    key = '----'
                 if key in modes:
                     mode = modes[key]
                     if mode == 'comment':
@@ -120,11 +119,13 @@ class StepScanData(object):
                     continue
                 if mode == 'comment':
                     cmt = line[:-1].strip()
-                    if cmt.startswith('#'):  cmt = line[1:].strip()
+                    if cmt.startswith('#'):
+                        cmt = line[1:].strip()
                     self.comments.append(cmt)
                 elif mode in ('legend', 'extras'):
                     words = [w.strip() for w in val.split(SEP)]
-                    if len(words) == 1: words.append('')
+                    if len(words) == 1:
+                        words.append('')
                     if mode == 'extras':
                         extras[key] = (words[0], words[1])
                     else:
@@ -141,7 +142,7 @@ class StepScanData(object):
         self.data = np.array(self.data).transpose()
         self._valid = True
 
-class ScanFile(object):
+class ScanFile():
     """base Scan File -- intended to be inherited and
     overrwritten for multiple ScanFile types (ASCII, HDF5) to be
     supported with compatible methods
@@ -150,11 +151,6 @@ class ScanFile(object):
         self.filename = name
         self.fh = None
         self.scan = scan
-
-    def open_for_read(self, mode='r'):
-        "open file for read"
-        self.fh = open(self.filename, mode)
-        return self.fh
 
     def open_for_write(self, filename=None, mode='a'):
         """open file for write or append,
@@ -200,23 +196,23 @@ class ScanFile(object):
 
     def write_extrapvs(self):
         "write extra PVS"
-        pass
+        return
 
     def write_comments(self):
         "write legend"
-        pass
+        return
 
     def write_legend(self):
         "write legend"
-        pass
+        return
 
     def write_timestamp(self):
         "write timestamp"
-        pass
+        return
 
     def write_data(self, breakpoint=0, clear=False):
         "write data"
-        pass
+        return
 
 class ASCIIScanFile(ScanFile):
     """basis ASCII Column File, line-ending delimited,
@@ -285,7 +281,7 @@ class ASCIIScanFile(ScanFile):
             for ireg, reg in enumerate(s.regions):
                 start, stop, npts, rel, e0, use_k, dt0, dt1, dtw = reg
                 step = abs(stop-start)/(npts-1.0)
-                regtxt = f"{start:9.3f}, {stop:9.3f}, {step:9.3f} {use_k} {dt0:.2f}"
+                regtxt = f"{start:9.3f}, {stop:9.3f}, {step:9.3f} {use_k} {rel} {e0} {dt0:.2f}"
                 if dt1 is not None:
                     regtxt = f"{regtxt} .. {dt1:.2f} (weight={dtw})"
                 out.append(f"{COM1} ScanParameters.Region{ireg+1}:  {regtxt}")
@@ -309,13 +305,13 @@ class ASCIIScanFile(ScanFile):
         cols = []
         icol = 0
         out = [f"{COM1} Legend.Start: Column.N: Name  units || EpicsPV"]
-        for vars  in ((self.scan.positioners, 'positioner', 'unknown'),
-                      (self.scan.counters, 'counter', 'counts')):
-            objs, objtype, objunits = vars
+        for lvars  in ((self.scan.positioners, 'unknown'),
+                      (self.scan.counters, 'counts')):
+            objs, objunits = lvars
             for obj in objs:
                 icol += 1
                 key = f"{COM1} Column.{icol}"
-                typ, units =  objtype, objunits
+                units =  objunits
                 pv = getattr(obj, 'pv', None)
                 pvname = getattr(obj, 'pvname', None)
                 if pvname is None and pv is not None:

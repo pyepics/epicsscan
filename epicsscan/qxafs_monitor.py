@@ -13,10 +13,11 @@ import sys
 from multiprocessing import Process
 from threading import Thread
 import numpy as np
+from pyshortcuts import isotime
 from epics import caget, caput, PV, get_pv
 from epics.ca import CASeverityException
 from epicsscan.scandb import ScanDB
-from epicsscan.utils import hms, tstamp
+from epicsscan.utils import hms
 
 from optparse import OptionParser
 
@@ -166,7 +167,7 @@ class QXAFS_ScanWatcher(object):
 
                 if cpt >= msg_counter:
                     self.scandb.set_info('scan_progress',  msg)
-                    self.scandb.set_info('heartbeat', tstamp())
+                    self.scandb.set_info('heartbeat', isotime())
                     msg_counter += 1
 
                 ndat = {}

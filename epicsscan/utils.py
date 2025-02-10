@@ -1,17 +1,15 @@
-import sys
-import socket
-import time
-import json
+"""
+basic utils
+"""
 from datetime import timedelta
 
-def tstamp():
-    return time.strftime("%Y-%b-%d %H:%M:%S")
 
 def hms(secs):
     "format time in seconds to H:M:S"
     return str(timedelta(seconds=int(secs)))
 
 def strip_quotes(t):
+    "clean string"
     d3, s3, d1, s1 = '"""', "'''", '"', "'"
     if hasattr(t, 'startswith'):
         if ((t.startswith(d3) and t.endswith(d3)) or
@@ -22,15 +20,17 @@ def strip_quotes(t):
             t = t[1:-1]
     return t
 
-def plain_ascii(s, replace=''):
+def plain_ascii(s):
     """
     replace non-ASCII characters with blank or other string
     very restrictive (basically ord(c) < 128 only)
     """
-    if s is None: s = ''
+    if s is None:
+        s = ''
     return "".join([i for i in s if ord(i)<128])
 
 def get_units(pv, default):
+    "get PV units"
     try:
         units = pv.units
     except:
@@ -48,12 +48,9 @@ def json2ascii(inp):
     """convert input unicode json text to pure ASCII/utf-8"""
     if isinstance(inp, dict):
         return dict([(json2ascii(k), json2ascii(v)) for k, v in inp.iteritems()])
-    elif isinstance(inp, list):
+    if isinstance(inp, list):
         return [json2ascii(k) for k in inp]
-    elif isinstance(inp, unicode):
-        return inp.encode('utf-8')
-    else:
-        return inp
+    return inp
 
 
 PARENS = {'{': '}', '(': ')', '[': ']'}
@@ -70,8 +67,8 @@ def find_eostring(txt, eos, istart):
         inext = txt[istart:].find(eos)
         if inext < 0:  # reached end of text before match found
             return eos, len(txt)
-        elif (txt[istart+inext-1] == BSLASH and
-              txt[istart+inext-2] != BSLASH):  # matched quote was escaped
+        if (txt[istart+inext-1] == BSLASH and
+            txt[istart+inext-2] != BSLASH):  # matched quote was escaped
             istart = istart+inext+len(eos)
         else: # real match found! skip ahead in string
             return '', istart+inext+len(eos)-1
@@ -99,7 +96,6 @@ def is_complete(text):
         elif c in CLOSES and len(delims) > 0 and c == delims[-1]:
             delims.pop()
         elif c == COMMENT and eos == '': # comment char outside string
-            jtok = itok
             if '\n' in text[itok:]:
                 itok = itok + text[itok:].index('\n')
             else:

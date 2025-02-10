@@ -11,8 +11,7 @@ import epics
 from pyshortcuts import isotime
 
 from .scandb import ScanDB
-from .utils import (strip_quotes, plain_ascii, tstamp,
-                    is_complete)
+from .utils import strip_quotes, plain_ascii, is_complete
 
 from .macro_kernel import MacroKernel
 
@@ -235,7 +234,7 @@ class ScanServer():
 
     def set_heartbeat(self):
         "set scan infor heart beat"
-        tmsg = tstamp()
+        tmsg = isotime()
         self.scandb.set_info('heartbeat', tmsg)
         if self.epicsdb is not None:
             self.epicsdb.TSTAMP = tmsg
