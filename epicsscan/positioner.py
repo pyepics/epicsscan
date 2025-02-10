@@ -33,28 +33,31 @@ class Positioner(Saveable):
             desc = pvname
             if '.' in pvname:
                 idot = pvname.index('.')
-                descpv = pvname[:idot] + '.DESC'
+                descpv = f'{pvname[:idot]}.DESC'
             else:
-                descpv = pvname + '.DESC'
+                descpv = f'{pvname}.DESC'
             try:
                 desc = caget(descpv)
             except:
                 pass
             self.label = desc
-        if array is None: array  = []
+        if array is None:
+            array  = []
         self.array = array
 
-        if extra_pvs is None: extra_pvs = {}
+        if extra_pvs is None:
+            extra_pvs = {}
         self.extra_pvs = extra_pvs
 
     def __repr__(self):
-        out = "<Positioner '%s'" % (self.pv.pvname)
+        out = f"Positioner '{self.pv.pvname}'"
+        extra = ''
         if len(self.array) > 0:
             npts = len(self.array)
-            amin = '%g' % (min(self.array))
-            amax = '%g' % (max(self.array))
-            out = "%s: %i points, min/max: [%s, %s]" % (out, npts, amin, amax)
-        return "%s>" % out
+            amin = f'{min(self.array):.g}'
+            amax = f'{max(self.array):.g}'
+            extra = f": {npts} points, min/max: [{amin}, {amax}]"
+        return f"<{out}{extra}>"
 
     def __onComplete(self, pvname=None, **kws):
         self.done = True
@@ -103,13 +106,12 @@ class Positioner(Saveable):
 
     def pre_scan(self, **kws):
         "method to run prior to scan: override for real action"
-        pass
+        return
 
     def post_scan(self, **kws):
         "method to run after to scan: override for real action"
-        pass
+        return
 
     def at_break(self, breakpoint=None, **kws):
         "method to run at break points: override for real action"
-        pass
-
+        return

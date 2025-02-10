@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 
-import time, sys, os
+import sys, os
+import traceback
+from time import time, sleep
 
 from collections import deque
-
+from datetime import datetime
 import numpy as np
 import epics
+from pyshortcuts import isotime
 
-from .scandb import ScanDB, make_datetime
-from .file_utils import fix_varname, nativepath
+from .scandb import ScanDB
+from .file_utils import fix_varname
 from .utils import (strip_quotes, plain_ascii, tstamp,
                     is_complete)
 
@@ -40,7 +43,7 @@ class ScanServer():
         self.set_workdir()
 
         self.mkernel = MacroKernel(self.scandb, load_macros=True)
-        time.sleep(0.05)
+        sleep(0.05)
         self.set_scan_message('Server Connected.')
         if 'startup' in self.mkernel.get_macros():
             self.scandb.add_command("startup()")
@@ -51,7 +54,7 @@ class ScanServer():
 
         if eprefix is not None:
             self.epicsdb = EpicsScanDB(prefix=eprefix)
-            time.sleep(0.1)
+            sleep(0.1)
             self.epicsdb.Shutdown = 0
             self.epicsdb.Abort = 0
             self.epicsdb.basedir = plain_ascii(basedir)
@@ -65,7 +68,7 @@ class ScanServer():
 
     def sleep(self, t=0.05):
         try:
-            time.sleep(t)
+            sleep(t)
         except KeyboardInterrupt:
             self.abort = True
 
@@ -75,7 +78,7 @@ class ScanServer():
         self.scandb.set_info('request_abort',    1)
         self.scandb.set_info('request_abort',    0)
         self.scandb.set_info('request_shutdown', 0)
-        time.sleep(0.025)
+        sleep(0.025)
 
     def set_status(self, status):
         self.scandb.set_info('scan_status', status)
@@ -141,7 +144,7 @@ class ScanServer():
                 self.scandb.set_filename(filename)
 
             self.scandb.update('scandefs', where={'name': scanname},
-                               last_used_time= make_datetime())
+                               last_used_time=datetime.now())
             command = "do_%s" % command
             args = ', '.join(words)
         elif command.lower().startswith('restart_scanserver'):
@@ -170,20 +173,23 @@ class ScanServer():
 
             msg = 'done'
             try:
-                print(f"#Server.do_command  run <{cmd}> {time.ctime()}")
+                print(f"#Server.do_command  run <{cmd}> {isotime()}")
                 out = self.mkernel.run(cmd)
             except:
                 pass
             status, msg = 'finished', 'scan complete'
-            err = self.mkernel.get_error()
-            print(f"#Server.do_command  errors? {len(err)}")
-            if len(err) > 0:
-                err = err[0]
-                exc_type, exc_val, exc_tb = err.exc_info
-                emsg = '\n'.join(err.get_error())
-                self.scandb.set_info('error_message', emsg)
-                msg = 'scan completed with error'
-            time.sleep(0.1)
+            errors = self.mkernel.get_error()
+            print(f"#Server.do_command  errors? {len(errors)}")
+            if len(errors) > 0:
+                for err in errors:
+                    exc_type, exc_val, exc_tb = err.exc_info
+                    emsg = '\n'.join(err.get_error())
+                    self.scandb.set_info('error_message', emsg)
+                    msg = 'scan completed with error'
+                    print('## Error ', emsg)
+                    print(err)
+                    print(traceback.print_tb(exc_tb))
+            sleep(0.1)
             self.scandb.set_info('scan_progress', msg)
             self.scandb.set_command_status(status, cmdid=cmdid)
         self.set_status('idle')
@@ -204,7 +210,7 @@ class ScanServer():
 
         if not self.scandb.check_hostpid():
             print("No Longer Host, exiting")
-            time.sleep(5)
+            sleep(5)
             self.req_shutdown = 1
         return self.req_abort
 
@@ -229,7 +235,7 @@ class ScanServer():
 
     def mainloop(self):
         self.set_status('idle')
-        msgtime = t0 = time.time()
+        msgtime = t0 = time()
         self.set_scan_message('Server Ready')
         is_paused = False
         request_id = self.scandb.status_codes['requested']
@@ -237,12 +243,15 @@ class ScanServer():
         # Note: this loop is really just looking for new commands
         # or interrupts, so does not need to go super fast.
         counter = 0
+        next_logtime = 0.0
         cmds = deque([])
         while True:
             epics.poll(0.05, 1.0)
 
-            counter = counter+1
-            now = time.time()
+            now = time()
+            if now > next_logtime:
+                print(f"scan server:  {isotime()} {len(cmds)} in queue")
+                next_logtime = now + 120.0
 
             # update server heartbeat / message
             if now > msgtime + 0.75:
@@ -256,7 +265,7 @@ class ScanServer():
 
             # pause: sleep, continue loop until un-paused
             if self.req_pause:
-                time.sleep(1.0)
+                sleep(1.0)
                 continue
 
             # abort current command?
@@ -265,13 +274,7 @@ class ScanServer():
                     cmd = cmds.popleft()
                     self.scandb.set_command_status('aborted', cmdid=cmd.id)
                 self.clear_interrupts()
-                time.sleep(1.0)
-
-
-            if counter % 1000  == 0:
-                print(f"scan server:  {time.ctime()} {len(cmds)} in queue")
-                if counter > 1e7:
-                    counter = 0
+                sleep(1.0)
 
             # we are not paused or aborting:
             # if there are more commands in the queue, do the next one
@@ -281,9 +284,8 @@ class ScanServer():
             # otherwise get ordered list of requested commands
             else:
                 cmds = deque(self.scandb.get_rows('commands',
-                                            status=request_id,
-                                           order_by='run_order'))
-
+                                             status=request_id,
+                                             order_by='run_order'))
 
         # mainloop end
         self.finish()

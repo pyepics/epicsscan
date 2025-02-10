@@ -58,7 +58,7 @@ from ..utils import normalize_pvname
 
 from ..xafs_scan import XAFS_Scan
 
-from ..file_utils import new_filename, nativepath, fix_filename
+from ..file_utils import new_filename, fix_filename
 
 from ..scandb import ScanDB
 
