@@ -166,29 +166,31 @@ class QXAFS_Scan(XAFS_Scan):
         """initialize a QXAFS scan"""
         self.scandb.set_info('qxafs_config', 'qxafs')
         cname = self.scandb.get_info('qxafs_config')
-        self.config = json.loads(self.scandb.get_config(cname).notes)
-        id_tracking = int(self.scandb.get_info('qxafs_id_tracking', '1'))
-        self.with_id = ('id_array_pv' in self.config and
-                        'id_drive_pv' in self.config and id_tracking)
+        conf = self.config = json.loads(self.scandb.get_config(cname).notes)
 
-        conf = self.config
+        id_tracking = int(self.scandb.get_info('qxafs_id_tracking', '1'))
+        self.with_id = ('id_array_pv' in conf and
+                        'id_drive_pv' in conf and id_tracking)
+
+        self.xps = self.scandb.connections.get('mono_xps', None)
         if self.xps is None:
+            print("XAFS SCAN creating New Connection to NewportXPS: ")
             self.xps = NewportXPS(conf['host'],
                                   username=conf['username'],
                                   password=conf['password'],
                                   group=conf['group'],
                                   outputs=conf['outputs'])
-            print("XAFS SCAN connect to NewportXPS: ", self.xps)
-        qconf = self.config
-        if id_tracking:
-            caput(qconf['id_track_pv'], 1)
-        else:
-            caput(qconf['id_track_pv'], 0)
+            self.scandb.connections['mono_xps'] = self.xps
 
-        caput(qconf['y2_track_pv'], 1)
+        if id_tracking:
+            caput(conf['id_track_pv'], 1)
+        else:
+            caput(conf['id_track_pv'], 0)
+
+        caput(conf['y2_track_pv'], 1)
         self.scandb.set_info('qxafs_running', 0)
         if self.with_id:
-            caput(qconf['id_array_pv'], np.zeros(2000))
+            caput(conf['id_array_pv'], np.zeros(2000))
 
     def make_trajectory(self, reverse=False,
                         theta_accel=2., width_accel=0.050, **kws):

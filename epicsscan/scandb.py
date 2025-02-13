@@ -82,6 +82,7 @@ class ScanDB(SimpleDB):
         self.engine = None
         self.session = None
         self.pvs = {}
+        self.connections = {}
         self.scandata = []
         self.restoring_pvs = []
         if create:

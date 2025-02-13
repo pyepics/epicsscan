@@ -67,12 +67,17 @@ class Slew_Scan(StepScan):
         conf = self.scandb.get_config_id(inner_pos.config_id)
         scnf = self.slewscan_config = json.loads(conf.notes)
         # print("CREATE NEWPORT XPS ", scnf)
-        self.xps = NewportXPS(scnf['host'],
-                              username=scnf['username'],
-                              password=scnf['password'],
-                              group=scnf['group'],
-                              outputs=scnf['outputs'],
-                              extra_triggers=scnf.get('extra_triggers', 0))
+        self.xps = self.scandb.connections.get('mapping_xps', None)
+        if self.xps is None:
+            print("Slew SCAN creating New Connection to NewportXPS: ")
+            self.xps = NewxbportXPS(scnf['host'],
+                                    username=scnf['username'],
+                                    password=scnf['password'],
+                                    group=scnf['group'],
+                                    outputs=scnf['outputs'],
+                                    extra_triggers=scnf.get('extra_triggers', 0))
+            self.scandb.connections['mapping_xps'] = self.xps
+
         # print("newport done")
         currscan = 'CurrentScan.ini'
         fileroot = self.scandb.get_info('server_fileroot')
