@@ -29,6 +29,11 @@ MAX_ID_ENERGY = 200.0
 
 DEFAULT_PIDFILE = os.path.join(os.path.expanduser('~'), 'qxafs_monitor.pid')
 
+def ca_put(pvname, value, wait=False):
+    "for verbose messages"
+    print(f"put:  {pvname} -> {value} (wait={wait}):  {isotime()}")
+    caput(pvname, value, wait=wait)
+
 class QXAFS_ScanWatcher(object):
     def __init__(self, verbose=False, pidfile=None,
                  heartbeat_pvname=None,
@@ -47,9 +52,9 @@ class QXAFS_ScanWatcher(object):
         # self.idsync_thread = None
         self.needs_complete = False
         self.config = None
-        self.id_deadband = 0.0015
-        self.dead_time = 3.0
-        self.id_lookahead = 4
+        self.id_deadband = 0.001
+        self.dead_time = 1.0
+        self.id_lookahead = 3
         self.with_id = True
         self.counters = []
         self.pidfile = pidfile or DEFAULT_PIDFILE
@@ -69,7 +74,7 @@ class QXAFS_ScanWatcher(object):
         mcs_prefix = self.config.get('mcs_prefix', '13IDE:SIS1:')
         pulse_channel = f"{mcs_prefix}CurrentChannel"
         id_tracking = int(self.scandb.get_info('qxafs_id_tracking', '1'))
-        self.id_lookahead = int(self.scandb.get_info('qxafs_id_lookahead', 4))
+        self.id_lookahead = int(self.scandb.get_info('qxafs_id_lookahead', 3))
 
         self.pulse_pv = get_pv(pulse_channel, callback=self.onPulse)
         self.with_id = ('id_array_pv' in self.config and
@@ -214,13 +219,11 @@ class QXAFS_ScanWatcher(object):
                 val0 = self.idarray[self.pulse]
                 val = self.idarray[self.pulse + id_lookahead]
                 dt = now-self.last_move_time
-                # print(f"""Pulse {self.pulse} ID_En_target={val0:.4f}
-                #         id_busy={id_busy} lookahead={id_lookahead}
-                #         last_move={dt:.2f} sec ago""")
+                # print(f"Pulse {self.pulse} ID_En_target={val0:.4f} id_busy={id_busy} lookahead={id_lookahead} last_move={dt:.2f} sec ago")
                 if ((self.pulse > 2) and id_busy and
                     (now > self.last_move_time + self.dead_time)):
                     print(f"    stopping ID")
-                    self.idstop_pv.put(1)
+                    self.idstop_pv.put(1) # ca_put(self.idstop_pv.pvname, 1)
                     time.sleep(0.75)
                     id_busy = False
 
@@ -229,16 +232,16 @@ class QXAFS_ScanWatcher(object):
                     (val > MIN_ID_ENERGY) and (val < MAX_ID_ENERGY) and
                     not id_busy):
                     try:
-                        self.id_en_drv.put(val)
+                        self.id_en_drv.put(val) # ca_put(self.id_en_drv.pvname, val)
                         time.sleep(0.025)
-                        self.idstart_pv.put(1)
+                         self.idstart_pv.put(1) # ca_put(self.idstart_pv.pvname, 1)
                         self.last_put_value = val
                         self.last_move_time = time.time()
                     except CASeverityException:
                         print("ID: put for ID failed!")
                     time.sleep(0.10)
                     id_energy_rbv = self.id_en_rbv.get()
-                    print(f"#Put Pulse {self.pulse} ID En target={val0:.3f} (putval={val:.3f}), readback={id_energy_rbv:.3f}")
+                    print(f"#Pulse {self.pulse} ID En target={val0:.3f} (putval={val:.3f}), readback={id_energy_rbv:.3f}")
                     if (self.pulse % 2) == 0 and ((val0 - id_energy_rbv) > 0.008):
                         id_lookahead = id_lookahead + 1
 
