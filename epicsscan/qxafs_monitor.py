@@ -234,7 +234,7 @@ class QXAFS_ScanWatcher(object):
                     try:
                         self.id_en_drv.put(val) # ca_put(self.id_en_drv.pvname, val)
                         time.sleep(0.025)
-                         self.idstart_pv.put(1) # ca_put(self.idstart_pv.pvname, 1)
+                        self.idstart_pv.put(1) # ca_put(self.idstart_pv.pvname, 1)
                         self.last_put_value = val
                         self.last_move_time = time.time()
                     except CASeverityException:
