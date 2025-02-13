@@ -60,14 +60,14 @@ def random_string(n):
     """
     return ''.join([chr(randint(97, 122)) for i in range(n)])
 
-def pathof(dirname, base, ext, delim='.', absolute=True):
+def pathof(dirname, base, ext, delim='.', absolute=False):
     "path combine"
     fpath = Path(dirname, f"{base}{delim}{ext}")
     if absolute:
         fpath = fpath.absolute()
     return fpath.as_posix()
 
-def increment_filename(inpfile, ndigits=3, delim='.', absolute=True):
+def increment_filename(inpfile, ndigits=3, delim='.', absolute=False):
     """
     increment a data filename, returning a new (non-existing) filename
 
