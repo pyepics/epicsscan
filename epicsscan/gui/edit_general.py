@@ -104,20 +104,17 @@ class SettingsPanel(scrolled.ScrolledPanel):
 
         sizer.Add(self.dvc, (2, 0), (1, 3), LEFT|wx.GROW)
 
-        sizer.Add(add_button(self, label='Update', size=(150, -1),
+        sizer.Add(add_button(self, label='Save Settings', size=(175, -1),
                              action=self.onSetValues),
                           (3, 0), (1, 1), LEFT)
+        sizer.Add(add_button(self, label='Re-Read Settings', size=(175, -1),
+                             action=self.onReRead),
+                          (3, 1), (1, 1), LEFT)
 
         pack(self, sizer)
         self.dvc.EnsureVisible(self.model.GetItem(0))
-        self.timer = wx.Timer(self)
-        self.Bind(wx.EVT_TIMER, self.onTimer, self.timer)
-        self.timer.Start(30000)
 
-    def onTimer(self, event=None, **kws):
-        self.update()
-
-    def update(self):
+    def onReRead(self, event=None):
         self.model.read_data()
         self.Refresh()
         self.dvc.EnsureVisible(self.model.GetItem(0))
@@ -129,10 +126,11 @@ class SettingsPanel(scrolled.ScrolledPanel):
                 current = self.scandb.get_info(key)
                 if current != value:
                     self.scandb.set_info(key, value)
-                    print("update value ", key, value)
+        time.sleep(0.5)
+        self.onReRead()
 
     def onPanelExposed(self, evt=None):
-        self.update()
+        self.onReRead()
 
 
 class SettingsFrame(wx.Frame) :
