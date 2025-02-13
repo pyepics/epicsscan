@@ -160,7 +160,8 @@ class PositionCommandFrame(wx.Frame) :
         _pos = scandb.get_info('experiment_xrfdet_posname', None)
         if _pos is not None:
             _row = scandb.get_positioner(_pos)
-            detdist_motor = Motor(_row.drivepv)
+            if _row is not None:
+                detdist_motor = Motor(_row.drivepv)
         self.detdist_motor = detdist_motor
 
         self.last_refresh = time.monotonic() - 100.0
