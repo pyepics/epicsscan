@@ -70,7 +70,7 @@ class Slew_Scan(StepScan):
         self.xps = self.scandb.connections.get('mapping_xps', None)
         if self.xps is None:
             print("Slew SCAN creating New Connection to NewportXPS: ")
-            self.xps = NewxbportXPS(scnf['host'],
+            self.xps = NewportXPS(scnf['host'],
                                     username=scnf['username'],
                                     password=scnf['password'],
                                     group=scnf['group'],
