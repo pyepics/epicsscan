@@ -665,10 +665,15 @@ class ScanDB(SimpleDB):
     def cancel_remaining_commands(self):
         """cancel all commmands to date"""
         requested = self.status_codes['requested']
+        running = self.status_codes['running']
         canceled  = self.status_codes['canceled']
         for row in self.get_rows('commands', where={'status_id': requested},
                                order_by='run_order'):
             self.update('commands', where={'id': row.id}, status_id=canceled)
+        for row in self.get_rows('commands', where={'status_id': running},
+                               order_by='run_order'):
+            self.update('commands', where={'id': row.id}, status_id=canceled)
+
 
     def test_abort(self, msg='scan abort'):
         """look for abort"""
