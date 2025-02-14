@@ -221,10 +221,10 @@ class QXAFS_ScanWatcher(object):
                 dt = now-self.last_move_time
                 # print(f"Pulse {self.pulse} ID_En_target={val0:.4f} id_busy={id_busy} lookahead={id_lookahead} last_move={dt:.2f} sec ago")
                 if ((self.pulse > 2) and id_busy and
-                    (now > self.last_move_time + self.dead_time)):
+                    (now > self.last_move_time + 2*self.dead_time)):
                     print(f"    stopping ID")
                     self.idstop_pv.put(1) # ca_put(self.idstop_pv.pvname, 1)
-                    time.sleep(0.75)
+                    time.sleep(self.dead_time)
                     id_busy = False
 
                 if ((now > self.last_move_time + self.dead_time) and
