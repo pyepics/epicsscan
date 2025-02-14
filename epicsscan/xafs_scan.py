@@ -15,6 +15,8 @@ from epics.ca import CASeverityException
 from newportxps import NewportXPS
 import socket
 
+from pyshortcuts import isotime
+
 from .scan import StepScan
 from .positioner import Positioner
 from .saveable import Saveable
@@ -174,14 +176,13 @@ class QXAFS_Scan(XAFS_Scan):
 
         self.xps = self.scandb.connections.get('mono_xps', None)
         if self.xps is None:
-            print("XAFS SCAN creating New Connection to NewportXPS: ")
+            print("XAFS SCAN creating New Connection to NewportXPS: ", isotime())
             self.xps = NewportXPS(conf['host'],
                                   username=conf['username'],
                                   password=conf['password'],
                                   group=conf['group'],
                                   outputs=conf['outputs'])
             self.scandb.connections['mono_xps'] = self.xps
-
         if id_tracking:
             caput(conf['id_track_pv'], 1)
         else:
@@ -193,7 +194,7 @@ class QXAFS_Scan(XAFS_Scan):
             caput(conf['id_array_pv'], np.zeros(2000))
 
     def make_trajectory(self, reverse=False,
-                        theta_accel=2., width_accel=0.050, **kws):
+                        theta_accel=0.5, width_accel=0.050, **kws):
         """this method builds the text of a Trajectory script for
         a Newport XPS Controller based on the energies and dwelltimes"""
 
@@ -208,7 +209,7 @@ class QXAFS_Scan(XAFS_Scan):
         height = caget(qconf['height_pv'])
         th_off = caget(qconf['theta_motor'] + '.OFF')
         wd_off = caget(qconf['width_motor'] + '.OFF')
-        # theta_accel = min(1.5, theta_accel)
+        theta_accel = min(1.0, theta_accel)
 
         # we want energy trajectory points to be at or near
         # midpoints of desired energy values
@@ -280,6 +281,7 @@ class QXAFS_Scan(XAFS_Scan):
                    'nsegments': npts, 'uploaded': True}
         self.xps.trajectories['qxafs'] = xpstraj
         self.xps.upload_trajectory('qxafs.trj', buff)
+        print("uploaded xps trajectories ", isotime())
         return traj
 
     def finish_qscan(self):
@@ -364,7 +366,7 @@ class QXAFS_Scan(XAFS_Scan):
         dtimer.add('orig positions')
         if self.with_id:
             caput(qconf['id_array_pv'], idarray)
-
+        dtimer.add('upload id array')
         det_arm_delay = 0.025
         det_start_delay = 0.1
         for det in self.detectors:
@@ -372,7 +374,9 @@ class QXAFS_Scan(XAFS_Scan):
             det_arm_delay = max(det_arm_delay, det.arm_delay)
             det_start_delay = max(det_start_delay, det.start_delay)
 
+        dtimer.add('arm detectors')
         self.scandb.set_info('qxafs_dwelltime', self.dwelltime[0])
+        dtimer.add('set qxafs dwelltime')
         self.clear_interrupts()
         dtimer.add('clear interrupts')
 
