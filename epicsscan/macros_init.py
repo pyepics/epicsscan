@@ -226,8 +226,8 @@ def do_scan(scanname, filename="scan.001", nscans=1, comments=""):
         nscans = int(_scandb.get_info("nscans"))
         abort  = _scandb.get_info("request_abort", as_bool=True)
         while (scans_completed  < nscans) and not abort:
-            scan.run()
             scans_completed += 1
+            scan.run()
             nscans = int(_scandb.get_info("nscans"))
             abort  = _scandb.get_info("request_abort", as_bool=True)
         return scan
