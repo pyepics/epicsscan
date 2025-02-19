@@ -249,12 +249,12 @@ class ScanSequenceFrame(wx.Frame) :
         mainsizer.Add(npan, 0, wx.GROW|wx.ALL, 1)
         pack(self, mainsizer)
 
-        for icol, dat in enumerate((('Command', 650, 'text'),
+        for icol, dat in enumerate((('Command', 600, 'text'),
                                     ('Status',  100, 'static'),
                                     ('Select',   75, 'bool'),
                                     ('Request', 125, 'static'),
                                     ('Update',  125, 'static'),
-                                    ('ID',       50, 'static'))):
+                                    ('ID',       25, 'static'))):
             title, width, mode = dat
             kws = {'width': width}
             add_col = self.dvc.AppendTextColumn
