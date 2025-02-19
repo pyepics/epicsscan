@@ -396,10 +396,6 @@ class QXAFS_Scan(XAFS_Scan):
             os.mkdir(xrfdir_server, mode=509)
         dtimer.add('folders and timer setup')
         dtimer.add('trajectory armed')
-        #print("Energies Before PRESCAN ")
-        #print(qconf['energy_pv'],
-        #      caget(qconf['energy_pv']),  traj['energy'][0],
-        #      qconf['id_drive_pv'], caget(qconf['id_drive_pv']))
 
         out = self.pre_scan(npulses=1+traj['npulses'],
                             dwelltime=dtime,
@@ -408,10 +404,11 @@ class QXAFS_Scan(XAFS_Scan):
         dtimer.add('prescan ran')
 
         # move to start
-        try:
-            caput(qconf['id_drive_pv'], idarray[0], wait=False)
-        except CASeverityException:
-            pass
+        if self.with_id:
+            try:
+                caput(qconf['id_drive_pv'], idarray[0], wait=False)
+            except CASeverityException:
+                pass
         caput(qconf['energy_pv'],  traj['energy'][0]-0.5, wait=False)
 
         extra_vals = []
@@ -471,6 +468,14 @@ class QXAFS_Scan(XAFS_Scan):
         caput(qconf['theta_motor'] + '.DVAL', traj['start'][0], wait=True)
         time.sleep(0.01)
         dtimer.add('mono motors at start')
+
+
+        if self.with_id:
+            idt0 =time.time()
+            print(f" move id to start with wait: {idarray[0]:.4f}")
+            caput(qconf['id_drive_pv'], idarray[0], wait=True, timeout=5)
+            print(f" move id to start took  {(time.time()-idt0):.2f} sec")
+
 
         with_scan_thread = True
         dtimer.add('trajectory run %r' % (with_scan_thread))
