@@ -14,7 +14,7 @@ import wx.dataview as dv
 
 def tfmt(dt):
     try:
-        return dt.strftime("%b-%d %H:%M")
+        return dt.strftime("%b-%d %H:%M:%S")
     except:
         return 'unknown'
 
@@ -43,6 +43,7 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
                               self.scandb.status_names[cmd.status_id],
                               False,
                               tfmt(cmd.request_time),
+                              tfmt(cmd.start_time),
                               tfmt(cmd.modify_time),
                               repr(cmd.id)])
         self.data.reverse()
@@ -249,11 +250,11 @@ class ScanSequenceFrame(wx.Frame) :
         mainsizer.Add(npan, 0, wx.GROW|wx.ALL, 1)
         pack(self, mainsizer)
 
-        for icol, dat in enumerate((('Command', 600, 'text'),
+        for icol, dat in enumerate((('Command', 650, 'text'),
                                     ('Status',  100, 'static'),
                                     ('Select',   75, 'bool'),
-                                    ('Request', 100, 'static'),
-                                    ('Update',  100, 'static'),
+                                    ('Request', 125, 'static'),
+                                    ('Update',  125, 'static'),
                                     ('ID',       50, 'static'))):
             title, width, mode = dat
             kws = {'width': width}
