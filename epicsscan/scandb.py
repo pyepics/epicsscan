@@ -619,11 +619,11 @@ class ScanDB(SimpleDB):
         status = status.lower()
         if status not in self.status_codes:
             status = 'unknown'
-
+        now = datetime.now()
         statid = self.status_codes[status]
-        kws = {'status_id': statid}
+        kws = {'status_id': statid, 'modify_time': now}
         if status.startswith('start'):
-            kws['start_time'] = datetime.now()
+            kws['start_time'] = now
         self.update('commands', where={'id': cmdid}, **kws)
 
 
