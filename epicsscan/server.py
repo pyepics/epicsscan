@@ -100,7 +100,7 @@ class ScanServer():
         self.set_workdir(verbose=False)
         cmdid = cmd_row.id
         command = plain_ascii(cmd_row.command)
-        print(f"#Server.do_command: <{command}>")
+        # print(f"#Server.do_command: <{command}>")
         cmd_stat = self.scandb.get_command_status(cmdid).lower()
         if str(cmd_stat) not in ('requested', 'starting', 'running', 'aborting'):
             msg = f"Warning: skipping command <{command}s> status={cmd_stat}"
@@ -176,13 +176,13 @@ class ScanServer():
                 self.epicsdb.command = cmd
 
             try:
-                print(f"#Server.do_command  run <{cmd}> {isotime()}")
+                # print(f"#Server.do_command  run <{cmd}> {isotime()}")
                 self.mkernel.run(cmd)
             except:
                 pass
             status, msg = 'finished', 'scan complete'
             errors = self.mkernel.get_error()
-            print(f"#Server.do_command  errors? {len(errors)}")
+            # print(f"#Server.do_command  errors? {len(errors)}")
             if len(errors) > 0:
                 ebuff = []
                 for err in errors:
