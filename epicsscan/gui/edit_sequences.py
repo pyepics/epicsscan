@@ -43,7 +43,6 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
                               self.scandb.status_names[cmd.status_id],
                               False,
                               tfmt(cmd.request_time),
-                              tfmt(cmd.start_time),
                               tfmt(cmd.modify_time),
                               repr(cmd.id)])
         self.data.reverse()
