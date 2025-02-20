@@ -469,7 +469,6 @@ class QXAFS_Scan(XAFS_Scan):
         time.sleep(0.01)
         dtimer.add('mono motors at start')
 
-
         if self.with_id:
             idt0 =time.time()
             print(f" move id to start with wait: {idarray[0]:.4f}")
@@ -637,9 +636,9 @@ class QXAFS_Scan(XAFS_Scan):
         if self.with_id:
             try:
                 caput(qconf['id_drive_pv'], idenergy_orig, wait=False)
-            except CASeverityException:
+            except:
                 pass
-        time.sleep(0.05)
+        time.sleep(0.1)
         self.post_scan()
         dtimer.add('post_scan ran')
 
