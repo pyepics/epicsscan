@@ -473,6 +473,17 @@ class QXAFS_Scan(XAFS_Scan):
             idt0 =time.time()
             print(f" move id to start with wait: {idarray[0]:.4f}")
             caput(qconf['id_drive_pv'], idarray[0], wait=True, timeout=5)
+            time.sleep(0.1)
+            id_curr = caget(qconf['id_read_pv'])
+            count = 0
+            while count < 5 and abs(id_curr - idarray[0]) > 0.010:
+                caput(qconf['id_drive_pv'], idarray[0]+(count-2.5),
+                      wait=True, timeout=5)
+                time.sleep(0.5)
+                id_curr = caget(qconf['id_read_pv'])
+                count += 1
+            if id_curr < 3:
+                time.sleep(2.0)
             print(f" move id to start took  {(time.time()-idt0):.2f} sec")
 
 
