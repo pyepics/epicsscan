@@ -86,12 +86,12 @@ class USBCTR(Device):
         "put MCS in Internal Mode"
         out = self.put('ChannelAdvance', 0)  # internal
         if self.scaler is not None:
-            self.scaler.put('CONT', 0, wait=True, timeout=5)
-            time.sleep(0.025)
-            self.scaler.put('CNT',  0, wait=True, timeout=5)
+            self.scaler.put('CNT',  0, wait=True, timeout=3)
+            time.sleep(0.01)
+            self.scaler.put('CONT', 0, wait=True, timeout=3)
         if prescale is not None:
             self.put('Prescale', prescale)
-        time.sleep(0.005)
+        time.sleep(0.01)
         return out
 
     def set_dwelltime(self, val):
@@ -373,7 +373,6 @@ class USBCTRDetector(DetectorMixin):
         "run just prior to scan"
         self.mcs.stop()
         self.mcs.InternalMode()
-        time.sleep(0.05)
 
         self.arm(mode=mode, numframes=npulses)
         self.counters = self._counter.counters
