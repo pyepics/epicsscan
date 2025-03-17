@@ -10,7 +10,7 @@ import json
 import numpy as np
 from multiprocessing import Process
 from threading import Thread
-from epics import caget, caput, PV, get_pv
+from epics import caput, get_pv
 from epics.ca import CASeverityException
 from newportxps import NewportXPS
 import socket
@@ -72,6 +72,7 @@ class XAFS_Scan(StepScan):
         self.energies = []
         self.regions = []
         StepScan.__init__(self, **kws)
+        self.pvs = {}
         self.scantype = 'xafs'
         self.detmode  = SCALER_MODE
         self.dwelltime = []
@@ -170,6 +171,23 @@ class QXAFS_Scan(XAFS_Scan):
         cname = self.scandb.get_info('qxafs_config')
         conf = self.config = json.loads(self.scandb.get_config(cname).notes)
 
+        for attr in ('energy_pv', 'dspace_pv', 'height_pv', 'y2_track_pv',
+                     'id_drive_pv', 'id_read_pv', 'id_offset_pv',
+                     'id_track_pv', 'id_array_pv'):
+            if attr in conf and attr not in self.pvs:
+                self.pvs[attr] = get_pv(conf[attr])
+
+        thmotor = conf['motors']['THETA']
+        wdmotor = conf['motors']['HEIGHT']
+        self.pvs['theta_motor.OFF']  = get_pv(f'{thmotor}.OFF')
+        self.pvs['theta_motor.DVAL'] = get_pv(f'{thmotor}.DVAL')
+        self.pvs['width_motor.OFF']  = get_pv(f'{wdmotor}.OFF')
+        self.pvs['width_motor.DVAL'] = get_pv(f'{wdmotor}.DVAL')
+
+        time.sleep(0.005)
+        # print("Connect QXAFS ")
+        #for key, val in self.pvs.items():  print(key, val)
+
         id_tracking = int(self.scandb.get_info('qxafs_id_tracking', '1'))
         self.with_id = ('id_array_pv' in conf and
                         'id_drive_pv' in conf and id_tracking)
@@ -184,14 +202,14 @@ class QXAFS_Scan(XAFS_Scan):
                                   outputs=conf['outputs'])
             self.scandb.connections['mono_xps'] = self.xps
         if id_tracking:
-            caput(conf['id_track_pv'], 1)
+            self.pvs['id_track_pv'].put(1)
         else:
-            caput(conf['id_track_pv'], 0)
+            self.pvs['id_track_pv'].put(0)
 
-        caput(conf['y2_track_pv'], 1)
+        self.pvs['y2_track_pv'].put(1)
         self.scandb.set_info('qxafs_running', 0)
         if self.with_id:
-            caput(conf['id_array_pv'], np.zeros(2000))
+            self.pvs['id_array_pv'].put(np.zeros(2000))
 
     def make_trajectory(self, reverse=False,
                         theta_accel=0.5, width_accel=0.050, **kws):
@@ -205,10 +223,10 @@ class QXAFS_Scan(XAFS_Scan):
         qconf['theta_motor'] = qconf['motors']['THETA']
         qconf['width_motor'] = qconf['motors']['HEIGHT']
 
-        dspace = caget(qconf['dspace_pv'])
-        height = caget(qconf['height_pv'])
-        th_off = caget(qconf['theta_motor'] + '.OFF')
-        wd_off = caget(qconf['width_motor'] + '.OFF')
+        dspace = self.pvs['dspace_pv'].get()
+        height = self.pvs['height_pv'].get()
+        th_off = self.pvs['theta_motor.OFF'].get()
+        wd_off = self.pvs['width_motor.OFF'].get()
         theta_accel = min(1.0, theta_accel)
 
         # we want energy trajectory points to be at or near
@@ -286,9 +304,7 @@ class QXAFS_Scan(XAFS_Scan):
 
     def finish_qscan(self):
         """initialize a QXAFS scan"""
-        qconf = self.config
-        # caput(qconf['id_track_pv'],  1)
-        caput(qconf['y2_track_pv'],  1)
+        self.pvs['y2_track_pv'].put(1)
 
     def gathering2energy(self, text):
         """read gathering file, calculate and return
@@ -311,8 +327,8 @@ class QXAFS_Scan(XAFS_Scan):
         height = (height[1:] + height[:-1])/2.0
 
         qconf = self.config
-        angle += caget(qconf['theta_motor'] + '.OFF')
-        dspace = caget(qconf['dspace_pv'])
+        angle += self.pvs['theta_motor.OFF'].get()
+        dspace = self.pvs['dspace_pv'].get()
         energy = HC/(2.0 * dspace * np.sin(angle/RAD2DEG))
         return (energy, height)
 
@@ -338,20 +354,19 @@ class QXAFS_Scan(XAFS_Scan):
 
         dtimer.add('scan verified')
         qconf = self.config
-        energy_orig = caget(qconf['energy_pv'])
-
+        energy_orig = self.pvs['energy_pv'].get()
+        # print("RUN SCAN ", energy_orig, qconf)
         dtimer.add('connect qxafs')
         traj = self.make_trajectory()
         dtimer.add(f'make traj with_id = {self.with_id}')
-
+        # print("made trajectories, With ID " , self.with_id)
         if self.with_id:
-            idenergy_orig = caget(qconf['id_drive_pv'])
-            id_offset = 1000.0*caget(qconf['id_offset_pv'])
+            idenergy_orig = self.pvs['id_drive_pv'].get()
+            id_offset = 1000.0*self.pvs['id_offset_pv'].get()
             idarray = 1.e-3*(1.0+id_offset/energy_orig)*traj['energy']
             idarray = np.concatenate((idarray, idarray[-1]+np.arange(1,26)/250.0))
         dtimer.add('idarray')
         time.sleep(0.025)
-
         self.orig_positions = {}
         for p in self.positioners:
             thispv = p.pv.pvname
@@ -362,25 +377,28 @@ class QXAFS_Scan(XAFS_Scan):
                     retval = 25.0*(int((self.e0*1.01)/25.0 + 1))
             if thispv not in self.orig_positions:
                 self.orig_positions[thispv] = retval-0.5
-
         dtimer.add('orig positions')
         if self.with_id:
-            caput(qconf['id_array_pv'], idarray)
+            try:
+                self.pvs['id_array_pv'].put(idarray)
+            except:
+                print("could not put value to ", self.pvs['id_array_pv'])
         dtimer.add('upload id array')
         det_arm_delay = 0.025
         det_start_delay = 0.1
+        # print("arm detectors")
         for det in self.detectors:
             det.stop(disarm=True)
             det_arm_delay = max(det_arm_delay, det.arm_delay)
             det_start_delay = max(det_start_delay, det.start_delay)
-
+        # print("armed detectors")
         dtimer.add('arm detectors')
         self.scandb.set_info('qxafs_dwelltime', self.dwelltime[0])
         dtimer.add('set qxafs dwelltime')
         self.clear_interrupts()
         dtimer.add('clear interrupts')
-
         npts = len(self.positioners[0].array)
+        # print("clear interrupts ", npts)
         self.dwelltime_varys = False
         dtime = self.dwelltime[0]
         estimated_scantime = npts*dtime
@@ -396,27 +414,28 @@ class QXAFS_Scan(XAFS_Scan):
             os.mkdir(xrfdir_server, mode=509)
         dtimer.add('folders and timer setup')
         dtimer.add('trajectory armed')
-
+        # print(" --> prescan ", traj, self.filename)
         out = self.pre_scan(npulses=1+traj['npulses'],
                             dwelltime=dtime,
                             mode=ROI_MODE, filename=self.filename)
         self.check_outputs(out, msg='pre scan')
         dtimer.add('prescan ran')
-
+        # print(" --> prescan done")
         # move to start
-        if self.with_id:
+        if self.with_id and self.pvs['id_drive_pv'].write_access:
             try:
-                caput(qconf['id_drive_pv'], idarray[0], wait=False)
-            except CASeverityException:
-                pass
-        caput(qconf['energy_pv'],  traj['energy'][0]-0.5, wait=False)
+                self.pvs['id_drive_pv'].put(idarray[0], wait=False)
+            except:
+                print("could not put value to ", self.pvs['id_drive_pv'])
+        # print("PUTTING EN to ", traj['energy'][0]-0.5)
+        self.pvs['energy_pv'].put(traj['energy'][0]-0.5, wait=False)
 
         extra_vals = []
         for desc, pv in self.extra_pvs:
             extra_vals.append((desc, pv.get(as_string=True), pv.pvname))
 
-        print("move energy to start: ", qconf['energy_pv'],  traj['energy'][0]-0.5)
-        caput(qconf['energy_pv'],  traj['energy'][0]-0.5, wait=True)
+        # print("move energy to start: ", qconf['energy_pv'],  traj['energy'][0]-0.5)
+        self.pvs['energy_pv'].put(traj['energy'][0]-0.5, wait=True)
         self.xps.arm_trajectory('qxafs', verbose=False, move_to_start=True)
 
         self.init_scandata()
@@ -463,24 +482,32 @@ class QXAFS_Scan(XAFS_Scan):
         start_time = time.strftime('%Y-%m-%d %H:%M:%S')
         dtimer.add('info set')
 
-        caput(qconf['theta_motor'] + '.DVAL', traj['start'][0])
-        caput(qconf['width_motor'] + '.DVAL', traj['start'][1], wait=True)
-        caput(qconf['theta_motor'] + '.DVAL', traj['start'][0], wait=True)
+        self.pvs['theta_motor.DVAL'].put(traj['start'][0])
+        self.pvs['width_motor.DVAL'].put(traj['start'][1], wait=True)
+        self.pvs['theta_motor.DVAL'].put(traj['start'][0], wait=True)
         time.sleep(0.01)
         dtimer.add('mono motors at start')
 
-        if self.with_id:
+        if self.with_id and self.pvs['id_drive_pv'].write_access:
             idt0 =time.time()
             print(f" move id to start with wait: {idarray[0]:.4f}")
-            caput(qconf['id_drive_pv'], idarray[0], wait=True, timeout=5)
+            try:
+                self.pvs['id_drive_pv'].put(idarray[0], wait=True, timeout=5)
+            except:
+                print("could not put value to (A)  ", self.pvs['id_drive_pv'])
+
+
             time.sleep(0.1)
-            id_curr = caget(qconf['id_read_pv'])
+            id_curr = self.pvs['id_read_pv'].get()
             count = 0
-            while count < 5 and abs(id_curr - idarray[0]) > 0.010:
-                caput(qconf['id_drive_pv'], idarray[0]+(count-2.5),
-                      wait=True, timeout=5)
+            while count < 10 and abs(id_curr - idarray[0]) > 0.010:
+                try:
+                    self.pvs['id_drive_pv'].put(idarray[0]+(count-2.5),
+                                                wait=True, timeout=5)
+                except:
+                    print("could not put value to (B) ", self.pvs['id_drive_pv'])
                 time.sleep(0.5)
-                id_curr = caget(qconf['id_read_pv'])
+                id_curr = self.pvs['id_read_pv'].get()
                 count += 1
             if id_curr < 3:
                 time.sleep(2.0)
@@ -525,7 +552,7 @@ class QXAFS_Scan(XAFS_Scan):
         # print(self.xps.status_report())
 
         npulses, gather_text = self.xps.read_gathering(verbose=False)
-        # print("XPS read ", npulses, len(gather_text))
+        print("XPS read ", npulses, len(gather_text))
         gtime = time.monotonic()
         while npulses < 2 and time.monotonic() < (gtime+5):
             time.sleep(0.2)
@@ -551,6 +578,7 @@ class QXAFS_Scan(XAFS_Scan):
 
         for det in self.detectors:
             det.stop()
+            time.sleep(0.01)
             det.apply_offsets()
             dtimer.add(f'det stopped {det.label}')
 
@@ -558,10 +586,10 @@ class QXAFS_Scan(XAFS_Scan):
         self.finish_qscan()
         dtimer.add('scan finished')
 
-        caput(qconf['energy_pv'], energy_orig-1.0, wait=False)
+        self.pvs['energy_pv'].put(energy_orig-1.0, wait=False)
         # self.check_outputs(out, msg='post scan')
         dtimer.add('check outputs')
-        time.sleep(0.05)
+        time.sleep(0.25)
         db_data = {}
         for row in self.scandb.get_scandata():
             db_data[row.name.lower()] = row.data
@@ -573,14 +601,15 @@ class QXAFS_Scan(XAFS_Scan):
             # effectively looking for missing data:
             if label in db_data and len(c.buff) < len(db_data[label])-5:
                 c.buff = db_data[label][:]
-                # print('using data from database  for ' , label)
+                print('using data from database  for ' , label)
 
         ndat = [len(c.buff[1:]) for c in self.counters]
+        # print("Read Data ", ndat)
         narr = min(ndat)
 
         dtimer.add(f'read counters 1 ({narr}, {ne})')
         t0  = time.monotonic()
-        while narr < (ne-1) and (time.monotonic()-t0) < 5.0:
+        while narr < (ne-1) and (time.monotonic()-t0) < 10.0:
             time.sleep(0.1)
             [c.read() for c in self.counters]
             ndat = [len(c.buff[1:]) for c in self.counters]
@@ -644,16 +673,16 @@ class QXAFS_Scan(XAFS_Scan):
         # run post_scan methods
         self.set_info('scan_progress', 'finishing')
         dtimer.add('before post_scan')
-        if self.with_id:
+        if self.with_id and self.pvs['id_drive_pv'].write_access:
             try:
-                caput(qconf['id_drive_pv'], idenergy_orig, wait=False)
+                self.pvs['id_drive_pv'].put(idenergy_orig, wait=False)
             except:
-                pass
+                print("could not put value to (C) ", self.pvs['id_drive_pv'])
         time.sleep(0.1)
         self.post_scan()
         dtimer.add('post_scan ran')
 
-        caput(qconf['energy_pv'], energy_orig, wait=True)
+        self.pvs['energy_pv'].put(energy_orig, wait=True)
         self.complete = True
         self.set_info('scan_progress',
                       'scan complete. Wrote %s' % self.datafile.filename)
