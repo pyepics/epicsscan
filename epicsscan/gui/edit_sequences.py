@@ -39,7 +39,8 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
         self.commands = {}
         for cmd in recent_commands:
             self.commands[cmd.id] = cmd
-            self.data.append([cmd.command,
+            cmdstring = cmd.command.replace('\n', '\\n').replace('\r', '\\r')
+            self.data.append([cmdstring,
                               self.scandb.status_names[cmd.status_id],
                               False,
                               tfmt(cmd.request_time),
