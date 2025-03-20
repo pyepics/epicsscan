@@ -201,10 +201,10 @@ def do_scan(scanname, filename="scan.001", nscans=1, comments=""):
 
     Arguments
     ---------
-    scanname (string):  name of scan
-    filename (string):  name of output data file ['scan.001']
+    scanname (string): name of scan
+    filename (string): name of output data file ['scan.001']
     comments (string): user comments for file ['']
-    nscans (integr):   number of repeats to make. [1]
+    nscans (integer):  number of repeats to make. [1]
 
     Examples
     --------
@@ -226,10 +226,10 @@ def do_scan(scanname, filename="scan.001", nscans=1, comments=""):
         nscans = int(_scandb.get_info("nscans"))
         abort  = _scandb.get_info("request_abort", as_bool=True)
         while (scans_completed  < nscans) and not abort:
-            scans_completed += 1
             scan.run()
-            nscans = int(_scandb.get_info("nscans"))
+            scans_completed += 1
             abort  = _scandb.get_info("request_abort", as_bool=True)
+            nscans = int(_scandb.get_info("nscans"))
         return scan
 
 def do_slewscan(scanname, filename="scan.001", nscans=1, comments=""):
