@@ -262,9 +262,9 @@ class USBCTR(Device):
             self.ast_interp.symtable[name] = adat[name] = numpy.zeros(npts)
         scaler_config = self.read_scaler_config()
 
-        # read MCAs until all data have a consistent length (up to ~2 seconds)
+        # read MCAs until all data have a consistent length (up to ~3 seconds)
         t0 = time.time()
-        time.sleep(0.005)
+        time.sleep(0.010)
         waiting_for_data = True
         while waiting_for_data:
             npts_chan = []
@@ -275,9 +275,10 @@ class USBCTR(Device):
                 npts_chan.append(len(dat))
             if npts_req is None:
                 npts_req = npts_chan[0]
-            waiting_for_data = (npts_req-npts_chan[0]) > 3
+            waiting_for_data = abs(npts_req-npts_chan[0]) > 1
             waiting_for_data = waiting_for_data or (max(npts_chan) != min(npts_chan))
-            waiting_for_data = waiting_for_data and (time.time() < (t0+2.0))
+            waiting_for_data = waiting_for_data and (time.time() < (t0+3.0))
+            time.sleep(0.010)
 
         if max(npts_chan) != min(npts_chan):
             print(" MCS warning, inconsistent number of points!")
