@@ -395,7 +395,7 @@ class ScanDB(SimpleDB):
             self.add_pv(epv)
 
         kws.update({'name': name, 'notes': notes, 'drivepv': drivepv,
-                    'readpv': readpv, 'extrapvs':json.dumps(evpvlist) })
+                    'readpv': readpv, 'extrapvs':json.dumps(epvlist) })
         return self.add_row_attr('slewscanpositioners', **kws)
 
 
