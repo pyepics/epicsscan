@@ -449,10 +449,11 @@ class Slew_Scan(StepScan):
                 val = v1 if (trajname == 'foreward') else v2
                 pv.put(val, wait=True)
 
+            dtimer.add(f'XPS moved to Epics start')
             self.xps.arm_trajectory(trajname, verbose=False)
             if irow < 2 or not lastrow_ok:
                 time.sleep(0.10)
-            dtimer.add('XPS trajectory armed')
+            dtimer.add(f'XPS trajectory armed {trajname}')
 
             dtimer.add('positioner moves done')
             # start trajectory in another thread
