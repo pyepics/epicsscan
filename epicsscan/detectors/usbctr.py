@@ -102,7 +102,7 @@ class USBCTR(Device):
             self.put('Dwell', val)
 
     def ContinuousMode(self, dwelltime=None, numframes=None):
-        """set to continuous mode: use for live reading
+        """set to continuous mode: well, not really (don't autocount)
 
     Arguments:
         dwelltime (None or float): dwelltime per frame in seconds [None]
@@ -118,8 +118,7 @@ class USBCTR(Device):
         if dwelltime is not None:
             self.set_dwelltime(dwelltime)
         if self.scaler is not None:
-            time.sleep(0.025)
-            self.scaler.put('CONT', 1, wait=True)
+            self.scaler.put('CONT', 0, wait=True)
         self._mode = SCALER_MODE
 
     def ScalerMode(self, dwelltime=1.0, numframes=1):
@@ -177,8 +176,8 @@ class USBCTR(Device):
     def start(self, wait=False):
         "Start MCS"
         if self.scaler is not None:
-            self.scaler.put('CONT', 0) # , wait=True)
-            time.sleep(0.01)
+            if self.scaler.get('CONT') == 1: # autocount mode
+                self.scaler.put('CONT', 0, wait=True, timeout=2)
 
         espv = self.PV('EraseStart')
         return espv.put(1, wait=wait)
@@ -368,7 +367,6 @@ class USBCTRDetector(DetectorMixin):
             for (i, label, expr) in scaler_conf:
                 if c.label == label:
                     c.extra_label = expr
-
 
     def pre_scan(self, mode=None, npulses=None, dwelltime=None, **kws):
         "run just prior to scan"
