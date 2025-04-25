@@ -70,7 +70,7 @@ class ScalerDetector(DetectorMixin):
         "set to continuous mode"
         if dwelltime is not None:
             self.scaler.CountTime(dwelltime)
-        return self.scaler.AutoCountMode()
+        return self.scaler.OneShotMode()
 
     def arm(self, mode=None, wait=True, fnum=None, **kws):
         "arm detector, ready to collect with optional mode"

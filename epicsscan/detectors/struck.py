@@ -121,7 +121,7 @@ class Struck(Device):
             self.set_dwelltime(dwelltime)
         if self.scaler is not None:
             time.sleep(0.025)
-            self.scaler.put('CONT', 1, wait=True)
+            self.scaler.put('CONT', 0, wait=True)
         self._mode = SCALER_MODE
 
     def ScalerMode(self, dwelltime=1.0, numframes=1):

@@ -71,7 +71,7 @@ class XTetrAMMSDetector(DetectorMixin):
             self.dwelltime_pv.put(self.dwelltime)
 
     def post_scan(self, **kws):
-        self.scaler.AutoCountMode()
+        self.scaler.OneShotMode()
 
 
 def get_detector(prefix, kind=None, mode='scaler', rois=None, label=None, **kws):
