@@ -62,8 +62,8 @@ from ..file_utils import new_filename, fix_filename
 
 from ..scandb import ScanDB
 
-from .scan_panels import (LinearScanPanel, MeshScanPanel,
-                          SlewScanPanel,  XAFSScanPanel)
+from .scan_panels import (StepScanPanel, Slew1DScanPanel,
+                          Slew2DScanPanel,  XAFSScanPanel)
 
 from ..macro_kernel import MacroKernel
 
@@ -207,9 +207,10 @@ class ScanFrame(wx.Frame):
 
         # Notebooks   scantype   title   panel
         NB_PANELS = {'Settings': SettingsPanel,
-                     'Map Scans': SlewScanPanel,
+                     'Map Scans': Slew2DScanPanel,
                      'XAFS Scans': XAFSScanPanel,
-                     'Linear Scans': LinearScanPanel,
+                     '1D Slew Scans': Slew1DScanPanel,
+                     'Step Scans': StepScanPanel,
                      'Commands and Macros': CommandsPanel}
 
         self.nb = flatnotebook(self, NB_PANELS,

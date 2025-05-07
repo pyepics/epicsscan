@@ -356,8 +356,8 @@ class GenericScanPanel(scrolled.ScrolledPanel):
     def generate_scan_positions(self):
         print('Def generate scan ', self.__name__)
 
-class LinearScanPanel(GenericScanPanel):
-    """ linear scan """
+class StepScanPanel(GenericScanPanel):
+    """ Step Scan """
     __name__ = 'StepScan'
 
     def __init__(self, parent, **kws):
@@ -1023,7 +1023,7 @@ class XAFSScanPanel(GenericScanPanel):
         return s
 
 class MeshScanPanel(GenericScanPanel):
-    """ mesh / 2-d scan """
+    """ mesh / 2-d step scan """
     __name__ = 'MeshScan'
     def __init__(self, parent, **kws):
         GenericScanPanel.__init__(self, parent, **kws)
@@ -1159,8 +1159,8 @@ class MeshScanPanel(GenericScanPanel):
             s[mname] = [name, pvnames, p1, p2, npts]
         return s
 
-class SlewScanPanel(GenericScanPanel):
-    """ mesh / 2-d scan """
+class Slew2DScanPanel(GenericScanPanel):
+    """  2-d slew scan """
     __name__ = 'SlewScan'
     def __init__(self, parent, **kws):
         GenericScanPanel.__init__(self, parent, **kws)
@@ -1412,7 +1412,7 @@ class SlewScanPanel(GenericScanPanel):
 
         return s
 
-class Slew1dScanPanel(GenericScanPanel):
+class Slew1DScanPanel(GenericScanPanel):
     """ 1-d slew scan """
     __name__ = 'Slew1dScan'
     def __init__(self, parent, **kws):
