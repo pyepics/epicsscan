@@ -78,8 +78,6 @@ class Slew_Scan(StepScan):
                                     extra_triggers=scnf.get('extra_triggers', 0))
             self.scandb.connections['mapping_xps'] = self.xps
 
-        # print("newport done")
-        currscan = 'CurrentScan.ini'
         fileroot = self.scandb.get_info('server_fileroot')
         userdir = self.scandb.get_info('user_folder')
         basedir = os.path.join(fileroot, userdir, 'Maps')
@@ -91,7 +89,6 @@ class Slew_Scan(StepScan):
         if mappref is not None:
             caput('%sbasedir' % (mappref), userdir)
             caput('%sstatus'  % (mappref), 'Starting')
-        sname = os.path.join(basedir, currscan)
         if not self.filename.endswith('.h5'):
             self.filename = self.filename + '.h5'
 
@@ -231,9 +228,6 @@ class Slew_Scan(StepScan):
 
         sini = os.path.join(mapdir, 'Scan.ini')
         f = open(sini, 'w')
-        f.write('\n'.join(txt))
-        f.close()
-        f = open(sname, 'w')
         f.write('\n'.join(txt))
         f.close()
 
