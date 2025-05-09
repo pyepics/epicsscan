@@ -4,10 +4,14 @@ import glob
 import numpy as np
 import h5py
 try:
-    from pyFAI.azimuthalIntegrator import AzimuthalIntegrator
+    from pyFAI.integrator.azimuthal import AzimuthalIntegrator
     HAS_PYFAI = True
 except ImportError:
-    HAS_PYFAI = False
+    try:
+        from pyFAI.azimuthalIntegrator import AzimuthalIntegrator
+        HAS_PYFAI = True
+    except ImportError:
+        HAS_PYFAI = False
 
 MAXVAL = 2**32 - 2**15
 MAXVAL_INT16 = 2**16 - 8
