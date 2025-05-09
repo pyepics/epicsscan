@@ -70,6 +70,8 @@ class ScanDB(SimpleDB):
     def __init__(self, dbname=None, server='postgresql', create=False, **kws):
         if dbname is None:
             conndict = get_credentials(envvar='ESCAN_CREDENTIALS')
+            if conndict is None or len(conndict) < 2:
+                print("Warning: invalid scan credentials!")
             if 'dbname' in conndict:
                 dbname = conndict.pop('dbname')
             if 'server' in conndict:
@@ -87,12 +89,16 @@ class ScanDB(SimpleDB):
         self.restoring_pvs = []
         if create:
             create_scandb(dbname, server=self.server, create=True, **kws)
-
+        
         SimpleDB.__init__(self, dbname=self.dbname, server=self.server, **kws)
-
+        
         self.status_codes = {}
         self.status_names = {}
-        if 'status' in self.tables:
+        if self.tables is None:
+            print("Warning: could not connect to a Scan database")
+        elif 'status' not in self.tables:
+            print("Warning: could not get status table from Scan database")
+        else:
             for row in self.get_rows('status'):
                 self.status_codes[row.name] = row.id
                 self.status_names[row.id] = row.name
