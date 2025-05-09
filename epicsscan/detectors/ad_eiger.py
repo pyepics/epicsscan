@@ -15,7 +15,7 @@ import numpy as np
 import h5py
 from glob import glob
 from datetime import datetime
-from telnetlib import Telnet
+from telnetlib3 import open_connection
 from base64 import b64encode, b64decode
 from epics import get_pv, caput, caget, Device, poll, PV
 
@@ -31,7 +31,8 @@ def restart_procserv_ioc(ioc_port=29200):
     """
     send a Ctrl-C to a procServ ioc running on localhost
     """
-    tn = Telnet('localhost', ioc_port)
+    tn = open_connection('localhost', ioc_port)
+    print("WARNING... telnet connection needs testing!")
     msgs =['\n##\n## EpicsScan restart ioc: {:s}\n##\n'.format(time.ctime()),
            '\x03\n']
     for m in msgs:
