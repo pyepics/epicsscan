@@ -311,7 +311,7 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         llim = mpv.lower_disp_limit
         if hlim == llim:
             hlim = llim = None
-        elif 1 == self.absrel.GetSelection(): # relative
+        if hasattr(self, 'absrel') and (1 == self.absrel.GetSelection()): # relative
             hlim = hlim - mpv.value
             llim = llim - mpv.value
         wids[1].SetLabel(units)
@@ -637,8 +637,8 @@ class XAFSScanPanel(GenericScanPanel):
         """load scan for XAFS scan from scan dictionary
         as stored in db, or passed to stepscan"""
 
-        self.kwtimemax.SetValue(scan['max_time'])
-        self.kwtimechoice.SetSelection(scan['time_kw'])
+        # self.kwtimemax.SetValue(scan['max_time'])
+        # self.kwtimechoice.SetSelection(scan['time_kw'])
 
         elem = scan.get('elem', None)
         if elem:
@@ -742,7 +742,7 @@ class XAFSScanPanel(GenericScanPanel):
     def top_widgets(self, title, dwell_prec=3, dwell_value=1):
         "XAFS top widgets"
         self.absrel = add_choice(self, ('Absolute', 'Relative'),
-                                 size=(100, -1), action=self.onAbsRel)
+                                 size=(150, -1), action=self.onAbsRel)
         self.absrel_value = 1
         self.absrel.SetSelection(1)
 
@@ -1167,13 +1167,31 @@ class Slew2DScanPanel(GenericScanPanel):
         self.scantype = 'slew'
         sizer = self.sizer
 
-        ir = self.top_widgets('Map Scan (slewscan)', with_absrel=False,
-                              dwell_value=0.020)
+        self.dwelltime = FloatCtrl(self, precision=3, value=0.020,
+                                   act_on_losefocus=True,
+                                   minval=0, size=(100, -1),
+                                   action=partial(self.onVal,
+                                                  label='dwelltime'))
 
         self.dimchoice = add_choice(self, ('1', '2'), action = self.onDim)
         self.dimchoice.SetStringSelection('2')
-        sizer.Add(SimpleText(self, ' Dimension:'), (ir-1, 6), (1, 1), CEN)
-        sizer.Add(self.dimchoice,                  (ir-1, 7), (1, 2), CEN)
+        self.est_time  = SimpleText(self, '  00:00:00  ')
+        titlex =  SimpleText(self, " Map & Slew Scans", style=LEFT,
+                             size=(250, -1),
+                             font=self.Font13, colour='#880000')
+        dlabel = SimpleText(self, ' Time/Point (sec):')
+        tlabel = SimpleText(self, ' Estimated Scan Time:  ')
+
+        sizer.Add(titlex,         (0, 0), (1, 3), LEFT,  3)
+        sizer.Add(tlabel,         (0, 4), (1, 2), RIGHT, 3)
+        sizer.Add(self.est_time,  (0, 6), (1, 2), CEN,   3)
+        sizer.Add(dlabel,         (1, 0), (1, 2), RIGHT, 3)
+        sizer.Add(self.dwelltime, (1, 2), (1, 2), LEFT,  3)
+        sizer.Add(SimpleText(self, ' Dimension:'), (1, 4), (1, 1), CEN)
+        sizer.Add(self.dimchoice,                  (1, 5), (1, 2), CEN)
+
+        ir = 2
+
 
         sizer.Add(self.hline(), (ir, 0), (1, 8), LEFT)
         ir += 1
@@ -1332,10 +1350,11 @@ class Slew2DScanPanel(GenericScanPanel):
     def onDim(self, evt=None):
         wids = self.pos_settings[1]
         self.update_position_from_pv(0)
-
         if self.dimchoice.GetSelection() == 0: # 1-d
-            for i in (1, 2): wids[i].SetLabel('')
-            for i in (3, 4, 5, 6): wids[i].Disable()
+            for i in (1, 2):
+                wids[i].SetLabel('')
+            for i in (3, 4, 5, 6):
+                wids[i].Disable()
         else:
             for i in (3, 4, 5, 6): wids[i].Enable()
             self.update_position_from_pv(1)
