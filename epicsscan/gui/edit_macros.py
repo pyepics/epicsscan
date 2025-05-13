@@ -40,7 +40,9 @@ class ScanDBMessageQueue(object):
         self.tab = mtab = scandb.tables['messages']
         # get last ID
         rows = scandb.execute(mtab.select().order_by(mtab.c.id)).fetchall()
-        self.last_id = rows[-1].id
+        self.last_id = 0
+        if len(rows) > 0:
+            self.last_id = rows[-1].id
 
     def get_new_messages(self):
         try:
