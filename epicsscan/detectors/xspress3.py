@@ -98,30 +98,31 @@ class Xspress3(Device, ADFileMixin):
         scaf = get_scaformats(self._ad_version) # ('acq', 'npts', 'valform', 'tsform')
         dt.add('set_timeseries scaf')
 
-
         # ROI stats:  0=Erase/Start, 1=Start, 2=Stop
         # SCA TS:     0=Done, 1=Acquire
         sca_val = 1 # start!
         roi_val = 0 # start!
-        roi_cb = 1
+
         if mode.lower().startswith('stop'):
             sca_val = 0 # stop
             roi_val = 2 # stop
 
         if not enable_rois:
             roi_val = 2 # stop  - we are not going to save rois
-            roi_cb = 0
 
+        enabel_ts = 1 if enable_rois else 0
         for imca in range(1, self.nmcas+1):
-            # the gets here are mostly to make sure PVs are connected
-            if enable_rois:
-                self.get(f"MCA{imca}ROI:TSControl")
-                self.get(f"MCA{imca}ROI:TSNumPoints")
+            # these gets make sure these PVs are connected
+            self.get(f"MCA{imca}ROI:TSControl")
+            self.get(f"MCA{imca}ROI:TSNumPoints")
             self.get(f"C{imca}SCA:{scaf.acq}")
             self.get(f"C{imca}SCA:{scaf.npts}")
+
+            self.put(f'MCA{imca}ROI:EnableCallbacks', enable_ts)
             self.put(f"C{imca}SCA:{scaf.npts}", numframes)
             if enable_rois:
                 self.put(f'MCA{imca}ROI:TSNumPoints', numframes)
+
 
         dt.add('set_timeseries ensured all PVs are connected')
         for imca in range(1, self.nmcas+1):
@@ -582,11 +583,9 @@ class Xspress3Detector(DetectorMixin):
             self._xsp3.put('NumImages', numframes)
         # print("ARM xspress3 ", mode, fnum, numframes)
         self.start_delay = self.start_delay_roimode
-        enable_rois_ts = True
         if self.mode == NDARRAY_MODE:
             self._xsp3.FileCaptureOn(verify_rbv=True)
             self.start_delay = self.start_delay_arraymode
-            enable_rois_ts = False
         elif self.mode == SCALER_MODE:
             self._xsp3.FileCaptureOff()
         elif self.mode == ROI_MODE:
@@ -597,7 +596,7 @@ class Xspress3Detector(DetectorMixin):
                 self._xsp3.FileCaptureOff()
 
         self._xsp3.set_timeseries(mode='start', numframes=numframes,
-                                  enable_rois=enable_rois_ts)
+                                  enable_rois=(self.mode != NDARRAY_MODE))
         time.sleep(0.005)
         if self._xsp3.DetectorState_RBV not in (0, 10):
             time.sleep(0.025)
