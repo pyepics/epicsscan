@@ -1311,7 +1311,8 @@ class Slew2DScanPanel(GenericScanPanel):
         as stored in db, or passed to stepscan"""
         self.dwelltime.SetValue(1000*scan['dwelltime'])
         self.dimchoice.SetStringSelection('%i' % (scan['dimension']))
-        self.absrel.SetSelection(0)
+        if hasattr(self, 'absrel'):
+            self.absrel.SetSelection(0)
         for irow, name in ((0, 'inner'), (1, 'outer')):
             pos, units, cur, start, stop, step, npts = self.pos_settings[irow]
             posdat = scan[name]
