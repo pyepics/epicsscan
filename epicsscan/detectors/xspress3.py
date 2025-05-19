@@ -112,14 +112,13 @@ class Xspress3(Device, ADFileMixin):
         if not enable_rois:
             roi_val = 2 # stop  - we are not going to save rois
 
-        enabel_ts = 1 if enable_rois else 0
+        enable_ts = 1 if enable_rois else 0
         for imca in range(1, self.nmcas+1):
             # these gets make sure these PVs are connected
             self.get(f"MCA{imca}ROI:TSControl")
             self.get(f"MCA{imca}ROI:TSNumPoints")
             self.get(f"C{imca}SCA:{scaf.acq}")
             self.get(f"C{imca}SCA:{scaf.npts}")
-
             self.put(f'MCA{imca}ROI:EnableCallbacks', enable_ts)
             self.put(f"C{imca}SCA:{scaf.npts}", numframes)
             if enable_rois:
