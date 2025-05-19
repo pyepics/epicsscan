@@ -190,7 +190,7 @@ class ADMCA(Device):
                 self.rois.append(roi)
             else:
                 break
-            poll(0.001, 1.0)
+        # poll(0.001, 1.0)
         return self.rois
 
     def del_roi(self, roiname):
@@ -246,7 +246,7 @@ class ADMCA(Device):
         if self.rois is None:
             self.get_rois()
 
-        poll(0.05, 1.0)
+        poll(0.005, 1.0)
         unsorted = []
         empties  = 0
         for roi in self.rois:
