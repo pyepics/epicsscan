@@ -573,8 +573,7 @@ class Xspress3Detector(DetectorMixin):
                 if time.time() >  t0+1:
                     break
 
-        # self._xsp3.put('ERASE', 1, use_complete=True)
-        self._xsp3.put('ERASE', 1, wait=True)
+        self._xsp3.put('ERASE', 1, use_complete=True)
         self._xsp3.put('EraseOnStart', 0)
         if fnum is not None:
             self.fnum = fnum
