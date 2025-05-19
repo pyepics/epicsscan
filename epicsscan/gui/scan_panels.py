@@ -1167,9 +1167,9 @@ class Slew2DScanPanel(GenericScanPanel):
         self.scantype = 'slew'
         sizer = self.sizer
 
-        self.dwelltime = FloatCtrl(self, precision=3, value=0.020,
+        self.dwelltime = FloatCtrl(self, precision=1, value=10,
                                    act_on_losefocus=True,
-                                   minval=0, size=(100, -1),
+                                   minval=0, maxval=2000, size=(100, -1),
                                    action=partial(self.onVal,
                                                   label='dwelltime'))
 
@@ -1179,7 +1179,7 @@ class Slew2DScanPanel(GenericScanPanel):
         titlex =  SimpleText(self, " Map & Slew Scans", style=LEFT,
                              size=(250, -1),
                              font=self.Font13, colour='#880000')
-        dlabel = SimpleText(self, ' Time/Point (sec):')
+        dlabel = SimpleText(self, ' Time/Point (millisec):')
         tlabel = SimpleText(self, ' Estimated Scan Time:  ')
 
         sizer.Add(titlex,         (0, 0), (1, 3), LEFT,  3)
@@ -1304,7 +1304,7 @@ class Slew2DScanPanel(GenericScanPanel):
     def load_scandict(self, scan):
         """load scan for mesh scan from scan dictionary
         as stored in db, or passed to stepscan"""
-        self.dwelltime.SetValue(scan['dwelltime'])
+        self.dwelltime.SetValue(1000*scan['dwelltime'])
         self.dimchoice.SetStringSelection('%i' % (scan['dimension']))
         self.absrel.SetSelection(0)
         for irow, name in ((0, 'inner'), (1, 'outer')):
@@ -1382,7 +1382,7 @@ class Slew2DScanPanel(GenericScanPanel):
 
     def setScanTime(self):
         "set estimated scan time, addig overhead of 1 sec per row"
-        dtime = float(self.dwelltime.GetValue())
+        dtime = float(0.001*self.dwelltime.GetValue())
         ninner = float(self.pos_settings[0][6].GetValue())
         dtime  = 1.0 + dtime*ninner
         if 1 == self.dimchoice.GetSelection(): # Note : this means a 2-d scan!
@@ -1394,7 +1394,7 @@ class Slew2DScanPanel(GenericScanPanel):
     def generate_scan_positions(self):
         "generate slew scan"
         s = {'type': 'slew',
-             'dwelltime':  float(self.dwelltime.GetValue()),
+             'dwelltime':  float(0.001*self.dwelltime.GetValue()),
              'dimension': 1+self.dimchoice.GetSelection(),
              'scantime': self.scantime,
              'inner': [],
