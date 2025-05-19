@@ -650,8 +650,9 @@ class XAFSScanPanel(GenericScanPanel):
         if edge:
             self.edgechoice.SetStringSelection(edge)
         self.e0.SetValue(scan['e0'])
-        self.absrel_value = {True:1, False:0}[scan['is_relative']]
+        self.absrel_value = 0
         if hasattr(self, 'absrel'):
+            self.absrel_value = {True:1, False:0}[scan['is_relative']]
             self.absrel.SetSelection(self.absrel_value)
 
         nregs = len(scan['regions'])
