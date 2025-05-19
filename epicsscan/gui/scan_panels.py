@@ -1511,7 +1511,8 @@ class Slew1DScanPanel(GenericScanPanel):
         """load scan for mesh scan from scan dictionary
         as stored in db, or passed to stepscan"""
         self.dwelltime.SetValue(scan['dwelltime'])
-        self.absrel.SetSelection(0)
+        if hasattr(self, 'absrel'):
+            self.absrel.SetSelection(0)
 
         pos, units, cur, start, stop, step, npts = self.pos_settings[0]
         posdat = scan['inner']
