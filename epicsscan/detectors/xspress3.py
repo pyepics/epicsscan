@@ -6,7 +6,7 @@ from collections import namedtuple
 from six.moves.configparser import ConfigParser
 import numpy as np
 from epics import get_pv, caput, caget, Device, poll
-from epics.devices.ad_mca import ADMCA
+from .ad_mca import ADMCA
 from .counter import (Counter, DummyCounter, DeviceCounter, Saveable,
                       ROISumCounter)
 from .base import DetectorMixin, SCALER_MODE, NDARRAY_MODE, ROI_MODE
@@ -51,30 +51,31 @@ class Xspress3(Device, ADFileMixin):
                  'Capture', 'NumCapture', 'AutoIncrement', 'AutoSave')
 
     def __init__(self, prefix, nmcas=4, filesaver='HDF1:',
-                 fileroot='/home/xspress3', ad_version=2):
+                 fileroot='/home/xspress3', ad_version=3):
         self._ad_version = ad_version
         dt = debugtime()
         self.nmcas = nmcas
         attrs = []
         attrs.extend(['%s%s' % (filesaver, p) for p in self.pathattrs])
-
         self.filesaver = filesaver
         self.fileroot = fileroot
         self._prefix = prefix
         self.mcas = []
 
         scaf = get_scaformats(ad_version) # ('acq', 'npts', 'valform', 'tsform')
+
         for imca in range(1, nmcas+1):
             dprefix = f"{prefix}det1:"
             rprefix = f"{prefix}MCA{imca}ROI"
             data_pv = f"{prefix}MCA{imca}:ArrayData"
             mca = ADMCA(dprefix, data_pv=data_pv, roi_prefix=rprefix)
             self.mcas.append(mca)
+            attrs.append(f"MCA{imca}:EnableCallbacks")
+            attrs.append(f"MCA{imca}ROI:EnableCallbacks")
             attrs.append(f"MCA{imca}ROI:TSControl")
             attrs.append(f"MCA{imca}:TSNumPoints")
             attrs.append(f"C{imca}SCA:{scaf.acq}")
             attrs.append(f"C{imca}SCA:{scaf.npts}")
-
         Device.__init__(self, prefix, attrs=attrs, delim='')
         for attr in self.det_attrs:
             self.add_pv(f"{prefix}det1:{attr}", attr)
@@ -82,7 +83,8 @@ class Xspress3(Device, ADFileMixin):
             for isca in range(1, 9):
                 attr = scaf.valform % (imca, isca)
                 self.add_pv(f"{prefix}{attr}", attr)
-        poll(0.003, 0.25)
+
+        poll(0.001, 0.1)
         for imca in range(1, self.nmcas+1):
             self.get(f"MCA{imca}ROI:TSControl")
             self.get(f"MCA{imca}ROI:TSNumPoints")
