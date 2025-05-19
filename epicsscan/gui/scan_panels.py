@@ -431,7 +431,8 @@ class StepScanPanel(GenericScanPanel):
         """load scan for linear scan from scan dictionary
         as stored in db, or passed to stepscan"""
         self.dwelltime.SetValue(scan['dwelltime'])
-        self.absrel.SetSelection(0)
+        if hasattr(self, 'absrel'):
+            self.absrel.SetSelection(0)
         for i in (1, 2):
             pos, units, cur, start, stop, step, npts = self.pos_settings[i]
             pos.SetSelection(0)
@@ -511,7 +512,9 @@ class StepScanPanel(GenericScanPanel):
         if self.nscans is not None:
             s['nscans'] = int(self.nscans.GetValue())
 
-        is_relative =  self.absrel.GetSelection()
+        is_relative = 0
+        if hasattr(self, 'absrel'):
+            is_relative =  self.absrel.GetSelection()
 
         for i, wids in enumerate(self.pos_settings):
             pos, u, cur, start, stop, dx, wnpts = wids
@@ -648,7 +651,8 @@ class XAFSScanPanel(GenericScanPanel):
             self.edgechoice.SetStringSelection(edge)
         self.e0.SetValue(scan['e0'])
         self.absrel_value = {True:1, False:0}[scan['is_relative']]
-        self.absrel.SetSelection(self.absrel_value)
+        if hasattr(self, 'absrel'):
+            self.absrel.SetSelection(self.absrel_value)
 
         nregs = len(scan['regions'])
         self.nregs_wid.SetValue(nregs)
