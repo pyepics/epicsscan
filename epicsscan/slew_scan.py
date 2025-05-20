@@ -7,6 +7,7 @@ import os
 import json
 import shutil
 import time
+from pathlib import Path
 from threading import Thread
 import numpy as np
 
@@ -70,6 +71,7 @@ class Slew_Scan(StepScan):
         self.xps = self.scandb.connections.get('mapping_xps', None)
         if self.xps is None:
             print("Slew SCAN creating New Connection to NewportXPS: ")
+            # print(scnf)
             self.xps = NewportXPS(scnf['host'],
                                     username=scnf['username'],
                                     password=scnf['password'],
@@ -305,7 +307,7 @@ class Slew_Scan(StepScan):
         # pvnames = trajs[tname]['axes']
         # print("SlewScan Config ", pvnames, self.slewscan_config['motors'])
 
-        self.xps.arm_trajectory(tname)
+        # self.xps.arm_trajectory(tname)
         npulses = trajs[tname]['npulses'] + 1
         dwelltime = trajs[tname]['pixeltime']
 
@@ -383,7 +385,15 @@ class Slew_Scan(StepScan):
         self.scandb.set_info('repeated_map_rows', '')
         repeated_rows = []
         while irow < npts:
-            if self.look_for_interrupts():
+            # check again for pause, resume, and abort
+            self.look_for_interrupts()
+            while self.pause:
+                time.sleep(0.25)
+                self.look_for_interrupts()
+                if self.resume or self.abort:
+                    break
+
+            if self.abort:
                 if mappref is not None:
                     caput('%sstatus' % (mappref), 'Aborting')
                 break
@@ -444,7 +454,8 @@ class Slew_Scan(StepScan):
                 pv.put(val, wait=True)
 
             dtimer.add(f'XPS moved to Epics start')
-            self.xps.arm_trajectory(trajname, verbose=False)
+            self.xps.arm_trajectory(trajname)
+            time.sleep(0.05)
             if irow < 2 or not lastrow_ok:
                 time.sleep(0.10)
             dtimer.add(f'XPS trajectory armed {trajname}')
@@ -481,39 +492,22 @@ class Slew_Scan(StepScan):
 
             masterline = "%s %s %s %s %s" % (pos0, xrffile, scafile,
                                              posfile, xrdfile)
-            if xrddet is not None:
-                xt0 = time.time()
-
             # wait for trajectory to finish
-            dtimer.add('scan thread run join()')
             xt0 = time.time()
-            while scan_thread.is_alive():
-                time.sleep(0.1)
-                if time.time()-xt0 > 0.8*self.rowtime:
-                    break
-                if self.look_for_interrupts():
+            while (scan_thread.is_alive() or (time.time() < tx0+0.5*self.rowtime))
+                time.sleep(0.05)
+                if time.time() > xt0 + 0.80*self.rowtime:
                     break
 
-            scan_thread.join(timeout=self.rowtime/2.0)
+            dtimer.add('scan thread: join()')
+            scan_thread.join(timeout=2.0*self.rowtime)
             dtimer.add('scan thread joined')
-            if self.look_for_interrupts():
-                if mappref is not None:
-                    caput('%sstatus' % (mappref), 'Aborting')
-                break
-
             self.write_master(["%s %8.4f" % (masterline, time.time()-start_time)])
 
             if irow < npts-1:
                 for p in self.positioners:
                     p.move_to_pos(irow, wait=False)
-
             dtimer.add('started next move, reading')
-
-            pos_file = os.path.abspath(os.path.join(self.mapdir, posfile))
-            pos_saver_thread = Thread(target=self.xps.read_and_save,
-                                  args=(pos_file,), name='pos_saver')
-            pos_saver_thread.start()
-            dtimer.add('started XPS save')
 
             self.npts_sca = npulses
             if scadet is not None:
@@ -522,8 +516,15 @@ class Slew_Scan(StepScan):
                 mcs_saver_thread = Thread(target=self.save_mcs_data,  name='mcs_saver')
                 mcs_saver_thread.start()
             dtimer.add('started MCS data save')
+            time.sleep(0.005)
+            pos_file = Path(self.mapdir, posfile).absolute().as_posix()
+            # print(f"Will save XPS data to {pos_file}")
+            pos_saver_thread = Thread(target=self.xps.read_and_save,
+                                  args=(pos_file,), name='pos_saver')
+            pos_saver_thread.start()
+            dtimer.add('started XPS save')
 
-            time.sleep(0.02)
+            time.sleep(0.005)
             nxrf = nxrd = 0
             if xrfdet is not None:
                 xrfdet.stop()
@@ -590,16 +591,10 @@ class Slew_Scan(StepScan):
                 for p in self.positioners:
                     p.move_to_pos(irow, wait=True)
 
-            # check again for pause, resume, and abort
-            self.look_for_interrupts()
-            while self.pause:
-                time.sleep(0.25)
-                if self.look_for_interrupts():
-                    break
-            if self.look_for_interrupts():
-                if mappref is not None:
-                    caput('%sstatus' % (mappref), 'Aborting')
-                break
+            #if self.look_for_interrupts():
+            #    if mappref is not None:
+            #        caput('%sstatus' % (mappref), 'Aborting')
+            #    break
             if debug:
                 dtimer.show()
             time.sleep(0.01)
