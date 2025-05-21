@@ -256,17 +256,23 @@ class Slew_Scan(StepScan):
         for text in textlines:
             self.scandb.add_slewscanstatus(text)
 
-        self.mastertext.extend(textlines)
-        oldfile = os.path.join(self.mapdir, '_Master_.dat')
-        destfile = os.path.join(self.mapdir, 'Master.dat')
-        if os.path.exists(destfile):
-            shutil.move(destfile, oldfile)
-        fh = open(destfile, 'w')
-        fh.write('\n'.join(self.mastertext))
-        fh.write('')
-        fh.close()
-        os.utime(destfile, None)
-        time.sleep(0.025)
+        mfile = Path(self.mapdir, 'Master.dat').absolute()
+        mode = 'a' if mfile.exists() else 'w'
+        with open(mfile, mode) as fh:
+            fh.write('\n'.join(textlines))
+#         else:
+#         self.mastertext.extend(textlines)
+#         oldfile = os.path.join(self.mapdir, '_Master_.dat')
+#         destfile = os.path.join(self.mapdir, 'Master.dat')
+#         if os.path.exists(destfile):
+#             shutil.move(destfile, oldfile)
+#         if Path
+#         fh = open(destfile, 'w')
+#         fh.write('\n'.join(self.mastertext))
+#         fh.write('')
+#         fh.close()
+#         os.utime(destfile, None)
+# time.sleep(0.025)
 
     def save_mcs_data(self, filename='mcsdata.001', npts=1):
         scafile = self.scadet.get_next_filename()
@@ -579,6 +585,7 @@ class Slew_Scan(StepScan):
 
 
         ex_thread.join()
+        self.write_master(['\n'])
         self.post_scan()
         self.set_info('scan_progress', 'done')
         return
