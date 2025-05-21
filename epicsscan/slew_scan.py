@@ -251,28 +251,15 @@ class Slew_Scan(StepScan):
             if isinstance(det, AreaDetector):
                 self.set_info('xrd_1dint_status', 'finishing')
 
-    def write_master(self, textlines):
+    def write_master(self, text):
         """ write a list of text lines to master file"""
-        for text in textlines:
-            self.scandb.add_slewscanstatus(text)
+        for txt in text.split('\n'):
+            self.scandb.add_slewscanstatus(txt)
 
         mfile = Path(self.mapdir, 'Master.dat').absolute()
         mode = 'a' if mfile.exists() else 'w'
         with open(mfile, mode) as fh:
-            fh.write('\n'.join(textlines))
-#         else:
-#         self.mastertext.extend(textlines)
-#         oldfile = os.path.join(self.mapdir, '_Master_.dat')
-#         destfile = os.path.join(self.mapdir, 'Master.dat')
-#         if os.path.exists(destfile):
-#             shutil.move(destfile, oldfile)
-#         if Path
-#         fh = open(destfile, 'w')
-#         fh.write('\n'.join(self.mastertext))
-#         fh.write('')
-#         fh.close()
-#         os.utime(destfile, None)
-# time.sleep(0.025)
+            fh.write(text)
 
     def save_mcs_data(self, filename='mcsdata.001', npts=1):
         scafile = self.scadet.get_next_filename()
@@ -346,10 +333,9 @@ class Slew_Scan(StepScan):
             mbuff.extend(['#Y.positioner  = %s' %  (ypos),
                          '#Y.start_stop_step = %f, %f, %f' %  (start, stop, step)])
         mbuff.extend(['#------------------------------------',
-             '# yposition  xrf_file  mcs_file  xps_file  xrd_file   time'])
+                      '# yposition  xrf_file  mcs_file  xps_file  xrd_file   time', ''])
 
-        self.mastertext = []
-        self.write_master(mbuff)
+        self.write_master('\n'.join(mbuff))
 
         detpath = self.mapdir[len(self.fileroot):]
         scadet = xrfdet = xrddet = None
@@ -489,9 +475,9 @@ class Slew_Scan(StepScan):
             dtimer.add(f'scan thread: join() {self.rowtime:.1f}')
             scan_thread.join(timeout=2.0*self.rowtime)
             dtimer.add('scan thread joined')
-            masterrows =[pos0, xrffile, scafile, posfile, xrdfile,
-                         f"{(time.time()-start_time):8.4f}"]
-            self.write_master([' '.join(masterrows)])
+            mrows =[pos0, xrffile, scafile, posfile, xrdfile,
+                    f"{(time.time()-start_time):8.4f}\n"]
+            self.write_master(' '.join(mrows))
 
             if irow < npts-1:
                 for p in self.positioners:
@@ -585,7 +571,7 @@ class Slew_Scan(StepScan):
 
 
         ex_thread.join()
-        self.write_master(['\n'])
+        self.write_master('\n')
         self.post_scan()
         self.set_info('scan_progress', 'done')
         return
