@@ -21,7 +21,7 @@ from .file_utils import fix_varname, fix_filename, increment_filename
 from epics import PV, poll, get_pv, caget, caput
 from newportxps import NewportXPS
 
-from .debugtime import debugtime
+from pyshortcuts import debugtimer
 
 class Slew_Scan(StepScan):
     """Slew Scans"""
@@ -87,10 +87,6 @@ class Slew_Scan(StepScan):
             os.mkdir(basedir, mode=509)
             os.chmod(basedir, 509)
 
-        mappref = self.scandb.get_info('epics_map_prefix')
-        if mappref is not None:
-            caput('%sbasedir' % (mappref), userdir)
-            caput('%sstatus'  % (mappref), 'Starting')
         if not self.filename.endswith('.h5'):
             self.filename = self.filename + '.h5'
 
@@ -110,12 +106,8 @@ class Slew_Scan(StepScan):
         self.set_info('filename', fname)
         self.set_info('map_folder', mapdir)
 
-        fhx  = open(hfname, 'w')
-        fhx.write("%s\n"% mapdir)
-        fhx.close()
-        if mappref is not None:
-            caput('%sfilename' % (mappref), self.filename)
-
+        with open(hfname, 'w') as fh:
+            fh.write(f"{mapdir}\n")
         self.mapdir = mapdir
         self.fileroot = fileroot
 
@@ -157,9 +149,7 @@ class Slew_Scan(StepScan):
             start, stop = stop, start
         step = abs(start-stop)/(npts-1)
         self.rowtime = dtime = self.dwelltime*(npts-1)
-        if mappref is not None:
-            caput('%snpts' % (mappref), npts)
-            caput('%snrow' % (mappref), 0)
+
         axis = None
         for ax, pvname in self.slewscan_config['motors'].items():
             if pvname == pospv:
@@ -194,8 +184,6 @@ class Slew_Scan(StepScan):
                         'start2 = %.4f' % start,
                         'stop2 = %.4f' % stop,
                         'step2 = %.4f' % step])
-            if mappref is not None:
-                caput('%smaxrow' % (mappref), npts)
 
         xrd_det = None
         xrf_det = None
@@ -286,6 +274,21 @@ class Slew_Scan(StepScan):
         _, self.npts_sca = self.scadet.save_arraydata(filename=filename,
                                                    npts=self.npts_sca)
 
+    def save_extra_data(self, xrfdet=None, xrddet=None):
+        t0 = time.time()
+        env_file = Path(self.mapdir, 'Environ.dat').absolute().as_posix()
+        roi_file = Path(self.mapdir, 'ROI.dat').absolute().as_posix()
+        poni_file =Path(self.mapdir, 'XRD.poni').absolute().as_posix()
+
+        print("Save Extra ", env_file, roi_file, xrfdet)
+        self.save_envdata(filename=env_file)
+        if xrfdet is not None:
+            xrfdet.save_calibration(roi_file)
+        if xrddet is not None:
+            xrd_poni = self.scandb.get_info('xrd_calibration')
+            calib = json.loads(self.scandb.get_detectorconfig(xrd_poni).text)
+            write_poni(poni_file, calname=xrd_poni, **calib)
+        print(f"Save Extra {(time.time()-t0):.4f} sec")
 
     def run(self, filename='map.001', comments=None, debug=False, npts=None):
         """
@@ -304,16 +307,8 @@ class Slew_Scan(StepScan):
         if dir_off % 2 == 0:
             tname = 'backward'
 
-        # pvnames = trajs[tname]['axes']
-        # print("SlewScan Config ", pvnames, self.slewscan_config['motors'])
-
-        # self.xps.arm_trajectory(tname)
         npulses = trajs[tname]['npulses'] + 1
         dwelltime = trajs[tname]['pixeltime']
-
-        env_file = os.path.join(self.mapdir, 'Environ.dat')
-        roi_file = os.path.join(self.mapdir, 'ROI.dat')
-        poni_file = os.path.join(self.mapdir, 'XRD.poni')
 
         for p in self.positioners:
             p.move_to_pos(0, wait=False)
@@ -350,9 +345,6 @@ class Slew_Scan(StepScan):
         self.mastertext = []
         self.write_master(mbuff)
 
-        def make_filename(fname, i):
-            return "%s.%4.4i" % (fname, i)
-
         detpath = self.mapdir[len(self.fileroot):]
         scadet = xrfdet = xrddet = None
         scafile = xrffile = xrdfile = '_unused_'
@@ -375,38 +367,36 @@ class Slew_Scan(StepScan):
         self.clear_interrupts()
         self.set_info('scan_progress', 'starting')
         self.scandb.set_filename(self.filename)
-        mappref = self.scandb.get_info('epics_map_prefix')
         rowdata_ok = True
         start_time = time.time()
         irow = 0
-        if mappref is not None:
-            caput('%sstatus' % (mappref), 'Collecting')
-        dtimer =  debugtime()
+        dtimer =  debugtimer()
         self.scandb.set_info('repeated_map_rows', '')
         repeated_rows = []
+
+        ex_thread = Thread(target=self.save_extra_data,
+                           kwargs=dict(xrfdet=xrfdet, xrddet=xrddet),
+                           name='ex_thread')
+        ex_thread.start()
+        ##
+        ##
         while irow < npts:
-            # check again for pause, resume, and abort
+            # check for pause, resume, and abort
             self.look_for_interrupts()
             while self.pause:
                 time.sleep(0.25)
                 self.look_for_interrupts()
                 if self.resume or self.abort:
                     break
-
             if self.abort:
-                if mappref is not None:
-                    caput('%sstatus' % (mappref), 'Aborting')
                 break
-
             irow += 1
             dtimer.add('=== row start %i ====' % irow)
-            self.set_info('scan_progress', 'row %i of %i' % (irow, npts))
-            if mappref is not None:
-                caput('%snrow' % (mappref), irow)
+            self.set_info('scan_progress', f'row {irow} of {npts}')
             trajname = ['foreward', 'backward'][(dir_off + irow) % 2]
 
             if debug:
-                print("# Row %i of %i trajectory='%s'" % (irow, npts, trajname))
+                print(f"# Row {irow} of {npts} {trajname=}")
 
             if self.mkernel is not None:
                 now = time.time()
@@ -415,10 +405,10 @@ class Slew_Scan(StepScan):
                 run_prescan = (now > prescan_lasttime + prescan_interval)
                 if run_prescan:
                     try:
-                        self.mkernel.run("pre_scan_command(row=%i, npts=%i)" % (irow, npts))
+                        self.mkernel.run(f"pre_scan_command(row={irow}, npts={npts})")
                     except:
-                        print("Failed to run pre_scan_command(row=%i)" % irow)
-                    self.set_info('prescan_lasttime', "%i" % int(now))
+                        print(f"Failed to run pre_scan_command(row={irow})")
+                    self.set_info('prescan_lasttime', f"{now:.0f}")
 
             for pv, v1, v2 in self.motor_vals.values():
                 val = v1 if (trajname == 'foreward') else v2
@@ -427,8 +417,7 @@ class Slew_Scan(StepScan):
             lastrow_ok = rowdata_ok
             rowdata_ok = True
 
-            dtimer.add('inner pos move started irow=%i' % irow)
-            # print("ready to arm detectors row ", irow)
+            dtimer.add(f'inner pos move started {irow=}')
             for det in self.detectors:
                 det.arm(mode='ndarray', numframes=npulses, fnum=irow, wait=False)
 
@@ -439,36 +428,38 @@ class Slew_Scan(StepScan):
                     break
                 time.sleep(0.005)
 
-            dtimer.add('detectors armed %.3f' % det_arm_delay)
+            dtimer.add(f'detectors armed {det_arm_delay:.3f}')
             for det in self.detectors:
                 det.start(arm=False, wait=False)
 
             time.sleep(det_start_delay)
-            dtimer.add('detectors started  %.3f' % det_start_delay)
+            dtimer.add(f'detectors started {det_start_delay:.3f}')
 
             for p in self.positioners:
                 p.move_to_pos(irow-1, wait=True)
 
+            dtimer.add(f'Moved Positioners to row {irow-1}')
             for pv, v1, v2 in self.motor_vals.values():
                 val = v1 if (trajname == 'foreward') else v2
                 pv.put(val, wait=True)
 
-            dtimer.add(f'XPS moved to Epics start')
-            self.xps.arm_trajectory(trajname)
+            dtimer.add(f'Positioners in Place, Arm Traj')
+            self.xps.arm_trajectory(trajname, move_to_start=False)
             time.sleep(0.05)
             if irow < 2 or not lastrow_ok:
                 time.sleep(0.10)
             dtimer.add(f'XPS trajectory armed {trajname}')
 
-            dtimer.add('positioner moves done')
             # start trajectory in another thread
             scan_thread = Thread(target=self.xps.run_trajectory,
-                                 kwargs=dict(save=False, verbose=False),
+                                 kwargs=dict(move_to_start=False,
+                                             clean=False,
+                                             save=False, verbose=False),
                                  name='trajectory_thread')
             scan_thread.start()
 
             dtimer.add('scan thread started')
-            posfile = "xps.%4.4i" % (irow)
+            posfile = f"xps.{irow:04}"
             if scadet is not None:
                 scafile = scadet.get_next_filename()
             if xrfdet is not None:
@@ -476,33 +467,25 @@ class Slew_Scan(StepScan):
             if xrddet is not None:
                 xrdfile = xrddet.get_next_filename()
 
-            if irow < 2:
-                self.save_envdata(filename=env_file)
-                if xrfdet is not None:
-                    xrfdet.save_calibration(roi_file)
-                if xrddet is not None:
-                    xrd_poni = self.scandb.get_info('xrd_calibration')
-                    calib = json.loads(self.scandb.get_detectorconfig(xrd_poni).text)
-                    write_poni(poni_file, calname=xrd_poni, **calib)
-
             if dim == 2:
-                pos0 = "%8.4f" % self.positioners[0].array[irow-1]
+                pos0 = f"{(self.positioners[0].array[irow-1]):8.4f}"
             else:
                 pos0 = "_unused_"
 
-            masterline = "%s %s %s %s %s" % (pos0, xrffile, scafile,
-                                             posfile, xrdfile)
+            masterline = ' '.join([pos0, xrffile, scafile, posfile, xrdfile])
             # wait for trajectory to finish
             xt0 = time.time()
-            while (scan_thread.is_alive() or (time.time() < tx0+0.5*self.rowtime))
+            while (scan_thread.is_alive() or (time.time() < tx0+0.5*self.rowtime)):
                 time.sleep(0.05)
                 if time.time() > xt0 + 0.80*self.rowtime:
                     break
 
-            dtimer.add('scan thread: join()')
+            dtimer.add(f'scan thread: join() {self.rowtime:.1f}')
             scan_thread.join(timeout=2.0*self.rowtime)
             dtimer.add('scan thread joined')
-            self.write_master(["%s %8.4f" % (masterline, time.time()-start_time)])
+            masterrows =[pos0, xrffile, scafile, posfile, xrdfile,
+                         f"{(time.time()-start_time):8.4f}"]
+            self.write_master([' '.join(masterrows)])
 
             if irow < npts-1:
                 for p in self.positioners:
@@ -591,17 +574,11 @@ class Slew_Scan(StepScan):
                 for p in self.positioners:
                     p.move_to_pos(irow, wait=True)
 
-            #if self.look_for_interrupts():
-            #    if mappref is not None:
-            #        caput('%sstatus' % (mappref), 'Aborting')
-            #    break
             if debug:
                 dtimer.show()
-            time.sleep(0.01)
 
-        if mappref is not None:
-            caput('%sstatus' % (mappref), 'Finishing')
 
+        ex_thread.join()
         self.post_scan()
         self.set_info('scan_progress', 'done')
         return
