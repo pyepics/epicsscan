@@ -272,8 +272,6 @@ class Slew_Scan(StepScan):
         env_file = Path(self.mapdir, 'Environ.dat').absolute().as_posix()
         roi_file = Path(self.mapdir, 'ROI.dat').absolute().as_posix()
         poni_file =Path(self.mapdir, 'XRD.poni').absolute().as_posix()
-
-        print("Save Extra ", env_file, roi_file, xrfdet)
         self.save_envdata(filename=env_file)
         if xrfdet is not None:
             xrfdet.save_calibration(roi_file)
@@ -281,7 +279,6 @@ class Slew_Scan(StepScan):
             xrd_poni = self.scandb.get_info('xrd_calibration')
             calib = json.loads(self.scandb.get_detectorconfig(xrd_poni).text)
             write_poni(poni_file, calname=xrd_poni, **calib)
-        print(f"Save Extra {(time.time()-t0):.4f} sec")
 
     def run(self, filename='map.001', comments=None, debug=False, npts=None):
         """
@@ -293,8 +290,8 @@ class Slew_Scan(StepScan):
 
         dir_off = 1
         tname = 'foreward'
-        # if trajs['foreward']['axes'][0] == 'X':
-        #     dir_off += 1
+        if trajs['foreward']['axes'][0] == 'X':
+            dir_off += 1
         if trajs['foreward']['start'] >  trajs['foreward']['stop']:
             dir_off += 1
         if dir_off % 2 == 0:
