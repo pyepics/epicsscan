@@ -2,6 +2,18 @@
 requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools_scm]
+write_to = "epicsscan/version.py"
+version_scheme = "post-release"
+
+[tool.setuptools.packages.find]
+include = ["epicsscan"]
+
+[tool.setuptools.package-data]
+epicsscan = ["icons/*"]
+
+
+
 [project]
 name = "epicsscan"
 dynamic = ["version"]
@@ -57,10 +69,3 @@ doc = [
      "Sphinx",
 ]
 all = ["epicsscan[dev, doc]"]
-
-[tool.setuptools.packages.find]
-include = ["epicsscan"]
-
-[tool.setuptools_scm]
-write_to = "epicsscan/version.py"
-version_scheme = "post-release"
