@@ -81,7 +81,6 @@ from .edit_macros      import CommandsPanel, PositionCommandFrame
 from .common_commands  import CommonCommandsFrame, CommonCommandsAdminFrame
 from .edit_sequences   import ScanSequenceFrame
 
-
 ICON_FILE = 'epics_scan.ico'
 
 SCANTYPES = ('slew', 'xafs', 'linear')
@@ -181,12 +180,11 @@ class ScanFrame(wx.Frame):
         self.mkernel.set_symbol('_sys.wx.parent', self)
         self.statusbar.SetStatusText('Macros Ready')
 
-        try:
-            fico = Path(larch.site_config.icondir, ICON_FILE).as_posix()
-            self._icon = wx.Icon(fico, wx.BITMAP_TYPE_ICO)
-            self.SetIcon(self._icon)
-        except:
-            pass
+        fico = Path(__file__).parent.parent
+        fico = Path(fico, 'icons', ICON_FILE).absolute().as_posix()
+        self._icon = wx.Icon(fico, wx.BITMAP_TYPE_ICO)
+        self.SetIcon(self._icon)
+
         for span in self.nb.pagelist:
             if hasattr(span, 'initialize_positions'):
                 span.initialize_positions()
@@ -226,8 +224,6 @@ class ScanFrame(wx.Frame):
         pack(self, sizer)
         self.SetMinSize((750, 725))
         self.SetSize((775, 725))
-
-        self._icon = None
 
     def get_nbpage(self, name):
         "get nb page by name"
