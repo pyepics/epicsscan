@@ -67,6 +67,7 @@ class MacroKernel(object):
         self.symtable['_scandb'] = self.scandb
         self.symtable['_instdb'] = self.instdb
         self.symtable['_mkernel'] = self
+        self.symtable['open'] = open
         self.symtable['Path'] = Path
         parent = Path(__file__).parent
         with open(Path(parent, 'macros_init.py'), 'r') as fh:
