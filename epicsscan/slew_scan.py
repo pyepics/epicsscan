@@ -290,8 +290,8 @@ class Slew_Scan(StepScan):
 
         dir_off = 1
         tname = 'foreward'
-        if trajs['foreward']['axes'][0] == 'X':
-            dir_off += 1
+        # if trajs['foreward']['axes'][0] == 'X':
+        #     dir_off += 1
         if trajs['foreward']['start'] >  trajs['foreward']['stop']:
             dir_off += 1
         if dir_off % 2 == 0:
@@ -464,7 +464,7 @@ class Slew_Scan(StepScan):
             masterline = ' '.join([pos0, xrffile, scafile, posfile, xrdfile])
             # wait for trajectory to finish
             xt0 = time.time()
-            while (scan_thread.is_alive() or (time.time() < tx0+0.5*self.rowtime)):
+            while (scan_thread.is_alive() or (time.time() < xt0+0.5*self.rowtime)):
                 time.sleep(0.05)
                 if time.time() > xt0 + 0.80*self.rowtime:
                     break
@@ -566,7 +566,6 @@ class Slew_Scan(StepScan):
             if debug:
                 dtimer.show()
 
-
         ex_thread.join()
         self.write_master('\n')
         self.post_scan()
@@ -579,7 +578,7 @@ class Slew_Scan(StepScan):
     def save_envdata(self,filename='Environ.dat'):
         buff = []
         for desc, pvname, value in self.read_extra_pvs():
-            buff.append("; %s (%s) = %s" % (desc, pvname, value))
+            buff.append(f"; {desc} ({pvname}) = {value}")
         buff.append("")
         with open(filename,'w') as fh:
             fh.write('\n'.join(buff))
