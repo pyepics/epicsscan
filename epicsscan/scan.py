@@ -317,13 +317,14 @@ class StepScan(object):
         dtimer.add('pre_scan connect to extra pvs')
         if filename is None:
             filename = self.filename
+        kws['row'] = row
         kws['filename'] = filename
         kws['dwelltime'] = self.dwelltime
         if isinstance(kws['dwelltime'], (list, tuple, np.ndarray)):
             kws['dwelltime'] = self.dwelltime[0]
         out = []
         for meth in self.pre_scan_methods:
-            out.append(meth(scan=self, row=row, **kws))
+            out.append(meth(scan=self, **kws))
             time.sleep(0.025)
             dtimer.add('pre_scan ran %s' % meth)
 
@@ -334,14 +335,18 @@ class StepScan(object):
 
         if callable(self.prescan_func):
             try:
-                ret = self.prescan_func(scan=self, row=row, **kws)
+                ret = self.prescan_func(scan=self, **kws)
             except:
                 ret = None
             out.append(ret)
         dtimer.add('pre_scan ran local prescan')
         if self.mkernel is not None:
+            opts = []
+            for k, v in kws.items():
+                opts.append(f"{k}={repr(v)}")
+            opts = ', '.join(opts)
             try:
-                self.mkernel.run("pre_scan_command(row=%i)" % row)
+                self.mkernel.run(f"pre_scan_command({opts})")
             except:
                 self.write("Failed to run pre_scan_command()\n")
         dtimer.add('pre_scan ran macro prescan')
@@ -495,7 +500,6 @@ class StepScan(object):
             if name in names:
                 name += '_2'
             if name not in names:
-                # print("ADD SCAN DATA POS ", name, p.array)
                 self.scandb.add_scandata(name, p.array.tolist(),
                                          pvname=p.pv.pvname,
                                          units=units, notes='positioner')
