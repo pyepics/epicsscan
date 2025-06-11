@@ -755,8 +755,13 @@ class XAFSScanPanel(GenericScanPanel):
                                label='Collect HERFD ROIs',
                                action=self.onUseHERFD)
 
+        idgap_scan = self.scandb.get_info('qxafs_use_gapscan', as_bool=True)
+        self.gap_scan = check(self, default=idgap_scan,
+                              label='ID Gap Scan',
+                              action=self.onUseGapScan)
+
         self.qxafs = check(self, default=True,
-                           label='Continuous XAFS Scan',
+                           label='Continuous Scan',
                            action=self.onQXAFS)
 
         qxafs_time_threshold = float(self.scandb.get_info('qxafs_time_threshold',
@@ -796,8 +801,9 @@ class XAFSScanPanel(GenericScanPanel):
         sizer.Add(self.est_time,  (0, 6), (1, 2), CEN,   3)
 
         sizer.Add(olabel,         (1, 0), (1, 1), LEFT,  3)
-        sizer.Add(self.qxafs,     (1, 1), (1, 2), LEFT,  3)
-        sizer.Add(self.use_herfd, (1, 3), (1, 3), LEFT,  3)
+        sizer.Add(self.qxafs,     (1, 1), (1, 1), LEFT,  3)
+        sizer.Add(self.gap_scan,  (1, 2), (1, 2), LEFT,  3)
+        sizer.Add(self.use_herfd, (1, 4), (1, 2), LEFT,  3)
 
         sizer.Add(alabel,         (2, 0), (1, 1), LEFT,  3)
         sizer.Add(self.absrel,    (2, 1), (1, 1), LEFT,  3)
@@ -955,6 +961,9 @@ class XAFSScanPanel(GenericScanPanel):
     def onUseHERFD(self, evt=None):
         det_name = self.scandb.get_info('xas_herfd_detector', None)
         self.scandb.use_detector(det_name, use=self.use_herfd.IsChecked())
+
+    def onUseGapScan(self, evt=None):
+        self.scandb.set_info('qxafs_use_gapscan', self.gap_scan.IsChecked())
 
     def onAbsRel(self, evt=None):
         """xafs abs/rel"""
