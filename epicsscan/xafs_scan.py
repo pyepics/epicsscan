@@ -191,7 +191,7 @@ class QXAFS_Scan(XAFS_Scan):
         id_tracking = int(self.scandb.get_info('qxafs_id_tracking', '1'))
         self.with_id = ('id_array_pv' in conf and
                         'id_drive_pv' in conf and id_tracking)
-
+        self.with_gapscan = self.scandb.get_info('qxafs_use_gapscan', as_bool=True)
         self.xps = self.scandb.connections.get('mono_xps', None)
         if self.xps is None:
             print("XAFS SCAN creating New Connection to NewportXPS: ", isotime())
@@ -201,6 +201,7 @@ class QXAFS_Scan(XAFS_Scan):
                                   group=conf['group'],
                                   outputs=conf['outputs'])
             self.scandb.connections['mono_xps'] = self.xps
+
         if id_tracking:
             self.pvs['id_track_pv'].put(1)
         else:
@@ -299,7 +300,7 @@ class QXAFS_Scan(XAFS_Scan):
                    'nsegments': npts, 'uploaded': True}
         self.xps.trajectories['qxafs'] = xpstraj
         self.xps.upload_trajectory('qxafs.trj', buff)
-        print("uploaded xps trajectories ", isotime())
+        print("uploaded xps traj", isotime())
         return traj
 
     def finish_qscan(self):
@@ -355,16 +356,21 @@ class QXAFS_Scan(XAFS_Scan):
         dtimer.add('scan verified')
         qconf = self.config
         energy_orig = self.pvs['energy_pv'].get()
-        # print("RUN SCAN ", energy_orig, qconf)
         dtimer.add('connect qxafs')
         traj = self.make_trajectory()
         dtimer.add(f'make traj with_id = {self.with_id}')
-        # print("made trajectories, With ID " , self.with_id)
+        self.with_gapscan = self.scandb.get_info('qxafs_use_gapscan', as_bool=True)
+
         if self.with_id:
             idenergy_orig = self.pvs['id_drive_pv'].get()
             id_offset = 1000.0*self.pvs['id_offset_pv'].get()
             idarray = 1.e-3*(1.0+id_offset/energy_orig)*traj['energy']
             idarray = np.concatenate((idarray, idarray[-1]+np.arange(1,26)/250.0))
+            if self.with_gapscan:
+                print("using GapScan")
+            else:
+               print("using Undulator Push, not GapScan")
+
         dtimer.add('idarray')
         time.sleep(0.025)
         self.orig_positions = {}
@@ -378,7 +384,7 @@ class QXAFS_Scan(XAFS_Scan):
             if thispv not in self.orig_positions:
                 self.orig_positions[thispv] = retval-0.5
         dtimer.add('orig positions')
-        if self.with_id:
+        if self.with_id and self.pvs['id_drive_pv'].write_access:
             try:
                 self.pvs['id_array_pv'].put(idarray)
             except:
@@ -398,7 +404,7 @@ class QXAFS_Scan(XAFS_Scan):
         self.clear_interrupts()
         dtimer.add('clear interrupts')
         npts = len(self.positioners[0].array)
-        # print("clear interrupts ", npts)
+        # print("clear interrupts ", npts, self.dwelltime[0])
         self.dwelltime_varys = False
         dtime = self.dwelltime[0]
         estimated_scantime = npts*dtime
@@ -414,13 +420,16 @@ class QXAFS_Scan(XAFS_Scan):
             os.mkdir(xrfdir_server, mode=509)
         dtimer.add('folders and timer setup')
         dtimer.add('trajectory armed')
-        # print(" --> prescan ", traj, self.filename)
         out = self.pre_scan(npulses=1+traj['npulses'],
                             dwelltime=dtime,
-                            mode=ROI_MODE, filename=self.filename)
+                            mode=ROI_MODE,
+                            filename=self.filename,
+                            scantype='qxafs',
+                            with_gapscan=self.with_gapscan,
+                            e0=self.e0, energy=self.energies)
         self.check_outputs(out, msg='pre scan')
         dtimer.add('prescan ran')
-        # print(" --> prescan done")
+
         # move to start
         if self.with_id and self.pvs['id_drive_pv'].write_access:
             try:
@@ -488,14 +497,17 @@ class QXAFS_Scan(XAFS_Scan):
         time.sleep(0.01)
         dtimer.add('mono motors at start')
 
+        # get gapscan mode
+        gap_scan_mode = get_pv('S13ID:USID:GapScanModeC.VAL')
+        # print("SCAN WITH ID ", self.with_id,   self.with_gapscan,
+        #      self.pvs['id_drive_pv'].write_access)
         if self.with_id and self.pvs['id_drive_pv'].write_access:
             idt0 =time.time()
-            print(f" move id to start with wait: {idarray[0]:.4f}")
+            # print(f" move id to start with wait: {idarray[0]:.4f}")
             try:
                 self.pvs['id_drive_pv'].put(idarray[0], wait=True, timeout=5)
             except:
                 print("could not put value to (A)  ", self.pvs['id_drive_pv'])
-
 
             time.sleep(0.1)
             id_curr = self.pvs['id_read_pv'].get()
@@ -513,6 +525,10 @@ class QXAFS_Scan(XAFS_Scan):
                 time.sleep(2.0)
             print(f" move id to start took  {(time.time()-idt0):.2f} sec")
 
+        if self.with_gapscan:
+            print("Starting ID Gap Scan")
+            gap_scan_mode.put(1)
+            time.sleep(0.1)
 
         with_scan_thread = True
         dtimer.add('trajectory run %r' % (with_scan_thread))
@@ -550,9 +566,7 @@ class QXAFS_Scan(XAFS_Scan):
         self.set_info('scan_progress', 'reading data')
 
         # print(self.xps.status_report())
-
         npulses, gather_text = self.xps.read_gathering(verbose=False)
-        print("XPS read ", npulses, len(gather_text))
         gtime = time.monotonic()
         while npulses < 2 and time.monotonic() < (gtime+5):
             time.sleep(0.2)
@@ -604,7 +618,7 @@ class QXAFS_Scan(XAFS_Scan):
                 print('using data from database  for ' , label)
 
         ndat = [len(c.buff[1:]) for c in self.counters]
-        # print("Read Data ", ndat)
+        # print("Read Data Buffers: ", ndat)
         narr = min(ndat)
 
         dtimer.add(f'read counters 1 ({narr}, {ne})')
@@ -629,7 +643,7 @@ class QXAFS_Scan(XAFS_Scan):
                 mca_offsets[key] = offset
 
         # print("Read QXAFS Data %i points (NE=%i) %.3f secs" % (narr, ne,
-        #         time.monotonic() - t0))
+        #                                time.monotonic() - t0))
         dtimer.add('read all counters (done)')
 
         # remove hot first pixel AND align to proper energy
@@ -651,7 +665,7 @@ class QXAFS_Scan(XAFS_Scan):
             c.buff = c.buff[offset:]
             c.buff = c.buff[:ne]
             # print(" READ-> ", c.label, offset, len(c.buff),
-            #       c.buff[:3], c.buff[-2:], hasattr(c, 'net_buff'))
+            #        c.buff[:3], c.buff[-2:], hasattr(c, 'net_buff'))
             data4calcs[c.pvname] = np.array(c.buff)
 
         for c in self.counters:
@@ -673,6 +687,7 @@ class QXAFS_Scan(XAFS_Scan):
         # run post_scan methods
         self.set_info('scan_progress', 'finishing')
         dtimer.add('before post_scan')
+
         if self.with_id and self.pvs['id_drive_pv'].write_access:
             try:
                 self.pvs['id_drive_pv'].put(idenergy_orig, wait=False)
@@ -695,7 +710,7 @@ class QXAFS_Scan(XAFS_Scan):
             dtimer.show()
         # print("scan done at %s " % (time.ctime(), ))
         return self.datafile.filename
-        ##
+
 
     def post_scan(self, row=0, filename=None, **kws):
         self.set_info('scan_progress', 'running post_scan routines')
