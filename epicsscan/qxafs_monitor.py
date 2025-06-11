@@ -56,6 +56,7 @@ class QXAFS_ScanWatcher(object):
         self.dead_time = 1.0
         self.id_lookahead = 3
         self.with_id = True
+        self.with_gapscan = False
         self.counters = []
         self.pidfile = pidfile or DEFAULT_PIDFILE
         self.pulsecount_pv = None
@@ -79,6 +80,8 @@ class QXAFS_ScanWatcher(object):
         self.pulse_pv = get_pv(pulse_channel, callback=self.onPulse)
         self.with_id = ('id_array_pv' in self.config and
                         'id_drive_pv' in self.config and id_tracking)
+        self.with_gapscan = self.scandb.get_info('qxafs_use_gapscan', as_bool=True)
+
         if self.with_id:
             self.idarray_pv = get_pv(self.config['id_array_pv'])
             self.iddrive_pv = get_pv(self.config['id_drive_pv'])
@@ -211,7 +214,7 @@ class QXAFS_ScanWatcher(object):
             npts = int(self.scandb.get_info(key='scan_total_points', default=0))
             if self.get_state() == 0 or self.scandb.get_info(key='request_abort', as_bool=True):
                 break
-            if self.pulse > last_pulse and self.with_id:
+            if self.pulse > last_pulse and self.with_id and not self.with_gapscan:
                 try:
                     id_busy = (self.idbusy_pv.get() == 1)
                 except:
