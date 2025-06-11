@@ -144,17 +144,7 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         bpanel.SetSizer(bsizer)
         bsizer.Fit(bpanel)
         return bpanel
-#
-#         self.scan_message = SimpleText(self, " ", style=LEFT, size=(500, -1),
-#                                        font=self.Font12, colour='#991111')
-#
-#         self.sizer.Add(self.scan_message, (row,   0), (1, 8), LEFT, 3)
-#         self.sizer.Add(self.hline(),      (row+1, 0), (1, 8), LEFT, 3)
-#         self.sizer.Add(bpanel,            (row+2, 0), (1, 8), LEFT|wx.ALL, 2)
-#
-#         pack(self, self.sizer)
-#         self.SetupScrolling()
-#         self._initialized = True
+
 
     def set_scan_message(self, text, timeout=30):
         self.scan_message.SetLabel(text)
@@ -963,7 +953,8 @@ class XAFSScanPanel(GenericScanPanel):
         self.scandb.use_detector(det_name, use=self.use_herfd.IsChecked())
 
     def onUseGapScan(self, evt=None):
-        self.scandb.set_info('qxafs_use_gapscan', self.gap_scan.IsChecked())
+        val = 1 if self.gap_scan.IsChecked() else 0
+        self.scandb.set_info('qxafs_use_gapscan', val)
 
     def onAbsRel(self, evt=None):
         """xafs abs/rel"""

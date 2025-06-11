@@ -127,6 +127,11 @@ class check(wx.CheckBox):
         if label is None:
             label = ''
         wx.CheckBox.__init__(self, parent, -1, label=label, **kws)
+        if default in ('true', 'True', 't', 1, '1'):
+            default = True
+        if default in ('false', 'False', 'f', 0, '0'):
+            default = False
+
         self.SetValue({True: 1, False:0}[default])
         if action is not None:
             self.Bind(wx.EVT_CHECKBOX, action)
