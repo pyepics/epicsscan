@@ -11,19 +11,16 @@ import numpy as np
 from multiprocessing import Process
 from threading import Thread
 from epics import caput, get_pv
-from epics.ca import CASeverityException
 from newportxps import NewportXPS
-import socket
-
 from pyshortcuts import isotime
 
 from .scan import StepScan
 from .positioner import Positioner
 from .saveable import Saveable
-from .file_utils import fix_varname, new_filename
-from .utils import hms, normalize_pvname
+from .file_utils import new_filename
+from .utils import normalize_pvname
 from .debugtime import debugtime
-from .detectors.counter import ROISumCounter, EVAL4PLOT
+from .detectors.counter import EVAL4PLOT
 from .detectors import  ROI_MODE, SCALER_MODE
 
 XAFS_K2E = 3.809980849311092
@@ -327,7 +324,6 @@ class QXAFS_Scan(XAFS_Scan):
         angle  = (angle[1:] + angle[:-1])/2.0
         height = (height[1:] + height[:-1])/2.0
 
-        qconf = self.config
         angle += self.pvs['theta_motor.OFF'].get()
         dspace = self.pvs['dspace_pv'].get()
         energy = HC/(2.0 * dspace * np.sin(angle/RAD2DEG))
@@ -488,7 +484,6 @@ class QXAFS_Scan(XAFS_Scan):
 
         ts_init = time.monotonic()
         self.inittime = ts_init - ts_start
-        start_time = time.strftime('%Y-%m-%d %H:%M:%S')
         dtimer.add('info set')
 
         self.pvs['theta_motor.DVAL'].put(traj['start'][0])
@@ -509,7 +504,7 @@ class QXAFS_Scan(XAFS_Scan):
             except:
                 print("could not put value to (A)  ", self.pvs['id_drive_pv'])
 
-            time.sleep(0.1)
+            time.sleep(0.05)
             id_curr = self.pvs['id_read_pv'].get()
             count = 0
             while count < 10 and abs(id_curr - idarray[0]) > 0.010:
@@ -528,7 +523,7 @@ class QXAFS_Scan(XAFS_Scan):
         if self.with_gapscan:
             print("Starting ID Gap Scan")
             gap_scan_mode.put(1)
-            time.sleep(0.1)
+            time.sleep(0.025)
 
         with_scan_thread = True
         dtimer.add('trajectory run %r' % (with_scan_thread))
@@ -607,7 +602,7 @@ class QXAFS_Scan(XAFS_Scan):
         db_data = {}
         for row in self.scandb.get_scandata():
             db_data[row.name.lower()] = row.data
-        dtimer.add(f'read scandb data')
+        dtimer.add('read scandb data')
 
         for c in self.counters:
             label = c.label.lower()
@@ -631,7 +626,6 @@ class QXAFS_Scan(XAFS_Scan):
         dtimer.add(f'read counters 2 [{min(ndat)}, {max(ndat)}])')
 
         mca_offsets = {}
-        counter_buffers = []
         for c in self.counters:
             label = c.label.lower()
             if 'mca' in label and 'clock' in label:
@@ -708,9 +702,7 @@ class QXAFS_Scan(XAFS_Scan):
 
         if debug:
             dtimer.show()
-        # print("scan done at %s " % (time.ctime(), ))
         return self.datafile.filename
-
 
     def post_scan(self, row=0, filename=None, **kws):
         self.set_info('scan_progress', 'running post_scan routines')
