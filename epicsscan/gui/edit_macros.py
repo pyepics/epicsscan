@@ -387,7 +387,9 @@ class CommandsPanel(scrolled.ScrolledPanel):
                     'Command': 'current_command',
                     'Status': 'scan_status',
                     'Progress': 'scan_progress',
-                    'Time': 'heartbeat'}
+                    'Time': 'heartbeat',
+                    'Nqueue': 'n_command_queue',
+                    }
 
     def __init__(self, parent, scandb=None, pvlist=None, title='Settings',
                  size=(760, 380), style=wx.GROW|wx.TAB_TRAVERSAL):
@@ -523,25 +525,29 @@ class CommandsPanel(scrolled.ScrolledPanel):
         self.winfo = OrderedDict()
 
         opts1 = {'label':' '*250, 'colour': COLOR_OK, 'size': (600, -1), 'style': LEFT}
-        opts2 = {'label':' '*50, 'colour': COLOR_OK, 'size': (200, -1), 'style': LEFT}
+        opts2 = {'label':' '*50, 'colour': COLOR_OK, 'size': (175, -1), 'style': LEFT}
         self.winfo['FileName'] = SimpleText(panel, **opts1)
         self.winfo['Command']  = SimpleText(panel, **opts1)
         self.winfo['Progress'] = SimpleText(panel, **opts1)
         self.winfo['Status']   = SimpleText(panel, **opts2)
         self.winfo['Time']     = SimpleText(panel, **opts2)
+        self.winfo['Nqueue']   = SimpleText(panel, **opts2)
 
-        stat_label  = SimpleText(panel, "Status:", size=(100, -1), style=LEFT)
-        time_label  = SimpleText(panel, "Time:"  , size=(100, -1), style=LEFT)
+        stat_label  = SimpleText(panel, "Status:", size=(90, -1), style=LEFT)
+        time_label  = SimpleText(panel, "Time:"  , size=(90, -1), style=LEFT)
+        ncmd_label  = SimpleText(panel, "Pending Commands:"  , size=(180, -1), style=LEFT)
         sizer.Add(stat_label,            (0, 0), (1, 1), LEFT, 1)
         sizer.Add(self.winfo['Status'],  (0, 1), (1, 1), LEFT, 1)
         sizer.Add(time_label,            (0, 2), (1, 1), LEFT, 1)
         sizer.Add(self.winfo['Time'],    (0, 3), (1, 1), LEFT, 1)
+        sizer.Add(ncmd_label,            (0, 4), (1, 1), LEFT, 1)
+        sizer.Add(self.winfo['Nqueue'],   (0, 5), (1, 1), LEFT, 1)
 
         irow = 1
         for attr in ('Command', 'FileName', 'Progress'):
-            lab  = SimpleText(panel, "%s:" % attr, size=(100, -1), style=LEFT)
+            lab  = SimpleText(panel, "%s:" % attr, size=(90, -1), style=LEFT)
             sizer.Add(lab,               (irow, 0), (1, 1), LEFT, 1)
-            sizer.Add(self.winfo[attr],  (irow, 1), (1, 3), LEFT, 1)
+            sizer.Add(self.winfo[attr],  (irow, 1), (1, 6), LEFT, 1)
             irow += 1
         pack(panel, sizer)
         return panel
