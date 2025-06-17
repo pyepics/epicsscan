@@ -248,16 +248,11 @@ class ScanServer():
 
         # Note: this loop is really just looking for new commands
         # or interrupts, so does not need to go super fast.
-        next_logtime = 0.0
         cmds = deque([])
         while True:
             epics.poll(0.05, 1.0)
 
             now = time()
-            if now > next_logtime:
-                print(f"scan server:  {isotime()} {len(cmds)} in queue")
-                next_logtime = now + 120.0
-
             # update server heartbeat / message
             if now > msgtime + 0.75:
                 msgtime = now
@@ -291,6 +286,6 @@ class ScanServer():
                 cmds = deque(self.scandb.get_rows('commands',
                                              status=request_id,
                                              order_by='run_order'))
+            self.scandb.set_info('n_command_queue', len(cmds))
 
-        # mainloop end
         self.finish()
