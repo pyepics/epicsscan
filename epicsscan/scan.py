@@ -91,6 +91,7 @@ from threading import Thread
 import json
 import numpy as np
 import random
+from pyshortcuts import isotime
 
 from .file_utils import fix_varname, fix_filename, increment_filename
 
@@ -211,7 +212,7 @@ class StepScan(object):
         """set scan info to _scan variable"""
         if self.scandb is not None:
             self.scandb.set_info(attr, value)
-            self.scandb.set_info('heartbeat', time.ctime())
+            self.scandb.set_info('heartbeat', isotime())
 
     def open_output_file(self, filename=None, comments=None):
         """opens the output file"""
