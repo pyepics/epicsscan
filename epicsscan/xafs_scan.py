@@ -20,7 +20,7 @@ from .saveable import Saveable
 from .file_utils import new_filename
 from .utils import normalize_pvname
 from .debugtime import debugtime
-from .detectors.counter import EVAL4PLOT
+from .detectors.counter import EVAL4PLOT, ROISumCounter
 from .detectors import  ROI_MODE, SCALER_MODE
 
 XAFS_K2E = 3.809980849311092
@@ -664,9 +664,13 @@ class QXAFS_Scan(XAFS_Scan):
 
         for c in self.counters:
             if c.pvname.startswith(EVAL4PLOT):
-                _counter = eval(c.pvname[len(EVAL4PLOT):])
-                _counter.data = data4calcs
-                c.buff = _counter.read()
+                try:
+                    _counter = eval(c.pvname[len(EVAL4PLOT):])
+                    _counter.data = data4calcs
+                    c.buff = _counter.read()
+                except:
+                    print(f"EVAL4Plot for '{c.pvname}'")
+                    c.buff = []
             #if len(c.buff) > 0:
             #    self.scandb.set_scandata(c.label, c.buff)
         dtimer.add('setting scan data')
