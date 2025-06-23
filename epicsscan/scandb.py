@@ -89,9 +89,9 @@ class ScanDB(SimpleDB):
         self.restoring_pvs = []
         if create:
             create_scandb(dbname, server=self.server, create=True, **kws)
-        
+
         SimpleDB.__init__(self, dbname=self.dbname, server=self.server, **kws)
-        
+
         self.status_codes = {}
         self.status_names = {}
         if self.tables is None:
@@ -630,7 +630,7 @@ class ScanDB(SimpleDB):
         kws = {'status_id': statid, 'modify_time': now}
         if status.startswith('start'):
             kws['start_time'] = now
-        self.update('commands', where={'id': cmdid}, **kws)
+        self.update('commands', where={'id': int(cmdid)}, **kws)
 
 
     def set_command_run_order(self, run_order, cmdid):
@@ -665,20 +665,15 @@ class ScanDB(SimpleDB):
     def cancel_command(self, cmdid):
         """cancel command"""
         self.set_command_status('canceled', cmdid)
-        self.update('commands', where={'id': cmdid},
-                    status_id=self.status_codes['canceled'])
 
     def cancel_remaining_commands(self):
         """cancel all commmands to date"""
         requested = self.status_codes['requested']
         running = self.status_codes['running']
-        canceled  = self.status_codes['canceled']
-        for row in self.get_rows('commands', where={'status_id': requested},
-                               order_by='run_order'):
-            self.update('commands', where={'id': row.id}, status_id=canceled)
-        for row in self.get_rows('commands', where={'status_id': running},
-                               order_by='run_order'):
-            self.update('commands', where={'id': row.id}, status_id=canceled)
+        for row in self.get_rows('commands', where={'status_id': requested}):
+            self.cancel_command(row.id)
+        for row in self.get_rows('commands', where={'status_id': running}):
+            self.cancel_command(row.id)
 
 
     def test_abort(self, msg='scan abort'):
