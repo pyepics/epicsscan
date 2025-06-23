@@ -56,6 +56,7 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
     def cancel_selected(self):
         for cmd, status, sel, treq, tuse, cmd_id in self.data:
             if sel and status == 'requested':
+                print("Canceling command ", cmd_id)
                 self.scandb.cancel_command(int(cmd_id))
         self.select_all(value=False)
 
@@ -321,16 +322,20 @@ class ScanSequenceFrame(wx.Frame) :
 
     def onCancelSelected(self, event=None):
         self.model.cancel_selected()
+        time.sleep(0.25)
         self.refresh_display()
 
     def onCancelAll(self, event=None):
         self.scandb.set_info('request_abort', 1)
         self.scandb.cancel_remaining_commands()
+        time.sleep(0.25)
+        self.refresh_display()
         self.onAbort()
 
     def onAbort(self, event=None):
         self.scandb.set_info('request_abort', 1)
         time.sleep(1.0)
+        self.refresh_display()
 
     def refresh_display(self, show_top=False):
         time.sleep(0.01)
