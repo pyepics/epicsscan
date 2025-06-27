@@ -9,7 +9,6 @@ import os
 import sys
 import json
 import time
-import logging
 from pathlib import Path
 import numpy as np
 from socket import gethostname
@@ -36,7 +35,7 @@ def get_credentials(envvar='ESCAN_CREDENTIALS'):
 
 def json_encode(val):
     "simple wrapper around json.dumps"
-    if val is None or isinstance(val, (str, unicode)):
+    if val is None or isinstance(val, str):
         return val
     return  json.dumps(val)
 
@@ -314,14 +313,12 @@ class ScanDB(SimpleDB):
         return self.add_row_attr('scandata', **kws)
 
     def set_scandata(self, name, data, **kws):
-        tab = self.tables['scandata']
         if isinstance(data, np.ndarray):
             data = data.tolist()
         elif isinstance(data, tuple):
             data = list(data)
         if isinstance(data, (int, float)):
             data = [data]
-        where = "name='%s'" % name
         self.update('scandata', where={'name': name}, data=data)
 
     def append_scandata(self, name, val):
