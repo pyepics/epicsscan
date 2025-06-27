@@ -755,7 +755,7 @@ class InstrumentDB(object):
         self.scandb.delete_rows('position', {'id': pos.id})
 
     def remove_all_positions(self, instname):
-        for posname in self.get_positionlist(instname):
+        for posname in self.get_positions(instname):
             self.remove_position(instname, posname)
 
     def remove_instrument(self, inst):
@@ -864,17 +864,20 @@ class InstrumentDB(object):
             out[self.pvmap[row.pv_id]]= row.value
         return out
 
-    def get_positionlist(self, instname, reverse=False):
-        """return list of position names for an instrument
+    def get_positions(self, instname, reverse=False):
+        """return list of position *names* for an instrument
         """
         inst = self.get_instrument(instname)
         rows = self.scandb.get_rows('position', where={'instrument_id': inst.id},
                                    order_by='modify_time')
-
         out = [row.name for row in rows]
         if reverse:
             out.reverse()
         return out
+
+    def get_positionlist(self, instname, reverse=False):
+        """back compat for get_positions()"""
+        return self.get_positions(instname, reverse=reverse)
 
     def restore_position(self, instname, posname, wait=False, timeout=5.0,
                          exclude_pvs=None):
