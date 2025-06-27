@@ -30,6 +30,7 @@ dependencies = [
     "wxpython>=4.2.1",
     "wxmplot>=0.9.57",
     "newportxps>=0.9",
+    "pyshortcuts>=1.9.5",
 ]
 
 requires-python = ">= 3.9"
