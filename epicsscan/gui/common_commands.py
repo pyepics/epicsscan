@@ -275,7 +275,7 @@ class CommonCommandsFrame(wx.Frame):
                 elif arg.startswith('atsym'):
                     arg = add_choice(panel, ELEM_LIST, default=25, **opts)
                 elif arg.startswith('inst_'):
-                    poslist = list(reversed(self.instdb.get_positionlist(arg[5:])))
+                    poslist = list(reversed(self.instdb.get_positions(arg[5:])))
                     arg = add_choice(panel, poslist, default=0, **opts)
                 if label == 'use_signature':
                     pname = SimpleText(panel, "Note: will insert example as comment", size=(250,-1))

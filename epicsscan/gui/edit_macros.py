@@ -55,12 +55,12 @@ class ScanDBMessageQueue(object):
             self.last_id = rows[-1].id
         return rows
 
-def get_positionlist(scandb, instrument=None):
-    """get list of positions for and instrument"""
+def get_positions(scandb, instrument=None):
+    """get list of positions names for an instrument"""
     iname = instrument
     if iname is None:
         iname = scandb.get_info('samplestage_instrument', 'SampleStage')
-    return InstrumentDB(scandb).get_positionlist(iname, reverse=True)
+    return InstrumentDB(scandb).get_positions(iname, reverse=True)
 
 class PositionCommandModel(dv.DataViewIndexListModel):
     def __init__(self, scandb):
@@ -74,7 +74,7 @@ class PositionCommandModel(dv.DataViewIndexListModel):
 
     def read_data(self):
         self.data = []
-        for pos in get_positionlist(self.scandb):
+        for pos in get_positions(self.scandb):
             use, nscan, ddist = True, f"{int(self.nscans)}", f"{self.detdist:.1f}"
             if pos in self.posvals:
                 use, nscan, ddist = self.posvals[pos]
@@ -368,7 +368,7 @@ class PositionCommandFrame(wx.Frame) :
 
     def onTimer(self, event=None, **kws):
         now = time.monotonic()
-        poslist = get_positionlist(self.scandb)
+        poslist = get_positions(self.scandb)
         if len(self.model.data) != len(poslist):
             self.update()
 
