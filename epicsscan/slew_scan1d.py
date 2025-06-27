@@ -9,6 +9,7 @@ import shutil
 import time
 from threading import Thread
 import numpy as np
+from pyshortcuts import debugtimer
 
 from .scan import StepScan
 from .positioner import Positioner
@@ -21,8 +22,6 @@ from .detectors.counter import ROISumCounter, EVAL4PLOT
 
 from epics import PV, poll, get_pv, caget, caput
 from newportxps import NewportXPS
-
-from .debugtime import debugtime
 
 class Slew_Scan1D(StepScan):
     """1D Slew Scan, presenting data as a plain scan"""
@@ -132,7 +131,7 @@ class Slew_Scan1D(StepScan):
         """
         run a 1D slew scan
         """
-        dtimer =  debugtime()
+        dtimer = debugtimer()
         debug = self.scandb.get_info('debug_scan', as_bool=True) or debug
         self.prepare_scan()
 

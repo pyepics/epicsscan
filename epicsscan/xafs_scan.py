@@ -12,14 +12,13 @@ from multiprocessing import Process
 from threading import Thread
 from epics import caput, get_pv
 from newportxps import NewportXPS
-from pyshortcuts import isotime
+from pyshortcuts import isotime, debugtimer
 
 from .scan import StepScan
 from .positioner import Positioner
 from .saveable import Saveable
 from .file_utils import new_filename
 from .utils import normalize_pvname
-from .debugtime import debugtime
 from .detectors.counter import EVAL4PLOT, ROISumCounter
 from .detectors import  ROI_MODE, SCALER_MODE
 
@@ -334,7 +333,7 @@ class QXAFS_Scan(XAFS_Scan):
         """
         run the actual QXAFS scan
         """
-        dtimer =  debugtime()
+        dtimer = debugtimer()
         self.scandb.set_info('qxafs_config', 'qxafs')
         self.complete = False
         if filename is not None:
@@ -715,7 +714,7 @@ class QXAFS_Scan(XAFS_Scan):
         kws['filename'] = filename
         out = []
 
-        dtimer = debugtime()
+        dtimer = debugtimer()
         for pvname, val in self.orig_positions.items():
             caput(pvname, val, wait=False)
 

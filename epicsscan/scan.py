@@ -91,7 +91,7 @@ from threading import Thread
 import json
 import numpy as np
 import random
-from pyshortcuts import isotime
+from pyshortcuts import isotime, debugtimer
 
 from .file_utils import fix_varname, fix_filename, increment_filename
 
@@ -101,8 +101,6 @@ from .utils import hms
 from .detectors import (Counter, Trigger, AreaDetector, SCALER_MODE)
 from .datafile import ASCIIScanFile
 from .positioner import Positioner
-
-from .debugtime import debugtime
 
 MIN_POLL_TIME = 1.e-3
 
@@ -206,7 +204,7 @@ class StepScan(object):
         self.post_scan_methods = []
         self.pos_actual  = []
         self.orig_positions = {}
-        self.dtimer = debugtime()
+        self.dtimer = debugtimer()
 
     def set_info(self, attr, value):
         """set scan info to _scan variable"""
@@ -310,7 +308,7 @@ class StepScan(object):
         return out
 
     def pre_scan(self, row=0, filename=None, **kws):
-        dtimer = debugtime()
+        dtimer = debugtimer()
         self.set_info('scan_progress', 'running pre_scan routines')
         for (desc, pv) in self.extra_pvs:
             pv.connect(timeout=0.1)
@@ -700,7 +698,7 @@ class StepScan(object):
 
         # caput('13XRM:map:filename', filename)
         self.complete = False
-        self.dtimer = debugtime()
+        self.dtimer = debugtimer()
         self.publishing_scandata = False
 
         ts_start = time.time()

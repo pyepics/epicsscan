@@ -12,7 +12,6 @@ from .scan import StepScan
 from .xafs_scan import XAFS_Scan, QXAFS_Scan
 from .slew_scan import Slew_Scan
 from .slew_scan1d import Slew_Scan1D
-from .debugtime import debugtime
 
 def create_scan(filename='scan.dat', comments=None, type='linear',
                 scanmode=None, detmode=None, rois=None, nscans=1,
