@@ -10,7 +10,6 @@ from epics import get_pv, caput, caget, Device, poll, PV
 from .base import DetectorMixin, SCALER_MODE, NDARRAY_MODE, ROI_MODE
 from .counter import Counter
 from .areadetector import AreaDetector
-from ..debugtime import debugtime
 
 class AD_Pilatus(AreaDetector):
     """

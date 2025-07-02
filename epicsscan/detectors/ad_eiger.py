@@ -22,7 +22,6 @@ from epics import get_pv, caput, caget, Device, poll, PV
 from .counter import Counter
 from .base import DetectorMixin, SCALER_MODE, NDARRAY_MODE, ROI_MODE
 from .areadetector import AreaDetector
-from ..debugtime import debugtime
 
 MAX_FRAMES = 8192
 
