@@ -6,12 +6,14 @@ from collections import namedtuple
 from six.moves.configparser import ConfigParser
 import numpy as np
 from epics import get_pv, caput, caget, Device, poll
+from pyshortcuts import debugtimer
+
 from .ad_mca import ADMCA
 from .counter import (Counter, DummyCounter, DeviceCounter, Saveable,
                       ROISumCounter)
 from .base import DetectorMixin, SCALER_MODE, NDARRAY_MODE, ROI_MODE
 from .areadetector import ADFileMixin, get_adversion
-from ..debugtime import debugtime
+
 from ..file_utils import fix_varname
 
 MAX_ROIS = 48
@@ -53,7 +55,7 @@ class Xspress3(Device, ADFileMixin):
     def __init__(self, prefix, nmcas=4, filesaver='HDF1:',
                  fileroot='/home/xspress3', ad_version=3):
         self._ad_version = ad_version
-        dt = debugtime()
+        dt = debugtimer()
         self.nmcas = nmcas
         attrs = []
         attrs.extend(['%s%s' % (filesaver, p) for p in self.pathattrs])
@@ -95,7 +97,7 @@ class Xspress3(Device, ADFileMixin):
         if numframes is None:
             numframes = MAX_FRAMES
 
-        dt = debugtime()
+        dt = debugtimer()
         dt.add(f'set_timeseries {enable_rois}')
         scaf = get_scaformats(self._ad_version) # ('acq', 'npts', 'valform', 'tsform')
         dt.add('set_timeseries scaf')
@@ -385,7 +387,7 @@ class Xspress3Detector(DetectorMixin):
     def pre_scan(self, mode=None, npulses=None, dwelltime=None,
                  filename=None, **kws):
         "run just prior to scan"
-        dt = debugtime()
+        dt = debugtimer()
 
         if mode is not None:
             self.mode = mode
@@ -497,7 +499,7 @@ class Xspress3Detector(DetectorMixin):
         2. setting dwelltime or numframes to None is discouraged,
            as it can lead to inconsistent data arrays.
         """
-        dt = debugtime()
+        dt = debugtimer()
         self._xsp3.put('TriggerMode', 3) # External, TTL Veto
         dt.add('xspress3 ROIMode, trigger mode')
         if numframes is None:
