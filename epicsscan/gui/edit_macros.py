@@ -629,11 +629,13 @@ class CommandsPanel(scrolled.ScrolledPanel):
         time.sleep(1.0)
 
     def onCancelAll(self, event=None):
-        self.onPause()
-        self.scandb.set_info('request_abort', 1)
-        self.scandb.cancel_remaining_commands()
+        self.scandb.set_info('request_pause', 1)
         time.sleep(1.0)
-        self.onResume()
+        self.scandb.cancel_remaining_commands()
+        self.scandb.set_info('request_abort', 1)
+        time.sleep(1.0)
+        self.scandb.set_info('request_pause', 0)
+        self.refresh_display()
 
     def onStart(self, event=None):
         now = time.time()

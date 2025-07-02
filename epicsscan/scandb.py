@@ -661,7 +661,7 @@ class ScanDB(SimpleDB):
 
     def cancel_command(self, cmdid):
         """cancel command"""
-        self.set_command_status('canceled', cmdid)
+        self.set_command_status('canceled', int(cmdid))
 
     def cancel_remaining_commands(self):
         """cancel all commmands to date"""
