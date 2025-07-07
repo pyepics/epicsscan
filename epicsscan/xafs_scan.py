@@ -549,7 +549,6 @@ class QXAFS_Scan(XAFS_Scan):
                     if abort_proc.is_alive():
                         abort_proc.terminate()
                         time.sleep(2.0)
-                    self.scandb.set_info('request_abort', 0)
                     break
             scan_thread.join()
             dtimer.add('scan thread joined')
