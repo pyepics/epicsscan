@@ -79,7 +79,6 @@ class ScanServer():
         "shut down scan server"
         self.set_scan_message('Server Shutting Down')
         self.scandb.set_info('request_pause',    0)
-        self.scandb.set_info('request_abort',    1)
         self.scandb.set_info('request_abort',    0)
         self.scandb.set_info('request_shutdown', 0)
         sleep(0.025)
