@@ -33,7 +33,7 @@ authors = [
     {name = "Matthew Newville", email = "newville@cars.uchicago.edu"},
 ]
 description = "Scanning and Data Acquistion with PyEpics"
-readme = "README.rst"
+readme = "README.md"
 license-files = ["LICENSE"]
 keywords = ["data collection, data acquisition"]
 classifiers = [
