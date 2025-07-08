@@ -7,11 +7,7 @@ write_to = "epicsscan/version.py"
 version_scheme = "post-release"
 
 [tool.setuptools.packages.find]
-include = ["epicsscan"]
-
-[tool.setuptools.package-data]
-epicsscan = ["icons/*"]
-
+include = ["epicsscan", "epicsscan.detectors", "epicsscan.gui", "epicsscan.icons"]
 
 
 [project]
@@ -19,7 +15,7 @@ name = "epicsscan"
 dynamic = ["version"]
 dependencies = [
     "pyepics>=3.5.5",
-    "asteval>=1.0.4",
+    "asteval>=1.0.6",
     "lmfit>=1.3.1",
     "numpy>=1.23",
     "scipy>=1.12",
@@ -39,13 +35,12 @@ authors = [
 ]
 description = "Scanning and Data Acquistion with PyEpics"
 readme = "README.rst"
-license = {file = "LICENSE"}
+license-files = ["LICENSE"]
 keywords = ["data collection, data acquisition"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering",
-    "License :: OSI Approved :: BSD License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
@@ -53,6 +48,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
 

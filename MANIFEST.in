@@ -1,6 +1,6 @@
-include README.txt INSTALL MANIFEST.in PKG-INFO license.txt setup.py publish.sh *.bat
+include README.txt INSTALL MANIFEST.in LICENSE 
 exclude *.pyc core.* *~ *.pdf
-recursive-include lib *.py
+recursive-include epicsscan *.py
 recursive-include scripts *
 recursive-include tests *.py *.db *.cmd *.req
 recursive-include doc *
