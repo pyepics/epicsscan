@@ -9,7 +9,6 @@ version_scheme = "post-release"
 [tool.setuptools.packages.find]
 include = ["epicsscan", "epicsscan.detectors", "epicsscan.gui", "epicsscan.icons"]
 
-
 [project]
 name = "epicsscan"
 dynamic = ["version"]
