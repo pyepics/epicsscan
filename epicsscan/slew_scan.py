@@ -433,7 +433,17 @@ class Slew_Scan(StepScan):
                 pv.put(val, wait=True)
 
             dtimer.add(f'Positioners in Place, Arm Traj')
-            self.xps.arm_trajectory(trajname, move_to_start=False)
+            try:
+                self.xps.arm_trajectory(trajname, move_to_start=False)
+            except:
+                print(f"XPS Failed to Arm Trajectory for row {irow} will try again")
+                time.sleep(10.0)
+                try:
+                    self.xps.arm_trajectory(trajname, move_to_start=False)
+                except:
+                    print(f"XPS Failed to Arm Trajectory for row {irow} a second time. Aborting scan")
+                    return
+
             time.sleep(0.05)
             if irow < 2 or not lastrow_ok:
                 time.sleep(0.10)
