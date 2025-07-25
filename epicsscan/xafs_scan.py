@@ -520,7 +520,7 @@ class QXAFS_Scan(XAFS_Scan):
             print(f" move id to start took  {(time.time()-idt0):.2f} sec")
 
         if self.with_gapscan:
-            print("Starting ID Gap Scan")
+            # print("Starting ID Gap Scan")
             gap_scan_mode.put(1)
             time.sleep(0.025)
 
@@ -573,11 +573,12 @@ class QXAFS_Scan(XAFS_Scan):
                     npulses = nlines - 3
             except:
                 pass
-        if npulses > 2:
-            energy, height = self.gathering2energy(gather_text)
-        else:
+        if npulses < 3 or npulses > (npts + 5):
             energy = self.energy_pos.array[:-2]
-            print("#Warning: will use theoretical energies ", npulses, len(energy))
+            print("#Warning: BAD XPS Gathering data, will use theoretical energies ", npulses, len(energy))
+        else:
+            energy, height = self.gathering2energy(gather_text)
+
         self.pos_actual = []
         for e in energy:
            self.pos_actual.append([e])
@@ -608,7 +609,7 @@ class QXAFS_Scan(XAFS_Scan):
             # effectively looking for missing data:
             if label in db_data and len(c.buff) < len(db_data[label])-5:
                 c.buff = db_data[label][:]
-                print('using data from database  for ' , label)
+                # print('using data from database  for ' , label)
 
         ndat = [len(c.buff[1:]) for c in self.counters]
         # print("Read Data Buffers: ", ndat)
@@ -634,8 +635,8 @@ class QXAFS_Scan(XAFS_Scan):
                 key = label.replace('clock', '').strip()
                 mca_offsets[key] = offset
 
-        # print("Read QXAFS Data %i points (NE=%i) %.3f secs" % (narr, ne,
-        #                                time.monotonic() - t0))
+        print("Read QXAFS Data %i points (NE=%i) %.3f secs" % (narr, ne,
+                                        time.monotonic() - t0))
         dtimer.add('read all counters (done)')
 
         # remove hot first pixel AND align to proper energy
