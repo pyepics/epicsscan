@@ -355,6 +355,12 @@ class QXAFS_Scan(XAFS_Scan):
         traj = self.make_trajectory()
         dtimer.add(f'make traj with_id = {self.with_id}')
         self.with_gapscan = self.scandb.get_info('qxafs_use_gapscan', as_bool=True)
+        gapscan_pvname   = self.scandb.get_info('qxafs_gapscan_pv')
+        # ensure that gapscan mode is writeable
+        if self.with_gapscan:
+            self.gapscan_pv = get_pv(gapscan_pvnam)e
+            self.with_gapscan = self.gapscan_pv.write_acesss
+
 
         if self.with_id:
             idenergy_orig = self.pvs['id_drive_pv'].get()
@@ -491,8 +497,6 @@ class QXAFS_Scan(XAFS_Scan):
         time.sleep(0.01)
         dtimer.add('mono motors at start')
 
-        # get gapscan mode
-        gap_scan_mode = get_pv('S13ID:USID:GapScanModeC.VAL')
         # print("SCAN WITH ID ", self.with_id,   self.with_gapscan,
         #      self.pvs['id_drive_pv'].write_access)
         if self.with_id and self.pvs['id_drive_pv'].write_access:
@@ -521,7 +525,7 @@ class QXAFS_Scan(XAFS_Scan):
 
         if self.with_gapscan:
             # print("Starting ID Gap Scan")
-            gap_scan_mode.put(1)
+            self.gapscan_pv.put(1)
             time.sleep(0.025)
 
         with_scan_thread = True
