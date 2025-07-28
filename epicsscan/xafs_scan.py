@@ -358,7 +358,7 @@ class QXAFS_Scan(XAFS_Scan):
         gapscan_pvname   = self.scandb.get_info('qxafs_gapscan_pv')
         # ensure that gapscan mode is writeable
         if self.with_gapscan:
-            self.gapscan_pv = get_pv(gapscan_pvnam)e
+            self.gapscan_pv = get_pv(gapscan_pvname)
             self.with_gapscan = self.gapscan_pv.write_acesss
 
 
