@@ -671,7 +671,8 @@ class ScanDB(SimpleDB):
             self.cancel_command(row.id)
         for row in self.get_rows('commands', where={'status_id': running}):
             self.cancel_command(row.id)
-
+        time.sleep(0.25)
+        self.set_info('request_abort', 0)
 
     def test_abort(self, msg='scan abort'):
         """look for abort"""

@@ -657,7 +657,6 @@ class StepScan(object):
         self.clear_data()
         if self.scandb is not None:
             self.init_scandata()
-            self.set_info('request_abort', 0)
             self.set_info('scan_time_estimate', time_est)
             self.set_info('scan_total_points', npts)
             self.set_info('scan_current_point', 0)
@@ -718,6 +717,7 @@ class StepScan(object):
                 while self.pause:
                     time.sleep(0.025)
                     if self.look_for_interrupts():
+                        self.clear_interrupts()
                         break
                 # set dwelltime
                 if self.dwelltime_varys:
@@ -737,6 +737,7 @@ class StepScan(object):
                 while (not all([p.done for p in self.positioners]) and
                        time.time() - t0 < self.pos_maxmove_time):
                     if self.look_for_interrupts():
+                        self.clear_interrupts()
                         break
                     poll(MIN_POLL_TIME, 0.25)
                 self.dtimer.add('Pt %i : pos done' % i)
@@ -761,7 +762,9 @@ class StepScan(object):
                     poll(MIN_POLL_TIME, 0.5)
                 self.dtimer.add('Pt %i : triggers done' % i)
                 if self.look_for_interrupts():
+                    self.clear_interrupts()
                     break
+
                 # print("STEP SCAN triggers may be done: ", i,
                 #      [(trig, trig.done) for trig in self.triggers])
                 time.sleep(0.1)
@@ -817,8 +820,9 @@ class StepScan(object):
                 if i in self.breakpoints:
                     self.at_break(breakpoint=i, clear=True)
                 self.dtimer.add('Pt %i: done.' % i)
-                self.look_for_interrupts()
-
+                if self.look_for_interrupts():
+                    self.clear_interrupts()
+                    break
             except KeyboardInterrupt:
                 self.set_info('request_abort', 1)
                 self.abort = True
@@ -845,7 +849,7 @@ class StepScan(object):
         self.dtimer.add('Post: file written')
         if self.look_for_interrupts():
             self.write("scan aborted at point %i of %i\n" % (self.cpt, self.npts))
-
+            self.clear_interrupts()
         # run post_scan methods
         out = self.post_scan()
         self.check_outputs(out, msg='post scan')

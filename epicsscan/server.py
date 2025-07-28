@@ -14,7 +14,6 @@ from .scandb import ScanDB
 from .utils import strip_quotes, plain_ascii, is_complete
 
 from .macro_kernel import MacroKernel
-
 from .epics_scandb import EpicsScanDB
 # from .abort_slewscan import abort_slewscan
 
@@ -271,8 +270,8 @@ class ScanServer():
             if self.req_abort:
                 if len(cmds) > 0:
                     cmd = cmds.popleft()
-                    self.scandb.set_command_status('aborted', cmdid=cmd.id)
-                self.clear_interrupts()
+                    self.scandb.cancel_command(cmd.id)
+                    self.scandb.set_info('request_scan_abort', 1)
                 sleep(1.0)
 
             # we are not paused or aborting:
