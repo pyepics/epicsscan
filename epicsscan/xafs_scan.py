@@ -19,7 +19,7 @@ from .positioner import Positioner
 from .saveable import Saveable
 from .file_utils import new_filename
 from .utils import normalize_pvname
-from .detectors.counter import EVAL4PLOT, ROISumCounter
+from .detectors.counter import EVAL4PLOT
 from .detectors import  ROI_MODE, SCALER_MODE
 
 XAFS_K2E = 3.809980849311092
@@ -680,6 +680,7 @@ class QXAFS_Scan(XAFS_Scan):
 
         if self.look_for_interrupts():
             self.write("scan aborted at point %i of %i." % (self.cpt, self.npts))
+            self.clear_interrupts()
 
         # run post_scan methods
         self.set_info('scan_progress', 'finishing')
