@@ -96,8 +96,9 @@ class CommonCommandsAdminFrame(wx.Frame):
 
             macsig, macdoc, macobj = self.macros.get(cmd.name, (None, None, None))
             if macobj is not None:
-                tip = " %s:\n%s line %d" % (macsig, macobj.__file__, macobj.lineno)
-                text.SetToolTip(tip)
+                # print("Macro ", macsig, macobj )
+                # tip = " %s\n%s line %d" % (macsig, macobj, macobj.lineno)
+                text.SetToolTip(macsig)
 
 
             display = check(panel, default=(cmd.show==1), label='', size=(100, -1))
