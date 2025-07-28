@@ -374,7 +374,7 @@ class Slew_Scan(StepScan):
             self.look_for_interrupts()
             while self.pause:
                 time.sleep(0.25)
-                abort = self.look_for_interrupts():
+                abort = self.look_for_interrupts()
                 if self.resume or abort:
                     break
             if self.abort:
