@@ -135,6 +135,11 @@ class Slew_Scan1D(StepScan):
         debug = self.scandb.get_info('debug_scan', as_bool=True) or debug
         self.prepare_scan()
 
+        self.filename = filename
+        if self.filename is None:
+            self.filename  = 'slewscan1d.001'
+        self.filename = new_filename(self.filename)
+
         trajs = self.xps.trajectories
         ts_start = time.monotonic()
 
@@ -215,8 +220,6 @@ class Slew_Scan1D(StepScan):
 
         self.datafile = self.open_output_file(filename=self.filename,
                                               comments=self.comments)
-
-
 
         self.datafile.write_data(breakpoint=0)
         dtimer.add('datafile opened')

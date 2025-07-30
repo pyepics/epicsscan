@@ -308,8 +308,11 @@ class Slew_Scan(StepScan):
             if tname == 'backward': val = v2
             pv.put(val, wait=False)
 
-        self.pre_scan(npulses=npulses, dwelltime=dwelltime, mode='ndarray')
         self.scandb.clear_slewscanstatus()
+        self.scandb.set_filename(self.filename)
+        self.pre_scan(npulses=npulses, filename=self.filename,
+                      dwelltime=dwelltime, mode='ndarray')
+
         dim  = 1
         npts = 1
         if self.outer is not None:
@@ -355,7 +358,6 @@ class Slew_Scan(StepScan):
 
         self.clear_interrupts()
         self.set_info('scan_progress', 'starting')
-        self.scandb.set_filename(self.filename)
         rowdata_ok = True
         start_time = time.time()
         irow = 0

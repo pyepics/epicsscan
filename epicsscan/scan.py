@@ -92,15 +92,15 @@ import json
 import numpy as np
 import random
 from pyshortcuts import isotime, debugtimer
-
-from .file_utils import fix_varname, fix_filename, increment_filename
-
 from epics import PV, poll, get_pv, caget, caput
+
+from .file_utils import fix_varname, fix_filename, new_filename
 
 from .utils import hms
 from .detectors import (Counter, Trigger, AreaDetector, SCALER_MODE)
 from .datafile import ASCIIScanFile
 from .positioner import Positioner
+
 
 MIN_POLL_TIME = 1.e-3
 
@@ -645,8 +645,6 @@ class StepScan(object):
         if self.scandb is not None:
             self.set_info('scan_progress', 'preparing scan')
 
-        out = self.pre_scan(mode=self.detmode)
-        self.check_outputs(out, msg='pre scan')
 
         self.datafile = self.open_output_file(filename=self.filename,
                                               comments=self.comments)
@@ -661,6 +659,9 @@ class StepScan(object):
             self.set_info('scan_total_points', npts)
             self.set_info('scan_current_point', 0)
             self.scandb.set_filename(self.filename)
+
+        out = self.pre_scan(mode=self.detmode, filename=self.filename)
+        self.check_outputs(out, msg='pre scan')
 
         self.dtimer.add('PRE: initialized scandata')
         # self.set_info('scan_progress', 'starting scan')
@@ -690,6 +691,8 @@ class StepScan(object):
         """
         if filename is not None:
             self.filename  = filename
+        self.filename = new_filename(self.filename)
+
         if comments is not None:
             self.comments = comments
         if self.comments is None:

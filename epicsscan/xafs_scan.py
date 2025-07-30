@@ -421,6 +421,7 @@ class QXAFS_Scan(XAFS_Scan):
             os.mkdir(xrfdir_server, mode=509)
         dtimer.add('folders and timer setup')
         dtimer.add('trajectory armed')
+        self.scandb.set_filename(self.filename)
         out = self.pre_scan(npulses=1+traj['npulses'],
                             dwelltime=dtime,
                             mode=ROI_MODE,
