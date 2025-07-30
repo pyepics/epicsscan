@@ -332,4 +332,9 @@ def move_samplestage(position_name, wait=True, timeout=60.0):
 
     """
     inst_name = _scandb.get_info('samplestage_instrument')
+    eprefix = _scandb.get_info('epics_status_prefix', None)
+    if eprefix is not None:
+        pospv_name = get_pv(f'{eprefix}PositionName')
+        pospv_name.put(position_name)
+    _scandb.set_info('sample_position', position_name)
     _instdb.restore_position(inst_name, position_name, wait=wait, timeout=timeout)
