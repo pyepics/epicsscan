@@ -168,10 +168,10 @@ class Slew_Scan(StepScan):
                     'comments = %s' % self.comments,
                     'dimension = %i' % dim,
                     'pos1 = %s'     % pospv,
-                    'start1 = %.4f' % start,
-                    'stop1 = %.4f'  % stop,
-                    'step1 = %.4f'  % step,
-                    'time1 = %.4f'  % dtime])
+                    'start1 = %.6f' % start,
+                    'stop1 = %.6f'  % stop,
+                    'step1 = %.6f'  % step,
+                    'time1 = %.6f'  % dtime])
 
 
         if dim == 2:
@@ -181,9 +181,9 @@ class Slew_Scan(StepScan):
                 pospv = pospv[:-4]
             step = abs(start-stop)/(npts-1)
             txt.extend(['pos2 = %s'   % pospv,
-                        'start2 = %.4f' % start,
-                        'stop2 = %.4f' % stop,
-                        'step2 = %.4f' % step])
+                        'start2 = %.6f' % start,
+                        'stop2 = %.6f' % stop,
+                        'step2 = %.6f' % step])
 
         xrd_det = None
         xrf_det = None
@@ -470,7 +470,7 @@ class Slew_Scan(StepScan):
                 xrdfile = xrddet.get_next_filename()
 
             if dim == 2:
-                pos0 = f"{(self.positioners[0].array[irow-1]):8.4f}"
+                pos0 = f"{(self.positioners[0].array[irow-1]):10.6f}"
             else:
                 pos0 = "_unused_"
 
@@ -486,7 +486,7 @@ class Slew_Scan(StepScan):
             scan_thread.join(timeout=2.0*self.rowtime)
             dtimer.add('scan thread joined')
             mrows =[pos0, xrffile, scafile, posfile, xrdfile,
-                    f"{(time.time()-start_time):8.4f}\n"]
+                    f"{(time.time()-start_time):10.6f}\n"]
             self.write_master(' '.join(mrows))
 
             if irow < npts-1:
