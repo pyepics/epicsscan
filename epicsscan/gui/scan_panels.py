@@ -223,23 +223,22 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         # return next row for sizer
         return 2
 
-    def StartStopStepNpts(self, i, with_npts=True, initvals=(-1,1,1,3)):
-        fsize = (85, -1)
+    def StartStopStepNpts(self, i, with_npts=True, initvals=(-1,1,1,3), precision=4):
         s0, s1, ds, ns = initvals
-
-        start = FloatCtrl(self, size=fsize, value=s0, act_on_losefocus=True,
-                          action=partial(self.onVal, index=i, label='start'))
-        stop  = FloatCtrl(self, size=fsize, value=s1, act_on_losefocus=True,
-                          action=partial(self.onVal, index=i, label='stop'))
-        step  = FloatCtrl(self, size=fsize, value=ds, act_on_losefocus=True,
-                          precision=4,
-                          action=partial(self.onVal, index=i, label='step'))
+        opts = {'precision': precision, 'act_on_losefocus': True, 'size': (85, -1)}
+        start = FloatCtrl(self, action=partial(self.onVal, index=i, label='start'),
+                          value=s0, **opts)
+        stop  = FloatCtrl(self, action=partial(self.onVal, index=i, label='stop'),
+                          value=s1, **opts)
+        step  = FloatCtrl(self, action=partial(self.onVal, index=i, label='step'),
+                          value=ds, **opts)
         if with_npts:
-            npts  = FloatCtrl(self, precision=0,  value=ns, size=(70, -1),
-                              act_on_losefocus=True,
-                              action=partial(self.onVal, index=i, label='npts'))
+            opt['size'] = (75, -1)
+            opt['precision'] = 0
+            npts  = FloatCtrl(self, action=partial(self.onVal, index=i, label='npts'),
+                              value=ns,  **opts)
         else:
-            npts  = wx.StaticText(self, -1, size=fsize, label=' ')
+            npts  = wx.StaticText(self, -1, size=(85, -1), label=' ')
         return start, stop, step, npts
 
     def onVal(self, index=0, label=None, value=None, **kws):
@@ -1223,7 +1222,7 @@ class Slew2DScanPanel(GenericScanPanel):
                                   style=CEN)
             cur   = PVStaticText(self, pv=None, size=(100, -1),
                                  style=CEN)
-            start, stop, step, npts = self.StartStopStepNpts(i,
+            start, stop, step, npts = self.StartStopStepNpts(i, precision=5,
                                             initvals=(-0.25, 0.25, 0.002, 251))
             self.pos_settings.append((pos, units, cur, start, stop, step, npts))
             ir += 1
