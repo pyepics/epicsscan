@@ -229,6 +229,9 @@ def do_scan(scanname, filename="scan.001", nscans=1, comments=""):
             scan.run()
             scans_completed += 1
             abort  = _scandb.get_info("request_abort", as_bool=True)
+            if abort:
+                scans_completed += 999999
+                break
             nscans = int(_scandb.get_info("nscans"))
         return scan
 
