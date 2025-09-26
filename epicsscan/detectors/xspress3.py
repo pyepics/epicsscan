@@ -587,8 +587,10 @@ class Xspress3Detector(DetectorMixin):
             self._xsp3.FileCaptureOn(verify_rbv=True)
             self.start_delay = self.start_delay_arraymode
         elif self.mode == SCALER_MODE:
+            self.start_delay = 2*self.start_delay_roimode
             self._xsp3.FileCaptureOff()
         elif self.mode == ROI_MODE:
+            self.start_delay = self.start_delay_roimode
             if self.use_full:
                 self._xsp3.setFileNumCapture(numframes)
                 self._xsp3.FileCaptureOn(verify_rbv=True)
