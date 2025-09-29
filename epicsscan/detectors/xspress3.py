@@ -307,10 +307,6 @@ class Xspress3Counter(DeviceCounter):
                 _label = 'DTFactor mca%i' % (imca)
                 add_counter(_pvname, _label, units='scale')
 
-        # if self.use_full:
-        #     for imca in range(1, self.nmcas+1):
-        #        pv = '%sMCA%d.ArrayData' % (prefix, imca)
-        #        # add_counter(pv, 'MCA%i' % imca)
 
 class Xspress3Detector(DetectorMixin):
     """
@@ -581,7 +577,7 @@ class Xspress3Detector(DetectorMixin):
 
         if numframes is not None:
             self._xsp3.put('NumImages', numframes)
-        # print("ARM xspress3 ", mode, fnum, numframes)
+        # print("ARM xspress3 ", mode, fnum, numframes, self.use_full)
         self.start_delay = self.start_delay_roimode
         if self.mode == NDARRAY_MODE:
             self._xsp3.FileCaptureOn(verify_rbv=True)
