@@ -8,6 +8,7 @@ import os
 import time
 import json
 import numpy as np
+from pathlib import Path
 from multiprocessing import Process
 from threading import Thread
 from epics import caput, get_pv
@@ -114,9 +115,9 @@ class XAFS_Scan(StepScan):
                              dtime_final, dtime_wt))
 
         if use_k:
-            en_arr = [e0 + ktoe(v) for v in en_arr]
+            en_arr = [float(e0 + ktoe(v)) for v in en_arr]
         elif relative:
-            en_arr = [e0 +    v    for v in en_arr]
+            en_arr = [float(e0 +    v)    for v in en_arr]
 
         # check that all energy values in this region are
         # greater than previously defined regions
@@ -124,7 +125,7 @@ class XAFS_Scan(StepScan):
         min_energy = min_estep
         if len(self.energies) > 0:
             min_energy += max(self.energies)
-        en_arr = [e for e in en_arr if e > min_energy]
+        en_arr = [float(e) for e in en_arr if e > min_energy]
 
         npts   = len(en_arr)
 
@@ -228,12 +229,12 @@ class QXAFS_Scan(XAFS_Scan):
 
         # we want energy trajectory points to be at or near
         # midpoints of desired energy values
-        estep = self.energies[1]-self.energies[0]
+        estep = float(self.energies[1]-self.energies[0])
 
         # enx = [self.energies[0]-2*estep, self.energies[0]-estep]
         enx = [self.energies[0]-estep]
         enx.extend(list(self.energies))
-        enx.append(2*self.energies[-1]  - self.energies[-2])
+        enx.append(float(2*self.energies[-1]  - self.energies[-2]))
         enx = np.array(enx)
         energy = (enx[1:] + enx[:-1])/2.0
 
@@ -329,7 +330,7 @@ class QXAFS_Scan(XAFS_Scan):
         return (energy, height)
 
 
-    def run(self, filename=None, comments=None, debug=False, reverse=False):
+    def run(self, filename=None, comments=None, debug=False, reverse=False, use_full=None):
         """
         run the actual QXAFS scan
         """
@@ -342,7 +343,8 @@ class QXAFS_Scan(XAFS_Scan):
 
         if comments is not None:
             self.comments = comments
-
+        if use_full is not None:
+            self.use_full = use_full
         ts_start = time.monotonic()
         if not self.verify_scan():
             self.write('Cannot execute scan: %s\n' % self.last_error_msg)
@@ -532,9 +534,11 @@ class QXAFS_Scan(XAFS_Scan):
         with_scan_thread = True
         dtimer.add('trajectory run %r' % (with_scan_thread))
         if with_scan_thread:
+            gname, suff = Path(self.filename).stem, Path(self.filename).suffix
+            gatherfile = Path('XAFSXRF', f'{gname}_gather{suff}').absolute().as_posix()
             scan_thread = Thread(target=self.xps.run_trajectory,
                                  kwargs=dict(name='qxafs', save=True, verbose=False,
-                                             output_file='mono_xps_gather.txt'),
+                                             output_file=gatherfile),
                                  name='trajectory_thread')
             scan_thread.start()
             dtimer.add('scan trajectory started')
