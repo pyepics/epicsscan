@@ -233,8 +233,8 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         step  = FloatCtrl(self, action=partial(self.onVal, index=i, label='step'),
                           value=ds, **opts)
         if with_npts:
-            opt['size'] = (75, -1)
-            opt['precision'] = 0
+            opts['size'] = (75, -1)
+            opts['precision'] = 0
             npts  = FloatCtrl(self, action=partial(self.onVal, index=i, label='npts'),
                               value=ns,  **opts)
         else:
@@ -303,6 +303,8 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         if hasattr(self, 'absrel') and (1 == self.absrel.GetSelection()): # relative
             hlim = hlim - mpv.value
             llim = llim - mpv.value
+        if units is None:
+            units = ''
         wids[1].SetLabel(units)
         wids[2].SetPV(mpv)
         # wids[2].SetBackgroundColour(self.bgcol)
@@ -1435,8 +1437,6 @@ class Slew2DScanPanel(GenericScanPanel):
                         start.SetValue(p1)
                         stop.SetValue(p2)
                 s[mname] = [name, pvnames, p1, p2, npts]
-
-
         return s
 
 class Slew1DScanPanel(GenericScanPanel):
@@ -1454,16 +1454,14 @@ class Slew1DScanPanel(GenericScanPanel):
         ir += 1
         for ic, lab in enumerate(("  ", " Positioner", " Units",
                                   " Current", " Start", " Stop", " Step", " Npts")):
-            s  = CEN
-            if lab == " Npts":
-                s = LEFT
-            # if lab == "Current": s = RIGHT
-            sizer.Add(SimpleText(self, lab), (ir, ic), (1, 1), s, 2)
+            sty  = LEFT if lab == " Npts" else CEN
+            sizer.Add(SimpleText(self, lab), (ir, ic), (1, 1), sty, 2)
 
         fsize = (95, -1)
-        pchoices = [p.name for p in self.scandb.get_slewpositioners()]
+        pchoices = ['Time']
+        pchoices.extend([p.name for p in self.scandb.get_slewpositioners()])
 
-        pos = add_choice(self, pchoices, size=(100, -1), action=self.onPos)
+        pos = add_choice(self, pchoices, size=(125, -1), action=self.onPos)
         pos.SetSelection(0)
         units = wx.StaticText(self, -1, size=(40, -1), label='',
                               style=CEN)
@@ -1486,13 +1484,12 @@ class Slew1DScanPanel(GenericScanPanel):
 
         ir += 1
 
-        zfm = self.scandb.get_info('zero_finemotors_beforemap',
-                                   as_bool=True, default=0)
-        self.zfmchoice = check(self, default=zfm,
-                               label='Zero Fine Motors before Scan?',
-                               action=self.onZeroFineMotors)
-
-        sizer.Add(self.zfmchoice, (ir, 1), (1, 3), wx.ALL, 2)
+        # zfm = self.scandb.get_info('zero_finemotors_beforemap',
+        #                            as_bool=True, default=0)
+        # self.zfmchoice = check(self, default=zfm,
+        #                        label='Zero Fine Motors before Scan?',
+        #                        action=self.onZeroFineMotors)
+        # sizer.Add(self.zfmchoice, (ir, 1), (1, 3), wx.ALL, 2)
 
         bot_panel = self.add_startscan(with_nscans=False)
 
@@ -1552,6 +1549,7 @@ class Slew1DScanPanel(GenericScanPanel):
         self.scandb.set_info('zero_finemotors_beforemap', int(zfm))
 
     def onPos(self, evt=None, index=0):
+        # def update_position_from_pv(self, index, name=None):
         self.update_position_from_pv(0)
 
     def use_scandb(self, scandb):
@@ -1599,6 +1597,4 @@ class Slew1DScanPanel(GenericScanPanel):
                     start.SetValue(p1)
                     stop.SetValue(p2)
                 s[mname] = [name, pvnames, p1, p2, npts]
-
-
         return s
