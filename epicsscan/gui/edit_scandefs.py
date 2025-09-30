@@ -453,9 +453,9 @@ class ScandefsFrame(wx.Frame) :
         self.nblabels = []
         self.nb_scantypes = {}
         creators = {'XAFS': XAFSScanDefs,
-                    'Map': SlewScanDefs,
-                    'Fast Line': Slew1DScanDefs,
-                    'Slow Line': LinearScanDefs}
+                    'Maps': SlewScanDefs,
+                    '1D Slew Scans': Slew1DScanDefs,
+                    'Step Scans': LinearScanDefs}
         i = 0
         for label, defclass in creators.items():
             table = defclass(self, self.scandb)
