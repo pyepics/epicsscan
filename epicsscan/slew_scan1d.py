@@ -17,7 +17,7 @@ from .saveable import Saveable
 
 from .detectors import Struck, TetrAMM, Xspress3
 from .detectors import (Counter, Trigger, AreaDetector, write_poni)
-from .file_utils import fix_varname, fix_filename, increment_filename
+from .file_utils import fix_varname, fix_filename, increment_filename, new_filename
 from .detectors.counter import ROISumCounter, EVAL4PLOT
 
 from epics import PV, poll, get_pv, caget, caput
@@ -45,39 +45,61 @@ class Slew_Scan1D(StepScan):
         # ZeroFineMotors before map? not available
         self.scandb.set_info('qxafs_config', 'slew')
         self.scandb.set_info('qxafs_running', 0) # abort
+
         inner_pos = self.scandb.get_slewpositioner(self.inner[0])
-        conf = self.scandb.get_config_id(inner_pos.config_id)
+        if inner_pos is not None:  # would be None for Time series
+            conf = self.scandb.get_config_id(inner_pos.config_id)
+            scnf = self.slewscan_config = json.loads(conf.notes)
+            self.xps = NewportXPS(scnf['host'],
+                                  username=scnf['username'],
+                                  password=scnf['password'],
+                                  group=scnf['group'],
+                                  outputs=scnf['outputs'],
+                                  extra_triggers=scnf.get('extra_triggers', 0))
 
-        scnf = self.slewscan_config = json.loads(conf.notes)
-        self.xps = NewportXPS(scnf['host'],
-                              username=scnf['username'],
-                              password=scnf['password'],
-                              group=scnf['group'],
-                              outputs=scnf['outputs'],
-                              extra_triggers=scnf.get('extra_triggers', 0))
+            l_, pvs, start, stop, npts = self.inner
+            pospv = pvs[0]
+            if pospv.endswith('.VAL'):
+                pospv = pospv[:-4]
+            dirpv = pospv + '.DIR'
+            if caget(dirpv) == 1:
+                start, stop = stop, start
+            step = abs(start-stop)/(npts-1)
+            self.rowtime = dtime = self.dwelltime*(npts-1)
 
+            axis = None
+            for ax, pvname in self.slewscan_config['motors'].items():
+                if pvname == pospv:
+                    axis = ax
 
-        l_, pvs, start, stop, npts = self.inner
-        pospv = pvs[0]
-        if pospv.endswith('.VAL'):
-            pospv = pospv[:-4]
-        dirpv = pospv + '.DIR'
-        if caget(dirpv) == 1:
-            start, stop = stop, start
-        step = abs(start-stop)/(npts-1)
-        self.rowtime = dtime = self.dwelltime*(npts-1)
+            if axis is None:
+                raise ValueError("Could not find XPS Axis for %s" % pospv)
 
-        axis = None
-        for ax, pvname in self.slewscan_config['motors'].items():
-            if pvname == pospv:
-                axis = ax
+            self.xps.define_line_trajectories(axis, pixeltime=self.dwelltime,
+                                              start=start, stop=stop,
+                                              step=step)
 
-        if axis is None:
-            raise ValueError("Could not find XPS Axis for %s" % pospv)
+            trajs = self.xps.trajectories
+            self.motor_vals = {}
+            self.orig_positions = {}
+            for i, axes in enumerate(trajs['foreward']['axes']):
+                pvname = self.slewscan_config['motors'][axes]
+                v1, v2 = trajs['foreward']['start'][i], trajs['backward']['start'][i]
+                thispv = PV(pvname)
+                self.motor_vals[pvname] = (thispv, v1, v2)
+                self.orig_positions[pvname] = thispv.get()
 
-        self.xps.define_line_trajectories(axis, pixeltime=self.dwelltime,
-                                          start=start, stop=stop,
-                                          step=step)
+        else:
+            npts = self.inner[4]
+            self.rowtime = dtime = self.dwelltime * npts
+            xvals = self.dwelltime * np.arange(npts)
+            self.xps = None
+            self.motor_vals = {}
+            self.orig_positions = {}
+            pvname = self.inner[1][1]
+            thispv = PV(pvname)
+            self.motor_vals[pvname] = (thispv, xvals, xvals)
+            self.orig_positions[pvname] = thispv.get()
 
         self.comments = self.comments.replace('\n', ' | ')
 
@@ -91,16 +113,6 @@ class Slew_Scan1D(StepScan):
 
             if 'xspress3' in det.label.lower():
                 xrf_det = det
-
-        trajs = self.xps.trajectories
-        self.motor_vals = {}
-        self.orig_positions = {}
-        for i, axes in enumerate(trajs['foreward']['axes']):
-            pvname = self.slewscan_config['motors'][axes]
-            v1, v2 = trajs['foreward']['start'][i], trajs['backward']['start'][i]
-            thispv = PV(pvname)
-            self.motor_vals[pvname] = (thispv, v1, v2)
-            self.orig_positions[pvname] = thispv.get()
 
         for p in self.positioners:
             self.orig_positions[p.pv.pvname] = p.current()
@@ -123,9 +135,6 @@ class Slew_Scan1D(StepScan):
         for det in self.detectors:
             det.stop()
             det.disarm(mode=self.detmode)
-            # det.ContinuousMode()
-            # if isinstance(det, AreaDetector):
-            #     self.set_info('xrd_1dint_status', 'finishing')
 
     def run(self, filename='fscan.001', comments=None, debug=False, npts=None):
         """
@@ -139,28 +148,32 @@ class Slew_Scan1D(StepScan):
         if self.filename is None:
             self.filename  = 'slewscan1d.001'
         self.filename = new_filename(self.filename)
-
-        trajs = self.xps.trajectories
         ts_start = time.monotonic()
 
-        dir_off = 1
-        tname = 'foreward'
-        if trajs['foreward']['start'] >  trajs['foreward']['stop']:
-            dir_off += 1
-        if dir_off % 2 == 0:
-            tname = 'backward'
+        if self.xps is not None:
+            trajs = self.xps.trajectories
+            dir_off = 1
+            tname = 'foreward'
+            if trajs['foreward']['start'] >  trajs['foreward']['stop']:
+                dir_off += 1
+            if dir_off % 2 == 0:
+                tname = 'backward'
 
-        self.xps.arm_trajectory(tname)
-        npulses = trajs[tname]['npulses'] + 1
-        dwelltime = trajs[tname]['pixeltime']
+            self.xps.arm_trajectory(tname)
+            npulses = trajs[tname]['npulses'] + 1
+            dwelltime = trajs[tname]['pixeltime']
 
-        for p in self.positioners:
-            p.move_to_pos(0, wait=False)
+            for p in self.positioners:
+                p.move_to_pos(0, wait=False)
 
-        for pv, v1, v2 in self.motor_vals.values():
-            val = v1
-            if tname == 'backward': val = v2
-            pv.put(val, wait=False)
+            for pv, v1, v2 in self.motor_vals.values():
+                val = v1
+                if tname == 'backward': val = v2
+                pv.put(val, wait=False)
+        else:
+            dwelltime = self.dwelltime
+            npulses = len(self.positioners[0].array) + 1
+        npts = npulses - 1
 
         out = self.pre_scan(npulses=npulses, dwelltime=dwelltime, mode='roi',
                             filename=self.filename)
@@ -168,9 +181,6 @@ class Slew_Scan1D(StepScan):
         self.clear_interrupts()
         self.scandb.clear_slewscanstatus()
         dim  = 1
-        npts = 1
-
-        npts = len(self.positioners[0].array)
 
         self.dwelltime_varys = False
         dtime = self.dwelltime
@@ -212,6 +222,14 @@ class Slew_Scan1D(StepScan):
         dtimer.add('detectors armed %.4f / %.4f' % (det_arm_delay, det_start_delay))
         self.init_scandata()
         dtimer.add('init scandata')
+        if self.xps is None:  # internal Time Series
+            wait_pv = None
+            for det in self.detectors:
+                if det.label == 'mcs':
+                    det.mcs._pvs['ChannelAdvance'].put(0)
+                    det.mcs._pvs['Dwell'].put(self.dwelltime)
+                    wait_pv = det.mcs._pvs['Acquiring']
+
         for det in reversed(self.detectors):
             det.start(arm=False, wait=False)
 
@@ -240,38 +258,36 @@ class Slew_Scan1D(StepScan):
         start_time = time.strftime('%Y-%m-%d %H:%M:%S')
         dtimer.add('info set')
         time.sleep(0.500)
-
-        with_scan_thread = False
-        dtimer.add('trajectory run %r' % (with_scan_thread))
-
-        if with_scan_thread:
-            scan_thread = Thread(target=self.xps.run_trajectory,
-                                 kwargs=dict(name=tname, save=False),
-                                 name='trajectory_thread')
-            scan_thread.start()
-            dtimer.add('scan trajectory started')
-            join_time = time.monotonic() + estimated_scantime - 5.0
-            time.sleep(2.0)
-            while scan_thread.is_alive():
-                time.sleep(1.0)
-                if (time.monotonic() > join_time) or self.look_for_interrupts():
-                    break
-            scan_thread.join()
-            dtimer.add('scan thread joined')
-        else:
+        if self.xps is not None:
+            dtimer.add('xps trajectory run')
             out = self.xps.run_trajectory(name=tname, save=False)
-        dtimer.add('trajectory finished')
-        self.set_info('scan_progress', 'reading data')
+            dtimer.add('trajectory finished')
+        else:
+            t0 = time.time()
+            time.sleep(self.dwelltime*2.0)
+            if wait_pv  is not None:
+                done = (wait_pv.get() == 0)
+                while not done:
+                    time.sleep(self.dwelltime/2)
+                    done = (wait_pv.get() == 0)
+                    if (time.time() - t0 ) > 3*self.dwelltime*npts:
+                        done = True
+            # print('Time Series appears done')
 
+        self.set_info('scan_progress', 'reading data')
+        # print("Slew1d done")
         for det in self.detectors:
             det.stop()
 
         dtimer.add('detectors stopped')
         dtimer.add('scan finished')
         #
-        npulses, gather_text = self.xps.read_gathering()
-        xvals = self.gathering2xvals(gather_text)
-
+        if self.xps is not None:
+            npulses, gather_text = self.xps.read_gathering()
+            xvals = self.gathering2xvals(gather_text)
+        else:
+            pvname = self.inner[1][1]
+            pv, xvals, _xvals = self.motor_vals[pvname]
         self.pos_actual = []
         for x in xvals:
            self.pos_actual.append([x])
@@ -343,7 +359,7 @@ class Slew_Scan1D(StepScan):
         self.runtime  = time.monotonic() - ts_start
         dtimer.add('done')
         # dtimer.show()
-        print("scan done at %s " % (time.ctime()))
+        print("scan1d done at %s " % (time.ctime()))
         return self.datafile.filename
         ##
 
