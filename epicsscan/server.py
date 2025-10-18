@@ -98,6 +98,7 @@ class ScanServer():
         self.set_workdir(verbose=False)
         cmdid = cmd_row.id
         command = plain_ascii(cmd_row.command)
+        self.clear_interrupts()
         # print(f"#Server.do_command: <{command}>")
         cmd_stat = self.scandb.get_command_status(cmdid).lower()
         if str(cmd_stat) not in ('requested', 'starting', 'running', 'aborting'):
@@ -197,6 +198,7 @@ class ScanServer():
             self.scandb.set_info('scan_progress', msg)
             self.scandb.set_command_status(status, cmdid=cmdid)
         self.set_status('idle')
+        self.clear_interrupts()
         self.command_in_progress = False
 
     def look_for_interrupts(self):
@@ -226,6 +228,7 @@ class ScanServer():
         self.req_abort = self.req_pause = False
         self.scandb.set_info('request_abort', 0)
         self.scandb.set_info('request_pause', 0)
+        self.abort_count = 0
         if self.epicsdb is not None:
             self.epicsdb.Abort = 0
             self.epicsdb.Shutdown = 0
@@ -248,7 +251,7 @@ class ScanServer():
         # or interrupts, so does not need to go super fast.
         cmds = deque([])
         while True:
-            epics.poll(0.05, 1.0)
+            epics.poll(0.02, 1.0)
             sleep(0.20)
 
             now = time()
@@ -260,24 +263,29 @@ class ScanServer():
             self.look_for_interrupts()
             # shutdown?
             if self.req_shutdown:
+                self.set_scan_message('shutting down server...')
                 break
 
             # pause: sleep, continue loop until un-paused
-            if self.req_pause:
-                sleep(1.0)
+            elif self.req_pause:
+                self.set_scan_message('paused')
+                sleep(2.0)
                 continue
 
-            # abort current command?
-            if self.req_abort:
-                if len(cmds) > 0:
-                    cmd = cmds.popleft()
-                    self.scandb.cancel_command(cmd.id)
-                    self.scandb.set_info('request_scan_abort', 1)
-                sleep(1.0)
+            # abort but not during a command?
+            elif self.req_abort:
+                self.abort_count += 1
+                self.set_scan_message(f'wait for abort to clear {self.abort_count}/10...')
+                sleep(2.0)
+                if self.abort_count >  10:
+                    self.set_scan_message('clearing abort...')
+                    self.clear_interrupts()
+                    sleep(5.0)
+                continue
 
             # we are not paused or aborting:
             # if there are more commands in the queue, do the next one
-            if len(cmds) > 0:
+            elif len(cmds) > 0:
                 self.do_command(cmds.popleft())
 
             # otherwise get ordered list of requested commands
