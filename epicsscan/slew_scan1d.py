@@ -136,15 +136,15 @@ class Slew_Scan1D(StepScan):
             det.stop()
             det.disarm(mode=self.detmode)
 
-    def run(self, filename='fscan.001', comments=None, debug=False, npts=None):
+    def run(self, filename=None, comments=None, debug=False, npts=None):
         """
         run a 1D slew scan
         """
         dtimer = debugtimer()
         debug = self.scandb.get_info('debug_scan', as_bool=True) or debug
         self.prepare_scan()
-
-        self.filename = filename
+        if filename is not None:
+            self.filename = filename
         if self.filename is None:
             self.filename  = 'slewscan1d.001'
         self.filename = new_filename(self.filename)
