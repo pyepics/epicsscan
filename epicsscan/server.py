@@ -21,9 +21,8 @@ DEBUG_TIMER = False
 
 class ScanServer():
     """Scan Server"""
-    def __init__(self, dbname=None,  **kws):
+    def __init__(self, dbname=None,  setup=True, **kws):
         self.epicsdb = None
-        self.scandb = None
         self.abort = False
         self.command_in_progress = False
         self.req_shutdown = False
@@ -31,12 +30,12 @@ class ScanServer():
         self.req_pause = False
         self.req_shutdown = False
         self.fileroot = None
-        self.connect(dbname, **kws)
-
-    def connect(self, dbname, **kws):
-        """connect to Scan Database"""
         self.scandb = ScanDB(dbname=dbname, **kws)
+        if setup:
+            self.setup()
 
+    def setup(self):
+        """setup / initialze Server, load macros"""
         self.set_scan_message('Server Initializing')
         self.scandb.set_hostpid()
         self.scandb.set_info('request_abort',    0)
@@ -102,8 +101,8 @@ class ScanServer():
         # print(f"#Server.do_command: <{command}>")
         cmd_stat = self.scandb.get_command_status(cmdid).lower()
         if str(cmd_stat) not in ('requested', 'starting', 'running', 'aborting'):
-            msg = f"Warning: skipping command <{command}s> status={cmd_stat}"
-            self.set_scan_message(msg)
+            # msg = f"Warning: skipping command <{command}> status={cmd_stat}"
+            # self.set_scan_message(msg)
             self.scandb.set_command_status('canceled', cmdid=cmdid)
             return
 
@@ -122,7 +121,7 @@ class ScanServer():
 
         self.command_in_progress = True
         self.set_status('starting')
-        self.set_scan_message(f"Executing: <{command}>")
+        self.set_scan_message(f"Executing: {command}")
         self.scandb.set_command_status('starting', cmdid=cmdid)
 
         args    = strip_quotes(plain_ascii(cmd_row.arguments)).strip()
@@ -214,7 +213,7 @@ class ScanServer():
                 self.req_shutdown = 1
 
         if not self.scandb.check_hostpid():
-            print("No Longer Host, exiting")
+            self.set_scan_message(f'Process {os.getpid()} is no longer host, exiting')
             sleep(5)
             self.req_shutdown = 1
         return self.req_abort
