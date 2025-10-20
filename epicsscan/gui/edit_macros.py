@@ -614,11 +614,13 @@ class CommandsPanel(scrolled.ScrolledPanel):
         pass
 
     def onPause(self, event=None):
+        self.scandb.set_info('request_abort', 0)
         self.scandb.set_info('request_pause', 1)
         self.pause_btn.Disable()
         self.resume_btn.SetBackgroundColour("#D1D122")
 
     def onResume(self, event=None):
+        self.scandb.set_info('request_abort', 0)
         self.scandb.set_info('request_pause', 0)
         self.pause_btn.Enable()
         fg = self.pause_btn.GetBackgroundColour()
@@ -632,8 +634,7 @@ class CommandsPanel(scrolled.ScrolledPanel):
         self.scandb.cancel_remaining_commands()
         time.sleep(0.25)
         self.scandb.set_info('request_abort', 1)
-        time.sleep(0.25)
-
+        time.sleep(1.00)
 
     def onStart(self, event=None):
         now = time.time()
