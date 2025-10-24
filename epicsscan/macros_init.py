@@ -222,17 +222,16 @@ def do_scan(scanname, filename="scan.001", nscans=1, comments=""):
     if scan.scantype == "slew":
         return scan.run(filename=filename, comments=comments)
     else:
-        scans_completed = 0
-        nscans = int(_scandb.get_info("nscans"))
-        abort  = _scandb.get_info("request_abort", as_bool=True)
-        while (scans_completed  < nscans) and not abort:
+        nscans_done = 0
+        nscans_left = get_dbinfo("nscans", as_int=True)
+        if get_dbinfo("request_abort", as_bool=True):
+            nscans_left = -1
+        while nscans_left > 0:
             scan.run()
-            scans_completed += 1
-            abort  = _scandb.get_info("request_abort", as_bool=True)
-            if abort:
-                scans_completed += 999999
-                break
-            nscans = int(_scandb.get_info("nscans"))
+            nscans_done += 1
+            nscans_left = get_dbinfo("nscans", as_int=True) - nscans_done
+            if get_dbinfo("request_abort", as_bool=True):
+                nscans_left = -1
         return scan
 
 def do_slewscan(scanname, filename="scan.001", nscans=1, comments=""):
