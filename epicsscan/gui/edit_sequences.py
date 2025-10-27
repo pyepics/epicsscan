@@ -326,11 +326,11 @@ class ScanSequenceFrame(wx.Frame) :
         self.refresh_display()
 
     def onCancelAll(self, event=None):
-        self.scandb.set_info('request_abort', 1)
         self.scandb.cancel_remaining_commands()
-        time.sleep(0.25)
+        time.sleep(0.55)
+        self.scandb.set_info('request_abort', 1)
+        time.sleep(0.50)
         self.refresh_display()
-        self.onAbort()
 
     def onAbort(self, event=None):
         self.scandb.set_info('request_abort', 1)
