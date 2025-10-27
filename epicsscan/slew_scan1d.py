@@ -222,8 +222,8 @@ class Slew_Scan1D(StepScan):
         dtimer.add('detectors armed %.4f / %.4f' % (det_arm_delay, det_start_delay))
         self.init_scandata()
         dtimer.add('init scandata')
+        wait_pv = None
         if self.xps is None:  # internal Time Series
-            wait_pv = None
             for det in self.detectors:
                 if det.label == 'mcs':
                     det.mcs._pvs['ChannelAdvance'].put(0)
@@ -264,14 +264,16 @@ class Slew_Scan1D(StepScan):
             dtimer.add('trajectory finished')
         else:
             t0 = time.time()
-            time.sleep(self.dwelltime*2.0)
+            time.sleep(max(0.25, self.dwelltime*2.0))
             if wait_pv  is not None:
                 done = (wait_pv.get() == 0)
                 while not done:
-                    time.sleep(self.dwelltime/2)
-                    done = (wait_pv.get() == 0)
-                    if (time.time() - t0 ) > 3*self.dwelltime*npts:
-                        done = True
+                    done = self.scandb.get_info('request_abort', as_bool=True)
+                    if not done:
+                        time.sleep(max(0.1, self.dwelltime/2))
+                        done = (wait_pv.get() == 0)
+                        if (time.time() - t0 ) > 2*self.dwelltime*npts:
+                            done = True
             # print('Time Series appears done')
 
         self.set_info('scan_progress', 'reading data')
