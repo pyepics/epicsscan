@@ -20,6 +20,8 @@ from .detectors import (Counter, Trigger, AreaDetector, write_poni)
 from .file_utils import fix_varname, fix_filename, increment_filename, new_filename
 from .detectors.counter import ROISumCounter, EVAL4PLOT
 
+from .xafs_scan import create_xps_abort
+
 from epics import PV, poll, get_pv, caget, caput
 from newportxps import NewportXPS
 
@@ -36,6 +38,7 @@ class Slew_Scan1D(StepScan):
         self.scantype = 'slew'
         self.detmode  = 'roi'
         self.motor_vals = {}
+        self.xps = None
         self.orig_positions = {}
 
     def prepare_scan(self):
@@ -50,12 +53,14 @@ class Slew_Scan1D(StepScan):
         if inner_pos is not None:  # would be None for Time series
             conf = self.scandb.get_config_id(inner_pos.config_id)
             scnf = self.slewscan_config = json.loads(conf.notes)
-            self.xps = NewportXPS(scnf['host'],
-                                  username=scnf['username'],
-                                  password=scnf['password'],
-                                  group=scnf['group'],
-                                  outputs=scnf['outputs'],
-                                  extra_triggers=scnf.get('extra_triggers', 0))
+            if self.xps is None:
+                self.xpsconf = scnf
+                self.xps = NewportXPS(scnf['host'],
+                                      username=scnf['username'],
+                                      password=scnf['password'],
+                                      group=scnf['group'],
+                                      outputs=scnf['outputs'],
+                                      extra_triggers=scnf.get('extra_triggers', 0))
 
             l_, pvs, start, stop, npts = self.inner
             pospv = pvs[0]
@@ -260,8 +265,30 @@ class Slew_Scan1D(StepScan):
         time.sleep(0.500)
         if self.xps is not None:
             dtimer.add('xps trajectory run')
-            out = self.xps.run_trajectory(name=tname, save=False)
-            dtimer.add('trajectory finished')
+            estimated_time = self.dwelltime*npts
+            scan_thread = Thread(target=self.xps.run_trajectory,
+                                 kwargs=dict(name='slew1d', save=False),
+                                 name='trajectory_thread')
+            scan_thread.start()
+            dtimer.add('scan trajectory started')
+            join_time = time.monotonic() + estimated_scantime - 5.0
+            time.sleep(2.0)
+            while scan_thread.is_alive():
+                time.sleep(1.0)
+                if time.monotonic() > join_time:
+                    break
+                if self.scandb.get_info(key='request_abort', as_bool=True):
+                    self.write("aborting SLEW1D scan")
+                    abort_proc = create_xps_abort(self.xpsconf)
+                    abort_proc.start()
+                    time.sleep(1.0)
+                    abort_proc.join(5.0)
+                    if abort_proc.is_alive():
+                        abort_proc.terminate()
+                        time.sleep(2.0)
+                    break
+            scan_thread.join()
+            dtimer.add('slewscan1d thread joined')
         else:
             t0 = time.time()
             time.sleep(max(0.25, self.dwelltime*2.0))
@@ -274,10 +301,8 @@ class Slew_Scan1D(StepScan):
                         done = (wait_pv.get() == 0)
                         if (time.time() - t0 ) > 2*self.dwelltime*npts:
                             done = True
-            # print('Time Series appears done')
 
         self.set_info('scan_progress', 'reading data')
-        # print("Slew1d done")
         for det in self.detectors:
             det.stop()
 
