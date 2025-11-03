@@ -453,7 +453,7 @@ class StepScan(object):
             time_left += self.dwelltime[cpt:].sum()
         else:
             time_left += (npts-cpt)*self.dwelltime
-
+        time_left = float(time_left)
         self.set_info('scan_time_estimate', time_left)
         time_est  = hms(time_left)
 
@@ -655,7 +655,7 @@ class StepScan(object):
         self.clear_data()
         if self.scandb is not None:
             self.init_scandata()
-            self.set_info('scan_time_estimate', time_est)
+            self.set_info('scan_time_estimate', float(time_est))
             self.set_info('scan_total_points', npts)
             self.set_info('scan_current_point', 0)
             self.scandb.set_filename(self.filename)
