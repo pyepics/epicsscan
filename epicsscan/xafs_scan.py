@@ -139,6 +139,7 @@ class XAFS_Scan(StepScan):
         if self.energy_pos is not None:
             self.energy_pos.array = np.array(self.energies)
 
+
 class QXAFS_Scan(XAFS_Scan):
     """QuickXAFS Scan"""
 
@@ -400,14 +401,13 @@ class QXAFS_Scan(XAFS_Scan):
             det.stop(disarm=True)
             det_arm_delay = max(det_arm_delay, det.arm_delay)
             det_start_delay = max(det_start_delay, det.start_delay)
-        # print("armed detectors")
         dtimer.add('arm detectors')
-        self.scandb.set_info('qxafs_dwelltime', self.dwelltime[0])
+        self.scandb.set_info('qxafs_dwelltime', float(self.dwelltime[0]))
         dtimer.add('set qxafs dwelltime')
         self.clear_interrupts()
         dtimer.add('clear interrupts')
         npts = len(self.positioners[0].array)
-        # print("clear interrupts ", npts, self.dwelltime[0])
+        # print("XAFS clear interrupts ", npts, self.dwelltime[0])
         self.dwelltime_varys = False
         dtime = self.dwelltime[0]
         estimated_scantime = npts*dtime
@@ -440,7 +440,7 @@ class QXAFS_Scan(XAFS_Scan):
                 self.pvs['id_drive_pv'].put(idarray[0], wait=False)
             except:
                 print("could not put value to ", self.pvs['id_drive_pv'])
-        # print("PUTTING EN to ", traj['energy'][0]-0.5)
+        print("XAFS SCAN PUTTING EN to ", traj['energy'][0]-0.5)
         self.pvs['energy_pv'].put(traj['energy'][0]-0.5, wait=False)
 
         extra_vals = []
@@ -482,8 +482,8 @@ class QXAFS_Scan(XAFS_Scan):
 
         self.scandb.set_filename(self.filename)
         self.set_info('request_abort', 0)
-        self.set_info('scan_time_estimate', npts*dtime)
-        self.set_info('scan_total_points', npts)
+        self.set_info('scan_time_estimate', float(npts*dtime))
+        self.set_info('scan_total_points', int(npts))
 
         self.datafile.flush()
         self.set_info('scan_progress', 'starting scan')
