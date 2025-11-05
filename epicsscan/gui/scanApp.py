@@ -263,7 +263,10 @@ class ScanFrame(wx.Frame):
 
         scan['pos_settle_time'] = float(sdb.get_info('pos_settle_time', default=0.))
         scan['det_settle_time'] = float(sdb.get_info('det_settle_time', default=0.))
-        scan['rois'] = json.loads(sdb.get_info('rois', default='[]'))
+        try:
+            scan['rois'] = json.loads(sdb.get_info('rois', default='[]'))
+        except:
+            scan['rois'] = []
 
         scan['detectors'] = []
         scan['counters']  = []
@@ -554,7 +557,6 @@ class ScanFrame(wx.Frame):
 
     def show_subframe(self, name, frameclass):
         shown = False
-
         if name in self.subframes:
             try:
                 self.subframes[name].Raise()
