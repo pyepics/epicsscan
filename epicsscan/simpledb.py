@@ -170,50 +170,48 @@ class SimpleDB():
         where = {}
         if key is not None:
             where['key'] = key
-        gi_kws = {}
+        gkws = {}
         if order_by in self.tables['info'].c:
-            gi_kws['order_by'] = order_by
-        allrows = self.get_rows('info', where, **gi_kws)
+            gkws['order_by'] = order_by
+        allrows = self.get_rows('info', where, **gkws)
 
         def cast(val, as_int, as_bool):
-            if (as_int or as_bool):
-                if val is None:
-                    val = 0
-                try:
-                    val = int(float(val))
-                    if as_bool:
-                        val = bool(val)
-                except (ValueError, TypeError):
-                    pass
+            if not as_int and not as_bool:
+                return val
+            if val is None:
+                val = 0
+            try:
+                val = int(float(val))
+                if as_bool:
+                    val = bool(val)
+            except (ValueError, TypeError):
+                pass
             return val
 
+        if as_int is None:
+            as_int = False
+        if as_bool is None:
+            as_bool = False
         if prefix is None:
             if len(allrows) == 1:
-                xout = allrows[0]
+                out = allrows[0]
                 if not full_row:
-                    xout = xout.value
-                out = cast(xout, as_int, as_bool)
+                    out = cast(out.value, as_int, as_bool)
             else:
                 out = {}
                 for row in allrows:
-                    xout = row
+                    out[row.key] = row
                     if not full_row:
-                        xout = xout.value
-                    out[row.key] = cast(xout, as_int, as_bool)
-                if len(out) == 0 and (default is not None or
-                                      as_int is not None or
-                                      as_bool is not None):
-                    if default is None:
-                        default = 0
+                        out[row.key] = cast(row.value, as_int, as_bool)
+                if len(out) == 0:
                     out = cast(default, as_int, as_bool)
         else:
             out = {}
             for row in allrows:
                 if row.key.startswith(prefix):
-                    xout = row
+                    out[row.key] = row
                     if not full_row:
-                        xout = xout.value
-                    out[row.key] = cast(xout, as_int, as_bool)
+                        out[row.key] = cast(row.value, as_int, as_bool)
         return out
 
     def set_modify_time(self):
