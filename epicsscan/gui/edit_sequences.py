@@ -60,6 +60,12 @@ class ScanSequenceModel(dv.DataViewIndexListModel):
                 self.scandb.cancel_command(int(cmd_id))
         self.select_all(value=False)
 
+    def resubmit_selected(self):
+        for cmd, status, sel, treq, tuse, cmd_id in self.data:
+            if sel and status in ('canceled', 'aborted', 'deferred', 'unknown'):
+                self.scandb.cancel_command(int(cmd_id))
+        self.select_all(value=False)
+
     def select_all(self, value=False):
         for irow, row in enumerate(self.data):
             self.SetValueByRow(value, irow, 2)
@@ -235,6 +241,7 @@ class ScanSequenceFrame(wx.Frame) :
         bsiz.Add(add_button(bpan, label='Cancel Selected',    action=self.onCancelSelected))
         bsiz.Add(add_button(bpan, label='Move Command Later',   action=self.onMoveUp))
         bsiz.Add(add_button(bpan, label='Move Command Earlier', action=self.onMoveDown))
+        bsiz.Add(add_button(bpan, label='Resubmit Selected',    action=self.onResubmitSelected))
         pack(bpan, bsiz)
 
         npan = wx.Panel(self)
@@ -322,6 +329,11 @@ class ScanSequenceFrame(wx.Frame) :
 
     def onCancelSelected(self, event=None):
         self.model.cancel_selected()
+        time.sleep(0.25)
+        self.refresh_display()
+
+    def onResubmitSelected(self, event=None):
+        self.model.resubmit_selected()
         time.sleep(0.25)
         self.refresh_display()
 
