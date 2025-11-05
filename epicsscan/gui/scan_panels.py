@@ -275,7 +275,11 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         for i in (3, 4, 5, 6):
             wids[i].Enable()
 
-        pvnames = list(self.pospvs[name])
+        try:
+            pvnames = list(self.pospvs[name])
+        except:
+            return
+
         if len(pvnames[0]) < 1:
             return
         pvnames[0] = normalize_pvname(pvnames[0])
@@ -558,7 +562,8 @@ class XAFSScanPanel(GenericScanPanel):
                                  ('XANES',    (-10,   10, 0.25,  81)),
                                  ('XAFS1',    ( 10,  200, 2,  96)),
                                  ('XAFS2',    (200,  500, 3, 101)),
-                                 ('XAFS3',    (500,  900, 4, 101)))):
+                                 # ('XAFS3',    (500,  900, 4, 101))
+                                 ) ):
 
             label, initvals = reg
             ir += 1
@@ -751,9 +756,9 @@ class XAFSScanPanel(GenericScanPanel):
                               label='ID Gap Scan',
                               action=self.onUseGapScan)
 
-        self.qxafs = check(self, default=True,
-                           label='Continuous Scan',
-                           action=self.onQXAFS)
+        qxafs_default = self.scandb.get_info('qxafs_continuous', default=False, as_bool=True)
+        self.qxafs = check(self, default=qxafs_default,
+                           label='Continuous Scan', action=self.onQXAFS)
 
         qxafs_time_threshold = float(self.scandb.get_info('qxafs_time_threshold',
                                                           default=0))
@@ -769,7 +774,7 @@ class XAFSScanPanel(GenericScanPanel):
 
         self.est_time  = SimpleText(self, '  00:00:00  ')
         self.nregs_wid = FloatCtrl(self, precision=0, value=3,
-                                   minval=1, maxval=5,
+                                   minval=1, maxval=4,
                                    size=(40, -1),  act_on_losefocus=True,
                                    action=partial(self.onVal, label='nreg'))
         nregs = self.nregs_wid.GetValue()
@@ -1011,8 +1016,9 @@ class XAFSScanPanel(GenericScanPanel):
              }
 
         # make sure HERFD detector follows the checkbox
-        hdet_name = self.scandb.get_info('xas_herfd_detector', None)
-        self.scandb.use_detector(hdet_name, use=self.use_herfd.IsChecked())
+        hdet_name = self.scandb.get_info('xas_herfd_detector', default=None)
+        if hdet_name not in (None, 0, 'None', '0'):
+            self.scandb.use_detector(hdet_name, use=self.use_herfd.IsChecked())
 
         if self.nscans is not None:
             s['nscans'] = int(self.nscans.GetValue())
@@ -1458,7 +1464,10 @@ class Slew1DScanPanel(GenericScanPanel):
             sizer.Add(SimpleText(self, lab), (ir, ic), (1, 1), sty, 2)
 
         fsize = (95, -1)
-        pchoices = ['Time']
+        pchoices = []
+        scan_positioners = [p.name for p in self.scandb.get_positioners()]
+        if 'Time' in scan_positioners:
+            pchoices.append('Time')
         pchoices.extend([p.name for p in self.scandb.get_slewpositioners()])
 
         pos = add_choice(self, pchoices, size=(125, -1), action=self.onPos)
