@@ -663,6 +663,14 @@ class ScanDB(SimpleDB):
         """cancel command"""
         self.set_command_status('canceled', int(cmdid))
 
+    def resubmit_command(self, cmdid):
+        """resubmit a canceled or aborted command"""
+        self.set_command_status('canceled', int(cmdid))
+        s = self.get_command_status(int(cmdid)).lower()
+        if (s.startswith('cancel') or s.startswith('aborted') or
+            s.startswith('unknown') or s.startswith('deferred')):
+            self.set_command_status('requested', int(cmdid))
+
     def cancel_remaining_commands(self):
         """cancel all commmands to date"""
         requested = self.status_codes['requested']
