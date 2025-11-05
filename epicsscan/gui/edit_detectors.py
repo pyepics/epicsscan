@@ -39,22 +39,27 @@ class ROIFrame(wx.Frame):
     def connect_epics(self):
         curr = self.current_rois
         iroi = 0
+        offset = 0
         names = self.pvnames_xmap
         if 'xspress' in self.det.name:
             names = self.pvnames_xsp3
+            offset = 1
+
         prefix = self.prefix
         if prefix.endswith('.VAL'):
             prefix = prefix[:-4]
         pref = names['pref'] % prefix
         for i in range(self.nrois):
-            pvname = "%s%i%s" % (pref, i+1, names['name'])
-            # print("ROIS ",  i, names['name'], pvname)
+            pvname = "%s%i%s" % (pref, i+offset, names['name'])
             nm = caget(pvname)
-            if len(nm.strip()) > 0:
-                check = self.wids[i]
-                check.SetLabel('  %s' % nm)
-                check.SetValue(nm.lower() in curr)
-                check.Enable()
+            try:
+                if len(nm.strip()) > 0:
+                    check = self.wids[i]
+                    check.SetLabel('  %s' % nm)
+                    check.SetValue(nm.lower() in curr)
+                    check.Enable()
+            except:
+                pass
 
     def build_dialog(self, parent):
         self.SetBackgroundColour(GUIColors.bg)
@@ -85,7 +90,7 @@ class ROIFrame(wx.Frame):
 
         self.wids = []
         self.prefix = self.det.pvname
-        self.nrois  = 48 # int(json.loads(self.det.options).get('nrois', 48))
+        self.nrois  = int(json.loads(self.det.options).get('nrois', 32))
         ncols = 3
         nrows = 16 # self.nrois//ncols
         col = 0
@@ -129,7 +134,6 @@ class DetectorDetailsFrame(wx.Frame):
     def __init__(self, parent, det=None):
         self.parent = parent
         self.scandb = parent.scandb
-        print("Det details from ", det, type(det))
         self.det = det
         title = f"Settings for '{det.name}'"
         wx.Frame.__init__(self, None, -1, title, style=FRAMESTYLE)
