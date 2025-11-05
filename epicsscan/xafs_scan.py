@@ -192,7 +192,6 @@ class QXAFS_Scan(XAFS_Scan):
         self.with_gapscan = self.scandb.get_info('qxafs_use_gapscan', as_bool=True)
         self.xps = self.scandb.connections.get('mono_xps', None)
         if self.xps is None:
-            print("XAFS SCAN creating New Connection to NewportXPS: ", isotime())
             self.xps = NewportXPS(conf['host'],
                                   username=conf['username'],
                                   password=conf['password'],
@@ -370,6 +369,7 @@ class QXAFS_Scan(XAFS_Scan):
             id_offset = 1000.0*self.pvs['id_offset_pv'].get()
             idarray = 1.e-3*(1.0+id_offset/energy_orig)*traj['energy']
             idarray = np.concatenate((idarray, idarray[-1]+np.arange(1,26)/250.0))
+            # print(f"IDARRAY {idenergy_orig=}, {id_offset=}, {idarray[0]=}")
             if self.with_gapscan:
                 print("using GapScan")
             else:
@@ -433,21 +433,21 @@ class QXAFS_Scan(XAFS_Scan):
                             e0=self.e0, energy=self.energies)
         self.check_outputs(out, msg='pre scan')
         dtimer.add('prescan ran')
-
         # move to start
         if self.with_id and self.pvs['id_drive_pv'].write_access:
             try:
+                # print("Putting ID Array to starting point ", idarray[0], self.pvs['id_drive_pv'])
                 self.pvs['id_drive_pv'].put(idarray[0], wait=False)
             except:
                 print("could not put value to ", self.pvs['id_drive_pv'])
-        print("XAFS SCAN PUTTING EN to ", traj['energy'][0]-0.5)
+
         self.pvs['energy_pv'].put(traj['energy'][0]-0.5, wait=False)
 
         extra_vals = []
         for desc, pv in self.extra_pvs:
             extra_vals.append((desc, pv.get(as_string=True), pv.pvname))
 
-        # print("move energy to start: ", qconf['energy_pv'],  traj['energy'][0]-0.5)
+        # print("--> move energy to start: ", qconf['energy_pv'],  traj['energy'][0]-0.5)
         self.pvs['energy_pv'].put(traj['energy'][0]-0.5, wait=True)
         self.xps.arm_trajectory('qxafs', verbose=False, move_to_start=True)
 
@@ -500,36 +500,33 @@ class QXAFS_Scan(XAFS_Scan):
         time.sleep(0.01)
         dtimer.add('mono motors at start')
 
-        # print("SCAN WITH ID ", self.with_id,   self.with_gapscan,
-        #      self.pvs['id_drive_pv'].write_access)
+        # print("SCAN WITH ID ", self.with_id,
+        #       self.with_gapscan,
+        #       self.pvs['id_drive_pv'],
+        #       self.pvs['id_drive_pv'].write_access)
         if self.with_id and self.pvs['id_drive_pv'].write_access:
             idt0 =time.time()
-            # print(f" move id to start with wait: {idarray[0]:.4f}")
+            print(f" move id to start with wait: {idarray[0]:.4f}")
             try:
-                self.pvs['id_drive_pv'].put(idarray[0], wait=True, timeout=5)
+                self.pvs['id_drive_pv'].put(idarray[0], wait=True, timeout=15)
             except:
                 print("could not put value to (A)  ", self.pvs['id_drive_pv'])
 
-            time.sleep(0.05)
             id_curr = self.pvs['id_read_pv'].get()
-            count = 0
-            while count < 10 and abs(id_curr - idarray[0]) > 0.010:
+            if abs(id_curr - idarray[0]) > 0.025:
                 try:
-                    self.pvs['id_drive_pv'].put(idarray[0]+(count-2.5),
-                                                wait=True, timeout=5)
+                    self.pvs['id_drive_pv'].put(idarray[0]-0.001, wait=True, timeout=5)
                 except:
-                    print("could not put value to (B) ", self.pvs['id_drive_pv'])
-                time.sleep(0.5)
-                id_curr = self.pvs['id_read_pv'].get()
-                count += 1
+                    pass
             if id_curr < 3:
                 time.sleep(2.0)
             print(f" move id to start took  {(time.time()-idt0):.2f} sec")
 
         if self.with_gapscan:
             # print("Starting ID Gap Scan")
-            self.gapscan_pv.put(1)
-            time.sleep(0.025)
+            self.gapscan_pv.put(1, wait=False)
+            time.sleep(0.05)
+
 
         with_scan_thread = True
         dtimer.add('trajectory run %r' % (with_scan_thread))
