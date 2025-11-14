@@ -571,6 +571,38 @@ class Slew_Scan(StepScan):
                 irow -= 1
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
                 time.sleep(0.25)
+                if self.xps.ngathered < (npulses - 2):
+                    print("checking for bad XPS groups")
+                    bad_groups = []
+                    for sname, val in self.xps.get_positioner_errors().items():
+                        if val != 'OK':
+                            g, s = sname.split('.')
+                            bad_groups.append(g)
+                    print("re-initializing bad groups ", bad_groups)
+                    cur_pos = []
+                    for pos in self.positioners:
+                        cur_pos[pos.pv.pvname] = pos.pv.get()
+
+                    for gname in bad_groups:
+                        try:
+                            self.xps.initialize_group(gname)
+                        except:
+                            pass
+                        time.sleep(0.25)
+                        try:
+                            self.xps.home_group(gname)
+                        except:
+                            pass
+                    time.sleep(0.25)
+                    for pos in self.positioners:
+                        pos.pv.put(cur_pos(pos.pv.pvname)-0.002)
+
+                    time.sleep(0.25)
+                    for pos in self.positioners:
+                        pos.pv.put(cur_pos(pos.pv.pvname), wait=True)
+
+
+
 
             elif irow < npts-1:
                 for p in self.positioners:
