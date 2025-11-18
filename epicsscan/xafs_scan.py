@@ -297,7 +297,7 @@ class QXAFS_Scan(XAFS_Scan):
                    'nsegments': npts, 'uploaded': True}
         self.xps.trajectories['qxafs'] = xpstraj
         self.xps.upload_trajectory('qxafs.trj', buff)
-        print("uploaded xps traj", isotime())
+        # print("uploaded xps traj", isotime())
         return traj
 
     def finish_qscan(self):
@@ -370,10 +370,10 @@ class QXAFS_Scan(XAFS_Scan):
             idarray = 1.e-3*(1.0+id_offset/energy_orig)*traj['energy']
             idarray = np.concatenate((idarray, idarray[-1]+np.arange(1,26)/250.0))
             # print(f"IDARRAY {idenergy_orig=}, {id_offset=}, {idarray[0]=}")
-            if self.with_gapscan:
-                print("using GapScan")
-            else:
-               print("using Undulator Push, not GapScan")
+            # if self.with_gapscan:
+            #     print("using GapScan")
+            # else:
+            #   print("using Undulator Push, not GapScan")
 
         dtimer.add('idarray')
         time.sleep(0.025)
@@ -506,7 +506,6 @@ class QXAFS_Scan(XAFS_Scan):
         #       self.pvs['id_drive_pv'].write_access)
         if self.with_id and self.pvs['id_drive_pv'].write_access:
             idt0 =time.time()
-            print(f" move id to start with wait: {idarray[0]:.4f}")
             try:
                 self.pvs['id_drive_pv'].put(idarray[0], wait=True, timeout=15)
             except:
@@ -520,7 +519,7 @@ class QXAFS_Scan(XAFS_Scan):
                     pass
             if id_curr < 3:
                 time.sleep(2.0)
-            print(f" move id to start took  {(time.time()-idt0):.2f} sec")
+            print(f" move id to start ({idarray[0]:.4f} keV) took  {(time.time()-idt0):.2f} sec")
 
         if self.with_gapscan:
             # print("Starting ID Gap Scan")
@@ -641,8 +640,8 @@ class QXAFS_Scan(XAFS_Scan):
                 key = label.replace('clock', '').strip()
                 mca_offsets[key] = offset
 
-        print("Read QXAFS Data %i points (NE=%i) %.3f secs" % (narr, ne,
-                                        time.monotonic() - t0))
+        # print("Read QXAFS Data %i points (NE=%i) %.3f secs" % (narr, ne,
+        #                                 time.monotonic() - t0))
         dtimer.add('read all counters (done)')
 
         # remove hot first pixel AND align to proper energy
