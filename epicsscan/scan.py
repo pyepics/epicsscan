@@ -485,7 +485,7 @@ class StepScan(object):
         if self.scandb is None:
             return
         self.scandb.clear_scandata()
-
+        # print("INIT SCAN DATA ", self.counters)
         time.sleep(0.025)
         names = []
         npts = len(self.positioners[0].array)
@@ -652,9 +652,7 @@ class StepScan(object):
         self.datafile.write_data(breakpoint=0)
         self.filename = self.datafile.filename
         self.dtimer.add('PRE: opened output file')
-        self.clear_data()
         if self.scandb is not None:
-            self.init_scandata()
             self.set_info('scan_time_estimate', float(time_est))
             self.set_info('scan_total_points', npts)
             self.set_info('scan_current_point', 0)
@@ -662,6 +660,10 @@ class StepScan(object):
 
         out = self.pre_scan(mode=self.detmode, filename=self.filename)
         self.check_outputs(out, msg='pre scan')
+
+        self.clear_data()
+        if self.scandb is not None:
+            self.init_scandata()
 
         self.dtimer.add('PRE: initialized scandata')
         # self.set_info('scan_progress', 'starting scan')
@@ -730,6 +732,7 @@ class StepScan(object):
                     det.arm(mode=self.detmode, fnum=1, numframes=1)
                     time.sleep(det.arm_delay)
                 self.dtimer.add('Pt %i : det arm' % i)
+                # print("SCAN 1 det armed: ", len(self.counters), self.counters)
                 # move to next position
                 [p.move_to_pos(i) for p in self.positioners]
                 self.dtimer.add('Pt %i : move_to_pos (%i)' % (i, len(self.positioners)))
