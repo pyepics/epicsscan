@@ -169,9 +169,9 @@ class ROISumCounter(Saveable):
             else:
                 val += v[:npts]*dtc[:npts]
         if npts == 1:
-            if isinstance(val, np.ndarray):
+            if isinstance(val, np.ndarray) and len(val) > 0:
                 val = val[0]
-            self.buff.append(val)
+                self.buff.append(val)
         else:
             self.buff = val.tolist()
         return self.buff
