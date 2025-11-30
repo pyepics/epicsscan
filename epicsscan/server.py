@@ -251,7 +251,7 @@ class ScanServer():
         cmds = deque([])
         while True:
             epics.poll(0.02, 1.0)
-            sleep(0.20)
+            sleep(0.25)
 
             now = time()
             # update server heartbeat / message
