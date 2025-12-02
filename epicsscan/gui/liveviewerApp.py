@@ -318,7 +318,7 @@ class ScanViewerFrame(wx.Frame):
         """write a message to the Status Bar"""
         self.SetStatusText(s, panel)
 
-    def onLeftDown(self, x=None, y=None):
+    def onLeftDown(self, x=None, y=None, **kws):
         self.x_cursor = x
 
     def onPlot(self, evt=None, npts=None):
