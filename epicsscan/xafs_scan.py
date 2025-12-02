@@ -11,7 +11,7 @@ import numpy as np
 from pathlib import Path
 from multiprocessing import Process
 from threading import Thread
-from epics import caput, get_pv
+from epics import caget, caput, get_pv
 from newportxps import NewportXPS
 from pyshortcuts import isotime, debugtimer
 
@@ -362,19 +362,13 @@ class QXAFS_Scan(XAFS_Scan):
         if self.with_gapscan:
             self.gapscan_pv = get_pv(gapscan_pvname)
             self.with_gapscan = self.gapscan_pv.write_access
-
+            print(f"XAFS_SCAN: GAP SCAN: {self.with_gapscan=} {self.gapscan_pv=}")
 
         if self.with_id:
             idenergy_orig = self.pvs['id_drive_pv'].get()
             id_offset = 1000.0*self.pvs['id_offset_pv'].get()
             idarray = 1.e-3*(1.0+id_offset/energy_orig)*traj['energy']
             idarray = np.concatenate((idarray, idarray[-1]+np.arange(1,26)/250.0))
-            # print(f"IDARRAY {idenergy_orig=}, {id_offset=}, {idarray[0]=}")
-            # if self.with_gapscan:
-            #     print("using GapScan")
-            # else:
-            #   print("using Undulator Push, not GapScan")
-
         dtimer.add('idarray')
         time.sleep(0.025)
         self.orig_positions = {}
@@ -436,7 +430,8 @@ class QXAFS_Scan(XAFS_Scan):
         # move to start
         if self.with_id and self.pvs['id_drive_pv'].write_access:
             try:
-                # print("Putting ID Array to starting point ", idarray[0], self.pvs['id_drive_pv'])
+                # print("Putting ID Array to starting point ",
+                #       idarray[0], self.pvs['id_drive_pv'])
                 self.pvs['id_drive_pv'].put(idarray[0], wait=False)
             except:
                 print("could not put value to ", self.pvs['id_drive_pv'])
@@ -500,30 +495,34 @@ class QXAFS_Scan(XAFS_Scan):
         time.sleep(0.01)
         dtimer.add('mono motors at start')
 
-        # print("SCAN WITH ID ", self.with_id,
-        #       self.with_gapscan,
-        #       self.pvs['id_drive_pv'],
-        #       self.pvs['id_drive_pv'].write_access)
-        if self.with_id and self.pvs['id_drive_pv'].write_access:
-            idt0 =time.time()
-            try:
-                self.pvs['id_drive_pv'].put(idarray[0], wait=True, timeout=15)
-            except:
-                print("could not put value to (A)  ", self.pvs['id_drive_pv'])
-
-            id_curr = self.pvs['id_read_pv'].get()
-            if abs(id_curr - idarray[0]) > 0.025:
+        if self.with_id:
+            if self.with_gapscan:
+                IDPREF = 'S13ID:USID'
+                gap_um = caget(f'{IDPREF}:GapArrayReadM.VAL')
+                gap_start = 0.001*float(gap_um[0])-0.002
+                if gap_start > 9 and gap_start < 50:
+                    caput(f'{IDPREF}:ScanGapC.VAL', gap_start, wait=True, timeout=30)
+            elif self.pvs['id_drive_pv'].write_access:
+                idt0 =time.time()
                 try:
-                    self.pvs['id_drive_pv'].put(idarray[0]-0.001, wait=True, timeout=5)
+                    self.pvs['id_drive_pv'].put(idarray[0], wait=True, timeout=15)
                 except:
-                    pass
-            if id_curr < 3:
-                time.sleep(2.0)
-            print(f" move id to start ({idarray[0]:.4f} keV) took  {(time.time()-idt0):.2f} sec")
+                    print("could not put value to (A)  ", self.pvs['id_drive_pv'])
+
+                id_curr = self.pvs['id_read_pv'].get()
+                if abs(id_curr - idarray[0]) > 0.025:
+                    try:
+                        self.pvs['id_drive_pv'].put(idarray[0]-0.001, wait=True, timeout=5)
+                    except:
+                        pass
+                if id_curr < 3:
+                    time.sleep(2.0)
+                print(f" move id to start ({idarray[0]:.4f} keV) took  {(time.time()-idt0):.2f} sec")
 
         if self.with_gapscan:
-            # print("Starting ID Gap Scan")
-            self.gapscan_pv.put(1, wait=False)
+            gap_mode = self.scandb.get_info('qxafs_gapscan_mode', 1, as_int=True)
+            print(f"XAFS: start ID Gap Scan {self.gapscan_pv=}, {gap_mode=}")
+            self.gapscan_pv.put(gap_mode, wait=False)
             time.sleep(0.05)
 
 
