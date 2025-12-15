@@ -86,10 +86,14 @@ class PositionerFrame(wx.Frame) :
                              size=(250, -1), style=LEFT),
                   (ir, 0),  (1, 4),  LEFT, 1)
 
-        energy = self.scandb.get_info('xafs_energy')
         desc   = wx.StaticText(panel, -1, label='Energy Positioner', size=(180, -1))
         pvctrl = wx.Choice(panel, choices=poslist, size=(180, -1))
-        pvctrl.SetStringSelection(energy)
+        energy = self.scandb.get_info('xafs_energy')
+        if energy is None:
+            print("Warning: should define 'xafs_energy' in info table (name of Energy positioner)")
+        else:
+            pvctrl.SetStringSelection(energy)
+
         ir +=1
         sizer.Add(desc,   (ir, 0), (1, 1), RIGHT, 1)
         sizer.Add(pvctrl, (ir, 1), (1, 2), LEFT, 1)
