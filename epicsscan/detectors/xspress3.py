@@ -314,7 +314,7 @@ class Xspress3Detector(DetectorMixin):
     """
     repr_fmt = 'nmcas=%i, nrois=%i, use_full=%s'
 
-    def __init__(self, prefix, label=None, nmcas=4, mode='scaler',
+    def __init__(self, prefix, label='xsp3', nmcas=4, mode='scaler',
                  rois=None, nrois=48, pixeltime=0.1,
                  use=True, use_unlabeled=False, use_full=False,
                  filesaver='HDF1:', fileroot='/home/xspress3/data', **kws):
@@ -396,7 +396,7 @@ class Xspress3Detector(DetectorMixin):
         poll(0.005)
         dt.add('xspress3: cleared, erased')
         if filename is None:
-            filename = 'xsp3'
+            filename = self.label
 
         template = '%s%s.%4.4d'
         if self.mode == SCALER_MODE:
@@ -405,7 +405,7 @@ class Xspress3Detector(DetectorMixin):
             self.ROIMode(dwelltime=dwelltime, numframes=npulses)
             template = '%s%s_xsp3.h5'
         elif self.mode == NDARRAY_MODE:
-            filename = 'xsp3'
+            filename = self.label
             self._xsp3.FileCaptureOff()
             time.sleep(0.01)
             self.NDArrayMode(dwelltime=dwelltime, numframes=npulses)
