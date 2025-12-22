@@ -21,6 +21,7 @@ dependencies = [
     "sqlalchemy>=2.0",
     "sqlalchemy_utils",
     "psycopg2-binary",
+    "h5py",
     "telnetlib3",
     "wxpython>=4.2.1",
     "wxmplot>=0.9.57",
