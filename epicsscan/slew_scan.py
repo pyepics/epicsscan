@@ -463,11 +463,11 @@ class Slew_Scan(StepScan):
             dtimer.add('scan thread started')
             posfile = f"xps.{irow:04}"
             if scadet is not None:
-                scafile = scadet.get_next_filename()
+                scafile = f"{scadet.label}.{irow:04}"
             if xrfdet is not None:
-                xrffile = xrfdet.get_next_filename()
+                xrffile = f"{xrfdet.label}.{irow:04}"
             if xrddet is not None:
-                xrdfile = xrddet.get_next_filename()
+                xrdfile = f"{xrddet.label}.{irow:04}"
 
             if dim == 2:
                 pos0 = f"{(self.positioners[0].array[irow-1]):10.6f}"
