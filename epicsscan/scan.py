@@ -421,7 +421,7 @@ class StepScan(object):
         out = []
         if self.scandb is None:
             return out
-        db_prefix = self.scandb.get_info('extra_pvs_prefix')
+        db_prefix = self.scandb.get_info('extra_pvs_prefix', 'experiment_')
         if len(db_prefix) > 0:
             prefix = fix_varname(db_prefix).title()
             for key, row in self.scandb.get_info(prefix=db_prefix,
