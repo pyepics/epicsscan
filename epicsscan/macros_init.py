@@ -16,6 +16,9 @@ from xraydb import (atomic_density, atomic_mass, atomic_name, atomic_number,
           material_mu_components, mirror_reflectivity, mu_chantler, mu_elam,
           xray_delta_beta, xray_edge, xray_edges, xray_line, xray_lines)
 
+#
+# Note: these will be included as READ-ONLY symbols in the asteval Interpreter
+#
 INITSYMS = ['clock', 'sleep', 'caget', 'caput', 'get_pv', 'PV', 'consts',
             'etok', 'ktoe', 'AMU', 'ATOM_NAMES', 'ATOM_SYMS', 'AVOGADRO',
             'DEG2RAD', 'E_MASS', 'PI', 'PLANCK_HBARC', 'PLANCK_HC', 'RAD2DEG',
@@ -346,3 +349,13 @@ def move_samplestage(position_name, wait=True, timeout=60.0):
         pospv_name.put(position_name)
     _scandb.set_info('sample_position', position_name)
     _instdb.restore_position(inst_name, position_name, wait=wait, timeout=timeout)
+
+
+def pre_scan_command(row=1, *args, **kws):
+    print(f"default pre_scan_command: should overwrite! {row=}")
+    sleep(0.05)
+    return None
+
+def post_scan_command(row=0):
+    print(f"default post_scan_command: should overwrite! {row=}")
+    sleep(0.05)
