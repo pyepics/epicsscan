@@ -209,6 +209,7 @@ class ScanViewerFrame(wx.Frame):
         n0 = len(y2cols) - 1
         cols_lower = [yc.lower() for yc in y2cols]
         roinames = json.loads(self.get_info('rois', default='[]'))
+        col_roi = col_i0 = 2
         if len(roinames) > 0:
             sumname = fix_varname('Sum_' + roinames[-1]).lower()
             col_roi = cols_lower.index(sumname) if sumname in cols_lower else n0
