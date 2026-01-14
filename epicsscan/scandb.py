@@ -111,10 +111,10 @@ class ScanDB(SimpleDB):
 
     def set_workdir(self, user_folder=None, verbose=False):
         key = 'windows_fileroot' if os.name == 'nt' else 'server_fileroot'
-        fileroot = self.get_info(key)
+        fileroot = self.get_info(key, default='.')
         msg = None
         if user_folder is None:
-            user_folder = self.get_info('user_folder')
+            user_folder = self.get_info('user_folder', default='.')
         else:
             if user_folder.startswith(fileroot):
                 user_folder = user_folder[1+len(fileroot):]
@@ -268,7 +268,7 @@ class ScanDB(SimpleDB):
             raise ValueError(f"make.scan(): '{scanname}' not a valid scan name")
 
         if 'rois' not in sdict:
-            sdict['rois'] = json.loads(self.get_info('rois'))
+            sdict['rois'] = json.loads(self.get_info('rois', default='[]'))
         sdict['filename'] = filename
         sdict['scandb'] = self
         sdict['mkernel'] = mkernel
@@ -684,18 +684,18 @@ class ScanDB(SimpleDB):
 
     def test_abort(self, msg='scan abort'):
         """look for abort"""
-        return self.get_info('request_abort', as_bool=True)
+        return self.get_infobool('request_abort')
 
     def wait_for_pause(self, timeout=86400.0):
         """if request_pause is set, wait until it is unset"""
-        paused = self.get_info('request_pause', as_bool=True)
+        paused = self.get_infobool('request_pause')
         if not paused:
             return
 
         t0 = time.time()
         while paused:
             time.sleep(0.25)
-            paused = (self.get_info('request_pause', as_bool=True) and
+            paused = (self.get_infobool('request_pause') and
                       (time.time() - t0) < timeout)
 
 class InstrumentDB(object):

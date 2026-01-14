@@ -214,6 +214,11 @@ class SimpleDB():
                         out[row.key] = cast(row.value, as_int, as_bool)
         return out
 
+    def get_infobool(self, key, default=0):
+        """get info value as bool, with default value"""
+        return self.get_info(key, default=default, as_bool=True)
+
+
     def set_modify_time(self):
         """set modify_date in info table"""
         self.set_info('modify_date', isotime(), do_execute=True)
