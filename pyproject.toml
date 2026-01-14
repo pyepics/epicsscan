@@ -21,6 +21,7 @@ dependencies = [
     "sqlalchemy>=2.0",
     "sqlalchemy_utils",
     "psycopg2-binary",
+    "hdf5plugin",
     "h5py",
     "telnetlib3",
     "wxpython>=4.2.1",
@@ -29,7 +30,7 @@ dependencies = [
     "pyshortcuts>=1.9.5",
 ]
 
-requires-python = ">= 3.9"
+requires-python = ">= 3.10"
 authors = [
     {name = "Matthew Newville", email = "newville@cars.uchicago.edu"},
 ]
@@ -44,11 +45,11 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
 
