@@ -268,7 +268,7 @@ class DetectorFrame(wx.Frame) :
                              size=(180, -1))
 
         self.settle_time = wx.TextCtrl(panel, size=(75, -1),
-                            value=self.scandb.get_info('det_settle_time', '0.001'))
+                            value=self.scandb.get_info('det_settle_time', default='0.001'))
         sizer.Add(desc,              (1, 1), (1, 2), LEFT,  3)
         sizer.Add(self.settle_time,  (1, 3), (1, 2), LEFT, 3)
 

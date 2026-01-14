@@ -36,7 +36,7 @@ class PositionerFrame(wx.Frame) :
                              size=(180, -1))
 
         self.settle_time = wx.TextCtrl(panel, size=(75, -1),
-                            value=self.scandb.get_info('pos_settle_time', '0.001'))
+                            value=self.scandb.get_info('pos_settle_time', default='0.001'))
         sizer.Add(desc,              (1, 1), (1, 2), LEFT,  1)
         sizer.Add(self.settle_time,  (1, 3), (1, 1), LEFT, 1)
 
@@ -88,7 +88,7 @@ class PositionerFrame(wx.Frame) :
 
         desc   = wx.StaticText(panel, -1, label='Energy Positioner', size=(180, -1))
         pvctrl = wx.Choice(panel, choices=poslist, size=(180, -1))
-        energy = self.scandb.get_info('xafs_energy')
+        energy = self.scandb.get_info('xafs_energy', default=None)
         if energy is None:
             print("Warning: should define 'xafs_energy' in info table (name of Energy positioner)")
         else:

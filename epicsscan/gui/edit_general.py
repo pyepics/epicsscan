@@ -123,7 +123,7 @@ class SettingsPanel(scrolled.ScrolledPanel):
         for notes, value in self.model.data:
             key = self.model.keys.get(notes, None)
             if key is not None:
-                current = self.scandb.get_info(key)
+                current = self.scandb.get_info(key, default=None)
                 if current != value:
                     self.scandb.set_info(key, value)
         time.sleep(0.5)

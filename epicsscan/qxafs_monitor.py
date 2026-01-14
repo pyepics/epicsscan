@@ -70,17 +70,17 @@ class QXAFS_ScanWatcher(object):
         self.connect()
 
     def connect(self):
-        self.confname = self.scandb.get_info('qxafs_config', 'qxafs')
+        self.confname = self.scandb.get_info('qxafs_config', default='qxafs')
         self.config = json.loads(self.scandb.get_config(self.confname).notes)
         mcs_prefix = self.config.get('mcs_prefix', '13IDE:SIS1:')
         pulse_channel = f"{mcs_prefix}CurrentChannel"
-        id_tracking = int(self.scandb.get_info('qxafs_id_tracking', '1'))
-        self.id_lookahead = int(self.scandb.get_info('qxafs_id_lookahead', 3))
+        id_tracking = int(self.scandb.get_info('qxafs_id_tracking', default='1'))
+        self.id_lookahead = int(self.scandb.get_info('qxafs_id_lookahead', default=3))
 
         self.pulse_pv = get_pv(pulse_channel, callback=self.onPulse)
         self.with_id = ('id_array_pv' in self.config and
                         'id_drive_pv' in self.config and id_tracking)
-        self.with_gapscan = self.scandb.get_info('qxafs_use_gapscan', as_bool=True)
+        self.with_gapscan = self.scandb.get_infobool('qxafs_use_gapscan')
 
         if self.with_id:
             self.idarray_pv = get_pv(self.config['id_array_pv'])
@@ -149,7 +149,7 @@ class QXAFS_ScanWatcher(object):
             if self.get_state() == 0:
                 break
             npts = int(self.scandb.get_info(key='scan_total_points', default=0))
-            if self.scandb.get_info(key='request_abort', as_bool=True):
+            if self.scandb.get_infobool('request_abort'):
                 self.write(f"QXAFS saw request for abort: {time.ctime()}")
                 self.qxafs_finish()
                 break
@@ -212,7 +212,7 @@ class QXAFS_ScanWatcher(object):
             time.sleep(0.1)
             now = time.time()
             npts = int(self.scandb.get_info(key='scan_total_points', default=0))
-            if self.get_state() == 0 or self.scandb.get_info(key='request_abort', as_bool=True):
+            if self.get_state() == 0 or self.scandb.get_infobool('request_abort'):
                 break
             if self.pulse > last_pulse and self.with_id and not self.with_gapscan:
                 try:
@@ -302,7 +302,7 @@ class QXAFS_ScanWatcher(object):
                     self.writer_thread = None
             if state > 0:
                 try:
-                    confname = self.scandb.get_info('qxafs_config', 'qxafs')
+                    confname = self.scandb.get_info('qxafs_config', default='qxafs')
                     if confname is not self.confname:
                         self.connect()
                     if self.writer_thread is None:

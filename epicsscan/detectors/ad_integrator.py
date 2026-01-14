@@ -45,12 +45,12 @@ class AD_Integrator(object):
         self.scandb.set_info('xrd_1dint_status', state.lower())
 
     def get_state(self):
-        return self.scandb.get_info('xrd_1dint_status').lower()
+        return self.scandb.get_info('xrd_1dint_status', default='unknown').lower()
 
     def read_config(self):
-        calfile = self.scandb.get_info('xrd_calibration')
-        self.label = self.scandb.get_info('xrd_1dint_label')
-        self.folder = self.scandb.get_info('map_folder')
+        calfile = self.scandb.get_info('xrd_calibration', default=None)
+        self.label = self.scandb.get_info('xrd_1dint_label', default='xrd')
+        self.folder = self.scandb.get_info('map_folder', default='.')
         if self.folder.endswith('/'):
             self.folder = self.folder[:-1]
 

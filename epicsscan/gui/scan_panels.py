@@ -700,7 +700,7 @@ class XAFSScanPanel(GenericScanPanel):
         # self.kwtimechoice.Enable(step_xafs)
 
         # make sure HERFD detector follows the checkbox
-        det_name = self.scandb.get_info('xas_herfd_detector', None)
+        det_name = self.scandb.get_info('xas_herfd_detector', default=None)
         use_herfd = False
         for det in self.scandb.get_detectors():
             if det.name == det_name:
@@ -751,12 +751,12 @@ class XAFSScanPanel(GenericScanPanel):
                                label='Collect HERFD ROIs',
                                action=self.onUseHERFD)
 
-        idgap_scan = self.scandb.get_info('qxafs_use_gapscan', as_bool=True)
+        idgap_scan = self.scandb.get_infobool('qxafs_use_gapscan')
         self.gap_scan = check(self, default=idgap_scan,
                               label='ID Gap Scan',
                               action=self.onUseGapScan)
 
-        qxafs_default = self.scandb.get_info('qxafs_continuous', default=False, as_bool=True)
+        qxafs_default = self.scandb.get_infobool('qxafs_continuous')
         self.qxafs = check(self, default=qxafs_default,
                            label='Continuous Scan', action=self.onQXAFS)
 
@@ -843,7 +843,7 @@ class XAFSScanPanel(GenericScanPanel):
 
     @EpicsFunction
     def display_energy(self, evt=None):
-        enpos = str(self.scandb.get_info('xafs_energy', 'Energy'))
+        enpos = str(self.scandb.get_info('xafs_energy', default='Energy'))
         pos = self.scandb.get_positioner(enpos)
         self.initcounter += 1
         # self.onEdgeChoice()
@@ -870,11 +870,6 @@ class XAFSScanPanel(GenericScanPanel):
         units = self.getUnits(index)
         ev_units = self.ev_units[index]
 
-        #enpos = str(self.scandb.get_info('xafs_energy'))
-        #pos = self.scandb.get_positioner(enpos)
-        #en_pvname = str(pos.readpv)
-        #if en_pvname in self.pvlist and self.energy_pv.pv is None:
-        #    self.energy_pv.SetPV(self.pvlist[en_pvname])
         e0_off = 0
         qxafs_time_threshold = float(self.scandb.get_info('qxafs_time_threshold',
                                                           default=0))
@@ -955,7 +950,7 @@ class XAFSScanPanel(GenericScanPanel):
         self.setScanTime()
 
     def onUseHERFD(self, evt=None):
-        det_name = self.scandb.get_info('xas_herfd_detector', None)
+        det_name = self.scandb.get_info('xas_herfd_detector', default=None)
         self.scandb.use_detector(det_name, use=self.use_herfd.IsChecked())
 
     def onUseGapScan(self, evt=None):
@@ -990,7 +985,7 @@ class XAFSScanPanel(GenericScanPanel):
 
     def generate_scan_positions(self):
         "generate xafs scan"
-        enpos = str(self.scandb.get_info('xafs_energy', 'Energy'))
+        enpos = str(self.scandb.get_info('xafs_energy', default='Energy'))
         enpos = self.scandb.get_positioner(enpos)
         scantype = 'xafs'
         scanmode = 'step'
@@ -1245,8 +1240,7 @@ class Slew2DScanPanel(GenericScanPanel):
 
         ir += 1
 
-        zfm = self.scandb.get_info('zero_finemotors_beforemap',
-                                   as_bool=True, default=0)
+        zfm = self.scandb.get_infobool('zero_finemotors_beforemap')
         self.zfmchoice = check(self, default=zfm,
                                label='Zero Fine Motors before Map?',
                                action=self.onZeroFineMotors)
@@ -1333,7 +1327,7 @@ class Slew2DScanPanel(GenericScanPanel):
                 npts.SetValue(posdat[4])
                 self.update_position_from_pv(irow)
 
-        xrd_det_name = self.scandb.get_info('xrdmap_detector', None)
+        xrd_det_name = self.scandb.get_info('xrdmap_detector', default=None)
         use_xrd = False
         for det in scan['detectors']:
             if det['label'] == xrd_det_name:
@@ -1380,7 +1374,7 @@ class Slew2DScanPanel(GenericScanPanel):
         self.scandb.set_info('zero_finemotors_beforemap', int(zfm))
 
     def onSelectXRD(self, evt=None):
-        det_name = self.scandb.get_info('xrdmap_detector', None)
+        det_name = self.scandb.get_info('xrdmap_detector', default=None)
         self.scandb.use_detector(det_name, use=self.use_xrd.IsChecked())
 
     def onPos(self, evt=None, index=0):
@@ -1420,11 +1414,9 @@ class Slew2DScanPanel(GenericScanPanel):
              'nscans': 1    }
 
         # make sure XRD detector follows the XRD checkbox
-        det_name = self.scandb.get_info('xrdmap_detector', None)
+        det_name = self.scandb.get_info('xrdmap_detector', default=None)
         if det_name is not None:
             self.scandb.use_detector(det_name, use=self.use_xrd.IsChecked())
-
-        #xrd_det_name = self.scandb.get_info('xrdmap_detector', None)
 
         for i, wids in enumerate(self.pos_settings):
             pos, u, cur, start, stop, dx, wnpts = wids
@@ -1492,13 +1484,6 @@ class Slew1DScanPanel(GenericScanPanel):
         sizer.Add(npts,  (ir, 7), (1, 1), wx.ALL, 2)
 
         ir += 1
-
-        # zfm = self.scandb.get_info('zero_finemotors_beforemap',
-        #                            as_bool=True, default=0)
-        # self.zfmchoice = check(self, default=zfm,
-        #                        label='Zero Fine Motors before Scan?',
-        #                        action=self.onZeroFineMotors)
-        # sizer.Add(self.zfmchoice, (ir, 1), (1, 3), wx.ALL, 2)
 
         bot_panel = self.add_startscan(with_nscans=False)
 

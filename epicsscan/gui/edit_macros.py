@@ -59,7 +59,7 @@ def get_positions(scandb, instrument=None):
     """get list of positions names for an instrument"""
     iname = instrument
     if iname is None:
-        iname = scandb.get_info('samplestage_instrument', 'SampleStage')
+        iname = scandb.get_info('samplestage_instrument', default='SampleStage')
     return InstrumentDB(scandb).get_positions(iname, reverse=True)
 
 class PositionCommandModel(dv.DataViewIndexListModel):
@@ -159,7 +159,7 @@ class PositionCommandFrame(wx.Frame) :
         self.scandb = scandb
 
         detdist_motor = None
-        _pos = scandb.get_info('experiment_xrfdet_posname', None)
+        _pos = scandb.get_info('experiment_xrfdet_posname', default=None)
         if _pos is not None:
             _row = scandb.get_positioner(_pos)
             if _row is not None:
@@ -553,10 +553,10 @@ class CommandsPanel(scrolled.ScrolledPanel):
         return panel
 
     def update_info(self, evt=None):
-        paused = self.scandb.get_info('request_pause', as_bool=True)
+        paused = self.scandb.get_infobool('request_pause')
 
         for key, attr in self.info_mapping.items():
-            val = str(self.scandb.get_info(attr, '--'))
+            val = str(self.scandb.get_info(attr, default='--'))
             if key in self.winfo:
                 self.winfo[key].SetLabel(val)
 

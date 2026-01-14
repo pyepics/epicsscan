@@ -373,20 +373,20 @@ class ScanFrame(wx.Frame):
 
     def onScanTimer(self, evt=None):
         try:
-            prog =self.scandb.get_info('scan_progress')
+            prog =self.scandb.get_info('scan_progress', default='')
             self.statusbar.SetStatusText(prog, 0)
         except:
             print("no scan info scan_progress")
             pass
 
-        status = self.scandb.get_info('scan_status')
+        status = self.scandb.get_info('scan_status', default='unknown')
         if status == 'running' and not self.scan_started:
             self.scan_started = True
 
         if status == 'idle' and self.scan_started:
             self.scan_started = False
             ipan, pan = self.get_nbpage(self.scantype)
-            fname = self.scandb.get_info('filename')
+            fname = self.scandb.get_info('filename', 'unknown.dat')
             try:
                 pan.filename.SetValue(new_filename(fname))
             except:
@@ -629,8 +629,7 @@ class ScanFrame(wx.Frame):
             scannames = [s.name for s in self.scandb.get_rows('scandefs')]
             if sname in scannames:
                 _ok = wx.ID_NO
-                if self.scandb.get_info('scandefs_verify_overwrite',
-                                        as_bool=True, default=1):
+                if self.scandb.get_infobool('scandefs_verify_overwrite', default=1):
                     _ok =  popup(self,
                                  "Overwrite Scan Definition '%s'?" % sname,
                                  "Overwrite Scan Definition?",
@@ -651,10 +650,8 @@ class ScanFrame(wx.Frame):
             self.last_scanname = sname
 
     def onReadScanDef(self, evt=None):
-        _autotypes = self.scandb.get_info('scandefs_load_showauto',
-                                          as_bool=True, default=0)
-        _alltypes  = self.scandb.get_info('scandefs_load_showalltypes',
-                                          as_bool=True, default=0)
+        _autotypes = self.scandb.get_infobool('scandefs_load_showauto')
+        _alltypes  = self.scandb.get_infobool('scandefs_load_showalltypes')
         stype = ''
         if not _alltypes:
             panelname = self.nb.GetCurrentPage().__class__.__name__.lower()

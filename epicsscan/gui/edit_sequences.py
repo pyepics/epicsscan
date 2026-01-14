@@ -292,7 +292,7 @@ class ScanSequenceFrame(wx.Frame) :
 
     def onTimer(self, event=None, **kws):
         now = time.monotonic()
-        status = self.scandb.get_info('scan_status')
+        status = self.scandb.get_info('scan_status', default='unknown')
 
         recent = datetime.now() - timedelta(minutes=1)
         cmds = self.scandb.get_commands(requested_since=recent)
@@ -300,7 +300,7 @@ class ScanSequenceFrame(wx.Frame) :
         if len(cmds) > 0:
             cmdid = cmds[-1].id
         if cmdid < 0:
-            cmdid  = int(self.scandb.get_info('current_command_id'))
+            cmdid  = int(self.scandb.get_info('current_command_id', default=-1))
 
         if ((cmdid != self.cmdid) or
             (status != self.cmdstatus) or

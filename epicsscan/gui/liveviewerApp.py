@@ -112,11 +112,11 @@ class ScanViewerFrame(wx.Frame):
 
     def onScanTimer(self, evt=None,  **kws):
         try:
-            curfile   = fix_filename(self.get_info('filename'))
+            curfile   = fix_filename(self.get_info('filename', default='.'))
             sdata     = self.scandb.get_scandata()
 
-            scan_stat = self.get_info('scan_status')
-            msg       = self.get_info('scan_progress')
+            scan_stat = self.get_info('scan_status', default='unknown')
+            msg       = self.get_info('scan_progress', default='unknown')
         except:
             logging.exception("No Scan at ScanTime")
             return
@@ -196,7 +196,7 @@ class ScanViewerFrame(wx.Frame):
             if s.notes.lower().startswith('pos'):
                 xcols.append(s.name)
 
-        self.total_npts = self.get_info('scan_total_points', as_int=True)
+        self.total_npts = self.get_info('scan_total_points', default=0, as_int=True)
         self.live_cpt = -1
 
 
