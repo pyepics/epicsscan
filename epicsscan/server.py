@@ -49,9 +49,9 @@ class ScanServer():
         if 'startup' in self.mkernel.get_macros():
             self.scandb.add_command("startup()")
 
-        eprefix = self.scandb.get_info('epics_status_prefix')
-        basedir = self.scandb.get_info('server_fileroot')
-        workdir = self.scandb.get_info('user_folder')
+        eprefix = self.scandb.get_info('epics_status_prefix', default=None)
+        basedir = self.scandb.get_info('server_fileroot', default='.')
+        workdir = self.scandb.get_info('user_folder', default='.')
 
         if eprefix is not None:
             self.epicsdb = EpicsScanDB(prefix=eprefix)
@@ -90,7 +90,7 @@ class ScanServer():
     def set_workdir(self, verbose=False):
         "ser working folder"
         self.scandb.set_workdir(verbose=verbose)
-        self.fileroot = self.scandb.get_info('server_fileroot')
+        self.fileroot = self.scandb.get_info('server_fileroot', default='.')
 
     def do_command(self, cmd_row):
         """execute a single command: a row from the commands table"""
@@ -110,7 +110,7 @@ class ScanServer():
             self.scandb.set_command_status('canceled', cmdid=cmdid)
             return
 
-        workdir = plain_ascii(self.scandb.get_info('user_folder'))
+        workdir = plain_ascii(self.scandb.get_info('user_folder', default='.'))
         if self.epicsdb is not None:
             self.epicsdb.workdir = workdir
 
@@ -202,10 +202,10 @@ class ScanServer():
 
     def look_for_interrupts(self):
         """look for aborts"""
-        get_info = self.scandb.get_info
-        self.req_abort = get_info('request_abort', as_bool=True)
-        self.req_pause = get_info('request_pause', as_bool=True)
-        self.req_shutdown = get_info('request_shutdown', as_bool=True)
+        get_bool = self.scandb.get_infobool
+        self.req_abort = get_bool('request_abort')
+        self.req_pause = get_bool('request_pause')
+        self.req_shutdown = get_bool('request_shutdown')
         if self.epicsdb is not None:
             if self.epicsdb.Abort == 1:
                 self.req_abort = 1

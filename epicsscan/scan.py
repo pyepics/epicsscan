@@ -421,12 +421,12 @@ class StepScan(object):
         out = []
         if self.scandb is None:
             return out
-        db_prefix = self.scandb.get_info('extra_pvs_prefix', 'experiment_')
+        db_prefix = self.scandb.get_info('extra_pvs_prefix', default='experiment_')
         if len(db_prefix) > 0:
             prefix = fix_varname(db_prefix).title()
             for key, row in self.scandb.get_info(prefix=db_prefix,
-                                            order_by='display_order',
-                                            full_row=True).items():
+                                                 order_by='display_order',
+                                                 full_row=True).items():
                 notes = row.notes
                 if notes is None or len(notes) < 1:
                     notes = 'unknown'
@@ -530,10 +530,12 @@ class StepScan(object):
         if self.scandb is not None:
             self.set_info('last_error', msg)
 
-    def get_infobool(self, key):
-        if self.scandb is not None:
-            return self.scandb.get_info(key, as_bool=True)
-        return False
+    def get_bool(self, key):
+        if self.scandb is None:
+            val = False
+        else:
+            val = self.scandb.get_infobool(key)
+        return val
 
     def look_for_interrupts(self):
         """set interrupt requests:
@@ -541,9 +543,9 @@ class StepScan(object):
         abort / pause / resume
         if scandb is being used, these are looked up from database.
         """
-        self.abort  = self.get_infobool('request_abort')
-        self.pause  = self.get_infobool('request_pause')
-        self.resume = self.get_infobool('request_resume')
+        self.abort  = self.get_bool('request_abort')
+        self.pause  = self.get_bool('request_pause')
+        self.resume = self.get_bool('request_resume')
         return self.abort
 
     def write(self, msg):
@@ -598,7 +600,7 @@ class StepScan(object):
             return
         userdir = '.'
         if self.scandb is not None:
-            userdir = self.scandb.get_info('user_folder')
+            userdir = self.scandb.get_info('user_folder', default='.')
 
         self.clear_interrupts()
         self.dtimer.add('PRE: cleared interrupts')

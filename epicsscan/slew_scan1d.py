@@ -146,7 +146,7 @@ class Slew_Scan1D(StepScan):
         run a 1D slew scan
         """
         dtimer = debugtimer()
-        debug = self.scandb.get_info('debug_scan', as_bool=True) or debug
+        debug = self.scandb.get_infobool('debug_scan') or debug
         self.prepare_scan()
         if filename is not None:
             self.filename = filename
@@ -197,8 +197,8 @@ class Slew_Scan1D(StepScan):
             extra_vals.append((desc, pv.get(as_string=True), pv.pvname))
 
         # get folder name for full data from detectors
-        fileroot = self.scandb.get_info('server_fileroot')
-        userdir  = self.scandb.get_info('user_folder')
+        fileroot = self.scandb.get_info('server_fileroot', default='.')
+        userdir  = self.scandb.get_info('user_folder', default='.')
         xrfdir   = os.path.join(userdir, 'XAFSXRF')
         xrfdir_server = os.path.join(fileroot, xrfdir)
         if not os.path.exists(xrfdir_server):
@@ -277,7 +277,7 @@ class Slew_Scan1D(StepScan):
                 time.sleep(1.0)
                 if time.monotonic() > join_time:
                     break
-                if self.scandb.get_info(key='request_abort', as_bool=True):
+                if self.scandb.get_infobool('request_abort'):
                     self.write("aborting SLEW1D scan")
                     abort_proc = create_xps_abort(self.xpsconf)
                     abort_proc.start()
@@ -295,7 +295,7 @@ class Slew_Scan1D(StepScan):
             if wait_pv  is not None:
                 done = (wait_pv.get() == 0)
                 while not done:
-                    done = self.scandb.get_info('request_abort', as_bool=True)
+                    done = self.scandb.get_infobool('request_abort')
                     if not done:
                         time.sleep(max(0.1, self.dwelltime/2))
                         done = (wait_pv.get() == 0)

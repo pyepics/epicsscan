@@ -44,7 +44,7 @@ class Slew_Scan(StepScan):
         self.set_info('scan_progress', 'preparing')
 
         # ZeroFineMotors before map?
-        if self.scandb.get_info('zero_finemotors_beforemap', as_bool=True):
+        if self.scandb.get_infobool('zero_finemotors_beforemap'):
             zconf = self.scandb.get_config('zero_finemotors')
             zconf = json.loads(zconf.notes)
             vals  = dict(finex=0.0, finey=0.0, coarsex=0.0, coarsey=0.0)
@@ -80,8 +80,8 @@ class Slew_Scan(StepScan):
                                     extra_triggers=scnf.get('extra_triggers', 0))
             self.scandb.connections['mapping_xps'] = self.xps
 
-        fileroot = self.scandb.get_info('server_fileroot')
-        userdir = self.scandb.get_info('user_folder')
+        fileroot = self.scandb.get_info('server_fileroot', '.')
+        userdir = self.scandb.get_info('user_folder', '.')
         basedir = os.path.join(fileroot, userdir, 'Maps')
         if not os.path.exists(basedir):
             os.mkdir(basedir, mode=509)
@@ -285,7 +285,7 @@ class Slew_Scan(StepScan):
         """
         run a slew scan
         """
-        debug = self.scandb.get_info('debug_scan', as_bool=True) or debug
+        debug = self.scandb.get_infobool('debug_scan') or debug
         self.prepare_scan()
         trajs = self.xps.trajectories
 
@@ -393,8 +393,8 @@ class Slew_Scan(StepScan):
 
             if self.mkernel is not None:
                 now = time.time()
-                prescan_lasttime = float(self.scandb.get_info('prescan_lasttime'))
-                prescan_interval = float(self.scandb.get_info('prescan_interval'))
+                prescan_lasttime = float(self.scandb.get_info('prescan_lasttime'), default=0.0)
+                prescan_interval = float(self.scandb.get_info('prescan_interval'), default=3600.0)
                 run_prescan = (now > prescan_lasttime + prescan_interval)
                 if run_prescan:
                     try:

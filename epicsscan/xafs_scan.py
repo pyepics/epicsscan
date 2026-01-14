@@ -166,7 +166,9 @@ class QXAFS_Scan(XAFS_Scan):
     def connect_qxafs(self):
         """initialize a QXAFS scan"""
         self.scandb.set_info('qxafs_config', 'qxafs')
-        cname = self.scandb.get_info('qxafs_config')
+        cname = self.scandb.get_info('qxafs_config', None)
+        if cname is None:
+            raise ValueError("need qxafs configuration name in database")
         conf = self.config = json.loads(self.scandb.get_config(cname).notes)
 
         for attr in ('energy_pv', 'dspace_pv', 'height_pv', 'y2_track_pv',
@@ -186,10 +188,10 @@ class QXAFS_Scan(XAFS_Scan):
         # print("Connect QXAFS ")
         #for key, val in self.pvs.items():  print(key, val)
 
-        id_tracking = int(self.scandb.get_info('qxafs_id_tracking', '1'))
+        id_tracking = int(self.scandb.get_info('qxafs_id_tracking', default='1'))
         self.with_id = ('id_array_pv' in conf and
                         'id_drive_pv' in conf and id_tracking)
-        self.with_gapscan = self.scandb.get_info('qxafs_use_gapscan', as_bool=True)
+        self.with_gapscan = self.scandb.get_infobool('qxafs_use_gapscan')
         self.xps = self.scandb.connections.get('mono_xps', None)
         if self.xps is None:
             self.xps = NewportXPS(conf['host'],
@@ -356,8 +358,8 @@ class QXAFS_Scan(XAFS_Scan):
         dtimer.add('connect qxafs')
         traj = self.make_trajectory()
         dtimer.add(f'make traj with_id = {self.with_id}')
-        self.with_gapscan = self.scandb.get_info('qxafs_use_gapscan', as_bool=True)
-        gapscan_pvname   = self.scandb.get_info('qxafs_gapscan_pv')
+        self.with_gapscan = self.scandb.get_infobool('qxafs_use_gapscan')
+        gapscan_pvname   = self.scandb.get_info('qxafs_gapscan_pv', default='')
         # ensure that gapscan mode is writeable
         if self.with_gapscan:
             self.gapscan_pv = get_pv(gapscan_pvname)
@@ -409,8 +411,8 @@ class QXAFS_Scan(XAFS_Scan):
         self.set_info('scan_progress', 'preparing scan')
 
         # get folder name for full data from detectors
-        fileroot = self.scandb.get_info('server_fileroot')
-        userdir  = self.scandb.get_info('user_folder')
+        fileroot = self.scandb.get_info('server_fileroot', default='.')
+        userdir  = self.scandb.get_info('user_folder', default='.')
         xrfdir   = os.path.join(userdir, 'XAFSXRF')
         xrfdir_server = os.path.join(fileroot, xrfdir)
         if not os.path.exists(xrfdir_server):
@@ -520,7 +522,7 @@ class QXAFS_Scan(XAFS_Scan):
                 print(f" move id to start ({idarray[0]:.4f} keV) took  {(time.time()-idt0):.2f} sec")
 
         if self.with_gapscan:
-            gap_mode = self.scandb.get_info('qxafs_gapscan_mode', 1, as_int=True)
+            gap_mode = self.scandb.get_infobool('qxafs_gapscan_mode', default=1)
             print(f"XAFS: start ID Gap Scan {self.gapscan_pv=}, {gap_mode=}")
             self.gapscan_pv.put(gap_mode, wait=False)
             time.sleep(0.05)
@@ -544,7 +546,7 @@ class QXAFS_Scan(XAFS_Scan):
                 if time.monotonic() > join_time:
                     break
 
-                if self.scandb.get_info(key='request_abort', as_bool=True):
+                if self.scandb.get_infobool('request_abort'):
                     self.write("aborting QXAFS scan")
                     abort_proc = create_xps_abort(qconf)
                     abort_proc.start()
