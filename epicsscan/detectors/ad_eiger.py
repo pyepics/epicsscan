@@ -412,7 +412,8 @@ class AD_Eiger(AreaDetector):
         self.cam.put('NumImages', 1, wait=True)
         time.sleep(0.1)
 
-        self.cam.put('TriggerMode', 'External Enable')
+        # self.cam.put('TriggerMode', 'External Enable')
+        self.cam.put('TriggerMode', 'External Series')
 
         if numframes is None:
             numframes = MAX_FRAMES
@@ -448,7 +449,8 @@ class AD_Eiger(AreaDetector):
         time.sleep(0.1)
 
 
-        self.cam.put('TriggerMode', 'External Enable', wait=True)
+        # self.cam.put('TriggerMode', 'External Enable', wait=True)
+        self.cam.put('TriggerMode', 'External Series', wait=True)
 
         # print("AD Eiger NDArray Mode ", dwelltime, numframes)
         # print(" NumImages_RBV , TriggerMode_RBV ",
