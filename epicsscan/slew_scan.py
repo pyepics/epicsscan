@@ -276,9 +276,10 @@ class Slew_Scan(StepScan):
         if xrfdet is not None:
             xrfdet.save_calibration(roi_file)
         if xrddet is not None:
-            xrd_poni = self.scandb.get_info('xrd_calibration')
-            calib = json.loads(self.scandb.get_detectorconfig(xrd_poni).text)
-            write_poni(poni_file, calname=xrd_poni, **calib)
+            xrd_poni = self.scandb.get_info('xrd_calibration', None)
+            if xrd_poni is not None:
+                calib = json.loads(self.scandb.get_detectorconfig(xrd_poni).text)
+                write_poni(poni_file, calname=xrd_poni, **calib)
 
     def run(self, filename='map.001', comments=None, debug=False, npts=None):
         """
@@ -559,8 +560,9 @@ class Slew_Scan(StepScan):
             rowdata_ok = (rowdata_ok and
                           (self.npts_sca >= npulses-2) and
                           (self.xps.ngathered >= npulses-2) and
-                          (nxrf >= npulses-2) and
                           (not pos_saver_thread.is_alive()))
+            if xrfdet is not None:
+                rowdata_ok = rowdata_ok and (nxrf >= npulses-2)
 
             if debug or True:
                 print("#== Row %d nXPS=%d, nMCS=%d, nXRF=%d, nXRD=%d  npulses=%d, OK=%s" %
