@@ -16,7 +16,55 @@ from xraydb import (atomic_density, atomic_mass, atomic_name, atomic_number,
           material_mu_components, mirror_reflectivity, mu_chantler, mu_elam,
           xray_delta_beta, xray_edge, xray_edges, xray_line, xray_lines)
 
-#
+
+get_pv.__doc__ = """
+    Get a PV from PV cache or create one if needed.
+
+    Parameters
+    ---------
+    form : str, optional
+        PV form: one of 'native', 'time' (default), 'ctrl'
+    connect : bool, optional
+        whether to wait for connection (default False)
+    context : int, optional
+        PV threading context (defaults to current context)
+    timeout : float, optional
+        connection timeout, in seconds (default 5.0)
+    connection_callback : callable, optional
+        Called upon connection with keyword arguments: pvname, conn, pv
+    access_callback : callable, optional
+        Called upon update to access rights with the following signature:
+        access_callback(read_access, write_access, pv=epics.PV)
+    callback : callable, optional
+        Called upon update to change of value.  See `epics.PV.run_callback` for
+        further information regarding the signature.
+    count : int, optional
+        Number of values to request (0 or None means all available values)
+    verbose : bool, optional
+        Print additional messages relating to PV state
+    auto_monitor : bool or epics.dbr.DBE_ flags, optional [None]
+        how to set up automatic monitoring  (see Note 1)
+    monitor_delta : float or None, optional [None]
+        set delta value for monitoring (see Note 2)
+
+   Notes
+   -----
+    1. For auto_monitor, values acan be
+         - None,  auto-monitor if count < ca.AUTOMONITOR_MAXLENGTH
+         - False,  to disable auto-monitoring
+         - True, to auto-monitor using ca.DEFAULT_SUBSCRIPTION_MASK
+         - dbr.DBE: auto-monitor using this event mask. For example:
+                   `epics.dbr.DBE_ALARM|epics.dbr.DBE_LOG`
+    2. For monitor_delta, values can be
+         - None,  monitor delta is not changed
+         - float,  try to set monitor-delta, limiting callbecks from
+                  small changes in value (only valid for float/double PVs)
+    Returns
+    -------
+       pv : epics.PV
+"""
+
+
 # Note: these will be included as READ-ONLY symbols in the asteval Interpreter
 #
 INITSYMS = ['clock', 'sleep', 'caget', 'caput', 'get_pv', 'PV', 'consts',
