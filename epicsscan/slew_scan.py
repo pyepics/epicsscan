@@ -158,7 +158,8 @@ class Slew_Scan(StepScan):
         if axis is None:
             raise ValueError("Could not find XPS Axis for %s" % pospv)
 
-        self.xps.define_line_trajectories(axis, pixeltime=self.dwelltime,
+        self.xps.define_line_trajectories(axis, group=scnf['group'],
+                                          pixeltime=self.dwelltime,
                                           start=start, stop=stop,
                                           step=step)
 
@@ -393,8 +394,8 @@ class Slew_Scan(StepScan):
 
             if self.mkernel is not None:
                 now = time.time()
-                prescan_lasttime = float(self.scandb.get_info('prescan_lasttime'), default=0.0)
-                prescan_interval = float(self.scandb.get_info('prescan_interval'), default=3600.0)
+                prescan_lasttime = float(self.scandb.get_info('prescan_lasttime', default=0.0))
+                prescan_interval = float(self.scandb.get_info('prescan_interval', default=3600.0))
                 run_prescan = (now > prescan_lasttime + prescan_interval)
                 if run_prescan:
                     try:
