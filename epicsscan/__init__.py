@@ -8,3 +8,5 @@ from .scandb import ScanDB, InstrumentDB
 from .server import ScanServer
 from .scan import StepScan
 from .positioner import Positioner
+
+from .apps import run_epicsscan_gui, run_epicsscan_server

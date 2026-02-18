@@ -53,6 +53,10 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
 ]
 
+[project.scripts]
+epicsscan_gui = "epicsscan:run_epicsscan_gui"
+epicsscan_server = "epicsscan:run_epicsscan_server"
+
 [project.urls]
 Homepage = "https://github.com/pyepics/epicsscan"
 Documentation = "https://github.com/pyepics/epicsscan"
