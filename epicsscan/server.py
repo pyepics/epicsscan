@@ -197,8 +197,8 @@ class ScanServer():
             self.scandb.set_info('scan_progress', msg)
             self.scandb.set_command_status(status, cmdid=cmdid)
         self.set_status('idle')
-        self.clear_interrupts()
         self.command_in_progress = False
+
 
     def look_for_interrupts(self):
         """look for aborts"""
@@ -271,12 +271,12 @@ class ScanServer():
                 sleep(2.0)
                 continue
 
-            # abort but not during a command?
+            # abort issued not during a command?
             elif self.req_abort:
                 self.abort_count += 1
-                self.set_scan_message(f'wait for abort to clear {self.abort_count}/10...')
-                sleep(2.0)
-                if self.abort_count >  10:
+                self.set_scan_message(f'wait for abort to clear {self.abort_count}/5...')
+                sleep(1.0)
+                if self.abort_count >  5:
                     self.set_scan_message('clearing abort...')
                     self.clear_interrupts()
                     sleep(5.0)
@@ -286,6 +286,10 @@ class ScanServer():
             # if there are more commands in the queue, do the next one
             elif len(cmds) > 0:
                 self.do_command(cmds.popleft())
+                if self.look_for_interrupts():
+                    self.set_scan_message('aborting...')
+                    self.clear_interrupts()
+                    sleep(2.0)
 
             # otherwise get ordered list of requested commands
             else:
