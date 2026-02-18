@@ -264,7 +264,7 @@ class Slew_Scan(StepScan):
 
     def save_mcs_data(self, filename='mcsdata.001', npts=1):
         scafile = self.scadet.get_next_filename()
-        filename = os.path.abspath(os.path.join(self.mapdir, scafile))
+        filename = Path(self.mapdir, scafile).absolute().as_posix()
         _, self.npts_sca = self.scadet.save_arraydata(filename=filename,
                                                    npts=self.npts_sca)
 
@@ -358,7 +358,7 @@ class Slew_Scan(StepScan):
             dx = getattr(det, 'start_delay_arraymode', det.start_delay)
             det_start_delay = max(det_start_delay, dx)
 
-        self.clear_interrupts()
+        # self.clear_interrupts()
         self.set_info('scan_progress', 'starting')
         rowdata_ok = True
         start_time = time.time()
@@ -382,7 +382,6 @@ class Slew_Scan(StepScan):
                 if self.resume or abort:
                     break
             if self.abort:
-                self.clear_interrupts()
                 break
             irow += 1
             dtimer.add('=== row start %i ====' % irow)

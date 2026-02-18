@@ -686,7 +686,6 @@ class QXAFS_Scan(XAFS_Scan):
 
         if self.look_for_interrupts():
             self.write("scan aborted at point %i of %i." % (self.cpt, self.npts))
-            # self.clear_interrupts()
 
         # run post_scan methods
         self.set_info('scan_progress', 'finishing')
