@@ -242,9 +242,8 @@ class USBCTR(Device):
         for i in range(npts):
             buff.append(fmt.format(*sdata[i]))
         buff.append('')
-        fout = open(filename, 'w')
-        fout.write("\n".join(buff))
-        fout.close()
+        with open(filename, 'w') as fh:
+            fh.write("\n".join(buff))
         return (nmcas, npts)
 
     def get_arraydata(self, npts=None, **kws):
