@@ -13,7 +13,7 @@ def check_escan_credentials():
         raise ValueError("need to set ESCAN_CREDENTIALS environment variable")
     if not Path(cred_file).exists():
         if not Path(cred_file).exists():
-        raise ValueError(f"ESCAN_CREDENTIALS='{cred_file}' file does not exist.")
+            raise ValueError(f"ESCAN_CREDENTIALS='{cred_file}' file does not exist.")
 
 def run_epicsscan_gui():
     "run the epicsscan client gui"
