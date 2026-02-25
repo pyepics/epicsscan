@@ -446,6 +446,7 @@ class QXAFS_Scan(XAFS_Scan):
 
         # print("--> move energy to start: ", qconf['energy_pv'],  traj['energy'][0]-0.5)
         self.pvs['energy_pv'].put(traj['energy'][0]-0.5, wait=True)
+        time.sleep(1.0)
         self.xps.arm_trajectory('qxafs', verbose=False, move_to_start=True)
 
         self.init_scandata()
@@ -528,9 +529,10 @@ class QXAFS_Scan(XAFS_Scan):
             time.sleep(0.05)
 
 
-        with_scan_thread = True
+        with_scan_thread = False
         dtimer.add('trajectory run %r' % (with_scan_thread))
         if with_scan_thread:
+            time.sleep(0.25)
             gname, suff = Path(self.filename).stem, Path(self.filename).suffix
             gatherfile = Path('XAFSXRF', f'{gname}_gather{suff}').absolute().as_posix()
             scan_thread = Thread(target=self.xps.run_trajectory,
@@ -540,7 +542,7 @@ class QXAFS_Scan(XAFS_Scan):
             scan_thread.start()
             dtimer.add('scan trajectory started')
             join_time = time.monotonic() + estimated_scantime - 5.0
-            time.sleep(2.0)
+            time.sleep(1.0)
             while scan_thread.is_alive():
                 time.sleep(1.0)
                 if time.monotonic() > join_time:
@@ -559,6 +561,7 @@ class QXAFS_Scan(XAFS_Scan):
             scan_thread.join()
             dtimer.add('scan thread joined')
         else:
+            time.sleep(0.25)
             self.xps.run_trajectory(name='qxafs', save=True, verbose=False,
                                     output_file='mono_xps_gather.txt')
         dtimer.add('trajectory finished')
@@ -569,7 +572,7 @@ class QXAFS_Scan(XAFS_Scan):
         gtime = time.monotonic()
         while npulses < 2 and time.monotonic() < (gtime+5):
             time.sleep(0.2)
-            npulses, gather_text = self.xps.read_gathering()
+            npulses, gather_text = self.xps.read_gathering(verbose=False)
 
         if npulses < 2:
             try:
