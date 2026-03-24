@@ -562,8 +562,10 @@ class QXAFS_Scan(XAFS_Scan):
             dtimer.add('scan thread joined')
         else:
             time.sleep(0.25)
+            gname, suff = Path(self.filename).stem, Path(self.filename).suffix
+            gatherfile = Path('XAFSXRF', f'{gname}_gather{suff}').absolute().as_posix()
             self.xps.run_trajectory(name='qxafs', save=True, verbose=False,
-                                    output_file='mono_xps_gather.txt')
+                                    output_file=gatherfile)
         dtimer.add('trajectory finished')
         self.set_info('scan_progress', 'reading data')
 
