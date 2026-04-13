@@ -25,10 +25,12 @@ AD_CHOICES = ['None'] + list(AD_FILE_PLUGINS)
 class ROIFrame(wx.Frame):
     """Select ROIS"""
     pvnames_xmap = {'pref': '%smca1.R',   'name': 'NM'}
+    pvnames_mca  = {'pref': '%s.R',   'name': 'NM'}
     pvnames_xsp3 = {'pref': '%sMCA1ROI:', 'name': ':Name'}
     def __init__(self, parent, det=None, scandb=None, mkernel=None):
         self.parent = parent
         self.scandb = parent.scandb if scandb is None else scandb
+        # print(f"ROI Frame {det=}, {mkernel=}, {scandb=}")
         title = "Select ROIs"
         wx.Frame.__init__(self, None, -1, 'Epics Scanning: Select ROIs',
                           style=FRAMESTYLE)
@@ -41,8 +43,11 @@ class ROIFrame(wx.Frame):
         iroi = 0
         offset = 0
         names = self.pvnames_xmap
-        if 'xspress' in self.det.name:
+        if 'xsp' in self.det.kind:
             names = self.pvnames_xsp3
+            offset = 1
+        elif 'mca' in self.det.kind:
+            names = self.pvnames_mca
             offset = 1
 
         prefix = self.prefix
