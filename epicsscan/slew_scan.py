@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 from threading import Thread
 import numpy as np
-
+import yaml
 from .scan import StepScan
 from .positioner import Positioner
 from .saveable import Saveable
@@ -22,6 +22,9 @@ from epics import PV, poll, get_pv, caget, caput
 from newportxps import NewportXPS
 
 from pyshortcuts import debugtimer
+
+# this will preven yoml from "cleverly" making references to repeated values
+yaml.SafeDumper.ignore_aliases = lambda *args: True
 
 class Slew_Scan(StepScan):
     """Slew Scans"""
@@ -99,8 +102,7 @@ class Slew_Scan(StepScan):
             counter += 1
 
         self.filename = fname
-        os.mkdir(mapdir, mode=509)
-        os.chmod(mapdir, 509)
+        Path(mapdir).mkddir(exists_ok=True, mode=493)
 
         hfname= os.path.join(basedir, self.filename)
         self.set_info('filename', fname)
@@ -111,117 +113,11 @@ class Slew_Scan(StepScan):
         self.mapdir = mapdir
         self.fileroot = fileroot
 
-        txt = ['# FastMap configuration file (saved: %s)'%(time.ctime()),
-               '#-------------------------#','[general]',
-               'basedir = %s' % userdir,
-               '[xps]']
+        sdict = yaml.safe_dump(self.scandict, default_flow_style=None, indent=4)
+        with open(Path(mapdir, 'Scan.yaml'), 'w') as fh:
+            fh.write(sdict)
 
-        posnames = ', '.join(scnf['motors'].keys())
-        txt.extend(['host = %s' % scnf['host'],
-                    'user = %s' % scnf['username'],
-                    'passwd = %s' % scnf['password'],
-                    'group = %s' % scnf['group'],
-                    'positioners = %s' % posnames])
-
-        txt.append('#------------------#')
-        txt.append('[slow_positioners]')
-        for i, pos in enumerate(self.scandb.get_positioners()):
-            dpv = pos.drivepv
-            if dpv.endswith('.VAL'): dpv = dpv[:-4]
-            txt.append("%i = %s | %s" % (i+1, dpv, pos.name))
-
-        txt.append('#------------------#')
-        txt.append('[fast_positioners]')
-        for i, pos in enumerate(self.scandb.get_slewpositioners()):
-            dpv = pos.drivepv
-            if dpv.endswith('.VAL'): dpv = dpv[:-4]
-            txt.append("%i = %s | %s" % (i+1, dpv, pos.name))
-
-        dim  = 1
-        if self.outer is not None:
-            dim = 2
-        l_, pvs, start, stop, npts = self.inner
-        pospv = pvs[0]
-        if pospv.endswith('.VAL'):
-            pospv = pospv[:-4]
-        dirpv = pospv + '.DIR'
-        if caget(dirpv) == 1:
-            start, stop = stop, start
-        step = abs(start-stop)/(npts-1)
         self.rowtime = dtime = self.dwelltime*(npts-1)
-
-        axis = None
-        for ax, pvname in self.slewscan_config['motors'].items():
-            if pvname == pospv:
-                axis = ax
-
-        if axis is None:
-            raise ValueError("Could not find XPS Axis for %s" % pospv)
-
-        self.xps.define_line_trajectories(axis, group=scnf['group'],
-                                          pixeltime=self.dwelltime,
-                                          start=start, stop=stop,
-                                          step=step)
-
-        self.comments = self.comments.replace('\n', ' | ')
-        txt.extend(['#------------------#', '[scan]',
-                    'filename = %s' % self.filename,
-                    'comments = %s' % self.comments,
-                    'dimension = %i' % dim,
-                    'pos1 = %s'     % pospv,
-                    'start1 = %.6f' % start,
-                    'stop1 = %.6f'  % stop,
-                    'step1 = %.6f'  % step,
-                    'time1 = %.6f'  % dtime])
-
-
-        if dim == 2:
-            l_, pvs, start, stop, npts = self.outer
-            pospv = pvs[0]
-            if pospv.endswith('.VAL'):
-                pospv = pospv[:-4]
-            step = abs(start-stop)/(npts-1)
-            txt.extend(['pos2 = %s'   % pospv,
-                        'start2 = %.6f' % start,
-                        'stop2 = %.6f' % stop,
-                        'step2 = %.6f' % step])
-
-        xrd_det = None
-        xrf_det = None
-        for det in self.detectors:
-            if isinstance(det, AreaDetector):
-                xrd_det = det
-                self.set_info('xrd_1dint_status', 'starting')
-                self.set_info('xrd_1dint_label', det.label)
-
-            if 'xspress3' in det.label.lower():
-                xrf_det = det
-
-        txt.append('#------------------#')
-        txt.append('[xrf]')
-        if xrf_det is None:
-            txt.append('use = False')
-        else:
-            txt.append('use = True')
-            txt.append('type = xsp3')
-            txt.append('prefix = %s' % xrf_det.prefix)
-            txt.append('fileplugin = %s' % xrf_det.filesaver)
-
-        txt.append('#------------------#')
-        txt.append('[xrd_ad]')
-        if xrd_det is None:
-            txt.append('use = False')
-        else:
-            txt.append('use = True')
-            txt.append('type = AreaDetector')
-            txt.append('prefix = %s' % xrd_det.prefix)
-            txt.append('fileplugin = %s' % xrd_det.filesaver)
-
-        sini = os.path.join(mapdir, 'Scan.ini')
-        f = open(sini, 'w')
-        f.write('\n'.join(txt))
-        f.close()
-
         trajs = self.xps.trajectories
         self.motor_vals = {}
         self.orig_positions = {}
