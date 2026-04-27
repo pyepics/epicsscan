@@ -191,7 +191,7 @@ class Xspress3Counter(DeviceCounter):
 
     def __init__(self, prefix, outpvs=None, nmcas=4, nrois=48, rois=None,
                  nscas=1, ad_version=2, use_unlabeled=False, use_full=False,
-                 mode=None, scandb=None):
+                 mode=None):
 
         # ROI #8 for DTFactor is a recent addition,
         # here we get ready to test if it is connected.
@@ -201,7 +201,6 @@ class Xspress3Counter(DeviceCounter):
             self.sca8 = get_pv("%s%s" % (prefix, (scaf.valform % 8)))
 
         self.mode = mode
-        self.scandb = scandb
         self.nmcas, self.nrois = int(nmcas), int(nrois)
         self.nscas = int(nscas)
         self.use_full =  use_full
@@ -244,10 +243,9 @@ class Xspress3Counter(DeviceCounter):
         current_rois = get_rois()
 
         if len(current_rois) < 1:
-            print("Warning: ROIs are missing, will restart Xspress3, ", time.ctime())
-            self.scandb.set_info('xspress3_needs_reboot', 1)
-            time.sleep(10)
-            label, tout = None, time.time()+120
+            print("Warning: ROIs are missing, Xspress3 may need to be restarted")
+            time.sleep(5)
+            label, tout = None, time.time() + 60.0
             while label is None and time.time() < tout:
                 label = caget("%sMCA1ROI:1:Name" % (prefix))
                 time.sleep(1.0)
@@ -357,7 +355,6 @@ class Xspress3Detector(DetectorMixin):
         self._connect_args = dict(nmcas=nmcas, nrois=nrois, rois=rois,
                                   mode=mode, use_unlabeled=use_unlabeled,
                                   use_full=use_full,
-                                  scandb=self.scandb,
                                   ad_version=int(self.ad_version[0]))
         self.connect_counters()
 
