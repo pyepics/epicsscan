@@ -270,18 +270,17 @@ class ScanDB(SimpleDB):
         if 'rois' not in sdict:
             sdict['rois'] = json.loads(self.get_info('rois', default='[]'))
         sdict['filename'] = filename
-        sdict['scandb'] = self
-        sdict['mkernel'] = mkernel
         sdict['data_callback'] = data_callback
         sdict['extra_pvs'] = []
-        for det in sdict['detectors']:
-            if det.get('label', None) ==  'xspress3' and det.get('nrois', None) is not None:
-                det['nrois'] = 48
 
         for row  in self.get_rows('extrapvs'):
             if row.use:
                 sdict['extra_pvs'].append((row.name, row.pvname))
-        return create_scan(**sdict)
+        scan = create_scan(**sdict)
+        scan.scandict = sdict
+        scan.scandb  = self
+        scan.mkernel  = mkernel
+        return scan
 
     # macros
     def get_macro(self, name):
