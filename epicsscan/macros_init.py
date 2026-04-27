@@ -238,11 +238,15 @@ def scan_from_db(scanname, filename="scan.001"):
     get scan definition from ScanDB by name
     """
     try:
-        scan = _scandb.make_scan(scanname)
-        scan.filename = filename
-        scan.mkernel = _mkernel
+        scan = _scandb.make_scan(scanname, filename=filename)
     except:
-        raise ValueError(f"no scan definition '{scanname}' found")
+        raise ValueError(f"scan definition '{scanname}' not found")
+
+    try:
+        scan.mkernel = _mkernel
+    except Exception:
+        print("Warbing: could not load macro engine")
+
     return scan
 
 def do_scan(scanname, filename="scan.001", nscans=1, comments="", merge_nscans=True):
