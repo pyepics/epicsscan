@@ -178,7 +178,7 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
     for dpars in detectors:
         dpars['rois'] = scan.rois
         dpars['mode'] = scan.detmode
-        dpars['scandb'] = scandb
+        # dpars['scandb'] = scandb
         dkind = dpars['kind'].lower()
         if dkind == 'scaler' and scaler_shim is not None:
             dpars.update(scaler_shim)
@@ -195,8 +195,8 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
         scan.add_extra_pvs(extra_pvs)
 
     scan.rois = rois
-    scan.scandb = scandb
-    scan.mkernel = mkernel
+    # scan.scandb = scandb
+    # scan.mkernel = mkernel
     scan.scantype = scantype
     scan.filename = filename
     scan.scantime = scantime
