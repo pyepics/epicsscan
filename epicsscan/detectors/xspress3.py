@@ -372,7 +372,9 @@ class Xspress3Detector(DetectorMixin):
     def config_filesaver(self, **kws):
         self._xsp3.config_filesaver(**kws)
 
-    def save_calibration(self, filename, **kws):
+    def save_calibration(self, filename=None, **kws):
+        if filename is None:
+            filename = f'ROICALIB_{self.label}.dat'
         buff = self._xsp3.roi_calib_info()
         with open(filename, 'w') as fh:
             fh.write('\n'.join(buff))
