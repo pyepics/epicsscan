@@ -254,7 +254,7 @@ class ScanFrame(wx.Frame):
         """
         # print("This is generate_scan... ")
         if scanname is None:
-            scanname = time.strftime("__%b%d_%H:%M:%S__")
+            scanname = time.strftime("_%b%d_%H:%M:%S")
 
         scan = self.nb.GetCurrentPage().generate_scan_positions()
         sdb = self.scandb
@@ -282,7 +282,6 @@ class ScanFrame(wx.Frame):
                 opts['label']  = det.name
                 opts['prefix'] = det.pvname
                 opts['kind']   = det.kind
-                opts['notes']  = det.notes
                 scan['detectors'].append(opts)
 
         for ct in sdb.get_rows('scancounters', use=1):
