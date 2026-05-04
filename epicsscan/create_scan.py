@@ -13,6 +13,22 @@ from .xafs_scan import XAFS_Scan, QXAFS_Scan
 from .slew_scan import Slew_Scan
 from .slew_scan1d import Slew_Scan1D
 
+def get_axesdict(axes):
+    """normalize inner/outer axes to dictionary (yaml-saveable)"""
+    out = {}
+    if isinstance(axes, dict):
+        out.update(axes)
+    if isinstance(axes, (list, tuple)):
+        if len(axes) == 6:
+            label, pvdrive, pvread, start, stop, npts = axes
+        if len(axes) == 5:
+            label, pvnames, start, stop, npts = axes
+            pvdrive, pvread = pvnames
+        out = {'label': label, 'pvdrive': pvdrive, 'pvread': pvread,
+               'start': start, 'stop': stop, 'npts': npts}
+    return out
+
+
 def create_scan(filename='scan.dat', comments=None, type='linear',
                 scanmode=None, detmode=None, rois=None, nscans=1,
                 positioners=None, detectors=None, counters=None,
@@ -59,6 +75,12 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
 
     """
     scantype = type
+    if positioners is not None:
+        positioners = get_axesdict(positioners)
+    if inner is not None:
+        inner = get_axesdict(inner)
+    if outer is not None:
+        outer = get_axesdict(outer)
     # create different scan types
     if scantype in ('xafs', 'qxafs'):
         min_dtime = dwelltime
@@ -91,43 +113,37 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
         scan.detmode = 'scaler'
         if scantype == 'linear' and positioners is not None:
             for pos in positioners:
-                label, pvs, start, stop, npts = pos
-                p = Positioner(pvs[0], label=label)
-                p.array = np.linspace(start, stop, npts)
+                p = Positioner(pos['pvdrive'], label=pos['label'])
+                p.array = np.linspace(pos['start'], pos['stop'], pos['npts'])
                 scan.add_positioner(p)
-                if len(pvs) > 0:
-                    scan.add_counter(pvs[1], label="%s_read" % label)
+                scan.add_counter(pos['pvread'], label=f"{pos['label']}_read")
         elif scantype == 'mesh':
             if inner is None and positioners is not None:
                 inner = positioners
-            label1, pvs1, start1, stop1, npts1 = inner
-            p1 = Positioner(pvs1[0], label=label1)
+            p1 = Positioner(inner['pvdrive'], label=inner['label'])
+            p1vals = np.linspace(inner['start'], inner['stop'], inner['npts'])
             p2 = None
             npts2 = 1
             if outer is not None:
-                label2, pvs2, start2, stop2, npts2 = outer
-                p2 = Positioner(pvs2[0], label=label2)
-                x2  = [[i]*npts1 for i in np.linspace(start2, stop2, npts2)]
+                p2 = Positioner(outer['pvdrive'], label=outer['label'])
+                p2vals = np.linspace(outer['start'], outer['stop'], outer['npts'])
+                x2  = [[i]*npts1 for i in p2vals]
                 p2.array = np.array(x2).flatten()
 
-            x1 = npts2*[np.linspace(start1, stop1, npts1)]
+            x1 = outer['npts']*[p1vals]
             p1.array = np.array(x1).flatten()
             scan.add_positioner(p1)
-            if len(pvs1) > 0:
-                scan.add_counter(pvs1[1], label="%s_read" % label1)
+            scan.add_counter(inner['pvread'], label="f{inner['label']}_read")
             if p2 is not None:
                 scan.add_positioner(p2)
-                if len(pvs2) > 0:
-                    scan.add_counter(pvs2[1], label="%s_read" % label2)
+                scan.add_counter(outer['pvread'], label="f{outer['label']}_read")
 
         elif scantype == 'slew1d' or scantype == 'slew' and dimension == 1:
             scan = Slew_Scan1D(filename=filename, comments=comments)
             scan.inner = inner
             scan.detmode = 'roi'
-            label, pvs, start, stop, npts = inner
-            # print(" CREATE 1D ", inner, pvs)
-            pos = Positioner(pvs[0], label=label)
-            pos.array = np.linspace(start, stop, npts)
+            pos = Positioner(inner['pvdrive'], label=inner['label'])
+            pos.array = np.linspace(inner['start'], inner['stop'], inner['npts'])
             scan.add_positioner(pos)
 
         elif scantype == 'slew':
@@ -135,9 +151,8 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
             scan.inner = inner
             scan.detmode = 'ndarray'
             scan.outer = outer
-            label, pvs, start, stop, npts = outer
-            pos = Positioner(pvs[0], label=label)
-            pos.array = np.linspace(start, stop, npts)
+            pos = Positioner(outer['pvdrive'], label=outer['label'])
+            pos.array = np.linspace(outer['start'], outer['stop'], outer['npts'])
             scan.add_positioner(pos)
 
 
