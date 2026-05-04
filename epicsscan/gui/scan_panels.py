@@ -518,7 +518,7 @@ class StepScanPanel(GenericScanPanel):
                 npts = wnpts.GetValue()
             if start.Enabled:
                 label = pos.GetStringSelection()
-                pvnames = self.pospvs[name]
+                pvnames = self.pospvs[label]
                 p1 = start.GetValue()
                 p2 = stop.GetValue()
                 if is_relative:
@@ -1158,8 +1158,7 @@ class MeshScanPanel(GenericScanPanel):
             pos, u, cur, start, stop, dx, wnpts = wids
             npts = wnpts.GetValue()
             label = pos.GetStringSelection()
-            xpos = self.scandb.get_positioner(name)
-            pvnames = (xpos.drivepv, xpos.readpv)
+            xpos = self.scandb.get_positioner(label)
             p1 = start.GetValue()
             p2 = stop.GetValue()
             if is_relative:
@@ -1428,7 +1427,7 @@ class Slew2DScanPanel(GenericScanPanel):
             if start.Enabled:
                 npts = wnpts.GetValue()
                 label = pos.GetStringSelection()
-                xpos = self.scandb.get_positioner(name)
+                xpos = self.scandb.get_positioner(label)
                 p1 = start.GetValue()
                 p2 = stop.GetValue()
                 mname = 'outer'
@@ -1587,7 +1586,7 @@ class Slew1DScanPanel(GenericScanPanel):
             if start.Enabled:
                 npts = wnpts.GetValue()
                 label = pos.GetStringSelection()
-                xpos = self.scandb.get_positioner(name)
+                xpos = self.scandb.get_positioner(label)
                 p1 = start.GetValue()
                 p2 = stop.GetValue()
                 mname = 'inner'
