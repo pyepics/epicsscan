@@ -27,7 +27,7 @@ from ..positioner import Positioner
 from ..detectors import Counter
 
 # Max number of points in scan
-MAX_NPTS = 8000
+MAX_NPTS = 16000
 
 LINWID = 700
 ELEM_LIST = ('H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na',
@@ -496,6 +496,7 @@ class StepScanPanel(GenericScanPanel):
     def generate_scan_positions(self):
         "generate linear scan"
         s = {'type': 'linear',
+             'scanmode': 'step',
              'dwelltime':  float(self.dwelltime.GetValue()),
              'scantime': self.scantime,
              'positioners': [],
@@ -516,7 +517,7 @@ class StepScanPanel(GenericScanPanel):
             if i == 0:
                 npts = wnpts.GetValue()
             if start.Enabled:
-                name = pos.GetStringSelection()
+                label = pos.GetStringSelection()
                 pvnames = self.pospvs[name]
                 p1 = start.GetValue()
                 p2 = stop.GetValue()
@@ -527,7 +528,10 @@ class StepScanPanel(GenericScanPanel):
                         off = 0
                     p1 += off
                     p2 += off
-                s['positioners'].append((name, pvnames, p1, p2, npts))
+                s['positioners'].append({'label':label, 'pvdrive': pvnames[0],
+                                         'pvread': pvnames[1],
+                                         'start': p1, 'stop': p2,
+                                         'npts': npts, 'type': 'linear'})
         return s
 
 class XAFSScanPanel(GenericScanPanel):
@@ -1153,7 +1157,7 @@ class MeshScanPanel(GenericScanPanel):
         for i, wids in enumerate(self.pos_settings):
             pos, u, cur, start, stop, dx, wnpts = wids
             npts = wnpts.GetValue()
-            name = pos.GetStringSelection()
+            label = pos.GetStringSelection()
             xpos = self.scandb.get_positioner(name)
             pvnames = (xpos.drivepv, xpos.readpv)
             p1 = start.GetValue()
@@ -1161,9 +1165,10 @@ class MeshScanPanel(GenericScanPanel):
             if is_relative:
                 p1 += float(cur.GetLabel())
                 p2 += float(cur.GetLabel())
-            mname = 'inner'
-            if i > 0: mname = 'outer'
-            s[mname] = [name, pvnames, p1, p2, npts]
+            mname = 'inner' if i == 0 else 'outer'
+            s[mname] = {'label': label, 'pvdrive': xpos.drivepv,
+                        'pvread': xpos.readpv, 'start': p1,
+                        'stop':p2, 'npts': npts}
         return s
 
 class Slew2DScanPanel(GenericScanPanel):
@@ -1422,9 +1427,8 @@ class Slew2DScanPanel(GenericScanPanel):
             pos, u, cur, start, stop, dx, wnpts = wids
             if start.Enabled:
                 npts = wnpts.GetValue()
-                name = pos.GetStringSelection()
+                label = pos.GetStringSelection()
                 xpos = self.scandb.get_positioner(name)
-                pvnames = (xpos.drivepv, xpos.readpv)
                 p1 = start.GetValue()
                 p2 = stop.GetValue()
                 mname = 'outer'
@@ -1434,7 +1438,9 @@ class Slew2DScanPanel(GenericScanPanel):
                         p1, p2 = p2, p1
                         start.SetValue(p1)
                         stop.SetValue(p2)
-                s[mname] = [name, pvnames, p1, p2, npts]
+                s[mname] = {'label': label, 'pvdrive': xpos.drivepv,
+                            'pvread': xpos.readpv, 'start': p1,
+                            'stop':p2, 'npts': npts}
         return s
 
 class Slew1DScanPanel(GenericScanPanel):
@@ -1580,9 +1586,8 @@ class Slew1DScanPanel(GenericScanPanel):
             pos, u, cur, start, stop, dx, wnpts = wids
             if start.Enabled:
                 npts = wnpts.GetValue()
-                name = pos.GetStringSelection()
+                label = pos.GetStringSelection()
                 xpos = self.scandb.get_positioner(name)
-                pvnames = (xpos.drivepv, xpos.readpv)
                 p1 = start.GetValue()
                 p2 = stop.GetValue()
                 mname = 'inner'
@@ -1590,5 +1595,8 @@ class Slew1DScanPanel(GenericScanPanel):
                     p1, p2 = p2, p1
                     start.SetValue(p1)
                     stop.SetValue(p2)
-                s[mname] = [name, pvnames, p1, p2, npts]
+                s[mname] = {'label': label, 'pvdrive': xpos.drivepv,
+                            'pvread': xpos.readpv, 'start': p1,
+                            'stop':p2, 'npts': npts}
+
         return s
