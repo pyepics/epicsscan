@@ -49,7 +49,7 @@ class Slew_Scan1D(StepScan):
         self.scandb.set_info('qxafs_config', 'slew')
         self.scandb.set_info('qxafs_running', 0) # abort
 
-        inner_pos = self.scandb.get_slewpositioner(self.inner[0])
+        inner_pos = self.scandb.get_slewpositioner(self.inner['label'])
         if inner_pos is not None:  # would be None for Time series
             conf = self.scandb.get_config_id(inner_pos.config_id)
             scnf = self.slewscan_config = json.loads(conf.notes)
@@ -62,11 +62,11 @@ class Slew_Scan1D(StepScan):
                                       outputs=scnf['outputs'],
                                       extra_triggers=scnf.get('extra_triggers', 0))
 
-            l_, pvs, start, stop, npts = self.inner
-            pospv = pvs[0]
+            start, stop, npts = self.inner['start'], self.inner['stop'], self.inner['npts']
+            pospv = self.inner['pvdrive']
             if pospv.endswith('.VAL'):
                 pospv = pospv[:-4]
-            dirpv = pospv + '.DIR'
+            dirpv = f'{pospv}.DIR'
             if caget(dirpv) == 1:
                 start, stop = stop, start
             step = abs(start-stop)/(npts-1)
@@ -95,13 +95,13 @@ class Slew_Scan1D(StepScan):
                 self.orig_positions[pvname] = thispv.get()
 
         else:
-            npts = self.inner[4]
+            npts = self.inner['npts']
             self.rowtime = dtime = self.dwelltime * npts
             xvals = self.dwelltime * np.arange(npts)
             self.xps = None
             self.motor_vals = {}
             self.orig_positions = {}
-            pvname = self.inner[1][1]
+            pvname = self.inner['pvread']
             thispv = PV(pvname)
             self.motor_vals[pvname] = (thispv, xvals, xvals)
             self.orig_positions[pvname] = thispv.get()
@@ -313,7 +313,7 @@ class Slew_Scan1D(StepScan):
             npulses, gather_text = self.xps.read_gathering()
             xvals = self.gathering2xvals(gather_text)
         else:
-            pvname = self.inner[1][1]
+            pvname = self.inner['pvread']
             pv, xvals, _xvals = self.motor_vals[pvname]
         self.pos_actual = []
         for x in xvals:
