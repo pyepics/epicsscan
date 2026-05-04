@@ -394,8 +394,7 @@ class StepScan(object):
         npts = None
         for pos in self.positioners:
             if not pos.verify_array():
-                self.set_error('Positioner {0} array out of bounds'.format(
-                    pos.pv.pvname))
+                self.set_error(f'Positioner '{pos.pv.pvname}' array out of bounds')
                 return False
             if npts is None:
                 npts = len(pos.array)
