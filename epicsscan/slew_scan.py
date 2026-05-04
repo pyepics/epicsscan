@@ -266,7 +266,7 @@ class Slew_Scan(StepScan):
                  f'#SCAN.nrows_expected = {npts}',
                  f'#SCAN.time_per_row_expected = {self.rowtime:.2f}',
                  f'#X.positioner  = {xpos}',
-                 f'#X.start_stop_step_npts = {xstart}, {xstop}, {xstep}, {xnpts}'])
+                 f'#X.start_stop_step_npts = {xstart}, {xstop}, {xstep}, {xnpts}']
         if dim == 2:
             mbuff.extend([f'#Y.positioner  = {ypos}',
                          f'#Y.start_stop_step_npts = {start}, {stop}, {step}, {npts}'])
