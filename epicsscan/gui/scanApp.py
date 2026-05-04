@@ -604,7 +604,7 @@ class ScanFrame(wx.Frame):
 
         dlg = wx.DirDialog(self, "Select Working Directory:", os.getcwd(),
                            style=style)
-
+        dlg.Raise()
         if dlg.ShowModal() == wx.ID_OK:
             userdir = Path(dlg.GetPath()).absolute().as_posix()
             self.scandb.set_workdir(user_folder=userdir, verbose=True)
