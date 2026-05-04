@@ -123,16 +123,10 @@ class Slew_Scan(StepScan):
         self.fileroot = fileroot
         save_yaml(Path(mapdir, '_Scan.yaml'), self.scandict)
 
-        print("SCAN INNER ", self.inner)
-        if isinstance(self.inner, dict):
-            npts = self.inner['npts']
-        if isinstance(self.inner, list):
-            npts = self.inner[4]
-
-        self.rowtime = dtime = self.dwelltime*(npts-1)
 
         dim  = 1 if self.outer is None else 2
         start, stop, npts = self.inner['start'], self.inner['stop'], self.inner['npts']
+        self.rowtime = dtime = self.dwelltime*(npts-1)
         pospv = self.inner['pvdrive']
         if pospv.endswith('.VAL'):
             pospv = pospv[:-4]
