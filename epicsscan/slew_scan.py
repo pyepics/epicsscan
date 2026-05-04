@@ -21,10 +21,18 @@ from .file_utils import fix_varname, fix_filename, increment_filename
 from epics import PV, poll, get_pv, caget, caput
 from newportxps import NewportXPS
 
-from pyshortcuts import debugtimer
+from pyshortcuts import debugtimer, isotime
 
 # this will preven yoml from "cleverly" making references to repeated values
 yaml.SafeDumper.ignore_aliases = lambda *args: True
+
+def save_yaml(filepath, data, default_flow_style=None, indent=4):
+    """save data to file as yaml"""
+    with open(filepath, 'w') as fh:
+        fh.write(yaml.safe_dump(data,
+                                default_flow_style=default_flow_style,
+                                indent=indent))
+
 
 class Slew_Scan(StepScan):
     """Slew Scans"""
@@ -67,10 +75,11 @@ class Slew_Scan(StepScan):
             pvs['finex'].put(0, wait=True)
             pvs['finey'].put(0, wait=True)
             time.sleep(0.1)
-        inner_pos = self.scandb.get_slewpositioner(self.inner[0])
+
+        inner_pos = self.scandb.get_slewpositioner(self.inner['label'])
         conf = self.scandb.get_config_id(inner_pos.config_id)
         scnf = self.slewscan_config = json.loads(conf.notes)
-        # print("CREATE NEWPORT XPS ", scnf)
+
         self.xps = self.scandb.connections.get('mapping_xps', None)
         if self.xps is None:
             print("Slew SCAN creating New Connection to NewportXPS: ")
@@ -102,7 +111,7 @@ class Slew_Scan(StepScan):
             counter += 1
 
         self.filename = fname
-        Path(mapdir).mkddir(exists_ok=True, mode=493)
+        Path(mapdir).mkdir(exist_ok=True, mode=493)
 
         hfname= os.path.join(basedir, self.filename)
         self.set_info('filename', fname)
@@ -112,12 +121,37 @@ class Slew_Scan(StepScan):
             fh.write(f"{mapdir}\n")
         self.mapdir = mapdir
         self.fileroot = fileroot
+        save_yaml(Path(mapdir, '_Scan.yaml'), self.scandict)
 
-        sdict = yaml.safe_dump(self.scandict, default_flow_style=None, indent=4)
-        with open(Path(mapdir, 'Scan.yaml'), 'w') as fh:
-            fh.write(sdict)
+        print("SCAN INNER ", self.inner)
+        if isinstance(self.inner, dict):
+            npts = self.inner['npts']
+        if isinstance(self.inner, list):
+            npts = self.inner[4]
 
         self.rowtime = dtime = self.dwelltime*(npts-1)
+
+        dim  = 1 if self.outer is None else 2
+        start, stop, npts = self.inner['start'], self.inner['stop'], self.inner['npts']
+        pospv = self.inner['pvdrive']
+        if pospv.endswith('.VAL'):
+            pospv = pospv[:-4]
+        dirpv = f'{pospv}.DIR'
+        if caget(dirpv) == 1:
+            start, stop = stop, start
+        step = abs(start-stop)/(npts-1)
+
+        axis = None
+        for ax, pvname in self.slewscan_config['motors'].items():
+            if pvname == pospv:
+                axis = ax
+
+        if axis is None:
+           raise ValueError(f"Could not find XPS Axis for {pospv=}")
+
+        self.xps.define_line_trajectories(axis, group=scnf['group'],
+                                          pixeltime=self.dwelltime,
+                                          start=start, stop=stop, step=step)
         trajs = self.xps.trajectories
         self.motor_vals = {}
         self.orig_positions = {}
@@ -166,8 +200,10 @@ class Slew_Scan(StepScan):
 
     def save_extra_data(self, xrfdet=None, xrddet=None):
         t0 = time.time()
-        env_file = Path(self.mapdir, 'Environ.dat').absolute().as_posix()
-        self.save_envdata(filename=env_file)
+        envdat = {}
+        for desc, pvname, value in self.read_extra_pvs():
+            envdat[desc] = [f"{value}", pvname]
+        save_yaml(Path(self.mapdir, '_Environ.yaml'), envdat)
         if xrfdet is not None:
             fpath = Path(self.mapdir, f'ROICALIB_{xrfdet.label}.dat')
             xrfdet.save_calibration(fpath.absolute().as_posix())
@@ -213,23 +249,33 @@ class Slew_Scan(StepScan):
 
         dim  = 1
         npts = 1
+
+        xnpts = self.inner['npts']
+        xstart, xstop = self.inner['start'], self.inner['stop']
+        xstep = abs(xstart-xstop)/(xnpts-1)
+        xpos = self.inner['pvdrive']
+        if xpos.endswith('.VAL'):
+            xpos = xpos[:-4]
+
         if self.outer is not None:
             dim = 2
-            l_, pvs, start, stop, _npts = self.outer
-            npts = min(_npts, len(self.positioners[0].array))
+            npts = min(self.outer['npts'], len(self.positioners[0].array))
+            start, stop = self.outer['start'], self.outer['stop']
             step = abs(start-stop)/(npts-1)
-            ypos = str(pvs[0])
+            ypos = self.outer['pvdrive']
             if ypos.endswith('.VAL'):
                 ypos = ypos[:-4]
         mbuff = ["#Scan.version = 2.0",
-                '#SCAN.starttime = %s' % time.ctime(),
-                '#SCAN.filename  = %s' % self.filename,
-                '#SCAN.dimension = %i' % dim,
-                '#SCAN.nrows_expected = %i' % npts,
-                '#SCAN.time_per_row_expected = %.2f' % self.rowtime]
+                 f'#SCAN.starttime = {isotime()}',
+                 f'#SCAN.filename  = {self.filename}',
+                 f'#SCAN.dimension = {dim}',
+                 f'#SCAN.nrows_expected = {npts}',
+                 f'#SCAN.time_per_row_expected = {self.rowtime:.2f}',
+                 f'#X.positioner  = {xpos}',
+                 f'#X.start_stop_step_npts = {xstart}, {xstop}, {xstep}, {xnpts}'])
         if dim == 2:
-            mbuff.extend(['#Y.positioner  = %s' %  (ypos),
-                         '#Y.start_stop_step = %f, %f, %f' %  (start, stop, step)])
+            mbuff.extend([f'#Y.positioner  = {ypos}',
+                         f'#Y.start_stop_step_npts = {start}, {stop}, {step}, {npts}'])
         mbuff.extend(['#------------------------------------',
                       '# yposition  xrf_file  mcs_file  xps_file  xrd_file   time', ''])
 
@@ -517,12 +563,3 @@ class Slew_Scan(StepScan):
 
     def check_beam_ok(self):
         return True
-
-    def save_envdata(self,filename='Environ.dat'):
-        buff = []
-        for desc, pvname, value in self.read_extra_pvs():
-            buff.append(f"; {desc} ({pvname}) = {value}")
-        buff.append("")
-        with open(filename,'w') as fh:
-            fh.write('\n'.join(buff))
-        fh.close()
