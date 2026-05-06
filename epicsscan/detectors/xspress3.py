@@ -342,9 +342,8 @@ class Xspress3Detector(DetectorMixin):
         self.label = label
         if self.label is None:
             self.label = self.prefix
-        self.arm_delay = 0.075
-        self.arm_delay = 0.10
-        self.start_delay_arraymode = 0.4
+        self.arm_delay = 0.025
+        self.start_delay_arraymode = 0.25
         self.start_delay_roimode   = 0.4
         self.start_delay = self.start_delay_roimode
         self._counter = None
@@ -556,7 +555,7 @@ class Xspress3Detector(DetectorMixin):
     def finish_capture(self):
         # print("FINISH CAPTURE ")
         self._xsp3.FileCaptureOff()
-        time.sleep(0.1)
+        time.sleep(0.025)
 
     def arm(self, mode=None, fnum=None, wait=True, numframes=None):
         t0 = time.time()
