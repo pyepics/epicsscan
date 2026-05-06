@@ -384,9 +384,9 @@ class Slew_Scan(StepScan):
                     print(f"XPS Failed to Arm Trajectory for row {irow} a second time. Aborting scan")
                     return
 
-            time.sleep(0.05)
+            time.sleep(0.025)
             if irow < 2 or not lastrow_ok:
-                time.sleep(0.10)
+                time.sleep(0.05)
             dtimer.add(f'XPS trajectory armed {trajname}')
 
             # start trajectory in another thread
@@ -397,7 +397,7 @@ class Slew_Scan(StepScan):
                                  name='trajectory_thread')
             scan_thread.start()
 
-            dtimer.add('scan thread started')
+            dtimer.add(f'scan thread started {self.rowtime=}')
             posfile = f"xps.{irow:04}"
             if scadet is not None:
                 scafile = f"{scadet.label}.{irow:04}"
@@ -416,15 +416,22 @@ class Slew_Scan(StepScan):
             xt0 = time.time()
             while (scan_thread.is_alive() or (time.time() < xt0+0.5*self.rowtime)):
                 time.sleep(0.05)
-                if time.time() > xt0 + 0.80*self.rowtime:
+                if time.time() > xt0 + 0.90*self.rowtime:
                     break
 
-            dtimer.add(f'scan thread: join() {self.rowtime:.1f}')
-            scan_thread.join(timeout=2.0*self.rowtime)
-            dtimer.add('scan thread joined')
+            scan_thread.join(timeout=self.rowtime)
+            dtimer.add('scan thread joined (complete)')
             mrows =[pos0, xrffile, scafile, posfile, xrdfile,
                     f"{(time.time()-start_time):10.6f}\n"]
             self.write_master(' '.join(mrows))
+
+            pos_file = Path(self.mapdir, posfile).absolute().as_posix()
+            pos_saver = Thread(target=self.xps.read_and_save,
+                               args=(pos_file,),
+                               kwargs={'use_ftp': False},
+                               name='pos_saver')
+            pos_saver.start()
+            dtimer.add('started XPS save')
 
             if irow < npts-1:
                 for p in self.positioners:
@@ -438,15 +445,8 @@ class Slew_Scan(StepScan):
                 mcs_saver_thread = Thread(target=self.save_mcs_data,  name='mcs_saver')
                 mcs_saver_thread.start()
             dtimer.add('started MCS data save')
-            time.sleep(0.005)
-            pos_file = Path(self.mapdir, posfile).absolute().as_posix()
-            # print(f"Will save XPS data to {pos_file}")
-            pos_saver_thread = Thread(target=self.xps.read_and_save,
-                                  args=(pos_file,), name='pos_saver')
-            pos_saver_thread.start()
-            dtimer.add('started XPS save')
 
-            time.sleep(0.005)
+            time.sleep(0.002)
             nxrf = nxrd = 0
             if xrfdet is not None:
                 xrfdet.stop()
@@ -461,13 +461,13 @@ class Slew_Scan(StepScan):
                 time.sleep(0.01)
                 nxrf = xrfdet.get_numcaptured()
                 if (nxrf < npulses-1) or not write_complete:
-                    time.sleep(0.10)
+                    time.sleep(0.05)
                     xrfdet.finish_capture()
-                    time.sleep(0.10)
+                    time.sleep(0.025)
                     nxrf = xrfdet.get_numcaptured()
                     write_complete = xrfdet.file_write_complete()
                 if (nxrf < npulses-1) or not write_complete:
-                    time.sleep(0.250)
+                    time.sleep(0.050)
                     xrfdet.finish_capture()
                     nxrf = xrfdet.get_numcaptured()
                     write_complete = xrfdet.file_write_complete()
@@ -475,8 +475,8 @@ class Slew_Scan(StepScan):
                     print("XRF file write failed ", write_complete, nxrf, npulses, ntry)
                     rowdata_ok = False
                     xrfdet.stop()
-                    time.sleep(0.1)
-            dtimer.add('saved XRF data')
+                    time.sleep(0.10)
+            dtimer.add(f'saved XRF data')
 
             if xrddet is not None:
                 nxrd = xrddet.get_numcaptured()
@@ -487,16 +487,14 @@ class Slew_Scan(StepScan):
                 xrddet.stop()
                 dtimer.add('saved XRD data')
 
-            mcs_saver_thread.join(timeout=2)
-            pos_saver_thread.join(timeout=5)
-            if pos_saver_thread.is_alive():
-                print('ERROR:  NewportXPS gathering thread is still alive')
-            dtimer.add('saved XPS data')
+            mcs_saver_thread.join(timeout=0.5)
+            dtimer.add('saved MCS data')
+            if pos_saver.is_alive():
+                pos_saver.join(timeout=0.5 + (npulses)/1000.)
+            dtimer.add('saved XPS gathering data')
+            rowdata_ok = rowdata_ok and (self.npts_sca >= npulses-2)
+            rowdata_ok = rowdata_ok and (self.xps.ngathered >= npulses-2)
 
-            rowdata_ok = (rowdata_ok and
-                          (self.npts_sca >= npulses-2) and
-                          (self.xps.ngathered >= npulses-2) and
-                          (not pos_saver_thread.is_alive()))
             if xrfdet is not None:
                 rowdata_ok = rowdata_ok and (nxrf >= npulses-2)
 
@@ -509,44 +507,8 @@ class Slew_Scan(StepScan):
                 irow -= 1
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
                 time.sleep(0.25)
-                if self.xps.ngathered < (npulses - 2):
-                    print("checking for bad XPS groups")
-                    bad_groups = []
-                    for sname, val in self.xps.get_positioner_errors().items():
-                        if val != 'OK':
-                            g, s = sname.split('.')
-                            bad_groups.append(g)
-                    print("re-initializing bad groups ", bad_groups)
-                    cur_pos = []
-                    for pos in self.positioners:
-                        cur_pos[pos.pv.pvname] = pos.pv.get()
 
-                    for gname in bad_groups:
-                        try:
-                            self.xps.initialize_group(gname)
-                        except:
-                            pass
-                        time.sleep(0.25)
-                        try:
-                            self.xps.home_group(gname)
-                        except:
-                            pass
-                    time.sleep(0.25)
-                    for pos in self.positioners:
-                        pos.pv.put(cur_pos(pos.pv.pvname)-0.002)
-
-                    time.sleep(0.25)
-                    for pos in self.positioners:
-                        pos.pv.put(cur_pos(pos.pv.pvname), wait=True)
-
-
-
-
-            elif irow < npts-1:
-                for p in self.positioners:
-                    p.move_to_pos(irow, wait=True)
-
-            if debug:
+            if debug or True:
                 dtimer.show()
 
         ex_thread.join()
