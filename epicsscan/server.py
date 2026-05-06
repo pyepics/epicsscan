@@ -30,6 +30,7 @@ class ScanServer():
         self.req_pause = False
         self.req_shutdown = False
         self.fileroot = None
+        self.abort_count = 0
         self.scandb = ScanDB(dbname=dbname, **kws)
         if setup:
             self.setup()
