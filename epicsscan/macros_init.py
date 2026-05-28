@@ -17,7 +17,7 @@ from xraydb import (atomic_density, atomic_mass, atomic_name, atomic_number,
           xray_delta_beta, xray_edge, xray_edges, xray_line, xray_lines)
 
 
-get_pv.__doc__ = """
+get_pv_doc = """
     Get a PV from PV cache or create one if needed.
 
     Parameters
@@ -67,20 +67,21 @@ get_pv.__doc__ = """
 
 # Note: these will be included as READ-ONLY symbols in the asteval Interpreter
 #
-INITSYMS = ['clock', 'sleep', 'caget', 'caput', 'get_pv', 'PV', 'consts',
-            'etok', 'ktoe', 'AMU', 'ATOM_NAMES', 'ATOM_SYMS', 'AVOGADRO',
-            'DEG2RAD', 'E_MASS', 'PI', 'PLANCK_HBARC', 'PLANCK_HC', 'RAD2DEG',
-            'RYDBERG', 'R_ELECTRON_ANG', 'R_ELECTRON_CM', 'SI_PREFIXES',
-            'TAU', 'XAFS_KTOE', 'atomic_density', 'atomic_mass',
-            'atomic_name', 'atomic_number', 'atomic_symbol', 'chemparse',
-            'core_width', 'darwin_width', 'f0', 'f1_chantler', 'f2_chantler',
-            'fluor_yield', 'get_material', 'guess_edge', 'index_nearest',
-            'index_of', 'ionchamber_fluxes', 'ionization_potential',
-            'material_mu', 'material_mu_components', 'mirror_reflectivity',
-            'mu_elam', 'xray_delta_beta', 'xray_edge', 'xray_edges',
-            'xray_line', 'xray_lines', 'get_dbinfo', 'set_dbinfo',
-            'check_scan_abort', 'scan_from_db', 'do_scan', 'do_slewscan',
-            'move_instrument', 'move_samplestage']
+INITSYMS = ['clock', 'sleep', 'consts',
+            'caput', 'caget', 'get_pv', 'PV',
+            'etok', 'ktoe', 'AMU', 'ATOM_NAMES',
+            'ATOM_SYMS', 'AVOGADRO', 'DEG2RAD', 'E_MASS', 'PI', 'PLANCK_HBARC',
+            'PLANCK_HC', 'RAD2DEG', 'RYDBERG', 'R_ELECTRON_ANG',
+            'R_ELECTRON_CM', 'SI_PREFIXES', 'TAU', 'XAFS_KTOE',
+            'atomic_density', 'atomic_mass', 'atomic_name', 'atomic_number',
+            'atomic_symbol', 'chemparse', 'core_width', 'darwin_width', 'f0',
+            'f1_chantler', 'f2_chantler', 'fluor_yield', 'get_material',
+            'guess_edge', 'index_nearest', 'index_of', 'ionchamber_fluxes',
+            'ionization_potential', 'material_mu', 'material_mu_components',
+            'mirror_reflectivity', 'mu_elam', 'xray_delta_beta', 'xray_edge',
+            'xray_edges', 'xray_line', 'xray_lines', 'get_dbinfo',
+            'set_dbinfo', 'check_scan_abort', 'scan_from_db', 'do_scan',
+            'do_slewscan', 'move_instrument', 'move_samplestage']
 
 physical_constants = consts.physical_constants
 
@@ -174,6 +175,74 @@ SI_PREFIXES = {'y': 1.e-24, 'yocto': 1.e-24,
                'Y': 1.e24, 'yotta': 1.e24,
   }
 
+# pyepics wrappers
+def caput(pvname, value, wait=False, timeout=60.0, connection_timeout=5.0,
+          check_write_access=True):
+    """
+    put a value to an epics Process Variable (PV).
+
+    Parameters
+    ----------
+     pvname : str
+         name of PV
+     value : object
+         value to put to PV (see notes)
+     wait : bool, optional
+         whether to wait for processing to complete [False]
+     timeout : float, optional
+         maximum time (in seconds) to wait for the processing to complete [60]
+     connection_timeout : float, optional
+         maximum time (in seconds) to wait for connection [5]
+     check_write_access : bool, optional
+         whether to check for write access before trying put [True]
+
+    Returns
+    -------
+    int or ``None``
+      - 1  on succesful completion
+      - -1 or other negative value on failure of the low-level CA put.
+      - None  on a failure to connect to the PV.
+
+    Notes
+    -----
+    1. Epics PVs are typically limited to an appropriate Epics data type,
+       int, float, str, and enums or homogeneously typed lists or arrays.
+       Numpy arrays or Python strings are generally coeced as appropriate,
+       but care may be needed when mapping Python objects to Epics PV values.
+    2. If not already connected, the PV will first attempt to connect to
+       the networked variable. As the initial connection can take some time
+       (typically 30 msec or so), if a successful connection is made, a rich
+       PV object with will be stored internally for later use.  Use
+       connection_timeout to control how long to wait before declaring that
+       the PV cannot be connected (mispelled name, inactive IOC, improper
+       network configuration)
+    3. Since some PVs can take a long time to process (perhaps physically
+       moving a motor or telling a detector to collect and not return until
+       done), it is impossible to tell what a "reasonable" timeout for a put
+       should be.
+
+
+    Examples
+    --------
+    to put a value to a PV and return as soon as possible:
+
+    >>> caput('xx.VAL', 3.0)
+
+    to wait for processing to finish, use 'wait=True':
+
+    >>> caput('xx.VAL', 3.0, wait=True)
+    """
+    pv = get_pv(pvname, connect=True, connection_timeout=connection_timeout)
+    if check_write_access and not pv.write_access:
+        print(f"Warning: no write access for '{pvname}'")
+    else:
+        return pv.put(vale, wait=wait, timeout=timeout)
+
+#
+# caget = epics.caget
+# PV = epics.PV
+# get_pv = epics.get_pv
+# get_pv.__doc__ = get_pv_doc
 
 def etok(energy):
     """convert photo-electron energy to wavenumber"""
@@ -347,9 +416,9 @@ def get_dbinfo(key, default=None, as_bool=False, as_int=False, full_row=False):
     return _scandb.get_info(key, default=default, full_row=full_row,
                             as_int=as_int, as_bool=as_bool)
 
-def set_dbinfo(key, value, notes=None, **kws):
+def set_dbinfo(key, value, **kws):
     """set a value for a keyword in the scan info table."""
-    return _scandb.set_info(key, value, notes=notes)
+    return _scandb.set_info(key, value)
 
 def check_scan_abort():
     """returns whether Abort has been requested"""
