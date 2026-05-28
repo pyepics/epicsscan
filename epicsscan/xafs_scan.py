@@ -78,7 +78,9 @@ class XAFS_Scan(StepScan):
         self.set_energy_pv(energy_pv, read_pv=read_pv, extra_pvs=extra_pvs)
 
     def set_energy_pv(self, energy_pv, read_pv=None, extra_pvs=None):
+        # print("XAFS SCAN set_energy_pv: ", energy_pv, read_pv, extra_pvs)
         self.energy_pv = energy_pv
+        self.pvs['energy_pv'] = get_pv(energy_pv)
         self.read_pv = read_pv
         if energy_pv is not None:
             self.energy_pos = Positioner(energy_pv, label='Energy',
@@ -152,6 +154,7 @@ class QXAFS_Scan(XAFS_Scan):
         self.regions = []
         self.with_id = False
         self.xps = None
+
         XAFS_Scan.__init__(self, label=label, energy_pv=energy_pv,
                            read_pv=None, e0=e0, scandb=scandb,
                            extra_pvs=extra_pvs, elem=elem, edge=edge, **kws)
@@ -377,7 +380,7 @@ class QXAFS_Scan(XAFS_Scan):
         for p in self.positioners:
             thispv = p.pv.pvname
             retval = p.current()
-            if normalize_pvname(p.pv.pvname) == normalize_pvname(qconf['energy_pv']):
+            if normalize_pvname(p.pv.pvname) == normalize_pvname(self.pvs['energy_pv'].pvname):
                 retval = energy_orig
                 if retval < self.e0:
                     retval = 25.0*(int((self.e0*1.01)/25.0 + 1))
@@ -502,9 +505,11 @@ class QXAFS_Scan(XAFS_Scan):
             if self.with_gapscan:
                 IDPREF = 'S13ID:USID'
                 gap_um = caget(f'{IDPREF}:GapArrayReadM.VAL')
-                gap_start = 0.001*float(gap_um[0])-0.002
-                if gap_start > 9 and gap_start < 50:
-                    caput(f'{IDPREF}:ScanGapC.VAL', gap_start, wait=True, timeout=30)
+                #print("GAP UM " , gap_um)
+                if len(gap_um) > 2:
+                    gap_start = 0.001*float(gap_um[0])-0.002
+                    if gap_start > 9 and gap_start < 50:
+                        caput(f'{IDPREF}:ScanGapC.VAL', gap_start, wait=True, timeout=30)
             elif self.pvs['id_drive_pv'].write_access:
                 idt0 =time.time()
                 try:
