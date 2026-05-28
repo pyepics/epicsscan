@@ -254,7 +254,7 @@ class ScanFrame(wx.Frame):
         """
         # print("This is generate_scan... ")
         if scanname is None:
-            scanname = time.strftime("_%b%d_%H:%M:%S")
+            scanname = time.strftime("__%b%d_%H:%M:%S__")
 
         scan = self.nb.GetCurrentPage().generate_scan_positions()
         sdb = self.scandb
