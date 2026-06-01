@@ -309,6 +309,7 @@ class StepScan(object):
 
     def pre_scan(self, row=0, filename=None, **kws):
         dtimer = debugtimer()
+        self.set_info('request_abort', 0)
         self.set_info('scan_progress', 'running pre_scan routines')
         for (desc, pv) in self.extra_pvs:
             pv.connect(timeout=0.1)
@@ -349,6 +350,8 @@ class StepScan(object):
             except:
                 self.write("Failed to run pre_scan_command()\n")
         dtimer.add('pre_scan ran macro prescan')
+        if self.scandb.get_infobool('request_abort'):
+            out.append("PreScan requested an abort!!")
         # dtimer.show()
         return out
 
