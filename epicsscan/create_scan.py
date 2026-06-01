@@ -16,6 +16,7 @@ from .slew_scan1d import Slew_Scan1D
 def get_axesdict(axes):
     """normalize inner/outer axes to dictionary (yaml-saveable)"""
     out = {}
+    print("GET AXES DICT ", axes)
     if isinstance(axes, dict):
         out.update(axes)
     if isinstance(axes, (list, tuple)):
@@ -76,7 +77,10 @@ def create_scan(filename='scan.dat', comments=None, type='linear',
     """
     scantype = type
     if positioners is not None:
-        positioners = get_axesdict(positioners)
+        if isinstance(positiones, (list, tuple)):
+            positioners = [get_axesdict(p) for p in positioners]
+        else:
+            positioners = get_axesdict(p)
     if inner is not None:
         inner = get_axesdict(inner)
     if outer is not None:
