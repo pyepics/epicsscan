@@ -84,6 +84,7 @@ class QXAFS_ScanWatcher(object):
         self.with_gapscan = self.scandb.get_infobool('qxafs_use_gapscan')
         self.gapscan_mode = self.scandb.get_info('qxafs_gapscan_mode', 1)
 
+
         if self.with_id:
             self.idarray_pv = get_pv(self.config['id_array_pv'])
             self.iddrive_pv = get_pv(self.config['id_drive_pv'])
@@ -146,7 +147,7 @@ class QXAFS_ScanWatcher(object):
         last_pulse = 0
         self.pulse = 0
         self.qxafs_connect_counters()
-
+        self.dtime = float(self.scandb.get_info(key='qxafs_dwelltime', default=0.5))
         while True:
             if self.get_state() == 0:
                 break
@@ -197,7 +198,9 @@ class QXAFS_ScanWatcher(object):
         self.qxafs_finish()
 
     def sync_undulator(self):
-        mode = self.scandb.get_info('qxafs_gapscan_mode', 1)
+        mode = self.scandb.get_info('qxafs_gapscan_mode', '1')
+        mode = int(mode)
+        print(f"Sync undulator {mode=}")
         if mode == 0:    # simple push of ID value, without gapscan
             self.with_gapscan = False
             self.sync_id_mode_0()
@@ -206,11 +209,11 @@ class QXAFS_ScanWatcher(object):
         elif mode == 2 and self.with_gapscan:  # gap values with TTL pulses
             raise ValueError(" sync_undulatore mode=2 not supported")
         elif mode in (3, 4) and self.with_gapscan:  # gap values with software put
-            self.sync_id_mode_2()
+            self.sync_id_mode_3()
 
 
-    def sync_id_mode_2(self):
-        """GapScan mode 2: push to next value in preloaded gap array"""
+    def sync_id_mode_3(self):
+        """GapScan mode 3 (or 4): push to next value in preloaded gap array"""
         last_pulse = 0
         self.pulse = 0
         self.last_move_time = time.time() - 30.0
@@ -225,13 +228,16 @@ class QXAFS_ScanWatcher(object):
         id_lookahead = self.id_lookahead
         id_energy_rbv = -1.0
         while True:
-            time.sleep(0.1)
+            time.sleep(0.05)
             now = time.time()
             npts = int(self.scandb.get_info(key='scan_total_points', default=0))
             if self.get_state() == 0 or self.scandb.get_infobool('request_abort'):
                 break
             if self.pulse > last_pulse:
                 self.idgapscan_next.put(1)
+                time.sleep(0.05)
+                # gapscan_index = caget("S13ID:USID:ScanIndexM")
+                # print(f"gapscan mode3 pushed {gapscan_index=}, {self.pulse=}")
                 last_pulse = self.pulse
                 cpt = int(self.pulse)
         last_pulse = self.pulse = 0
@@ -239,7 +245,6 @@ class QXAFS_ScanWatcher(object):
 
     def sync_id_mode_1(self):
         """ID Gapscan mode: gap values at 0.1 second were loaded and started"""
-
         last_pulse = 0
         self.pulse = 0
         self.idarray = self.idarray_pv.get()
@@ -289,7 +294,6 @@ class QXAFS_ScanWatcher(object):
                 # print(f"Pulse {self.pulse} ID_En_target={val0:.4f} id_busy={id_busy} lookahead={id_lookahead} last_move={dt:.2f} sec ago")
                 if ((self.pulse > 2) and id_busy and
                     (now > self.last_move_time + 2*self.dead_time)):
-                    print(f"    stopping ID")
                     self.idstop_pv.put(1) # ca_put(self.idstop_pv.pvname, 1)
                     time.sleep(self.dead_time)
                     id_busy = False
@@ -369,6 +373,8 @@ class QXAFS_ScanWatcher(object):
             if state > 0:
                 try:
                     confname = self.scandb.get_info('qxafs_config', default='qxafs')
+                    self.dtime = float(self.scandb.get_info(key='qxafs_dwelltime', default=0.5))
+
                     if confname is not self.confname:
                         self.connect()
                     if self.writer_thread is None:
