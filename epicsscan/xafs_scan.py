@@ -423,6 +423,7 @@ class QXAFS_Scan(XAFS_Scan):
         dtimer.add('folders and timer setup')
         dtimer.add('trajectory armed')
         self.scandb.set_filename(self.filename)
+        self.set_info('request_abort', 0)
         out = self.pre_scan(npulses=1+traj['npulses'],
                             dwelltime=dtime,
                             mode=ROI_MODE,
@@ -432,6 +433,9 @@ class QXAFS_Scan(XAFS_Scan):
                             e0=self.e0, energy=self.energies)
         self.check_outputs(out, msg='pre scan')
         dtimer.add('prescan ran')
+        if self.scandb.get_infobool('request_abort'):
+            print("PreScan Aborted scan!!")
+            return
         # move to start
         if self.with_id and self.pvs['id_drive_pv'].write_access:
             try:
@@ -482,6 +486,7 @@ class QXAFS_Scan(XAFS_Scan):
         self.filename =  self.datafile.filename
 
         self.scandb.set_filename(self.filename)
+        # set abort
         self.set_info('request_abort', 0)
         self.set_info('scan_time_estimate', float(npts*dtime))
         self.set_info('scan_total_points', int(npts))
@@ -528,11 +533,10 @@ class QXAFS_Scan(XAFS_Scan):
                 print(f" move id to start ({idarray[0]:.4f} keV) took  {(time.time()-idt0):.2f} sec")
 
         if self.with_gapscan:
-            gap_mode = self.scandb.get_infobool('qxafs_gapscan_mode', default=1)
-            print(f"XAFS: start ID Gap Scan {self.gapscan_pv=}, {gap_mode=}")
-            self.gapscan_pv.put(gap_mode, wait=False)
+            gapscan_mode = int(self.scandb.get_info('qxafs_gapscan_mode', default='1'))
+            print(f"XAFS: start ID Gap Scan {self.gapscan_pv=}, {gapscan_mode=}")
+            self.gapscan_pv.put(gapscan_mode, wait=False)
             time.sleep(0.05)
-
 
         with_scan_thread = False
         dtimer.add('trajectory run %r' % (with_scan_thread))
