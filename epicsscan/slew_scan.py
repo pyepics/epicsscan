@@ -215,7 +215,7 @@ class Slew_Scan(StepScan):
             txt.append('prefix = %s' % xrd_det.prefix)
             txt.append('fileplugin = %s' % xrd_det.filesaver)
 
-        with open(os.path.join(mapdir, 'Scan_legacy.ini'), 'w') as fh:
+        with open(os.path.join(mapdir, 'Scan.ini'), 'w') as fh:
             fh.write('\n'.join(txt))
 
         ###<<< legacy  >>>###
