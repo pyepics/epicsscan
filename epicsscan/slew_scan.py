@@ -387,7 +387,7 @@ class Slew_Scan(StepScan):
                 xrddet = det
             det.NDArrayMode(numframes=npulses)
 
-        det_arm_delay = det_start_delay = 0.025
+        det_arm_delay = det_start_delay = 0.010
         for det in self.detectors:
             det_arm_delay = max(det_arm_delay, det.arm_delay)
             dx = getattr(det, 'start_delay_arraymode', det.start_delay)
@@ -456,6 +456,7 @@ class Slew_Scan(StepScan):
                     break
                 time.sleep(0.005)
 
+            time.sleep(det_arm_delay)
             dtimer.add(f'detectors armed {det_arm_delay:.3f}')
             for det in self.detectors:
                 det.start(arm=False, wait=False)
