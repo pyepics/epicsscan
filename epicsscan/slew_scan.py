@@ -123,7 +123,6 @@ class Slew_Scan(StepScan):
         self.fileroot = fileroot
         save_yaml(Path(mapdir, '_Scan.yaml'), self.scandict)
 
-
         dim  = 1 if self.outer is None else 2
         start, stop, npts = self.inner['start'], self.inner['stop'], self.inner['npts']
         self.rowtime = dtime = self.dwelltime*(npts-1)
@@ -135,13 +134,101 @@ class Slew_Scan(StepScan):
             start, stop = stop, start
         step = abs(start-stop)/(npts-1)
 
+        ####################
+        ###<<< legacy  >>>###
+        txt = ['# FastMap configuration file (saved: %s)'%(time.ctime()),
+               '#-------------------------#','[general]',
+               'basedir = %s' % userdir,
+               '[xps]']
+        posnames = ', '.join(scnf['motors'].keys())
+        txt.extend(['host = %s' % scnf['host'],
+                    'user = %s' % scnf['username'],
+                    'passwd = %s' % scnf['password'],
+                    'group = %s' % scnf['group'],
+                    'positioners = %s' % posnames])
+
+        txt.append('#------------------#')
+        txt.append('[slow_positioners]')
+        for i, pos in enumerate(self.scandb.get_positioners()):
+            dpv = pos.drivepv
+            if dpv.endswith('.VAL'): dpv = dpv[:-4]
+            txt.append("%i = %s | %s" % (i+1, dpv, pos.name))
+
+        txt.append('#------------------#')
+        txt.append('[fast_positioners]')
+        for i, pos in enumerate(self.scandb.get_slewpositioners()):
+            dpv = pos.drivepv
+            if dpv.endswith('.VAL'): dpv = dpv[:-4]
+            txt.append("%i = %s | %s" % (i+1, dpv, pos.name))
+        t_comments = self.comments.replace('\n', ' | ')
+        txt.extend(['#------------------#', '[scan]',
+                    'filename = %s' % self.filename,
+                    'comments = %s' % t_comments,
+                    'dimension = %i' % dim,
+                    'pos1 = %s'     % pospv,
+                    'start1 = %.6f' % start,
+                    'stop1 = %.6f'  % stop,
+                    'step1 = %.6f'  % step,
+                    'time1 = %.6f'  % dtime])
+
+        if dim == 2:
+            pos2pv = self.outer['pvdrive']
+            start2 = self.outer['start']
+            stop2 = self.outer['stop']
+            npts2 = self.outer['npts']
+            if pos2pv.endswith('.VAL'):
+                pos2pv = pos2pv[:-4]
+            step2 = abs(start2-stop2)/(npts2-1)
+            txt.extend(['pos2 = %s'   % pos2pv,
+                        'start2 = %.6f' % start2,
+                        'stop2 = %.6f' % stop2,
+                        'step2 = %.6f' % step2])
+
+        xrd_det = None
+        xrf_det = None
+        for det in self.detectors:
+            if isinstance(det, AreaDetector):
+                xrd_det = det
+                self.set_info('xrd_1dint_status', 'starting')
+                self.set_info('xrd_1dint_label', det.label)
+
+            if 'xspress3' in det.label.lower():
+                xrf_det = det
+
+        txt.append('#------------------#')
+        txt.append('[xrf]')
+        if xrf_det is None:
+            txt.append('use = False')
+        else:
+            txt.append('use = True')
+            txt.append('type = xsp3')
+            txt.append('prefix = %s' % xrf_det.prefix)
+            txt.append('fileplugin = %s' % xrf_det.filesaver)
+
+        txt.append('#------------------#')
+        txt.append('[xrd_ad]')
+        if xrd_det is None:
+            txt.append('use = False')
+        else:
+            txt.append('use = True')
+            txt.append('type = AreaDetector')
+            txt.append('prefix = %s' % xrd_det.prefix)
+            txt.append('fileplugin = %s' % xrd_det.filesaver)
+
+        with open(os.path.join(mapdir, 'Scan_legacy.ini'), 'w') as fh:
+            fh.write('\n'.join(txt))
+
+        ###<<< legacy  >>>###
+        #####################
+
+
         axis = None
         for ax, pvname in self.slewscan_config['motors'].items():
             if pvname == pospv:
                 axis = ax
 
         if axis is None:
-           raise ValueError(f"Could not find XPS Axis for {pospv=}")
+            raise ValueError(f"Could not find XPS Axis for {pospv=}")
 
         self.xps.define_line_trajectories(axis, group=scnf['group'],
                                           pixeltime=self.dwelltime,
@@ -192,14 +279,26 @@ class Slew_Scan(StepScan):
         _, self.npts_sca = self.scadet.save_arraydata(filename=filename,
                                                    npts=self.npts_sca)
 
+    def save_envdata(self,filename='Environ.dat'):
+        buff = []
+        for desc, pvname, value in self.read_extra_pvs():
+            buff.append(f"; {desc} ({pvname}) = {value}")
+        buff.append("")
+        with open(filename, 'w') as fh:
+            fh.write('\n'.join(buff))
+        fh.close()
+
     def save_extra_data(self, xrfdet=None, xrddet=None):
         t0 = time.time()
         envdat = {}
         for desc, pvname, value in self.read_extra_pvs():
             envdat[desc] = [f"{value}", pvname]
         save_yaml(Path(self.mapdir, '_Environ.yaml'), envdat)
+        self.save_envdata(filename=Path(self.mapdir, 'Environ.dat'))
         if xrfdet is not None:
             fpath = Path(self.mapdir, f'ROICALIB_{xrfdet.label}.dat')
+            xrfdet.save_calibration(fpath.absolute().as_posix())
+            fpath = Path(self.mapdir, f'ROI.dat')
             xrfdet.save_calibration(fpath.absolute().as_posix())
         if xrddet is not None:
             xrd_poni = self.scandb.get_info('xrd_calibration', None)
@@ -508,7 +607,7 @@ class Slew_Scan(StepScan):
                 [p.move_to_pos(irow, wait=False) for p in self.positioners]
                 time.sleep(0.25)
 
-            if debug or True:
+            if debug:
                 dtimer.show()
 
         ex_thread.join()
