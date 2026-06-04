@@ -83,7 +83,7 @@ from .edit_sequences   import ScanSequenceFrame
 
 ICON_FILE = 'epics_scan.ico'
 
-SCANTYPES = ('slew', 'xafs', 'linear')
+SCANTYPES = ('slew1d', 'slew', 'xafs', 'linear')
 AUTOSAVE_FILE = 'macros_autosave.lar'
 
 def compare_scans(scan1, scan2, verbose=False):
@@ -155,7 +155,6 @@ class ScanFrame(wx.Frame):
 
         self.scandb = ScanDB()
         self.scantype = 'slew'
-        print('Connected ScanDB  ', self.scandb.engine)
 
         self.Bind(wx.EVT_CLOSE, self.onClose)
 
@@ -652,9 +651,12 @@ class ScanFrame(wx.Frame):
         _autotypes = self.scandb.get_infobool('scandefs_load_showauto')
         _alltypes  = self.scandb.get_infobool('scandefs_load_showalltypes')
         stype = ''
+
         if not _alltypes:
             panelname = self.nb.GetCurrentPage().__class__.__name__.lower()
             panelname = panelname.replace('scanpanel', '')
+            if panelname == 'slew2d':
+                panelname = 'slew'
             if panelname in SCANTYPES:
                 stype = panelname
         snames = []
