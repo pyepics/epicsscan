@@ -567,7 +567,7 @@ class Xspress3Detector(DetectorMixin):
                 time.sleep(0.02)
                 if time.time() >  t0+1:
                     break
-
+        # print('xspress3 arm, with complete')
         self._xsp3.put('ERASE', 1, use_complete=True)
         self._xsp3.put('EraseOnStart', 0)
         if fnum is not None:
@@ -591,22 +591,24 @@ class Xspress3Detector(DetectorMixin):
                 self._xsp3.FileCaptureOn(verify_rbv=True)
             else:
                 self._xsp3.FileCaptureOff()
-
+        # print(f"Armed Xspess3 {self.start_delay=}")
         self._xsp3.set_timeseries(mode='start', numframes=numframes,
                                   enable_rois=(self.mode != NDARRAY_MODE))
-        time.sleep(0.005)
+        time.sleep(0.010)
         if self._xsp3.DetectorState_RBV not in (0, 10):
             time.sleep(0.025)
         if wait:
             tout = time.time()+2.0
             while not (self._xsp3._pvs['ERASE'].put_complete or time.time()>tout):
                  time.sleep(0.002)
-        while (time.time() < (t0 + self.arm_delay)):
-            time.sleep(0.002)
-        # print("XSPRESS3 arm done: %.4f" % (time.time()-t0))
+        #  while (time.time() < (t0 + self.arm_delay)):
+        #    time.sleep(0.002)
+        print(f"XSPRESS3 arm done:{(time.time()-t0):.3f}")
 
     def arm_complete(self):
+        print("xspress3 arm_complete ", self._xsp3._pvs['ERASE'].put_complete)
         return self._xsp3._pvs['ERASE'].put_complete
+
 
     def disarm(self, mode=None, wait=False):
         if mode is not None:
