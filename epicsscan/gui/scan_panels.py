@@ -438,11 +438,11 @@ class StepScanPanel(GenericScanPanel):
 
         for i, posdat in enumerate(scan['positioners']):
             pos, units, cur, start, stop, step, npts = self.pos_settings[i]
-            pos.SetStringSelection(posdat[0])
-            start.SetValue(posdat[2])
-            stop.SetValue(posdat[3])
+            pos.SetStringSelection(posdat['label'])
+            start.SetValue(posdat['start'])
+            stop.SetValue(posdat['stop'])
             if hasattr(npts, 'SetValue'):
-                npts.SetValue(posdat[4])
+                npts.SetValue(posdat['npts'])
             self.update_position_from_pv(i)
 
     def update_positioners(self):
@@ -1100,10 +1100,10 @@ class MeshScanPanel(GenericScanPanel):
         for irow, name in ((0, 'inner'), (1, 'outer')):
             pos, units, cur, start, stop, step, npts = self.pos_settings[irow]
             posdat = scan[name]
-            pos.SetStringSelection(posdat[0])
-            start.SetValue(posdat[2])
-            stop.SetValue(posdat[3])
-            npts.SetValue(posdat[4])
+            pos.SetStringSelection(posdat['label'])
+            start.SetValue(posdat['start'])
+            stop.SetValue(posdat['stop'])
+            npts.SetValue(posdat['npts'])
             self.update_position_from_pv(irow)
 
         for det in scan['detectors']:
@@ -1516,10 +1516,10 @@ class Slew1DScanPanel(GenericScanPanel):
         pos, units, cur, start, stop, step, npts = self.pos_settings[0]
         posdat = scan['inner']
         if len(posdat) > 0:
-            pos.SetStringSelection(posdat[0])
-            start.SetValue(posdat[2])
-            stop.SetValue(posdat[3])
-            npts.SetValue(posdat[4])
+            pos.SetStringSelection(posdat['label'])
+            start.SetValue(posdat['start'])
+            stop.SetValue(posdat['stop'])
+            npts.SetValue(posdat['npts'])
             self.update_position_from_pv(0)
 
     def update_positioners(self):
