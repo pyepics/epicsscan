@@ -1315,6 +1315,7 @@ class Slew2DScanPanel(GenericScanPanel):
         as stored in db, or passed to stepscan"""
         self.dwelltime.SetValue(1000*scan['dwelltime'])
         self.dimchoice.SetStringSelection('%i' % (scan['dimension']))
+
         if hasattr(self, 'absrel'):
             try:
                 self.absrel.SetSelection(0)
@@ -1323,11 +1324,12 @@ class Slew2DScanPanel(GenericScanPanel):
         for irow, name in ((0, 'inner'), (1, 'outer')):
             pos, units, cur, start, stop, step, npts = self.pos_settings[irow]
             posdat = scan[name]
+            # print("Irow ", irow, name, posdat)
             if len(posdat) > 0:
-                pos.SetStringSelection(posdat[0])
-                start.SetValue(posdat[2])
-                stop.SetValue(posdat[3])
-                npts.SetValue(posdat[4])
+                pos.SetStringSelection(posdat['label'])
+                start.SetValue(posdat['start'])
+                stop.SetValue(posdat['stop'])
+                npts.SetValue(posdat['npts'])
                 self.update_position_from_pv(irow)
 
         xrd_det_name = self.scandb.get_info('xrdmap_detector', default=None)
