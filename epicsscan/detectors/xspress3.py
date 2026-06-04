@@ -603,10 +603,9 @@ class Xspress3Detector(DetectorMixin):
                  time.sleep(0.002)
         #  while (time.time() < (t0 + self.arm_delay)):
         #    time.sleep(0.002)
-        print(f"XSPRESS3 arm done:{(time.time()-t0):.3f}")
+        # print(f"XSPRESS3 arm done:{(time.time()-t0):.3f}")
 
     def arm_complete(self):
-        print("xspress3 arm_complete ", self._xsp3._pvs['ERASE'].put_complete)
         return self._xsp3._pvs['ERASE'].put_complete
 
 
