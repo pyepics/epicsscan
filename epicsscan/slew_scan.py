@@ -392,7 +392,7 @@ class Slew_Scan(StepScan):
             det_arm_delay = max(det_arm_delay, det.arm_delay)
             dx = getattr(det, 'start_delay_arraymode', det.start_delay)
             det_start_delay = max(det_start_delay, dx)
-
+        # print(f"Delays: {det_arm_delay=} {det_start_delay=}")
         # self.clear_interrupts()
         self.set_info('scan_progress', 'starting')
         rowdata_ok = True
@@ -451,10 +451,10 @@ class Slew_Scan(StepScan):
 
             # wait for detectors to be armed
             tout = time.time()+2.0
-            while not all([det.arm_complete for det in self.detectors]):
+            while not all([det.arm_complete() for det in self.detectors]):
                 if time.time() > tout:
                     break
-                time.sleep(0.005)
+                time.sleep(0.003)
 
             time.sleep(det_arm_delay)
             dtimer.add(f'detectors armed {det_arm_delay:.3f}')
@@ -598,9 +598,8 @@ class Slew_Scan(StepScan):
             if xrfdet is not None:
                 rowdata_ok = rowdata_ok and (nxrf >= npulses-2)
 
-            if debug or True:
-                print("#== Row %d nXPS=%d, nMCS=%d, nXRF=%d, nXRD=%d  npulses=%d, OK=%s" %
-                      (irow, self.xps.ngathered, self.npts_sca, nxrf, nxrd, npulses, repr(rowdata_ok)))
+            print("#== Row %d nXPS=%d, nMCS=%d, nXRF=%d, nXRD=%d  npulses=%d, OK=%s" %
+                  (irow, self.xps.ngathered, self.npts_sca, nxrf, nxrd, npulses, repr(rowdata_ok)))
             if not rowdata_ok:
                 fmt=  '#BAD Row %d nXPS=%d, nMCS=%d, nXRF=%d, nXRD=%d: (npulses=%d) redo!\n'
                 self.write(fmt % (irow, self.xps.ngathered, self.npts_sca, nxrf, nxrd, npulses))
@@ -610,6 +609,7 @@ class Slew_Scan(StepScan):
 
             if debug:
                 dtimer.show()
+                dtimer.clear()
 
         ex_thread.join()
         self.write_master('\n')
