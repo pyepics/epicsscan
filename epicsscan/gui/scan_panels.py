@@ -130,16 +130,15 @@ class GenericScanPanel(scrolled.ScrolledPanel):
                                action=partial(self.parent.onCtrlScan, cmd='Abort'))
 
 
-        pause_btn = add_button(bpanel, "Pause Scan", size=(120, -1),
-                               action=partial(self.parent.onCtrlScan, cmd='Pause'))
-
-        resume_btn = add_button(bpanel, "Resume Scan", size=(120, -1),
-                               action=partial(self.parent.onCtrlScan, cmd='Resume'))
+        # pause_btn = add_button(bpanel, "Pause Scan", size=(120, -1),
+        #                        action=partial(self.parent.onCtrlScan, cmd='Pause'))
+        # resume_btn = add_button(bpanel, "Resume Scan", size=(120, -1),
+        #                        action=partial(self.parent.onCtrlScan, cmd='Resume'))
 
         bsizer.Add(start_btn,                  (ir, 0), (1, 1), LEFT)
         bsizer.Add(abort_btn,                  (ir, 1), (1, 1), LEFT)
-        bsizer.Add(pause_btn,                  (ir, 2), (1, 1), LEFT)
-        bsizer.Add(resume_btn,                 (ir, 3), (1, 1), LEFT)
+        # bsizer.Add(pause_btn,                  (ir, 2), (1, 1), LEFT)
+        # bsizer.Add(resume_btn,                 (ir, 3), (1, 1), LEFT)
 
         bpanel.SetSizer(bsizer)
         bsizer.Fit(bpanel)
