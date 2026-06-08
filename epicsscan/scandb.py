@@ -266,13 +266,14 @@ class ScanDB(SimpleDB):
             sdict = self.get_scandict(scanname)
         except:
             raise ValueError(f"make.scan(): '{scanname}' not a valid scan name")
-
         if 'rois' not in sdict:
             sdict['rois'] = json.loads(self.get_info('rois', default='[]'))
         sdict['filename'] = filename
         sdict['data_callback'] = data_callback
         sdict['extra_pvs'] = []
 
+        if 'label' not in sdict:
+            sdict['label'] = scanname
         for row  in self.get_rows('extrapvs'):
             if row.use:
                 sdict['extra_pvs'].append((row.name, row.pvname))
