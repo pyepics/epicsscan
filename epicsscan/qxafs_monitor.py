@@ -126,7 +126,8 @@ class QXAFS_ScanWatcher(object):
             self.write("QXAFS_connect_counters %i counters / %s" % (len(self.counters), time.ctime()))
 
     def qxafs_finish(self):
-        nidarr = len(self.idarray)
+        if hasattr(self, 'idarray'):
+            nidarr = len(self.idarray)
         # self.idarray_pv.put(np.zeros(nidarr))
         self.set_state(0)
         self.needs_complete = True
