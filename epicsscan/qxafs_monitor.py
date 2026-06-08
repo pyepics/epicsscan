@@ -154,7 +154,7 @@ class QXAFS_ScanWatcher(object):
             npts = int(self.scandb.get_info(key='scan_total_points', default=0))
             if self.scandb.get_infobool('request_abort'):
                 self.write(f"QXAFS saw request for abort: {time.ctime()}")
-                self.qxafs_finish()
+                # self.qxafs_finish()
                 break
             time.sleep(0.1)
             now = time.time()
@@ -231,8 +231,10 @@ class QXAFS_ScanWatcher(object):
             time.sleep(0.05)
             now = time.time()
             npts = int(self.scandb.get_info(key='scan_total_points', default=0))
-            if self.get_state() == 0 or self.scandb.get_infobool('request_abort'):
+            if self.get_state() == 0:
                 break
+            if self.scandb.get_infobool('request_abort'):
+                pass
             if self.pulse > last_pulse:
                 self.idgapscan_next.put(1)
                 time.sleep(0.05)
@@ -256,7 +258,7 @@ class QXAFS_ScanWatcher(object):
             time.sleep(0.1)
             now = time.time()
             npts = int(self.scandb.get_info(key='scan_total_points', default=0))
-            if self.get_state() == 0 or self.scandb.get_infobool('request_abort'):
+            if self.get_state() == 0:
                 break
         last_pulse = self.pulse = 0
 
@@ -281,7 +283,7 @@ class QXAFS_ScanWatcher(object):
             time.sleep(0.1)
             now = time.time()
             npts = int(self.scandb.get_info(key='scan_total_points', default=0))
-            if self.get_state() == 0 or self.scandb.get_infobool('request_abort'):
+            if self.get_state() == 0: #  or self.scandb.get_infobool('request_abort'):
                 break
             if self.pulse > last_pulse and self.with_id and not self.with_gapscan:
                 try:
