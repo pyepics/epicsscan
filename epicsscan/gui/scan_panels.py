@@ -561,7 +561,7 @@ class XAFSScanPanel(GenericScanPanel):
                                   " Npts", " Time (s)", " Units")):
             sizer.Add(SimpleText(self, lab),  (ir, ic), (1, 1), LEFT, 2)
 
-        for i, reg in enumerate((('Pre-Edge', (-100, -10, 5,  19)),
+        for i, reg in enumerate((('Pre-Edge', (-100, -10, 2,  46)),
                                  ('XANES',    (-10,   10, 0.25,  81)),
                                  ('XAFS1',    ( 10,  200, 2,  96)),
                                  ('XAFS2',    (200,  500, 3, 101)),
@@ -575,7 +575,7 @@ class XAFSScanPanel(GenericScanPanel):
             dtime = FloatCtrl(self, size=(70, -1), value=1, minval=0,
                               precision=3,
                               action=partial(self.onVal, index=i, label='dtime'))
-
+            dtime.Disable()
             if i < 2:
                 units = wx.StaticText(self, -1, size=(30, -1), label=self.units_list[0])
             else:
@@ -659,6 +659,7 @@ class XAFSScanPanel(GenericScanPanel):
         for ireg, reg in enumerate(self.reg_settings):
             if ireg < nregs:
                 for wid in reg: wid.Enable()
+                reg[4].Disable()
             else:
                 for wid in reg: wid.Disable()
 
