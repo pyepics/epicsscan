@@ -192,8 +192,11 @@ class QXAFS_Scan(XAFS_Scan):
         #for key, val in self.pvs.items():  print(key, val)
 
         id_tracking = int(self.scandb.get_info('qxafs_id_tracking', default='1'))
+        id_prefix  = self.scandb.get_info('qxafs_id_prefix', None)
+
         self.with_id = ('id_array_pv' in conf and
-                        'id_drive_pv' in conf and id_tracking)
+                        'id_drive_pv' in conf and id_tracking and
+                        id_prefix is not None)
         self.with_gapscan = self.scandb.get_infobool('qxafs_use_gapscan')
         self.xps = self.scandb.connections.get('mono_xps', None)
         if self.xps is None:
@@ -508,13 +511,12 @@ class QXAFS_Scan(XAFS_Scan):
 
         if self.with_id:
             if self.with_gapscan:
-                IDPREF = 'S13ID:USID'
-                gap_um = caget(f'{IDPREF}:GapArrayReadM.VAL')
-                #print("GAP UM " , gap_um)
+                id_prefix  = self.scandb.get_info('qxafs_id_prefix', None)
+                gap_um = caget(f'{id_prefix}:GapArrayReadM.VAL')
                 if len(gap_um) > 2:
                     gap_start = 0.001*float(gap_um[0])-0.002
                     if gap_start > 9 and gap_start < 50:
-                        caput(f'{IDPREF}:ScanGapC.VAL', gap_start, wait=True, timeout=30)
+                        caput(f'{id_prefix}:ScanGapC.VAL', gap_start, wait=True, timeout=30)
             elif self.pvs['id_drive_pv'].write_access:
                 idt0 =time.time()
                 try:
