@@ -372,7 +372,7 @@ class QXAFS_Scan(XAFS_Scan):
         if self.with_gapscan:
             self.gapscan_pv = get_pv(gapscan_pvname)
             self.with_gapscan = self.gapscan_pv.write_access
-            print(f"XAFS_SCAN: GAP SCAN: {self.with_gapscan=} {self.gapscan_pv=}")
+            # print(f"XAFS_SCAN: GAP SCAN: {self.with_gapscan=} {self.gapscan_pv=}")
 
         if self.with_id:
             idenergy_orig = self.pvs['id_drive_pv'].get()
@@ -446,8 +446,8 @@ class QXAFS_Scan(XAFS_Scan):
         # move to start
         if self.with_id and self.pvs['id_drive_pv'].write_access:
             try:
-                print("Putting ID Array to starting point ",
-                       idarray[0], self.pvs['id_drive_pv'])
+                # print("Putting ID Array to starting point ",
+                #       idarray[0], self.pvs['id_drive_pv'])
                 self.pvs['id_drive_pv'].put(idarray[0], wait=False)
             except:
                 print("could not put value to ", self.pvs['id_drive_pv'])
@@ -541,11 +541,11 @@ class QXAFS_Scan(XAFS_Scan):
                         pass
                 if id_curr < 3:
                     time.sleep(2.0)
-                print(f" move id to start ({idarray[0]:.4f} keV) took  {(time.time()-idt0):.2f} sec")
+                # print(f" move id to start ({idarray[0]:.4f} keV) took  {(time.time()-idt0):.2f} sec")
 
         if self.with_gapscan:
             gapscan_mode = int(self.scandb.get_info('qxafs_gapscan_mode', default='1'))
-            print(f"XAFS: start ID Gap Scan {self.gapscan_pv=}, {gapscan_mode=}")
+            # print(f"XAFS: start ID Gap Scan {self.gapscan_pv=}, {gapscan_mode=}")
             self.gapscan_pv.put(gapscan_mode, wait=False)
             time.sleep(0.05)
 
