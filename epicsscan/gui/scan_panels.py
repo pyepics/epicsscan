@@ -558,7 +558,7 @@ class XAFSScanPanel(GenericScanPanel):
         sizer.Add(self.hline(),    (ir, 0), (1, 8), LEFT)
         ir += 1
         for ic, lab in enumerate((" Region", " Start", " Stop", " Step",
-                                  " Npts", " Time (s)", " Units")):
+                                  " Npts", " Units")):
             sizer.Add(SimpleText(self, lab),  (ir, ic), (1, 1), LEFT, 2)
 
         for i, reg in enumerate((('Pre-Edge', (-100, -10, 2,  46)),
@@ -572,10 +572,10 @@ class XAFSScanPanel(GenericScanPanel):
             ir += 1
             reg   = wx.StaticText(self, -1, size=(100, -1), label=' %s' % label)
             start, stop, step, npts = self.StartStopStepNpts(i, initvals=initvals)
-            dtime = FloatCtrl(self, size=(70, -1), value=1, minval=0,
-                              precision=3,
-                              action=partial(self.onVal, index=i, label='dtime'))
-            dtime.Disable()
+            #dtime = FloatCtrl(self, size=(70, -1), value=1, minval=0,
+            #                  precision=3,
+            #                  action=partial(self.onVal, index=i, label='dtime'))
+            # dtime.Disable()
             if i < 2:
                 units = wx.StaticText(self, -1, size=(30, -1), label=self.units_list[0])
             else:
@@ -583,35 +583,35 @@ class XAFSScanPanel(GenericScanPanel):
                                    action=partial(self.onVal, label='units', index=i))
             self.ev_units.append(True)
             # dtime.Disable()
-            self.reg_settings.append((start, stop, step, npts, dtime, units))
+            self.reg_settings.append((start, stop, step, npts, units))
             if i >= nregs:
                 start.Disable()
                 stop.Disable()
                 step.Disable()
                 npts.Disable()
-                dtime.Disable()
+                # dtime.Disable()
                 units.Disable()
             sizer.Add(reg,   (ir, 0), (1, 1), wx.ALL, 5)
             sizer.Add(start, (ir, 1), (1, 1), wx.ALL, 2)
             sizer.Add(stop,  (ir, 2), (1, 1), wx.ALL, 2)
             sizer.Add(step,  (ir, 3), (1, 1), wx.ALL, 2)
             sizer.Add(npts,  (ir, 4), (1, 1), wx.ALL, 2)
-            sizer.Add(dtime, (ir, 5), (1, 1), wx.ALL, 2)
-            sizer.Add(units, (ir, 6), (1, 1), wx.ALL, 2)
+            # sizer.Add(dtime, (ir, 5), (1, 1), wx.ALL, 2)
+            sizer.Add(units, (ir, 5), (1, 1), wx.ALL, 2)
 
 
-        self.kwtimechoice = add_choice(self, ('0', '1', '2', '3'), size=(70, -1),
-                                     action=partial(self.onVal, label='kwpow'))
+        # self.kwtimechoice = add_choice(self, ('0', '1', '2', '3'), size=(70, -1),
+        #                       action=partial(self.onVal, label='kwpow'))
+        #
+        # self.kwtimemax = FloatCtrl(self, precision=3, value=0, minval=0,
+        #                            size=(65, -1),
+        #                           action=partial(self.onVal, label='kwtime'))
 
-        self.kwtimemax = FloatCtrl(self, precision=3, value=0, minval=0,
-                                   size=(65, -1),
-                                   action=partial(self.onVal, label='kwtime'))
-
-        ir += 1
-        sizer.Add(SimpleText(self, "k-weight time of last region:"),  (ir, 1,), (1, 2), CEN, 3)
-        sizer.Add(self.kwtimechoice, (ir, 3), (1, 1), LEFT, 2)
-        sizer.Add(SimpleText(self, "Max Time:"),  (ir, 4,), (1, 1), CEN, 3)
-        sizer.Add(self.kwtimemax, (ir, 5), (1, 1), LEFT, 2)
+        # ir += 1
+        # sizer.Add(SimpleText(self, "k-weight time of last region:"),  (ir, 1,), (1, 2), CEN, 3)
+        # sizer.Add(self.kwtimechoice, (ir, 3), (1, 1), LEFT, 2)
+        # sizer.Add(SimpleText(self, "Max Time:"),  (ir, 4,), (1, 1), CEN, 3)
+        # sizer.Add(self.kwtimemax, (ir, 5), (1, 1), LEFT, 2)
         # self.kwtimemax.Disable()
         # self.kwtimechoice.Disable()
 
@@ -659,13 +659,13 @@ class XAFSScanPanel(GenericScanPanel):
         for ireg, reg in enumerate(self.reg_settings):
             if ireg < nregs:
                 for wid in reg: wid.Enable()
-                reg[4].Disable()
             else:
                 for wid in reg: wid.Disable()
 
         dtimes = []
         for ireg, reg in enumerate(scan['regions']):
-            start, stop, step, npts, dtime, units = self.reg_settings[ireg]
+            start, stop, step, npts, units = self.reg_settings[ireg]
+            # print("Scan Region ", reg)
             # set units first!
             this_units = reg[4]
             if hasattr(units, 'SetStringSelection'):
@@ -679,13 +679,13 @@ class XAFSScanPanel(GenericScanPanel):
             start.SetValue(reg[0])
             stop.SetValue(reg[1])
             npts.SetValue(reg[2])
-            dtime.SetValue(reg[3])
+            # dtime.SetValue(reg[3])
             dtimes.append(reg[3])
             if ireg == 0:
                 self.dwelltime.SetValue(reg[3])
 
-        self.kwtimemax.SetValue(scan['max_time'])
-        self.kwtimechoice.SetSelection(scan['time_kw'])
+        # self.kwtimemax.SetValue(scan['max_time'])
+        # self.kwtimechoice.SetSelection(scan['time_kw'])
 
         # is this a step or continuous scan?
         scanmode = scan.get('scanmode', None)
@@ -697,9 +697,7 @@ class XAFSScanPanel(GenericScanPanel):
             step_xafs = 'step' in scanmode
         self.qxafs.SetValue(not step_xafs)
         for ireg, reg in enumerate(scan['regions']):
-            start, stop, step, npts, dtime, units = self.reg_settings[ireg]
-            # if start.Enabled:
-            #     dtime.Enable(step_xafs)
+            start, stop, step, npts, units = self.reg_settings[ireg]
         # self.kwtimemax.Enable(step_xafs)
         # self.kwtimechoice.Enable(step_xafs)
 
@@ -719,29 +717,25 @@ class XAFSScanPanel(GenericScanPanel):
                  float(self.scandb.get_info('det_settle_time', default=0)))
         etime = etime + 0.25  # estimate time to move energy positioner
         dtime = 0.0
-        kwt_max = float(self.kwtimemax.GetValue())
-        kwt_pow = float(self.kwtimechoice.GetStringSelection())
+        pixeltime = self.dwelltime.GetValue()
+        # kwt_max = float(self.kwtimemax.GetValue())
+        # kwt_pow = float(self.kwtimechoice.GetStringSelection())
         dtimes = []
-        for reg in self.reg_settings:
-            nx = float(reg[3].GetValue())
-            dx = float(reg[4].GetValue())
-            if reg[4].Enabled:
-                dtimes.append((nx, dx))
-
+        is_qxafs = self.qxafs.IsChecked()
+        # print("XAFS set ScanTime ", pixeltime, is_qxafs)
         # qxafs: ignore settling time and k-weighting of time
-        if self.qxafs.IsChecked():
+        if is_qxafs:
             etime  = 0
-            kwt_pow = 0
-
-        if kwt_pow != 0:
-            nx, dx = dtimes.pop()
-            _vtime = (kwt_max-dx)*(1.0/(nx-1))**kwt_pow
-            for i in range(int(nx)):
-                dtime += (dx+etime)+ _vtime*(i**kwt_pow)
+        
+        for reg in self.reg_settings:
+            if reg[2].Enabled:
+                nx = float(reg[3].GetValue())
+                dtimes.append((nx, pixeltime))
 
         for nx, dx in dtimes:
             dtime += nx*(dx + etime)
         self.scantime = dtime
+        # print("XAFS set ScanTime ", dtime)
         self.est_time.SetLabel(hms(dtime))
 
     def top_widgets(self, title, dwell_prec=3, dwell_value=1):
@@ -860,7 +854,7 @@ class XAFSScanPanel(GenericScanPanel):
                 self.inittimer.Stop()
 
     def getUnits(self, index):
-        un = self.reg_settings[index][5]
+        un = self.reg_settings[index][4]
         if hasattr(un, 'GetStringSelection'):
             return un.GetStringSelection()
         else:
@@ -881,8 +875,8 @@ class XAFSScanPanel(GenericScanPanel):
             e0_off = self.e0.GetValue()
 
         if label == 'dwelltime':
-            for wid in self.reg_settings:
-                wid[4].SetValue(value)
+            # for wid in self.reg_settings:
+            #     wid[4].SetValue(value)
 
             self.qxafs.SetValue(float(value) < float(qxafs_time_threshold))
         elif label == 'dtime':
@@ -1002,8 +996,8 @@ class XAFSScanPanel(GenericScanPanel):
              'edge':  self.edgechoice.GetStringSelection(),
              'dwelltime':  float(self.dwelltime.GetValue()),
              'is_relative': 1==self.absrel.GetSelection(),
-             'max_time': self.kwtimemax.GetValue(),
-             'time_kw': int(self.kwtimechoice.GetSelection()),
+             # 'max_time': self.kwtimemax.GetValue(),
+             # 'time_kw': int(self.kwtimechoice.GetSelection()),
              'energy_drive': enpos.drivepv,
              'energy_read': enpos.readpv,
              'extra_pvs': json.loads(enpos.extrapvs),
@@ -1022,15 +1016,15 @@ class XAFSScanPanel(GenericScanPanel):
         if self.nscans is not None:
             s['nscans'] = int(self.nscans.GetValue())
 
+        dtime = float(self.dwelltime.GetValue())
         for index, wids in enumerate(self.reg_settings):
-            start, stop, step, npts, dtime, units =  wids
+            start, stop, step, npts, units =  wids
             if start.Enabled:
                 p1 = start.GetValue()
                 p2 = stop.GetValue()
                 np = npts.GetValue()
-                dt = dtime.GetValue()
                 un = self.getUnits(index)
-                s['regions'].append((p1, p2, np, dt, un))
+                s['regions'].append((p1, p2, np, dtime, un))
         return s
 
 class MeshScanPanel(GenericScanPanel):
