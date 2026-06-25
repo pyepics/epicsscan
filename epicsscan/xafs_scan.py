@@ -174,6 +174,7 @@ class QXAFS_Scan(XAFS_Scan):
             raise ValueError("need qxafs configuration name in database")
         conf = self.config = json.loads(self.scandb.get_config(cname).notes)
 
+        # print(f'{self.config=}')
         for attr in ('energy_pv', 'dspace_pv', 'height_pv', 'y2_track_pv',
                      'id_drive_pv', 'id_read_pv', 'id_offset_pv',
                      'id_track_pv', 'id_array_pv'):
@@ -188,7 +189,6 @@ class QXAFS_Scan(XAFS_Scan):
         self.pvs['width_motor.DVAL'] = get_pv(f'{wdmotor}.DVAL')
 
         time.sleep(0.005)
-        # print("Connect QXAFS ")
         #for key, val in self.pvs.items():  print(key, val)
 
         id_tracking = int(self.scandb.get_info('qxafs_id_tracking', default='1'))
@@ -221,6 +221,7 @@ class QXAFS_Scan(XAFS_Scan):
                         theta_accel=0.5, width_accel=0.050, **kws):
         """this method builds the text of a Trajectory script for
         a Newport XPS Controller based on the energies and dwelltimes"""
+
 
         if self.config is None:
             self.connect_qxafs()
@@ -359,10 +360,11 @@ class QXAFS_Scan(XAFS_Scan):
             return
 
         dtimer.add('scan verified')
-        qconf = self.config
+
         energy_orig = self.pvs['energy_pv'].get()
         dtimer.add('connect qxafs')
         traj = self.make_trajectory()
+        qconf = self.config
         dtimer.add(f'make traj with_id = {self.with_id}')
         self.with_gapscan = self.scandb.get_infobool('qxafs_use_gapscan')
         gapscan_pvname   = self.scandb.get_info('qxafs_gapscan_pv', default='')
@@ -427,6 +429,7 @@ class QXAFS_Scan(XAFS_Scan):
         dtimer.add('trajectory armed')
         self.scandb.set_filename(self.filename)
         self.set_info('request_abort', 0)
+        # print("calling prescan ", self.e0, len(self.energies), min(self.energies), max(self.energies))
         out = self.pre_scan(npulses=1+traj['npulses'],
                             dwelltime=dtime,
                             mode=ROI_MODE,
@@ -435,6 +438,7 @@ class QXAFS_Scan(XAFS_Scan):
                             with_gapscan=self.with_gapscan,
                             e0=self.e0, energy=self.energies)
         self.check_outputs(out, msg='pre scan')
+
         dtimer.add('prescan ran')
         if self.scandb.get_infobool('request_abort'):
             print("PreScan Aborted scan!!")
@@ -442,22 +446,27 @@ class QXAFS_Scan(XAFS_Scan):
         # move to start
         if self.with_id and self.pvs['id_drive_pv'].write_access:
             try:
-                # print("Putting ID Array to starting point ",
-                #       idarray[0], self.pvs['id_drive_pv'])
+                print("Putting ID Array to starting point ",
+                       idarray[0], self.pvs['id_drive_pv'])
                 self.pvs['id_drive_pv'].put(idarray[0], wait=False)
             except:
                 print("could not put value to ", self.pvs['id_drive_pv'])
 
-        self.pvs['energy_pv'].put(traj['energy'][0]-0.5, wait=False)
+        try:
+            self.pvs['energy_pv'].put(traj['energy'][0]-0.5, wait=False)
+        except:
+            print("could not put energy pv to traj0") #  " , traj['energy'][0]-0.5)
 
         extra_vals = []
         for desc, pv in self.extra_pvs:
             extra_vals.append((desc, pv.get(as_string=True), pv.pvname))
 
+        # print("--> move energy to start: ", qconf)
         # print("--> move energy to start: ", qconf['energy_pv'],  traj['energy'][0]-0.5)
         self.pvs['energy_pv'].put(traj['energy'][0]-0.5, wait=True)
         time.sleep(1.0)
         self.xps.arm_trajectory('qxafs', verbose=False, move_to_start=True)
+        # return
 
         self.init_scandata()
         dtimer.add('init scandata')

@@ -765,7 +765,7 @@ class XAFSScanPanel(GenericScanPanel):
                            label='Continuous Scan', action=self.onQXAFS)
 
         qxafs_time_threshold = float(self.scandb.get_info('qxafs_time_threshold',
-                                                          default=0))
+                                                          default=2.0))
         if dwell_value < qxafs_time_threshold:
             self.qxafs.SetValue(True)
 
@@ -876,7 +876,7 @@ class XAFSScanPanel(GenericScanPanel):
 
         e0_off = 0
         qxafs_time_threshold = float(self.scandb.get_info('qxafs_time_threshold',
-                                                          default=0))
+                                                          default=2.0))
         if 0 == self.absrel.GetSelection(): # absolute
             e0_off = self.e0.GetValue()
 
@@ -884,7 +884,7 @@ class XAFSScanPanel(GenericScanPanel):
             for wid in self.reg_settings:
                 wid[4].SetValue(value)
 
-            self.qxafs.SetValue(value < qxafs_time_threshold)
+            self.qxafs.SetValue(float(value) < float(qxafs_time_threshold))
         elif label == 'dtime':
             equal_times = True
             for ireg, reg in enumerate(self.reg_settings):
