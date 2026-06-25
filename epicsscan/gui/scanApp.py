@@ -644,7 +644,7 @@ class ScanFrame(wx.Frame):
             else:
                 self.statusbar.SetStatusText("Could not overwrite scan '%s'" % sname)
 
-        if len(sname) > 0:
+        if sname is not None and len(sname) > 0:
             self.last_scanname = sname
 
     def onReadScanDef(self, evt=None):
