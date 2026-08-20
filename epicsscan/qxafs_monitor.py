@@ -72,6 +72,7 @@ class QXAFS_ScanWatcher(object):
 
     def connect(self):
         self.confname = self.scandb.get_info('qxafs_config', default='qxafs')
+
         self.config = json.loads(self.scandb.get_config(self.confname).notes)
         mcs_prefix = self.config.get('mcs_prefix', '13IDE:SIS1:')
         pulse_channel = f"{mcs_prefix}CurrentChannel"
@@ -125,6 +126,17 @@ class QXAFS_ScanWatcher(object):
         if self.verbose:
             self.write("QXAFS_connect_counters %i counters / %s" % (len(self.counters), time.ctime()))
 
+    def qxafs_abort(self):
+        if self.config is not None:
+            print("Aborting QXAFS")
+            pv_stop_theta = get_pv(self.config['motors']['THETA'] + '.STOP', connect=True)
+            time.sleep(0.25)
+            if pv_stop_theta.connected:
+                pv_stop_theta.put(1)
+                time.sleep(0.25)
+                pv_stop_theta.put(0)
+                print("Aborted QXAFS")
+
     def qxafs_finish(self):
         if hasattr(self, 'idarray'):
             nidarr = len(self.idarray)
@@ -155,7 +167,7 @@ class QXAFS_ScanWatcher(object):
             npts = int(self.scandb.get_info(key='scan_total_points', default=0))
             if self.scandb.get_infobool('request_abort'):
                 self.write(f"QXAFS saw request for abort: {time.ctime()}")
-                # self.qxafs_finish()
+                self.qxafs_abort()
                 break
             time.sleep(0.1)
             now = time.time()
@@ -201,7 +213,7 @@ class QXAFS_ScanWatcher(object):
     def sync_undulator(self):
         mode = self.scandb.get_info('qxafs_gapscan_mode', '1')
         mode = int(mode)
-        print(f"Sync undulator {mode=}")
+        # print(f"Sync undulator {mode=}")
         if mode == 0:    # simple push of ID value, without gapscan
             self.with_gapscan = False
             self.sync_id_mode_0()
@@ -235,7 +247,7 @@ class QXAFS_ScanWatcher(object):
             if self.get_state() == 0:
                 break
             if self.scandb.get_infobool('request_abort'):
-                pass
+                self.qxafs_abort()
             if self.pulse > last_pulse:
                 self.idgapscan_next.put(1)
                 time.sleep(0.05)
