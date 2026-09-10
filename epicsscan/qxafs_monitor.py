@@ -100,6 +100,7 @@ class QXAFS_ScanWatcher(object):
             self.idtaper_pv  = get_pv(f'{pvroot}TaperEnergyM')
             self.idtaperset_pv  = get_pv(f'{pvroot}TaperEnergySetC')
             self.idgapscan_next = get_pv(f'{pvroot}MoveToNextGapC.VAL')
+            self.idgapscan_busy = get_pv(f'{pvroot}BusyDeviceM.VAL')
 
         time.sleep(0.1)
         self.connected = True
@@ -249,8 +250,12 @@ class QXAFS_ScanWatcher(object):
             if self.scandb.get_infobool('request_abort'):
                 self.qxafs_abort()
             if self.pulse > last_pulse:
-                self.idgapscan_next.put(1)
+                if self.idgapscan_busy.get() == 0: # still busy from last move
+                    print("ID Gap Busy ", self.pulse, last_pulse)
+                else:
+                    self.idgapscan_next.put(1)
                 time.sleep(0.05)
+                self.idgapscan_next = get_pv(f'{pvroot}MoveToNextGapC.VAL')
                 # gapscan_index = caget("S13ID:USID:ScanIndexM")
                 # print(f"gapscan mode3 pushed {gapscan_index=}, {self.pulse=}")
                 last_pulse = self.pulse
@@ -334,7 +339,6 @@ class QXAFS_ScanWatcher(object):
                 last_pulse = self.pulse
                 cpt = int(self.pulse)
         last_pulse = self.pulse = 0
-
 
 
     def set_state(self, val):
