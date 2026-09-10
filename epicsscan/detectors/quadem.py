@@ -18,22 +18,25 @@ HEADER = '''# TetrAMM MCS Data: %s,  %s
 # %s
 '''
 
+ATTRS = ('Acquire', 'AcquireMode', 'AveragingTime', 'NumAcquire',
+         'ValuesPerRead', 'FastAveragingTime',
+         'Range', 'SampleTime_RBV', 'NumAcquired',
+         'TriggerMode', 'TriggerPolarity', 'ReadFormat')
+
+CHAN_ATTRS = ('Name', 'Offset', 'Scale', 'Prec')
+TS_CONTROL = ('TSAcquire', 'TSAveragingTime', 'TSAcquireMode',
+              'TSNumPoints', 'EnableCallbacks')
+
+TS_ARRAYS = ('Current1', 'Current2', 'Current3', 'Current4', 'SumX',
+             'SumY', 'SumAll', 'PosX', 'PosY', 'DiffX', 'DiffY')
+
+
 class TetrAMM(Device):
     """
     TetrAMM quad channel electrometer, version 2.9
 
     Can also use SIS3820 (Struck) or USBCTR MCS to manage triggering and timing
     """
-
-    attrs = ('Acquire', 'AcquireMode', 'AveragingTime', 'NumAcquire',
-             'ValuesPerReading', 'Range', 'SampleTime_RBV', 'NumAcquired',
-             'TriggerMode', 'TriggerPolarity', 'ReadFormat')
-
-
-    curr_attrs = ('Name%i', 'Offset%i', 'Scale%i', '%i:MeanValue_RBV',
-                  '%i:Sigma_RBV', '%i:TSAcquiring', '%i:TSControl',
-                  '%i:TSTotal', '%i:TSSigma', '%i:TSNumPoints', )
-
     _nonpvs = ('_prefix', '_pvs', '_delim', '_chans', '_mode', '_mcs')
 
     def __init__(self, prefix, nchan=4, mcs_prefix=None, mcs_type='usbctr'):
@@ -42,29 +45,26 @@ class TetrAMM(Device):
         self.ROIMode = self.NDArrayMode
         self._chans = range(1, nchan+1)
 
-        attrs = list(self.attrs)
+        attrs = [a for a in ATTRS]
         for i in self._chans:
-            for a in self.curr_attrs:
-                attrs.append(("Current" + a) % i)
+            attrs.append(f"Current{i}:MeanValue_RBV")
+            attrs.append(f"Current{i}:Sigma_RBV")
+            attrs.append(f"Range{i}")
+            for at in CHAN_ATTRS:
+                attrs.append(f"Current{at}{i}")
+
+        for at in TS_CONTROL:
+            attrs.append(f"TS:{at}")
+        for at in TS_ARRAYS:
+            attrs.append(f"TS:{at}:TimeSeries")
+
 
         Device.__init__(self, prefix, delim='', attrs=attrs, mutable=False)
-        self._aliases = {}
-        for i in self._chans:
-            self._aliases['Current%i'% i] = 'Current%i:MeanValue_RBV' % i
-            self._aliases['Sigma%i'% i] = 'Current%i:Sigma_RBV' % i
-            self._aliases['Offset%i'% i] = 'CurrentOffset%i' % i
-            self._aliases['Scale%i'% i] = 'CurrentScale%i' % i
-            self._aliases['Name%i'% i] = 'CurrentName%i' % i
-            self._aliases['TSControl%i'% i] = 'Current%i:TSControl' % i
-            self._aliases['TSAcquiring%i'% i] = 'Current%i:TSAcquiring' % i
-            self._aliases['TSNumPoints%i'% i] = 'Current%i:TSNumPoints' % i
-            self._aliases['TSTotal%i'% i] = 'Current%i:TSTotal' % i
-            self._aliases['TSSigma%i'% i] = 'Current%i:TSSigma' % i
 
         self._mcs = None
         if mcs_prefix is not None:
             self.mcs_prefix = mcs_prefix
-            mcs = Struck if 'struck' in mca_type.lower() else USBCTR
+            mcs = Struck if 'struck' in mcs_type.lower() else USBCTR
             self._mcs = mcs(prefix)
 
     def ContinuousMode(self, dwelltime=None, numframes=None):
@@ -360,10 +360,9 @@ class TetrAMMCounter(DeviceCounter):
         extra_pvs = []
         nchan = int(nchan)
         for i in range(1, nchan+1):
-            labelx = '%sCurrentName%i' % (prefix, i)
-            label = caget('%sCurrentName%i' % (prefix, i))
+            label = caget(f'{prefix}CurrentName{i}')
             if len(label) > 0 or use_unlabeled:
-                suff = 'Current%i:MeanValue_RBV' % i
+                suff = 'Current{i}:MeanValue_RBV' % i
                 extra_pvs.append(('TetrAMM.Offset%i' % i,
                                   '%sCurrentOffset%i' % (prefix, i)))
                 extra_pvs.append(('TetrAMM.Scale%i' % i,
@@ -377,11 +376,11 @@ class TetrAMMDetector(DetectorMixin):
     """TetrAMM Detector"""
     trigger_suffix = 'Acquire'
     def __init__(self, prefix, nchan=4,
-                 mode='scaler', rois=None, sis_prefix=None, **kws):
+                 mode='scaler', rois=None, mcs_prefix=None, **kws):
 
         DetectorMixin.__init__(self, prefix, **kws)
         nchan = int(nchan)
-        self.tetramm  = TetrAMM(prefix, sis_prefix=sis_prefix)
+        self.tetramm  = TetrAMM(prefix, mcs_prefix=mcs_prefix)
         self._counter = TetrAMMCounter(prefix, nchan=nchan)
         self.dwelltime_pv = get_pv('%sAveragingTime' % prefix)
         self.dwelltime = None
