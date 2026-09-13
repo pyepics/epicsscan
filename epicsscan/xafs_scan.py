@@ -21,6 +21,7 @@ from .saveable import Saveable
 from .file_utils import new_filename
 from .utils import normalize_pvname
 from .detectors.counter import EVAL4PLOT, ROISumCounter
+from .detectors.trigger import Trigger
 from .detectors import  ROI_MODE, SCALER_MODE
 
 XAFS_K2E = 3.809980849311092
@@ -58,6 +59,42 @@ class ScanRegion(Saveable):
                           dtime_wt=dtime_wt)
 
 
+
+class IDGapScanTrigger(Trigger):
+    def __init__(self, prefix, value=1, cpt=0, **kws):
+        if prefix.endswith(':'):
+            prefix = prefix[:-1]
+        pvname = f'{prefix}:MoveToNextGapC.VAL'
+        Trigger.__init__(self, pvname, value=1, **kws)
+        self.gapscan_busy_pv = get_pv(f'{prefix}:BusyDeviceM.VAL')
+        self.gapscan_index_pv = get_pv(f"{prefix}:ScanIndexM.VAL")
+
+    def start(self, value=1, cpt=None, **kws):
+        """triggers detector"""
+        if cpt is None:
+            self.cpt += 1
+        else:
+            self.cpt = cpt
+
+        self.done = True    # this trigger does *not* use put-callback
+        if self.gapscan_busy_pv.get() == 0:  # still busy from last move
+            time.sleep(.1)
+            if self.gapscan_busy_pv.get() == 0:
+                return
+        self.runtime = -1
+        self._t0 = time.time()
+        if value is None:
+            value = self._val
+        self.pv.put(value)
+        time.sleep(0.001)
+
+    def check(self, **kws):
+        gapscan_index = self.gapscan_index_pv.get()
+        if gapscan_index < self.cpt and self.gapscan_busy_pv.get() == 1:
+            print(f"gapscan extra push {gapscan_index=}, {self.cpt=}")
+            self.pv.put(1)
+
+
 class XAFS_Scan(StepScan):
     """XAFS Scan"""
     def __init__(self, label=None, energy_pv=None, read_pv=None,
@@ -71,14 +108,16 @@ class XAFS_Scan(StepScan):
         StepScan.__init__(self, **kws)
         self.pvs = {}
         self.scantype = 'xafs'
+        self.with_gapscan = False
         self.detmode  = SCALER_MODE
         self.dwelltime = []
         self.energy_pos = None
         self.scandb = scandb
         self.set_energy_pv(energy_pv, read_pv=read_pv, extra_pvs=extra_pvs)
 
+        self.pre_scan_methods.append(self.setup_idgap_scan)
+
     def set_energy_pv(self, energy_pv, read_pv=None, extra_pvs=None):
-        # print("XAFS SCAN set_energy_pv: ", energy_pv, read_pv, extra_pvs)
         self.energy_pv = energy_pv
         self.pvs['energy_pv'] = get_pv(energy_pv)
         self.read_pv = read_pv
@@ -89,6 +128,13 @@ class XAFS_Scan(StepScan):
             self.add_positioner(self.energy_pos)
         if read_pv is not None:
             self.add_counter(read_pv, label='Energy_readback')
+
+    def setup_idgap_scan(self, *args, **kws):
+        self.with_gapscan = self.scandb.get_infobool('qxafs_use_gapscan')
+        id_prefix    = self.scandb.get_info('qxafs_id_prefix', default=None)
+        if self.with_gapscan and id_prefix is not None:
+            print("Step XAFS with gap scan: adding trigger!!")
+            self.triggers.append(IDGapScanTrigger(prefix=id_prefix, label='ID GapTrigger'))
 
     def add_region(self, start, stop, step=None, npts=None,
                    relative=True, use_k=False, e0=None,
@@ -372,7 +418,7 @@ class QXAFS_Scan(XAFS_Scan):
         if self.with_gapscan:
             self.gapscan_pv = get_pv(gapscan_pvname)
             self.with_gapscan = self.gapscan_pv.write_access
-            # print(f"XAFS_SCAN: GAP SCAN: {self.with_gapscan=} {self.gapscan_pv=}")
+            print(f"XAFS_SCAN: GAP SCAN: {self.with_gapscan=} {self.gapscan_pv=}")
 
         if self.with_id:
             idenergy_orig = self.pvs['id_drive_pv'].get()
@@ -429,13 +475,6 @@ class QXAFS_Scan(XAFS_Scan):
         dtimer.add('trajectory armed')
         self.scandb.set_filename(self.filename)
         self.set_info('request_abort', 0)
-
-        for det in self.detectors:
-            det.arm(mode=ROI_MODE, numframes=1+traj['npulses'], fnum=0, wait=False)
-            det.config_filesaver(path=xrfdir)
-        time.sleep(det_arm_delay)
-        dtimer.add('detectors armed, initial')
-
         # print("calling prescan ", self.e0, len(self.energies), min(self.energies), max(self.energies))
         out = self.pre_scan(npulses=1+traj['npulses'],
                             dwelltime=dtime,
@@ -450,47 +489,53 @@ class QXAFS_Scan(XAFS_Scan):
         if self.scandb.get_infobool('request_abort'):
             print("PreScan Aborted scan!!")
             return
-
-
         # move to start
         if self.with_id and self.pvs['id_drive_pv'].write_access:
             try:
-                # print("Putting ID Array to starting point ",
-                #       idarray[0], self.pvs['id_drive_pv'])
+                print("Putting ID Array to starting point ",
+                       idarray[0], self.pvs['id_drive_pv'])
                 self.pvs['id_drive_pv'].put(idarray[0], wait=False)
             except:
                 print("could not put value to ", self.pvs['id_drive_pv'])
-        dtimer.add('put id to start')
+
         try:
             self.pvs['energy_pv'].put(traj['energy'][0]-0.5, wait=False)
         except:
             print("could not put energy pv to traj0") #  " , traj['energy'][0]-0.5)
-        dtimer.add('put energy pv to start')
 
         extra_vals = []
         for desc, pv in self.extra_pvs:
-            val = 'unconnected'
-            if pv.connected:
-                val = pv.get(as_string=True)
-            extra_vals.append((desc, val, pv.pvname))
-        dtimer.add('got extra data')
+            extra_vals.append((desc, pv.get(as_string=True), pv.pvname))
+
+        # print("--> move energy to start: ", qconf)
+        # print("--> move energy to start: ", qconf['energy_pv'],  traj['energy'][0]-0.5)
+        self.pvs['energy_pv'].put(traj['energy'][0]-0.5, wait=True)
+        time.sleep(1.0)
+        self.xps.arm_trajectory('qxafs', verbose=False, move_to_start=True)
+        # return
+
+        self.init_scandata()
+        dtimer.add('init scandata')
+        self.scandb.set_info('qxafs_running', 1)
+
+        for det in self.detectors:
+            det.arm(mode=ROI_MODE, numframes=1+traj['npulses'], fnum=0, wait=False)
+            det.config_filesaver(path=xrfdir)
+        time.sleep(det_arm_delay)
 
         # wait for detectors to be armed
         tout = time.time()+2.0
         while not all([det.arm_complete for det in self.detectors]):
             if time.time() > tout:
                 break
-            time.sleep(0.005)
-        dtimer.add('detectors arm complete')
+            time.sleep(0.01)
+
+        dtimer.add('detectors armed %.4f / %.4f' % (det_arm_delay, det_start_delay))
         for det in reversed(self.detectors):
             det.start(arm=False, wait=False)
+
         time.sleep(det_start_delay)
         dtimer.add('detectors started')
-
-        self.init_scandata()
-        dtimer.add('init scandata')
-        self.scandb.set_info('qxafs_running', 1)
-
         self.datafile = self.open_output_file(filename=self.filename,
                                               comments=self.comments)
 
@@ -499,11 +544,6 @@ class QXAFS_Scan(XAFS_Scan):
         self.filename =  self.datafile.filename
 
         self.scandb.set_filename(self.filename)
-
-        time.sleep(0.5)
-        self.xps.arm_trajectory('qxafs', verbose=False, move_to_start=True)
-        dtimer.add('arm trajectory, finished moved to start')
-
         # set abort
         self.set_info('request_abort', 0)
         self.set_info('scan_time_estimate', float(npts*dtime))
@@ -547,13 +587,13 @@ class QXAFS_Scan(XAFS_Scan):
                         pass
                 if id_curr < 3:
                     time.sleep(2.0)
-                # print(f" move id to start ({idarray[0]:.4f} keV) took  {(time.time()-idt0):.2f} sec")
+                print(f" move id to start ({idarray[0]:.4f} keV) took  {(time.time()-idt0):.2f} sec")
 
         if self.with_gapscan:
-            gapscan_mode = int(self.scandb.get_info('qxafs_gapscan_mode', default='1'))
+            # gapscan_mode = int(self.scandb.get_info('qxafs_gapscan_mode', default='1'))
             # print(f"XAFS: start ID Gap Scan {self.gapscan_pv=}, {gapscan_mode=}")
-            self.gapscan_pv.put(gapscan_mode, wait=False)
-            time.sleep(0.05)
+            # self.gapscan_pv.put(gapscan_mode, wait=False)
+            time.sleep(0.25)
 
         with_scan_thread = False
         dtimer.add('trajectory run %r' % (with_scan_thread))
@@ -573,11 +613,10 @@ class QXAFS_Scan(XAFS_Scan):
                 time.sleep(1.0)
                 if time.monotonic() > join_time:
                     break
-
                 if self.scandb.get_infobool('request_abort'):
-                    self.write("aborting QXAFS scan")
-                    time.sleep(1.0)
-                    break
+                    self.write("wait forQXAFS to abort")
+                    time.sleep(2.0)
+
             scan_thread.join()
             dtimer.add('scan thread joined')
         else:
@@ -592,8 +631,8 @@ class QXAFS_Scan(XAFS_Scan):
         # print(self.xps.status_report())
         npulses, gather_text = self.xps.read_gathering(verbose=False)
         gtime = time.monotonic()
-        while npulses < 2 and time.monotonic() < (gtime+1):
-            time.sleep(0.1)
+        while npulses < 2 and time.monotonic() < (gtime+5):
+            time.sleep(0.2)
             npulses, gather_text = self.xps.read_gathering(verbose=False)
 
         if npulses < 2:
@@ -606,7 +645,7 @@ class QXAFS_Scan(XAFS_Scan):
                 pass
         if npulses < 3 or npulses > (npts + 5):
             energy = self.energy_pos.array[:-2]
-            print("#Warning: will use theoretical energies ", npulses, len(energy))
+            print("#Warning: BAD XPS Gathering data, will use theoretical energies ", npulses, len(energy))
         else:
             energy, height = self.gathering2energy(gather_text)
 
@@ -648,7 +687,7 @@ class QXAFS_Scan(XAFS_Scan):
 
         dtimer.add(f'read counters 1 ({narr}, {ne})')
         t0  = time.monotonic()
-        while narr < (ne-1) and (time.monotonic()-t0) < 4.0:
+        while narr < (ne-1) and (time.monotonic()-t0) < 10.0:
             time.sleep(0.1)
             [c.read() for c in self.counters]
             ndat = [len(c.buff[1:]) for c in self.counters]
@@ -688,8 +727,6 @@ class QXAFS_Scan(XAFS_Scan):
                     c.buff = c.net_buff[:]
             c.buff = c.buff[offset:]
             c.buff = c.buff[:ne]
-            # print(" READ-> ", c.label, offset, len(c.buff),
-            #        c.buff[:3], c.buff[-2:], hasattr(c, 'net_buff'))
             data4calcs[c.pvname] = np.array(c.buff)
 
         for c in self.counters:
@@ -701,8 +738,8 @@ class QXAFS_Scan(XAFS_Scan):
                 except:
                     print(f"EVAL4Plot for '{c.pvname}'")
                     c.buff = []
-            #if len(c.buff) > 0:
-            #    self.scandb.set_scandata(c.label, c.buff)
+            if len(c.buff) > 0:
+                self.scandb.set_scandata(c.label, c.buff)
         dtimer.add('setting scan data')
         self.set_all_scandata()
 
@@ -734,8 +771,8 @@ class QXAFS_Scan(XAFS_Scan):
 
         dtimer.add('done')
 
-        # if debug:
-        dtimer.show()
+        if debug:
+            dtimer.show()
         return self.datafile.filename
 
     def post_scan(self, row=0, filename=None, **kws):
