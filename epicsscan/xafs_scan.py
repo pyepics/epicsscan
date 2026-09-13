@@ -15,7 +15,7 @@ from epics import caget, caput, get_pv
 from newportxps import NewportXPS
 from pyshortcuts import isotime, debugtimer
 
-from .scan import StepScan
+from .scan import StepScan,  set_scandata_with_roisums
 from .positioner import Positioner
 from .saveable import Saveable
 from .file_utils import new_filename
@@ -289,7 +289,9 @@ class QXAFS_Scan(XAFS_Scan):
         # enx = [self.energies[0]-2*estep, self.energies[0]-estep]
         enx = [self.energies[0]-estep]
         enx.extend(list(self.energies))
-        enx.append(float(2*self.energies[-1]  - self.energies[-2]))
+        de = float(self.energies[-1]  - self.energies[-2])
+        enx.append(float(1*de + self.energies[-1]))
+        enx.append(float(2*de + self.energies[-1]))
         enx = np.array(enx)
         energy = (enx[1:] + enx[:-1])/2.0
 
@@ -365,7 +367,8 @@ class QXAFS_Scan(XAFS_Scan):
          Theta_Current, Theta_Set, Height_Current, Height_Set
         """
         angle, height = [], []
-        for line in text.split('\n'):
+        lines = text.split('\n')
+        for line in lines:
             line = line[:-1].strip()
             if line.startswith('#') or line.startswith(';'):
                 continue
@@ -373,7 +376,7 @@ class QXAFS_Scan(XAFS_Scan):
                 words = line[:-1].split()
                 angle.append(float(words[0]))
                 height.append(float(words[2]))
-        # print(" Gather ", len(angle))
+
         angle  = np.array(angle)
         height = np.array(height)
         angle  = (angle[1:] + angle[:-1])/2.0
@@ -483,6 +486,7 @@ class QXAFS_Scan(XAFS_Scan):
                             scantype='qxafs',
                             with_gapscan=self.with_gapscan,
                             e0=self.e0, energy=self.energies)
+
         self.check_outputs(out, msg='pre scan')
 
         dtimer.add('prescan ran')
@@ -625,34 +629,35 @@ class QXAFS_Scan(XAFS_Scan):
             gatherfile = Path('XAFSXRF', f'{gname}_gather{suff}').absolute().as_posix()
             self.xps.run_trajectory(name='qxafs', save=True, verbose=False,
                                     output_file=gatherfile)
+            time.sleep(0.25)
+
         dtimer.add('trajectory finished')
         self.set_info('scan_progress', 'reading data')
 
-        # print(self.xps.status_report())
         npulses, gather_text = self.xps.read_gathering(verbose=False)
         gtime = time.monotonic()
         while npulses < 2 and time.monotonic() < (gtime+5):
-            time.sleep(0.2)
+            time.sleep(0.4)
             npulses, gather_text = self.xps.read_gathering(verbose=False)
 
+        en_arr = self.energies
         if npulses < 2:
             try:
-                with open('mono_xps.gather.txt', 'r') as fh:
-                    text = fh.read()
-                    nlines = text.split('\n')
-                    npulses = nlines - 3
+                npulses, gather_text = self.xps.read_gathering(verbose=False)
             except:
                 pass
         if npulses < 3 or npulses > (npts + 5):
-            energy = self.energy_pos.array[:-2]
-            print("#Warning: BAD XPS Gathering data, will use theoretical energies ", npulses, len(energy))
+            en_arr = self.energies
+            print("#Warning: BAD XPS Gathering data, using theoretical energies")
         else:
-            energy, height = self.gathering2energy(gather_text)
+            read_energy, height = self.gathering2energy(gather_text)
 
+        if len(read_energy) > (len(en_arr) - 2):
+            en_arr = read_energy
         self.pos_actual = []
-        for e in energy:
-           self.pos_actual.append([e])
-        ne = len(energy)
+        for e in en_arr:
+           self.pos_actual.append([float(e)])
+        ne = len(en_arr)
 
         for det in self.detectors:
             det.stop()
@@ -673,76 +678,24 @@ class QXAFS_Scan(XAFS_Scan):
             db_data[row.name.lower()] = row.data
         dtimer.add('read scandb data')
 
+        ndat = []
         for c in self.counters:
             label = c.label.lower()
-            c.read()
-            # effectively looking for missing data:
-            if label in db_data and len(c.buff) < len(db_data[label])-5:
-                c.buff = db_data[label][:]
-                # print('using data from database  for ' , label)
+            if not c.pvname.startswith(EVAL4PLOT):
+                c.read()
+            ndat.append(len(c.buff[1:]))
 
-        ndat = [len(c.buff[1:]) for c in self.counters]
-        # print("Read Data Buffers: ", ndat)
         narr = min(ndat)
-
         dtimer.add(f'read counters 1 ({narr}, {ne})')
         t0  = time.monotonic()
         while narr < (ne-1) and (time.monotonic()-t0) < 10.0:
             time.sleep(0.1)
-            [c.read() for c in self.counters]
-            ndat = [len(c.buff[1:]) for c in self.counters]
+            [c.read() for c in self.counters if not c.pvname.startswith(EVAL4PLOT)]
+            ndat = [len(c.buff[1:]) for c in self.counters if not c.pvname.startswith(EVAL4PLOT)]
             narr = min(ndat)
         dtimer.add(f'read counters 2 [{min(ndat)}, {max(ndat)}])')
-
-        mca_offsets = {}
-        for c in self.counters:
-            label = c.label.lower()
-            if 'mca' in label and 'clock' in label:
-                buff = np.array(c.read())
-                offset = 1
-                if buff[0] == 0 and buff[1] > 1.10*(buff[2:-1].mean()):
-                    offset = 2
-                key = label.replace('clock', '').strip()
-                mca_offsets[key] = offset
-
-        # print("Read QXAFS Data %i points (NE=%i) %.3f secs" % (narr, ne,
-        #                                 time.monotonic() - t0))
-        dtimer.add('read all counters (done)')
-
-        # remove hot first pixel AND align to proper energy
-        # really, we tested this, comparing to slow XAFS scans!
-        data4calcs = {}
-        for c in self.counters:
-            offset = 1
-            label = c.label.lower()
-            if 'mca' in label:
-                words = label.split()
-                key = ' '
-                for word in words:
-                    if word.startswith('mca'):
-                        key = word
-                offset = mca_offsets.get(key, 1)
-            if hasattr(c, 'net_buff'):
-                if len(c.net_buff) > len(c.buff)-2:
-                    c.buff = c.net_buff[:]
-            c.buff = c.buff[offset:]
-            c.buff = c.buff[:ne]
-            data4calcs[c.pvname] = np.array(c.buff)
-
-        for c in self.counters:
-            if c.pvname.startswith(EVAL4PLOT):
-                try:
-                    _counter = eval(c.pvname[len(EVAL4PLOT):])
-                    _counter.data = data4calcs
-                    c.buff = _counter.read()
-                except:
-                    print(f"EVAL4Plot for '{c.pvname}'")
-                    c.buff = []
-            if len(c.buff) > 0:
-                self.scandb.set_scandata(c.label, c.buff)
-        dtimer.add('setting scan data')
-        self.set_all_scandata()
-
+        set_scandata_with_roisums(self.scandb, self.counters, skip_first=True)
+        dtimer.add('set scandata, writing data')
         self.datafile.write_data(breakpoint=-1, close_file=True, clear=False)
         dtimer.add('write complete')
 
@@ -771,7 +724,7 @@ class QXAFS_Scan(XAFS_Scan):
 
         dtimer.add('done')
 
-        if debug:
+        if debug or True:
             dtimer.show()
         return self.datafile.filename
 
