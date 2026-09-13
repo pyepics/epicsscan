@@ -9,6 +9,7 @@ from ..saveable import Saveable
 from ..file_utils import fix_varname
 
 EVAL4PLOT= '@@'
+
 class Counter(Saveable):
     """simple scan counter object
     a value that will be counted at each point
@@ -96,84 +97,20 @@ class ROISumCounter(Saveable):
     ROI Sum counter as for Xspress3 ROIs or using AD ROIstats plugin
     use dtcfmt='1' to mean no deadtime correction
     """
-    def __init__(self, label, roifmt, dtcfmt, nmcas, units='counts', data=None):
-        Saveable.__init__(self, label=label, roifmt=roifmt, dtcfmt=dtcfmt,
-                          nmcas=nmcas, units=units)
-        self.dtcorr = dtcfmt != '1'
-        if not self.dtcorr:
-            label = label + ' no_dtc'
+    def __init__(self, label, nmcas=4, units='counts', data=None):
+        Saveable.__init__(self, label=label,  nmcas=nmcas, units=units)
         self.label = fix_varname(label)
         self.extra_label = ''
         self.nmcas = nmcas
-        self.roifmt = roifmt
-        self.dtcfmt = dtcfmt
         self.units = units
         self.pvname = EVAL4PLOT + self.__repr__()
-        self.roi_pvs = []
-        self.dtc_pvs = []
         self.data = data
-        for imca in range(1, nmcas+1):
-            self.roi_pvs.append(get_pv(roifmt % imca))
-            if self.dtcorr:
-                self.dtc_pvs.append(get_pv(dtcfmt % imca))
-        poll()
         self.clear()
 
     def __repr__(self):
-        return "%s('%s', '%s', '%s', %d)" % (self.__class__.__name__,
-                                             self.label, self.roifmt,
-                                             self.dtcfmt, self.nmcas)
+        return f"ROISumCounter('{self.label}', {self.nmcas})"
 
     def read(self, **kws):
-        if self.data is not None:
-            vals = [self.data[pv.pvname] for pv in self.roi_pvs]
-        else:
-            vals = [pv.get(**kws) for pv in self.roi_pvs]
-        val, npts = 0.0, None
-        for v in vals:
-            try:
-                nv = len(v)
-            except:
-                nv = 1
-            if npts is None:
-                npts = nv
-            npts = min(npts, nv)
-        for i, v in enumerate(vals):
-            dx, nd = 1.0, 0
-            if self.dtcorr:
-                dtc_pvname = self.dtc_pvs[i].pvname
-                if self.data is not None and dtc_pvname in self.data:
-                    try:
-                        dx = self.data[dtc_pvname]
-                    except:
-                        dx = 1.0
-                else:
-                    try:
-                        dx = self.dtc_pvs[i].get()
-                    except:
-                        dx = 1.0
-                if npts == 1:
-                    dtc = dx
-                else:
-                    dtc = np.ones(npts)
-                    dx[np.where(dx<0.999)] = 1.0
-                    nd = min(npts, len(dx))
-                    dtc[:nd] = dx[:nd]
-
-            if npts == 1:
-                try:
-                    val += v*dtc
-                except:
-                    print("error read v and dtc with npts == 1")
-                    val += v
-            else:
-                val += v[:npts]*dtc[:npts]
-        if npts == 1:
-            if isinstance(val, np.ndarray) and len(val) > 0:
-                val = val[0]
-                self.buff.append(val)
-        else:
-            self.buff = val.tolist()
         return self.buff
 
     def clear(self):
@@ -183,6 +120,7 @@ class ROISumCounter(Saveable):
     def get_buffers(self):
         "return {label: buffer} dictionary"
         return {self.label: self.buff}
+
 
 class DeviceCounter(object):
     """Generic Multi-PV Counter
