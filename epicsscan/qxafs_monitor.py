@@ -22,6 +22,7 @@ from epicsscan.utils import hms
 from optparse import OptionParser
 
 from .detectors.counter import Counter, ROISumCounter, EVAL4PLOT
+from .scan import set_scandata_with_roisums
 
 # minimum ID energy to put
 MIN_ID_ENERGY =   2.0
@@ -57,7 +58,7 @@ class QXAFS_ScanWatcher(object):
         self.id_lookahead = 3
         self.with_id = True
         self.with_gapscan = False
-        self.gapscan_mode = 1
+        self.gapscan_mode = 4
         self.counters = []
         self.pidfile = pidfile or DEFAULT_PIDFILE
         self.pulsecount_pv = None
@@ -83,7 +84,7 @@ class QXAFS_ScanWatcher(object):
         self.with_id = ('id_array_pv' in self.config and
                         'id_drive_pv' in self.config and id_tracking)
         self.with_gapscan = self.scandb.get_infobool('qxafs_use_gapscan')
-        self.gapscan_mode = self.scandb.get_info('qxafs_gapscan_mode', 1)
+        self.gapscan_mode = self.scandb.get_info('qxafs_gapscan_mode', 4)
 
 
         if self.with_id:
@@ -101,6 +102,7 @@ class QXAFS_ScanWatcher(object):
             self.idtaperset_pv  = get_pv(f'{pvroot}TaperEnergySetC')
             self.idgapscan_next = get_pv(f'{pvroot}MoveToNextGapC.VAL')
             self.idgapscan_busy = get_pv(f'{pvroot}BusyDeviceM.VAL')
+            self.idgapscan_index = get_pv(f'{pvroot}ScanIndexM.VAL')
 
         time.sleep(0.1)
         self.connected = True
@@ -118,10 +120,10 @@ class QXAFS_ScanWatcher(object):
             lname = name.lower()
             if lname.startswith('energy'): # skip Energy readback
                 pass
-            if row.pvname.startswith(EVAL4PLOT):
-                counter = eval(pvname[len(EVAL4PLOT):])
-            else:
-                counter = Counter(pvname, label=name, units=row.units)
+            # if row.pvname.startswith(EVAL4PLOT):
+            #   counter = eval(pvname[len(EVAL4PLOT):])
+            # else:
+            counter = Counter(pvname, label=name, units=row.units)
             self.counters.append(counter)
         time.sleep(0.05)
         if self.verbose:
@@ -129,14 +131,16 @@ class QXAFS_ScanWatcher(object):
 
     def qxafs_abort(self):
         if self.config is not None:
-            print("Aborting QXAFS")
+            print("will abort QXAFS")
             pv_stop_theta = get_pv(self.config['motors']['THETA'] + '.STOP', connect=True)
-            time.sleep(0.25)
+            time.sleep(0.05)
             if pv_stop_theta.connected:
-                pv_stop_theta.put(1)
-                time.sleep(0.25)
-                pv_stop_theta.put(0)
-                print("Aborted QXAFS")
+            pv_stop_theta.put(1, wait=True)
+            time.sleep(0.25)
+            pv_stop_theta.put(0)
+            print("Aborted QXAFS")
+
+
 
     def qxafs_finish(self):
         if hasattr(self, 'idarray'):
@@ -196,23 +200,24 @@ class QXAFS_ScanWatcher(object):
                     msg_counter += 1
 
                 ndat = {}
-                for counter in self.counters:
-                    try:
-                        dat = counter.read()
-                        ndat[counter.label] = len(dat)
-                        if len(dat) > 1:
-                            self.scandb.set_scandata(counter.label, dat[1:])
-                        else:
-                            if self.pulse > 2:
-                                print("no data for counter ", counter.label)
-                    except:
-                        self.write("Could not set scandata for %r, %i" % (counter.label, cpt))
+                set_scandata_with_roisums(self.scandb, self.counters)
+#                 for counter in self.counters:
+#                     try:
+#                         dat = counter.read()
+#                         ndat[counter.label] = len(dat)
+#                         if len(dat) > 1:
+#                             self.scandb.set_scandata(counter.label, dat[1:])
+#                         else:
+#                             if self.pulse > 2:
+#                                 print("no data for counter ", counter.label)
+#                     except:
+#                         self.write("Could not set scandata for %r, %i" % (counter.label, cpt))
         print("write data done")
         self.write("Monitor QXAFS scan complete, finishing")
         self.qxafs_finish()
 
     def sync_undulator(self):
-        mode = self.scandb.get_info('qxafs_gapscan_mode', '1')
+        mode = self.scandb.get_info('qxafs_gapscan_mode', '4')
         mode = int(mode)
         # print(f"Sync undulator {mode=}")
         if mode == 0:    # simple push of ID value, without gapscan
@@ -251,13 +256,15 @@ class QXAFS_ScanWatcher(object):
                 self.qxafs_abort()
             if self.pulse > last_pulse:
                 if self.idgapscan_busy.get() == 0: # still busy from last move
-                    print("ID Gap Busy ", self.pulse, last_pulse)
+                    print(f"gapscan busy {gapscan_index=}, {self.pulse=}")
                 else:
                     self.idgapscan_next.put(1)
-                time.sleep(0.05)
-                self.idgapscan_next = get_pv(f'{pvroot}MoveToNextGapC.VAL')
-                # gapscan_index = caget("S13ID:USID:ScanIndexM")
-                # print(f"gapscan mode3 pushed {gapscan_index=}, {self.pulse=}")
+                time.sleep(0.025)
+
+                gapscan_index = self.idgapscan_index.get()
+                if gapscan_index < self.pulse and self.idgapscan_busy.get() == 1:
+                    print(f"gapscan extra push {gapscan_index=}, {self.pulse=}")
+                    self.idgapscan_next.put(1)
                 last_pulse = self.pulse
                 cpt = int(self.pulse)
         last_pulse = self.pulse = 0
