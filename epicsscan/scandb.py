@@ -19,7 +19,7 @@ from charset_normalizer import from_bytes
 import epics
 
 from .scandb_schema import create_scandb
-from .simpledb import SimpleDB, isotime
+from .simpledb import SimpleDB, isotime, Session
 from .utils import normalize_pvname
 from .create_scan import create_scan
 
@@ -320,6 +320,15 @@ class ScanDB(SimpleDB):
         if isinstance(data, (int, float)):
             data = [data]
         self.update('scandata', where={'name': name}, data=data)
+
+    def set_scandata_bulk(self, datalist):
+        tab = self.tables.get('scandata')
+        with Session(self.engine) as session, session.begin():
+            for name, data in datalist:
+                session.execute(tab.update().where(tab.c.name==name).values(data=data))
+            session.commit()
+            session.flush()
+
 
     def append_scandata(self, name, val):
         tab = self.tables['scandata']
