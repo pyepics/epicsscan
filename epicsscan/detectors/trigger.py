@@ -25,10 +25,11 @@ Example usage:
         time.sleep(1.e-4)
     <read detector data>
     """
-    def __init__(self, pvname, value=1, **kws):
+    def __init__(self, pvname, value=1, cpt=0, **kws):
         Saveable.__init__(self, pvname, value=value, **kws)
         self.pv = get_pv(pvname)
         self._val = value
+        self.cpt = 0
         self.done = False
         self._t0 = 0
         self.runtime = -1
@@ -40,15 +41,25 @@ Example usage:
         self.done = True
         self.runtime = time() - self._t0
 
-    def start(self, value=1):
+    def start(self, value=1, cpt=None, **kws):
         """triggers detector"""
         self.done = False
         self.runtime = -1
+        if cpt is None:
+            self.cpt += 1
+        else:
+            self.cpt = cpt
         self._t0 = time()
         if value is None:
             value = self._val
         self.pv.put(value, callback=self.__onComplete)
         poll(0.001, 0.5)
+
+    def check(self, **kws):
+        pass
+
+    def arm(self, **kws):
+        self.cpt = 0
 
     def abort(self, value=0, wait=False):
         """abort trigger"""
