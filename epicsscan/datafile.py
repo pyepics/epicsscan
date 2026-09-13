@@ -354,8 +354,8 @@ class ASCIIScanFile(ScanFile):
         out = [f"{COM1}------------------------------",
                f"{COM1} {' '.join(self.array_labels)}"]
         npts_all = [len(c.buff) for c in self.scan.counters]
-        npts_all.append(len(self.scan.pos_actual))
-        for i in range(max(npts_all)):
+        npts = len(self.scan.pos_actual)
+        for i in range(npts):
             words =  self.scan.pos_actual[i][:]
             for c in self.scan.counters:
                 try:
