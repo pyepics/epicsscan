@@ -64,7 +64,7 @@ roughly (that is, skipping error checking) as:
        while not all([p.done for p in pos]):
            time.sleep(0.001)
        [trig.start() for trig in det.triggers]
-       while not all([trig.done for trig in det.triggers]):
+       while not all([trig.check() for trig in det.triggers]):
            time.sleep(0.001)
        [det.read() for det in det.counters]
 
@@ -98,11 +98,52 @@ from .file_utils import fix_varname, fix_filename, new_filename
 
 from .utils import hms
 from .detectors import (Counter, Trigger, AreaDetector, SCALER_MODE)
+
 from .datafile import ASCIIScanFile
 from .positioner import Positioner
 
 
 MIN_POLL_TIME = 1.e-3
+
+def set_scandata_with_roisums(scandb, counters):
+    """roi sums, not using eval"""
+    npts = []
+    needs_calc = []
+    alldata = []
+    nmcas = 0
+    work = {}
+    for c in counters:
+        if 'ROISumCounter' in c.pvname:
+            needs_calc.append(c.label)
+        else:
+            name = getattr(c, 'db_label', None)
+            if name is None:
+                name = c.label
+            c.db_label = fix_varname(name)
+            alldata.append((c.db_label, c.buff))
+            # scandb.set_scandata(c.db_label, c.buff)
+            npts.append(len(c.buff))
+    npts = min(npts)
+    if npts < 1 or  len(needs_calc) < 1:
+        return
+    for c in counters:
+        label = c.label.lower().replace(' ', '_')
+        if '_mca' in label and not label.startswith('sum'):
+            words = label.split('_mca')
+            i = int(words[1])
+            if i > nmcas:
+                nmcas = i
+            lab = words[0]
+            if i not in work:
+                work[i] = {}
+            work[i][lab] = np.array(c.buff)[:npts]
+    for label in needs_calc:
+        key = label.lower().replace(' ', '_').replace('sum_', '')
+        sum = work[1][key] * work[1]['dtfactor']
+        for j in range(2, nmcas+1):
+            sum += work[j][key] * work[j]['dtfactor']
+        alldata.append((label,  sum.tolist()))
+    scandb.set_scandata_bulk(alldata)
 
 class ScanPublisher(Thread):
     """ Provides a way to run user-supplied functions per scan point,
@@ -122,7 +163,7 @@ class ScanPublisher(Thread):
     """
     # number of seconds to wait for .cpt to change before exiting thread
     timeout = 3600.
-    def __init__(self, func=None, scan=None, cpt=-1, npts=None, func_kws=None):
+    def __init__(self, func=None, scan=None, cpt=-1, npts=None, func_kws=None, **kws):
         Thread.__init__(self)
         self.func = func
         self.cpt = cpt
@@ -320,6 +361,11 @@ class StepScan(object):
         kws['row'] = row
         kws['filename'] = filename
         kws['dwelltime'] = self.dwelltime
+        kws['scantype'] = self.scantype
+        if 'xafs' in self.scantype:
+            kws['e0'] = getattr(self, 'e0', None)
+            kws['energy'] = getattr(self, 'energies', None)
+
         if isinstance(kws['dwelltime'], (list, tuple, np.ndarray)):
             kws['dwelltime'] = self.dwelltime[0]
         out = []
@@ -445,7 +491,7 @@ class StepScan(object):
             c.clear()
         self.pos_actual = []
 
-    def publish_data(self, cpt, npts=0, scan=None, **kws):
+    def publish_data(self, cpt, npts=0, scan=None, scandb=None, **kws):
         """function to publish data:
 
         this will be called per point by an non-blocking thread
@@ -459,6 +505,9 @@ class StepScan(object):
         self.set_info('scan_time_estimate', time_left)
         time_est  = hms(time_left)
 
+        if not self.publishing_scandata:
+            self.set_all_scandata(cpt=cpt)
+
         if cpt < 4 and self.scandb is not None:
             self.scandb.set_filename(self.filename)
 
@@ -467,27 +516,20 @@ class StepScan(object):
         if cpt % self.message_points == 0:
             self.messenger("%s\n" % msg)
 
-        if not self.publishing_scandata:
-            self.set_all_scandata()
         if callable(self.data_callback):
             self.data_callback(scan=self, cpt=cpt, npts=npts, **kws)
 
-    def set_all_scandata(self):
-        self.publishing_scandata = True
+    def set_all_scandata(self, cpt=None):
         if self.scandb is not None:
-            for c in self.counters:
-                name = getattr(c, 'db_label', None)
-                if name is None:
-                    name = c.label
-                c.db_label = fix_varname(name)
-                self.scandb.set_scandata(c.db_label, c.buff)
-        self.publishing_scandata = False
+            self.publishing_scandata = True
+            t0 = time.time()
+            set_scandata_with_roisums(self.scandb, self.counters)
+            self.publishing_scandata = False
 
     def init_scandata(self):
         if self.scandb is None:
             return
         self.scandb.clear_scandata()
-        # print("INIT SCAN DATA ", self.counters)
         time.sleep(0.025)
         names = []
         npts = len(self.positioners[0].array)
@@ -505,6 +547,7 @@ class StepScan(object):
                                          pvname=p.pv.pvname,
                                          units=units, notes='positioner')
                 names.append(name)
+        _counters = []
         for c in self.counters:
             units = getattr(c, 'units', None)
             if units is None and hasattr(c, 'pv'):
@@ -518,9 +561,8 @@ class StepScan(object):
             name = fix_varname(c.label)
             pvname = getattr(c, 'pvname', name)
             if name in names:
-                name += '_2'
+                name += '_alt'
             if name not in names:
-                # print("ADD SCAN DATA DET ", name, pvname)
                 self.scandb.add_scandata(name, [],
                                          pvname=pvname,
                                          units=units, notes='counter')
@@ -590,6 +632,7 @@ class StepScan(object):
 
     def prepare_scan(self, debug=False):
         """prepare stepscan"""
+        print("Prepare Step Scan")
         self.pos_settle_time = max(MIN_POLL_TIME, self.pos_settle_time)
         self.det_settle_time = max(MIN_POLL_TIME, self.det_settle_time)
 
@@ -670,7 +713,8 @@ class StepScan(object):
         # self.set_info('scan_progress', 'starting scan')
 
         self.publish_thread = ScanPublisher(func=self.publish_data,
-                                            scan=self, npts=npts, cpt=0)
+                                            scan=self, npts=npts, cpt=0,
+                                            scandb=self.scandb)
         self.publish_thread.start()
         self.cpt = 0
         self.npts = npts
@@ -728,6 +772,8 @@ class StepScan(object):
                 if self.dwelltime_varys:
                     for d in self.detectors:
                         d.set_dwelltime(self.dwelltime[i])
+                for trig in self.triggers:
+                    trig.arm()
                 for det in self.detectors:
                     det.arm(mode=self.detmode, fnum=1, numframes=1)
                     time.sleep(det.arm_delay)
@@ -750,7 +796,7 @@ class StepScan(object):
                 self.dtimer.add('Pt %i : pos settled' % i)
 
                 # trigger detectors
-                [trig.start() for trig in self.triggers]
+                [trig.start(cpt=i) for trig in self.triggers]
                 #for det in self.detectors:
                 #    det.start(mode=self.detmode, arm=False, wait=False)
                 self.dtimer.add('Pt %i : triggers fired, (%d)' % (i, len(self.triggers)))
@@ -772,6 +818,9 @@ class StepScan(object):
                 # print("STEP SCAN triggers may be done: ", i,
                 #      [(trig, trig.done) for trig in self.triggers])
                 time.sleep(0.1)
+                # this allows adding 'trigger after-point code'
+                for trig in self.triggers:
+                    trig.check()
                 point_ok = (all([trig.done for trig in self.triggers]) and
                             time.time()-t0 > (0.75*self.min_dwelltime))
                 # print("STEP SCAN  point_ok = ", point_ok)
