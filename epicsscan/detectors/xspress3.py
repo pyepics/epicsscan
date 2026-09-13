@@ -344,7 +344,8 @@ class Xspress3Detector(DetectorMixin):
             self.label = self.prefix
         self.arm_delay = 0.025
         self.start_delay_arraymode = 0.10
-        self.start_delay_roimode   = 0.25
+        self.start_delay_roimode   = 1.00
+
         self.start_delay = self.start_delay_roimode
         self._counter = None
         self.counters = []
@@ -391,7 +392,7 @@ class Xspress3Detector(DetectorMixin):
 
         self._xsp3.put('Acquire', 0, wait=True)
         poll(0.025)
-        self._xsp3.put('ERASE', 1, use_complete=True)
+        self._xsp3._pvs['ERASE'].put(1)
         poll(0.005)
         dt.add('xspress3: cleared, erased')
         if filename is None:
@@ -430,14 +431,8 @@ class Xspress3Detector(DetectorMixin):
             self.connect_counters()
         dt.add('xspress3: connect counters')
         self._counter.mode = mode
+        time.sleep(0.05)
 
-        tout = time.time()+5.0
-        while not (self._xsp3._pvs['ERASE'].put_complete or time.time()>tout):
-            time.sleep(0.001)
-
-        # self._counter._get_counters()
-        # self.counters = self._counter.counters
-        # self.extra_pvs = self._counter.extra_pvs
         # dt.add('Xspress3 PreScan: done')
         # dt.show()
 
@@ -601,8 +596,6 @@ class Xspress3Detector(DetectorMixin):
             tout = time.time()+2.0
             while not (self._xsp3._pvs['ERASE'].put_complete or time.time()>tout):
                  time.sleep(0.002)
-        #  while (time.time() < (t0 + self.arm_delay)):
-        #    time.sleep(0.002)
         # print(f"XSPRESS3 arm done:{(time.time()-t0):.3f}")
 
     def arm_complete(self):
