@@ -86,7 +86,6 @@ class QXAFS_ScanWatcher(object):
         self.with_gapscan = self.scandb.get_infobool('qxafs_use_gapscan')
         self.gapscan_mode = self.scandb.get_info('qxafs_gapscan_mode', 4)
 
-
         if self.with_id:
             self.idarray_pv = get_pv(self.config['id_array_pv'])
             self.iddrive_pv = get_pv(self.config['id_drive_pv'])
@@ -120,10 +119,10 @@ class QXAFS_ScanWatcher(object):
             lname = name.lower()
             if lname.startswith('energy'): # skip Energy readback
                 pass
-            # if row.pvname.startswith(EVAL4PLOT):
-            #   counter = eval(pvname[len(EVAL4PLOT):])
-            # else:
-            counter = Counter(pvname, label=name, units=row.units)
+            if pvname.startswith(EVAL4PLOT):
+                counter = ROISumCounter(name, units=row.units)
+            else:
+                counter = Counter(pvname, label=name, units=row.units)
             self.counters.append(counter)
         time.sleep(0.05)
         if self.verbose:
@@ -133,14 +132,13 @@ class QXAFS_ScanWatcher(object):
         if self.config is not None:
             print("will abort QXAFS")
             pv_stop_theta = get_pv(self.config['motors']['THETA'] + '.STOP', connect=True)
-            time.sleep(0.05)
-            if pv_stop_theta.connected:
-            pv_stop_theta.put(1, wait=True)
             time.sleep(0.25)
-            pv_stop_theta.put(0)
-            print("Aborted QXAFS")
-
-
+            if pv_stop_theta.connected:
+                pv_stop_theta.put(1, wait=True)
+                time.sleep(0.5)
+                pv_stop_theta.put(0)
+                print("Aborted QXAFS")
+            time.sleep(2.0)
 
     def qxafs_finish(self):
         if hasattr(self, 'idarray'):
@@ -157,10 +155,11 @@ class QXAFS_ScanWatcher(object):
     def onPulse(self, pvname, value=0, **kws):
         self.pulse = value
 
-    def write_scandata(self):
+    def o__write_scandata(self):
         """
         monitor point in XAFS scan, push data to scandb for plotting
         """
+        _t0 = time.time()
         msg_counter = 0
         last_pulse = 0
         self.pulse = 0
@@ -172,11 +171,13 @@ class QXAFS_ScanWatcher(object):
             npts = int(self.scandb.get_info(key='scan_total_points', default=0))
             if self.scandb.get_infobool('request_abort'):
                 self.write(f"QXAFS saw request for abort: {time.ctime()}")
-                self.qxafs_abort()
-                break
-            time.sleep(0.1)
-            now = time.time()
+                time.sleep(2)
+                # self.qxafs_abort()
 
+                break
+            time.sleep(0.25)
+            now = time.time()
+            # print("write monitor ", self.pulse, last_pulse)
             if self.pulse > last_pulse:
                 if self.pulsecount_pv is not None:
                     self.pulsecount_pv.put(f"{self.pulse}")
@@ -194,25 +195,14 @@ class QXAFS_ScanWatcher(object):
                 time_est  = hms(time_left)
                 msg = f'Point {cpt}/{npts}, time left:{time_est}'
 
-                if cpt >= msg_counter:
-                    self.scandb.set_info('scan_progress',  msg)
-                    self.scandb.set_info('heartbeat', isotime())
-                    msg_counter += 1
+                self.scandb.set_info('scan_progress',  msg)
+                self.scandb.set_info('heartbeat', isotime())
 
-                ndat = {}
+                dat = [c.read() for c in self.counters]
                 set_scandata_with_roisums(self.scandb, self.counters)
-#                 for counter in self.counters:
-#                     try:
-#                         dat = counter.read()
-#                         ndat[counter.label] = len(dat)
-#                         if len(dat) > 1:
-#                             self.scandb.set_scandata(counter.label, dat[1:])
-#                         else:
-#                             if self.pulse > 2:
-#                                 print("no data for counter ", counter.label)
-#                     except:
-#                         self.write("Could not set scandata for %r, %i" % (counter.label, cpt))
-        print("write data done")
+                # print(f" Wrote scan data: {self.pulse} {(time.time()-_t0):.3f}")
+                # print([len(d) for d in dat])
+
         self.write("Monitor QXAFS scan complete, finishing")
         self.qxafs_finish()
 
@@ -223,7 +213,7 @@ class QXAFS_ScanWatcher(object):
         if mode == 0:    # simple push of ID value, without gapscan
             self.with_gapscan = False
             self.sync_id_mode_0()
-        elif mode == 1 and self.with_gapscan:  # gap values at 0.1 second were loaded and started
+        elif mode == 1 and self.with_gapscan:
             self.sync_id_mode_1()
         elif mode == 2 and self.with_gapscan:  # gap values with TTL pulses
             raise ValueError(" sync_undulatore mode=2 not supported")
@@ -255,9 +245,7 @@ class QXAFS_ScanWatcher(object):
             if self.scandb.get_infobool('request_abort'):
                 self.qxafs_abort()
             if self.pulse > last_pulse:
-                if self.idgapscan_busy.get() == 0: # still busy from last move
-                    print(f"gapscan busy {gapscan_index=}, {self.pulse=}")
-                else:
+                if not self.idgapscan_busy.get() == 0: # still busy from last move
                     self.idgapscan_next.put(1)
                 time.sleep(0.025)
 
@@ -267,6 +255,20 @@ class QXAFS_ScanWatcher(object):
                     self.idgapscan_next.put(1)
                 last_pulse = self.pulse
                 cpt = int(self.pulse)
+
+                time_left = (npts-cpt)*self.dtime
+                self.scandb.set_info('scan_time_estimate', time_left)
+                time_est  = hms(time_left)
+                msg = f'Point {cpt}/{npts}, time left:{time_est}'
+
+                self.scandb.set_info('scan_progress',  msg)
+                self.scandb.set_info('heartbeat', isotime())
+                _t0 = time.time()
+                dat = [c.read() for c in self.counters]
+                set_scandata_with_roisums(self.scandb, self.counters,
+                                          skip_first=True)
+
+
         last_pulse = self.pulse = 0
 
 
@@ -403,9 +405,9 @@ class QXAFS_ScanWatcher(object):
 
                     if confname is not self.confname:
                         self.connect()
-                    if self.writer_thread is None:
-                        self.writer_thread = Thread(target=self.write_scandata, name='writer')
-                        self.writer_thread.start()
+                    # if self.writer_thread is None:
+                    #    self.writer_thread = Thread(target=self.write_scandata, name='writer')
+                    #    self.writer_thread.start()
 
                     self.sync_undulator()
 
