@@ -105,22 +105,24 @@ from .positioner import Positioner
 
 MIN_POLL_TIME = 1.e-3
 
-def set_scandata_with_roisums(scandb, counters):
+def set_scandata_with_roisums(scandb, counters, skip_first=False):
     """roi sums, not using eval"""
+    t0 = time.time()
     npts = []
     needs_calc = []
     alldata = []
     nmcas = 0
     work = {}
+    off = 1 if skip_first else 0
     for c in counters:
         if 'ROISumCounter' in c.pvname:
-            needs_calc.append(c.label)
+            needs_calc.append(c)
         else:
             name = getattr(c, 'db_label', None)
             if name is None:
                 name = c.label
             c.db_label = fix_varname(name)
-            alldata.append((c.db_label, c.buff))
+            alldata.append((c.db_label, c.buff[off:]))
             # scandb.set_scandata(c.db_label, c.buff)
             npts.append(len(c.buff))
     npts = min(npts)
@@ -136,13 +138,15 @@ def set_scandata_with_roisums(scandb, counters):
             lab = words[0]
             if i not in work:
                 work[i] = {}
-            work[i][lab] = np.array(c.buff)[:npts]
-    for label in needs_calc:
+            work[i][lab] = np.array(c.buff)[off:npts]
+    for counter in needs_calc:
+        label = counter.label
         key = label.lower().replace(' ', '_').replace('sum_', '')
         sum = work[1][key] * work[1]['dtfactor']
         for j in range(2, nmcas+1):
             sum += work[j][key] * work[j]['dtfactor']
-        alldata.append((label,  sum.tolist()))
+        counter.buff = sum.tolist()
+        alldata.append((label,  counter.buff))
     scandb.set_scandata_bulk(alldata)
 
 class ScanPublisher(Thread):
