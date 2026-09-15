@@ -15,6 +15,9 @@ from .macros_init import INITSYMS
 from asteval import Interpreter
 from asteval.astutils import Procedure
 
+NON_RESERVED_WORDS = ('fv', 'ipmt', 'irr', 'mirr', 'nper', 'npv', 'pmt',
+                      'ppmt', 'pv', 'rate', 'compress', 'fabs', 'rint')
+
 
 class MessageWriter(object):
     """Message Writer for MacrosKernel:
@@ -69,13 +72,18 @@ class MacroKernel(object):
         self.symtable['_mkernel'] = self
         self.symtable['open'] = open
         self.symtable['Path'] = Path
+
         parent = Path(__file__).parent
         with open(Path(parent, 'macros_init.py'), 'r') as fh:
             text = fh.read() + '\n'
         self.eval(text)
         read_only = list(self.eval.readonly_symbols)
+        for w in NON_RESERVED_WORDS:
+            read_only.remove(w)
+
         read_only.extend(INITSYMS)
         read_only.extend(['_scandb', '_instdb', '_mkernel'])
+
         self.eval.readonly_symbols = set(read_only)
         if load_macros:
             self.load_macros()
