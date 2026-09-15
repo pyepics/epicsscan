@@ -175,13 +175,13 @@ class ScanServer():
                 self.epicsdb.command = cmd
 
             try:
-                # print(f"#Server.do_command  run <{cmd}> {isotime()}")
                 self.mkernel.run(cmd)
+                status, msg = 'finished', 'scan complete'
             except:
-                pass
-            status, msg = 'finished', 'scan complete'
+                status, msg = 'error', 'exception'
+                sleep(0.25)
+
             errors = self.mkernel.get_error()
-            # print(f"#Server.do_command  errors? {len(errors)}")
             if len(errors) > 0:
                 ebuff = []
                 for err in errors:
