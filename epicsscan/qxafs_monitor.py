@@ -172,12 +172,11 @@ class QXAFS_ScanWatcher(object):
         if self.verbose:
             self.write(f"QXAFS Sync begin: mode {gap_mode}")
         npts = int(self.scandb.get_info(key='scan_total_points', default=0))
-        print("Sync : npts ", npts, self.dtime, self.pulse, last_pulse, self.with_id)
+        # print("Sync : npts ", npts, self.dtime, self.pulse, last_pulse, self.with_id)
         while True:
             time.sleep(0.1)
             now = time.time()
             if self.get_state() == 0:
-                print("get state is 0")
                 break
             if self.scandb.get_infobool('request_abort'):
                 print("abort")
