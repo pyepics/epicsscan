@@ -58,7 +58,6 @@ class TetrAMM(Device):
         for at in TS_ARRAYS:
             attrs.append(f"TS:{at}:TimeSeries")
 
-
         Device.__init__(self, prefix, delim='', attrs=attrs, mutable=False)
 
         self._mcs = None
@@ -89,7 +88,7 @@ class TetrAMM(Device):
             self.set_dwelltime(dwelltime)
         self._mode = SCALER_MODE
 
-    def ScalerMode(self, dwelltime=1.0, numframes=1):
+    def ScalerMode(self, dwelltime=None, numframes=1):
         """ set to scaler mode: ready for step scanning
 
     Arguments:
@@ -202,13 +201,10 @@ class TetrAMM(Device):
         "return list of all Channel Current Sigma values"
         return self._readattr('Current%i:Sigma_RBV')
 
-    def ReadCurrentArrays(self):
-        "return list of all Current Value arrays"
-        return self._readattr('TSTotal%i')
+    def ReadCurrentTimeSeries(self):
+        "return list of all Current TS arrays"
+        return self._readattr('TS:Current%i:TimeSeries')
 
-    def ReadSigmaArrays(self):
-        "return list of all Current Sigma arrays"
-        return self._readattr('TSSigma%i')
 
     def SetTriggerMode(self, mode, polarity=None):
         """Set trigger mode
@@ -228,7 +224,7 @@ class TetrAMM(Device):
         """
         if polarity is not None:
             self.put('TriggerPolarity', polarity)
-        if isinstance(mode, basestring):
+        if isinstance(mode, str):
             lmode = mode.lower()
             if lmode.startswith('int'):
                 mode = 0
@@ -252,11 +248,8 @@ class TetrAMM(Device):
         this is a simplified version of Start(), starting only the basic counting.
         it is appropriate for SCALER mode, but not NDARRAY mode.
         """
-        if dwelltime is not None:
-            self.setDwellTime(dwelltime)
-        out = self.put('Acquire', 1, wait=wait)
-        poll()
-        return out
+        self.ScalerMode(dwelltime=dwelltime)
+        return self.put('Acquire', 1, wait=wait)
 
     def start(self, wait=False):
         """start collection, with slightly different behavior for
@@ -362,11 +355,11 @@ class TetrAMMCounter(DeviceCounter):
         for i in range(1, nchan+1):
             label = caget(f'{prefix}CurrentName{i}')
             if len(label) > 0 or use_unlabeled:
-                suff = 'Current{i}:MeanValue_RBV' % i
-                extra_pvs.append(('TetrAMM.Offset%i' % i,
-                                  '%sCurrentOffset%i' % (prefix, i)))
-                extra_pvs.append(('TetrAMM.Scale%i' % i,
-                                  '%sCurrentScale%i' % (prefix, i)))
+                suff = f'Current{i}:MeanValue_RBV'
+                extra_pvs.append((f'TetrAMM.Offset',
+                                  f'{prefix}CurrentOffset{i}'))
+                extra_pvs.append((f'TetrAMM.Scale{i}',
+                                  f'{prefix}sCurrentScale{i}'))
                 fields.append((suff, label))
         self.extra_pvs = extra_pvs
         self.set_counters(fields)
@@ -382,15 +375,15 @@ class TetrAMMDetector(DetectorMixin):
         nchan = int(nchan)
         self.tetramm  = TetrAMM(prefix, mcs_prefix=mcs_prefix)
         self._counter = TetrAMMCounter(prefix, nchan=nchan)
-        self.dwelltime_pv = get_pv('%sAveragingTime' % prefix)
+        self.dwelltime_pv = get_pv(f'{prefix}AveragingTime')
         self.dwelltime = None
         self.mode = mode
         self.counters = self._counter.counters
-
-        extra_pvs = [('TetrAMM.Range', '%sRange_RBV' % (prefix)),
-                     ('TetrAMM.SampleTime', '%sSampleTime_RBV' % (prefix)),
-                     ('TetrAMM.ValuesPerRead', '%sValuesPerRead_RBV' % (prefix)),
-                     ('TetrAMM.NumAverage', '%sNumAverage_RBV' % (prefix))]
+        n = 'TetrAMM.'
+        extra_pvs = [(f'{n}Range',      f'{prefix}Range_RBV'),
+                     (f'{n}SampleTime',  f'{prefix}SampleTime_RBV'),
+                     (f'{n}ValuesPerRead', f'{prefix}ValuesPerRead_RBV'),
+                     (f'{n}NumAverage',   f'{prefix}NumAverage_RBV')]
 
         self.extra_pvs.extend(self._counter.extra_pvs)
 
@@ -412,8 +405,12 @@ class TetrAMMDetector(DetectorMixin):
         return self.tetramm.ContinuousMode(dwelltime=dwelltime,
                                            numframes=numframes)
 
-
     def ROIMode(self, dwelltime=1.0, numframes=1, **kws):
+        "set to ROI mode, for slew-scanning of scalers to 1D arrays"
+        return self.tetramm.NDArrayMode(dwelltime=dwelltime,
+                                        numframes=numframes, **kws)
+
+    def NDArrayMode(self, dwelltime=1.0, numframes=1, **kws):
         "set to ROI mode, for slew-scanning of scalers to 1D arrays"
         return self.tetramm.NDArrayMode(dwelltime=dwelltime,
                                         numframes=numframes, **kws)
