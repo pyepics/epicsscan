@@ -306,6 +306,8 @@ class Slew_Scan1D(StepScan):
         self.set_info('scan_progress', 'reading data')
         for det in self.detectors:
             det.stop()
+            time.sleep(0.01)
+            det.apply_offsets()
 
         dtimer.add('detectors stopped')
         dtimer.add('scan finished')
@@ -322,7 +324,6 @@ class Slew_Scan1D(StepScan):
         nx = len(xvals)
 
         [c.read() for c in self.counters if not c.pvname.startswith(EVAL4PLOT)]
-        print(" read data ")
 
         self.set_all_scandata(skip_first=True)
         dtimer.add('set scan data')
@@ -359,7 +360,6 @@ class Slew_Scan1D(StepScan):
 
         xvals = np.array(xvals)
         return (xvals[1:] + xvals[:-1])/2.0
-
 
     def check_beam_ok(self):
         return True
