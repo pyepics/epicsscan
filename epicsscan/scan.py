@@ -523,11 +523,12 @@ class StepScan(object):
         if callable(self.data_callback):
             self.data_callback(scan=self, cpt=cpt, npts=npts, **kws)
 
-    def set_all_scandata(self, cpt=None):
+    def set_all_scandata(self, cpt=None, skip_first=False):
         if self.scandb is not None:
             self.publishing_scandata = True
             t0 = time.time()
-            set_scandata_with_roisums(self.scandb, self.counters)
+            set_scandata_with_roisums(self.scandb, self.counters,
+                                      skip_first=skip_first)
             self.publishing_scandata = False
 
     def init_scandata(self):
