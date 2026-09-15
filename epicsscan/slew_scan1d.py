@@ -11,7 +11,7 @@ from threading import Thread
 import numpy as np
 from pyshortcuts import debugtimer
 
-from .scan import StepScan
+from .scan import StepScan,  set_scandata_with_roisums
 from .positioner import Positioner
 from .saveable import Saveable
 
@@ -251,6 +251,7 @@ class Slew_Scan1D(StepScan):
         self.scandb.set_filename(self.filename)
         self.set_info('request_abort', 0)
         self.set_info('scan_time_estimate', npts*dtime)
+        self.set_info('slew1d_dwelltim', dtime)
         self.set_info('scan_total_points', npts)
 
         self.datafile.flush()
@@ -319,57 +320,12 @@ class Slew_Scan1D(StepScan):
         for x in xvals:
            self.pos_actual.append([x])
         nx = len(xvals)
-        #
-        [c.read() for c in self.counters]
-        ndat = [len(c.buff[1:]) for c in self.counters]
-        narr = min(ndat)
-        t0  = time.monotonic()
-        while narr < (nx-1) and (time.monotonic()-t0) < 5.0:
-            time.sleep(0.05)
-            [c.read() for c in self.counters]
-            ndat = [len(c.buff[1:]) for c in self.counters]
-            narr = min(ndat)
 
-        mca_offsets = {}
-        counter_buffers = []
-        for c in self.counters:
-            label = c.label.lower()
-            if 'mca' in label and 'clock' in label:
-                buff = np.array(c.read())
-                offset = 1
-                if buff[0] == 0 and buff[1] > 1.10*(buff[2:-1].mean()):
-                    offset = 2
-                key = label.replace('clock', '').strip()
-                mca_offsets[key] = offset
+        [c.read() for c in self.counters if not c.pvname.startswith(EVAL4PLOT)]
+        print(" read data ")
 
-        dtimer.add('read all counters (done)')
-        # remove hot first pixel AND align to proper x values
-        data4calcs = {}
-        for c in self.counters:
-            offset = 1
-            label = c.label.lower()
-            if 'mca' in label:
-                words = label.split()
-                key = ' '
-                for word in words:
-                    if word.startswith('mca'):
-                        key = word
-                offset = mca_offsets.get(key, 1)
-            c.buff = c.buff[offset:]
-            c.buff = c.buff[:nx]
-            # print("-> ", c.label, offset, len(c.buff), c.buff[:3], c.buff[-2:])
-
-            data4calcs[c.pvname] = np.array(c.buff)
-
-        for c in self.counters:
-            if c.pvname.startswith(EVAL4PLOT):
-                _counter = eval(c.pvname[len(EVAL4PLOT):])
-                _counter.data = data4calcs
-                c.buff = _counter.read()
-
-        self.set_all_scandata()
+        self.set_all_scandata(skip_first=True)
         dtimer.add('set scan data')
-
         self.datafile.write_data(breakpoint=-1, close_file=True, clear=False)
         time.sleep(0.05)
         if self.look_for_interrupts():
@@ -388,7 +344,6 @@ class Slew_Scan1D(StepScan):
         # dtimer.show()
         print("scan1d done at %s " % (time.ctime()))
         return self.datafile.filename
-        ##
 
     def gathering2xvals(self, text):
         """read gathering file, calculate and return
