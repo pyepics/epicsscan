@@ -122,8 +122,10 @@ def set_scandata_with_roisums(scandb, counters, skip_first=False):
             if name is None:
                 name = c.label
             c.db_label = fix_varname(name)
+            if hasattr(c, 'net_buff'):
+                if len(c.net_buff) > (len(c.buff)-3):
+                    c.buff = c.net_buff
             alldata.append((c.db_label, c.buff[off:]))
-            # scandb.set_scandata(c.db_label, c.buff)
             npts.append(len(c.buff))
     npts = min(npts)
     if npts < 1 or  len(needs_calc) < 1:
