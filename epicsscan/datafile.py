@@ -323,9 +323,11 @@ class ASCIIScanFile(ScanFile):
                         units = getattr(pv, 'units', None)
                 else:
                     units = obj.units
+                lab = fix_filename(obj.label.strip())
                 if units in (None, 'None', ''):
                     units = objunits
-                lab = fix_filename(obj.label.strip())
+                if 'time' in lab.lower() and units is 'unknown':
+                    units = 'microseconds'
                 sthis = f"{key}: {lab} {units}"
                 extra = getattr(obj, 'extra_label', '')
                 if len(extra) > 0:
