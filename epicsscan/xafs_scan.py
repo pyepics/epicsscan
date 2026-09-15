@@ -85,12 +85,14 @@ class IDGapScanTrigger(Trigger):
         self._t0 = time.time()
         if value is None:
             value = self._val
-        self.pv.put(value)
+        if self.pv.write_access:
+            self.pv.put(value)
         time.sleep(0.001)
 
     def check(self, **kws):
         gapscan_index = self.gapscan_index_pv.get()
-        if gapscan_index < self.cpt and self.gapscan_busy_pv.get() == 1:
+        if (self.pv.write_access and gapscan_index < self.cpt and
+            self.gapscan_busy_pv.get() == 1):
             print(f"gapscan extra push {gapscan_index=}, {self.cpt=}")
             self.pv.put(1)
 
@@ -455,7 +457,7 @@ class QXAFS_Scan(XAFS_Scan):
             det_arm_delay = max(det_arm_delay, det.arm_delay)
             det_start_delay = max(det_start_delay, det.start_delay)
         dtimer.add('arm detectors')
-        self.scandb.set_info('qxafs_dwelltime', float(self.dwelltime[0]))
+        self.scandb.set_info('slew1d_dwelltime', float(self.dwelltime[0]))
         dtimer.add('set qxafs dwelltime')
         self.clear_interrupts()
         dtimer.add('clear interrupts')
@@ -672,11 +674,11 @@ class QXAFS_Scan(XAFS_Scan):
         self.pvs['energy_pv'].put(energy_orig-1.0, wait=False)
         # self.check_outputs(out, msg='post scan')
         dtimer.add('check outputs')
-        time.sleep(0.25)
-        db_data = {}
-        for row in self.scandb.get_scandata():
-            db_data[row.name.lower()] = row.data
-        dtimer.add('read scandb data')
+        time.sleep(0.1)
+#         db_data = {}
+#         for row in self.scandb.get_scandata():
+#             db_data[row.name.lower()] = row.data
+#         dtimer.add('read scandb data')
 
         ndat = []
         for c in self.counters:
@@ -688,7 +690,7 @@ class QXAFS_Scan(XAFS_Scan):
         narr = min(ndat)
         dtimer.add(f'read counters 1 ({narr}, {ne})')
         t0  = time.monotonic()
-        while narr < (ne-1) and (time.monotonic()-t0) < 10.0:
+        while narr < (ne-1) and (time.monotonic()-t0) < 5.0:
             time.sleep(0.1)
             [c.read() for c in self.counters if not c.pvname.startswith(EVAL4PLOT)]
             ndat = [len(c.buff[1:]) for c in self.counters if not c.pvname.startswith(EVAL4PLOT)]
@@ -724,7 +726,7 @@ class QXAFS_Scan(XAFS_Scan):
 
         dtimer.add('done')
 
-        if debug or True:
+        if debug:
             dtimer.show()
         return self.datafile.filename
 
