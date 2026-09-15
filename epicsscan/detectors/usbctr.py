@@ -295,6 +295,7 @@ class USBCTR(Device):
             varname = avars[nchan-1]
             adat[varname] = dat
             label = "%s | %s" % ("%smca%i" % (self._prefix, nchan), varname)
+            # print(" -> ", nchan, name, label, calc, self.clockrate)
             if icol == 1 or len(calc) > 1:
                 if icol == 1:
                     calc = f'A / {self.clockrate}'
@@ -337,7 +338,6 @@ class USBCTR(Device):
             npts, nmcas = sdata.shape
         except:
             return (0, 0, names, headers, fmts, sdata)
-        #print("SIS Calc: RETURN ", nmcas, npts, names, headers, fmts, sdata.shape)
         return (nmcas, npts, names, headers, fmts, sdata)
 
 
@@ -385,7 +385,7 @@ class USBCTRDetector(DetectorMixin):
         for counter in self.counters:
             if counter.label in names:
                 ix = names.index(counter.label)
-                counter.net_buff = sdata[:, ix]
+                counter.net_buff = sdata[:, ix].tolist()
 
     def arm(self, mode=None, fnum=None, wait=True, numframes=None):
         "arm detector, ready to collect with optional mode"
