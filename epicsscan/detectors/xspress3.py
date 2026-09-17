@@ -256,7 +256,7 @@ class Xspress3Counter(DeviceCounter):
         sca_format = '%s' + scaf.valform
         time.sleep(0.01)
 
-        scas2save = (0, )
+        scas2save = (0, 9)
         save_dtcorrect = True
 
         if self.ad_version == 2:
@@ -299,11 +299,11 @@ class Xspress3Counter(DeviceCounter):
                     _label = '%s mca%i' % (self.sca_labels[isca], imca)
                     add_counter(_pvname, _label)
 
-        if save_dtcorrect:
-            for imca in range(1, self.nmcas+1):
-                _pvname = '%sC%i:DTFactor_RBV' % (prefix, imca)
-                _label = 'DTFactor mca%i' % (imca)
-                add_counter(_pvname, _label, units='scale')
+        # if save_dtcorrect:
+        #     for imca in range(1, self.nmcas+1):
+        #         _pvname = '%sC%i:DTFactor_RBV' % (prefix, imca)
+        #        _label = 'DTFactor mca%i' % (imca)
+        #        add_counter(_pvname, _label, units='scale')
 
 
 class Xspress3Detector(DetectorMixin):
