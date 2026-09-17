@@ -93,12 +93,12 @@ class QXAFS_ScanWatcher(object):
             # self.idtaperset_pv  = get_pv(f'{pvroot}TaperEnergySetC')
 
 
-        time.sleep(0.1)
+        time.sleep(0.05)
         self.connected = True
 
     def connect_counters(self):
         self.counters = []
-        time.sleep(0.1)
+        time.sleep(0.05)
         pvs = []
         for row in self.scandb.get_scandata():
             # do not set energy values during scan
@@ -173,6 +173,8 @@ class QXAFS_ScanWatcher(object):
             self.write(f"QXAFS Sync begin: mode {gap_mode}")
         npts = int(self.scandb.get_info(key='scan_total_points', default=0))
         # print("Sync : npts ", npts, self.dtime, self.pulse, last_pulse, self.with_id)
+        self.connect_counters()
+
         while True:
             time.sleep(0.1)
             now = time.time()
@@ -205,6 +207,7 @@ class QXAFS_ScanWatcher(object):
                 self.scandb.set_info('heartbeat', isotime())
                 _t0 = time.time()
                 dat = [c.read() for c in self.counters]
+                # print("-> put scan data ", self.pulse)
                 set_scandata_with_roisums(self.scandb, self.counters,
                                           skip_first=True)
         last_pulse = self.pulse = 0
@@ -237,7 +240,8 @@ class QXAFS_ScanWatcher(object):
             if state > 0:
                 try:
                     confname = self.scandb.get_info('qxafs_config', default='qxafs')
-                    self.dtime = float(self.scandb.get_info(key='qxafs_dwelltime', default=0.5))
+                    self.dtime = float(self.scandb.get_info(key='qxafs_dwelltime',
+                                                            default=0.5))
 
                     if confname is not self.confname:
                         self.connect()
