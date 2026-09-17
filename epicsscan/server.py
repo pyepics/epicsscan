@@ -277,10 +277,10 @@ class ScanServer():
                 self.abort_count += 1
                 self.set_scan_message(f'wait for abort to clear {self.abort_count}/5...')
                 sleep(1.0)
-                if self.abort_count >  5:
+                if self.abort_count > 5:
                     self.set_scan_message('clearing abort...')
                     self.clear_interrupts()
-                    sleep(5.0)
+                    sleep(2.0)
                 continue
 
             # we are not paused or aborting:
