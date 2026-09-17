@@ -54,12 +54,12 @@ class USBCTR(Device):
         self.ast_interp = asteval.Interpreter()
         self.scaler_config = self.read_scaler_config()
 
-    def ExternalMode(self, point0_action=1, prescale_counter=0,
+    def ExternalMode(self, point0_action=2, prescale_counter=0,
                      realtime=0.0, prescale=1):
         """put MCS in External Mode, with the following options:
         option            meaning                   default value
         ----------------------------------------------------------
-        point0_action   set Count on Start             1 ("no clear")
+        point0_action   set Count on Start             2 ("skip")
         prescale_counter Counter to use for prescale   0
         reatime         set Preset Real Time           0
         prescale        set Prescale value             1
@@ -76,7 +76,9 @@ class USBCTR(Device):
         if prescale is not None:
             self.put('Prescale', prescale)
         if point0_action is not None:
-            self.put('Point0Action', point0_action)
+            # self.put('Point0Action', point0_action)
+            # self.put('Point0Action', 0)
+            self.put('Point0Action', 2)
         if prescale_counter is not None:
             self.put('PrescaleCounter', prescale_counter)
         time.sleep(0.002)
