@@ -690,7 +690,7 @@ class XAFSScanPanel(GenericScanPanel):
         # is this a step or continuous scan?
         scanmode = scan.get('scanmode', None)
         dtimes_vary = (max(dtimes) - min(dtimes)) > 0.1
-        qxafs_ttime = float(self.scandb.get_info('qxafs_time_threshold', default=0))
+        qxafs_ttime = float(self.scandb.get_info('qxafs_time_threshold', default=1.0))
         if scanmode is None:
             step_xafs = (max(dtimes) > qxafs_ttime or dtimes_vary)
         else:
@@ -726,7 +726,7 @@ class XAFSScanPanel(GenericScanPanel):
         # qxafs: ignore settling time and k-weighting of time
         if is_qxafs:
             etime  = 0
-        
+
         for reg in self.reg_settings:
             if reg[2].Enabled:
                 nx = float(reg[3].GetValue())
@@ -760,8 +760,8 @@ class XAFSScanPanel(GenericScanPanel):
 
         qxafs_time_threshold = float(self.scandb.get_info('qxafs_time_threshold',
                                                           default=2.0))
-        if dwell_value < qxafs_time_threshold:
-            self.qxafs.SetValue(True)
+
+        self.qxafs.SetValue(dwell_value < qxafs_time_threshold)
 
         self.dwelltime = FloatCtrl(self, precision=dwell_prec,
                                    value=dwell_value,
@@ -877,7 +877,6 @@ class XAFSScanPanel(GenericScanPanel):
         if label == 'dwelltime':
             # for wid in self.reg_settings:
             #     wid[4].SetValue(value)
-
             self.qxafs.SetValue(float(value) < float(qxafs_time_threshold))
         elif label == 'dtime':
             equal_times = True
