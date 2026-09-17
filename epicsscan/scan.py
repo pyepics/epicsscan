@@ -108,7 +108,7 @@ MIN_POLL_TIME = 1.e-3
 def set_scandata_with_roisums(scandb, counters, skip_first=False):
     """roi sums, not using eval"""
     t0 = time.time()
-    npts = []
+    nptsdet = []
     needs_calc = []
     alldata = []
     nmcas = 0
@@ -124,11 +124,12 @@ def set_scandata_with_roisums(scandb, counters, skip_first=False):
             c.db_label = fix_varname(name)
             if hasattr(c, 'net_buff'):
                 if len(c.net_buff) > (len(c.buff)-3):
-                    c.buff = c.net_buff
+                    c.buf = c.net_buff
             alldata.append((c.db_label, c.buff[off:]))
-            npts.append(len(c.buff))
-    npts = min(npts)
+            nptsdet.append(len(c.buff))
+    npts = min(nptsdet)
     if npts < 1 or  len(needs_calc) < 1:
+        print("not enough points for sum ", nptsdet, needs_calc)
         return
     for c in counters:
         label = c.label.lower().replace(' ', '_')
@@ -150,6 +151,7 @@ def set_scandata_with_roisums(scandb, counters, skip_first=False):
         counter.buff = sum.tolist()
         alldata.append((label,  counter.buff))
     scandb.set_scandata_bulk(alldata)
+
 
 class ScanPublisher(Thread):
     """ Provides a way to run user-supplied functions per scan point,
@@ -643,6 +645,7 @@ class StepScan(object):
         self.pos_settle_time = max(MIN_POLL_TIME, self.pos_settle_time)
         self.det_settle_time = max(MIN_POLL_TIME, self.det_settle_time)
 
+
         if not self.verify_scan():
             self.write('Cannot execute scan: %s\n' % self.last_error_msg)
             self.set_info('scan_message', 'cannot execute scan')
@@ -655,13 +658,11 @@ class StepScan(object):
         self.dtimer.add('PRE: cleared interrupts')
 
         self.orig_positions = {}
+
         for p in self.positioners:
             self.orig_positions[p.pv.pvname] = p.current()
 
         self.dtimer.add('PRE: orig positions')
-        out = [p.move_to_start(wait=False) for p in self.positioners]
-        self.check_outputs(out, msg='move to start')
-        self.dtimer.add('PRE: move to start')
         npts = self.npts = len(self.positioners[0].array)
         for det in self.detectors:
             det.arm(mode=self.detmode, fnum=1, numframes=1)
@@ -693,6 +694,10 @@ class StepScan(object):
                 d.set_dwelltime(self.dwelltime)
         self.dtimer.add('PRE: set dwelltime')
 
+        # do this after calculating time_estimate!
+        if 'energy' in self.positioners[0].pv.pvname.lower():
+            self.pos_settle_time = 0.010
+
         if self.scandb is not None:
             self.set_info('scan_progress', 'preparing scan')
 
@@ -712,12 +717,19 @@ class StepScan(object):
         out = self.pre_scan(mode=self.detmode, filename=self.filename)
         self.check_outputs(out, msg='pre scan')
 
+        # move to start after prescan is done
+        out = [p.move_to_start(wait=False) for p in self.positioners]
+        self.check_outputs(out, msg='move to start')
+        self.dtimer.add('PRE: move to start')
+
+
         self.clear_data()
         if self.scandb is not None:
             self.init_scandata()
 
         self.dtimer.add('PRE: initialized scandata')
-        # self.set_info('scan_progress', 'starting scan')
+        self.check_outputs(out, msg='move to start')
+        self.dtimer.add('PRE: move to start')
 
         self.publish_thread = ScanPublisher(func=self.publish_data,
                                             scan=self, npts=npts, cpt=0,
@@ -762,6 +774,7 @@ class StepScan(object):
         ts_init = time.time()
         self.inittime = ts_init - ts_start
         i = -1
+
         while not self.abort:
             i += 1
             if i >= self.npts:
@@ -776,6 +789,7 @@ class StepScan(object):
                     if self.look_for_interrupts():
                         break
                 # set dwelltime
+                self.dtimer.add(f'Pt {i} ')
                 if self.dwelltime_varys:
                     for d in self.detectors:
                         d.set_dwelltime(self.dwelltime[i])
@@ -784,47 +798,46 @@ class StepScan(object):
                 for det in self.detectors:
                     det.arm(mode=self.detmode, fnum=1, numframes=1)
                     time.sleep(det.arm_delay)
+                self.dtimer.add('det armed')
                 self.dtimer.add('Pt %i : det arm' % i)
                 # print("SCAN 1 det armed: ", len(self.counters), self.counters)
                 # move to next position
                 [p.move_to_pos(i) for p in self.positioners]
-                self.dtimer.add('Pt %i : move_to_pos (%i)' % (i, len(self.positioners)))
+                self.dtimer.add(f'move_to_pos {len(self.positioners)}')
 
                 self.set_info('scan_current_point', i)
                 # move positioners
                 t0 = time.time()
+                # wait for positioner, unless mono energy ()
                 while (not all([p.done for p in self.positioners]) and
                        time.time() - t0 < self.pos_maxmove_time):
                     if self.look_for_interrupts():
                         break
-                    poll(MIN_POLL_TIME, 0.25)
+                    time.sleep(0.002)
                 self.dtimer.add('Pt %i : pos done' % i)
-                poll(self.pos_settle_time, 0.25)
+
+                time.sleep(self.pos_settle_time)
                 self.dtimer.add('Pt %i : pos settled' % i)
 
                 # trigger detectors
                 [trig.start(cpt=i) for trig in self.triggers]
-                #for det in self.detectors:
-                #    det.start(mode=self.detmode, arm=False, wait=False)
                 self.dtimer.add('Pt %i : triggers fired, (%d)' % (i, len(self.triggers)))
 
                 # wait for detectors
                 t0 = time.time()
-                time.sleep(max(0.05, 0.8*self.min_dwelltime))
+                time.sleep(max(0.025, 0.8*self.min_dwelltime))
                 while not all([trig.done for trig in self.triggers]):
+                    time.sleep(0.005)
                     if (time.time() - t0) > 5.0*(1 + 2*self.max_dwelltime):
                         print("Trigger timed-out!")
                         for trig in self.triggers:
                             print(trig, trig.done)
                         break
-                    poll(MIN_POLL_TIME, 0.5)
                 self.dtimer.add('Pt %i : triggers done' % i)
                 if self.look_for_interrupts():
                     break
 
-                # print("STEP SCAN triggers may be done: ", i,
-                #      [(trig, trig.done) for trig in self.triggers])
-                time.sleep(0.1)
+                time.sleep(0.010)
                 # this allows adding 'trigger after-point code'
                 for trig in self.triggers:
                     trig.check()
@@ -833,17 +846,18 @@ class StepScan(object):
                 # print("STEP SCAN  point_ok = ", point_ok)
                 if not point_ok:
                     point_ok = True
-                    poll(0.1, 1.0)
+                    poll(0.05, 1.0)
                     for trig in self.triggers:
-                        poll(0.05, 1.0)
+                        time.sleep(0.02)
                         point_ok = point_ok and (trig.runtime > (0.8*self.min_dwelltime))
                         if not point_ok:
                             print('Trigger problem?:', trig, trig.runtime, self.min_dwelltime)
                             trig.abort()
 
                 # read counters and actual positions
-                poll(0.01, self.det_settle_time)
-                self.dtimer.add('Pt %i : det settled done. ' % i)
+                time.sleep(self.det_settle_time)
+
+                self.dtimer.add(f'Pt {i} : det settled done. {self.det_settle_time}')
 
                 dready = [True]
                 t0 = time.time()
@@ -865,7 +879,7 @@ class StepScan(object):
                         if hasattr(counter, 'pv'):
                             _x = counter.pv.get()
                     if not all(dready):
-                        time.sleep(0.05)
+                        time.sleep(0.025)
                     if time.time() - t0 > 10:
                         dready = [True]
                 dat = [c.read() for c in self.counters]
