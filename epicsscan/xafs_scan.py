@@ -268,9 +268,8 @@ class QXAFS_Scan(XAFS_Scan):
     def make_trajectory(self, reverse=False,
                         theta_accel=0.5, width_accel=0.050, **kws):
         """this method builds the text of a Trajectory script for
-        a Newport XPS Controller based on the energies and dwelltimes"""
-
-
+        a Newport XPS Controller based on the energies and dwelltimes
+        """
         if self.config is None:
             self.connect_qxafs()
 
@@ -286,14 +285,13 @@ class QXAFS_Scan(XAFS_Scan):
 
         # we want energy trajectory points to be at or near
         # midpoints of desired energy values
-        estep = float(self.energies[1]-self.energies[0])
+        de_first = float(self.energies[1]-self.energies[0])
+        de_last = float(self.energies[-1]  - self.energies[-2])
 
-        # enx = [self.energies[0]-2*estep, self.energies[0]-estep]
-        enx = [self.energies[0]-estep]
+        enx = [self.energies[0]-de_first]
         enx.extend(list(self.energies))
-        de = float(self.energies[-1]  - self.energies[-2])
-        enx.append(float(1*de + self.energies[-1]))
-        enx.append(float(2*de + self.energies[-1]))
+        enx.append(float(1*de_last + self.energies[-1]))
+        enx.append(float(2*de_last + self.energies[-1]))
         enx = np.array(enx)
         energy = (enx[1:] + enx[:-1])/2.0
 
@@ -356,7 +354,15 @@ class QXAFS_Scan(XAFS_Scan):
                    'nsegments': npts, 'uploaded': True}
         self.xps.trajectories['qxafs'] = xpstraj
         self.xps.upload_trajectory('qxafs.trj', buff)
-        # print("uploaded xps traj", isotime())
+
+#         fileroot = self.scandb.get_info('server_fileroot', default='.')
+#         userdir  = self.scandb.get_info('user_folder', default='.')
+#         with open(Path(fileroot, userdir, 'XAFSXRF', 'qxafs.trj'), 'w') as fh:
+#             fh.write(buff)
+#         with open(Path(fileroot, userdir, 'XAFSXRF', 'energies.txt'), 'w') as fh:
+#             fh.write('\n'.join([f'{e:.6f}' for e in self.energies]))
+
+        print("uploaded xps traj", isotime())
         return traj
 
     def finish_qscan(self):
