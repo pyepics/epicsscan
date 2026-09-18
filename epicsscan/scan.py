@@ -865,23 +865,23 @@ class StepScan(object):
                     if hasattr(counter, 'pv'):
                         val = counter.pv.get(timeout=0.1)
                     if ('clock' in counter.label.lower() or
+                        'mca' in counter.label.lower() or
                         'counttime' in counter.label.lower()):
                         dready.append((val > 0))
                 if not all(dready):
-                    print(f"## waiting for valid clock data, point {i}")
-                    time.sleep(0.05 + self.det_settle_time)
+                    print(f"## waiting for valid data at point {i}")
+                    time.sleep(0.05)
                     dready = [True]
                     for counter in self.counters:
                         if ('clock' in counter.label.lower() or
+                            'mca' in counter.label.lower() or
                             'counttime' in counter.label.lower()):
                             val = counter.pv.get(timeout=0.5)
                             dready.append((val > 0))
                         if hasattr(counter, 'pv'):
                             _x = counter.pv.get()
                     if not all(dready):
-                        time.sleep(0.025)
-                    if time.time() - t0 > 10:
-                        dready = [True]
+                        time.sleep(0.10)
                 dat = [c.read() for c in self.counters]
                 # print("read counters: ", dat, time.time()-t0)
                 self.dtimer.add('Pt %i : read counters' % i)
