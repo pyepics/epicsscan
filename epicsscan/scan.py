@@ -98,12 +98,12 @@ from .file_utils import fix_varname, fix_filename, new_filename
 
 from .utils import hms
 from .detectors import (Counter, Trigger, AreaDetector, SCALER_MODE)
-
+from .detectors.counter import EVAL4PLOT
 from .datafile import ASCIIScanFile
 from .positioner import Positioner
 
 
-MIN_POLL_TIME = 1.e-3
+MIN_POLL_TIME = 2.e-3
 
 def set_scandata_with_roisums(scandb, counters, skip_first=False):
     """roi sums, not using eval"""
@@ -188,7 +188,7 @@ class ScanPublisher(Thread):
         t0 = time.time()
 
         while True:
-            poll(MIN_POLL_TIME, 0.25)
+            time.sleep(MIN_POLL_TIME)
             if self.cpt != last_point:
                 last_point =  self.cpt
                 t0 = time.time()
@@ -645,7 +645,6 @@ class StepScan(object):
         self.pos_settle_time = max(MIN_POLL_TIME, self.pos_settle_time)
         self.det_settle_time = max(MIN_POLL_TIME, self.det_settle_time)
 
-
         if not self.verify_scan():
             self.write('Cannot execute scan: %s\n' % self.last_error_msg)
             self.set_info('scan_message', 'cannot execute scan')
@@ -731,10 +730,10 @@ class StepScan(object):
         self.check_outputs(out, msg='move to start')
         self.dtimer.add('PRE: move to start')
 
-        self.publish_thread = ScanPublisher(func=self.publish_data,
-                                            scan=self, npts=npts, cpt=0,
-                                            scandb=self.scandb)
-        self.publish_thread.start()
+        # self.publish_thread = ScanPublisher(func=self.publish_data,
+        #                                     scan=self, npts=npts, cpt=0,
+        #                                    scandb=self.scandb)
+        # self.publish_thread.start()
         self.cpt = 0
         self.npts = npts
         out = [p.move_to_start(wait=True) for p in self.positioners]
@@ -859,33 +858,37 @@ class StepScan(object):
 
                 self.dtimer.add(f'Pt {i} : det settled done. {self.det_settle_time}')
 
-                dready = [True]
-                t0 = time.time()
-                for counter in self.counters:
-                    if hasattr(counter, 'pv'):
-                        val = counter.pv.get(timeout=0.1)
-                    if ('clock' in counter.label.lower() or
-                        'mca' in counter.label.lower() or
-                        'counttime' in counter.label.lower()):
-                        dready.append((val > 0))
-                if not all(dready):
-                    print(f"## waiting for valid data at point {i}")
-                    time.sleep(0.05)
-                    dready = [True]
+                def get_counters_not_ready(waittime=0.1):
+                    not_ready = []
                     for counter in self.counters:
-                        if ('clock' in counter.label.lower() or
-                            'mca' in counter.label.lower() or
-                            'counttime' in counter.label.lower()):
-                            val = counter.pv.get(timeout=0.5)
-                            dready.append((val > 0))
-                        if hasattr(counter, 'pv'):
-                            _x = counter.pv.get()
-                    if not all(dready):
-                        time.sleep(0.10)
+                        label = counter.label.lower().replace(' ', '_')
+                        pvname = getattr(counter, 'pvname', '')
+                        pvobj = getattr(counter, 'pv', None)
+                        if (pvobj is not None and len(pvname) > 3
+                            and not pvname.startswith(EVAL4PLOT)):
+                            val = counter.pv.get(timeout=waittime)
+                            if ('clock' in label or  '_mca' in label):
+                                if abs(val) < 0.5:
+                                    not_ready.append(counter.label)
+                    return not_ready
+
+                not_ready = get_counters_not_ready()
+                if len(not_ready) > 0:
+                    t0 = time.time()
+                    print(f"## waiting for data pt{i} not_ready={len(not_ready)} / {len(self.counters)}, [{self.det_settle_time=:.3f}]")
+                    for iw in range(1, 21):
+                        time.sleep(0.5 * self.det_settle_time)
+                        not_ready = get_counters_not_ready()
+                        if len(not_ready) == 0:
+                            break
+                    print(f"##  not_ready={not_ready}  {iw} loops, {(time.time()-t0):.3f} sec")
+                    if iw > 2:
+                        self.det_settle_time = max(0.150, self.det_settle_time*1.02)
                 dat = [c.read() for c in self.counters]
-                # print("read counters: ", dat, time.time()-t0)
                 self.dtimer.add('Pt %i : read counters' % i)
                 self.pos_actual.append([p.current() for p in self.positioners])
+
+                self.publish_data(self.cpt, npts=self.npts, scan=self, scandb=self.scandb)
                 if self.publish_thread is not None:
                     self.publish_thread.cpt = self.cpt
                 self.dtimer.add('Pt %i : sent message' % i)
@@ -933,6 +936,8 @@ class StepScan(object):
         if self.publish_thread is not None:
             self.publish_thread.cpt = None
             self.publish_thread.join()
+            time.sleep(0.02)
+            self.publish_thread = None
 
         self.set_info('scan_progress',
                       'scan complete. Wrote %s' % self.datafile.filename)
