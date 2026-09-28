@@ -54,7 +54,7 @@ class USBCTR(Device):
         self.ast_interp = asteval.Interpreter()
         self.scaler_config = self.read_scaler_config()
 
-    def ExternalMode(self, point0_action=2, prescale_counter=0,
+    def ExternalMode(self, point0_action=None, prescale_counter=0,
                      realtime=0.0, prescale=1):
         """put MCS in External Mode, with the following options:
         option            meaning                   default value
@@ -76,9 +76,8 @@ class USBCTR(Device):
         if prescale is not None:
             self.put('Prescale', prescale)
         if point0_action is not None:
-            # self.put('Point0Action', point0_action)
-            # self.put('Point0Action', 0)
-            self.put('Point0Action', 2)
+            self.put('Point0Action', point0_action)
+
         if prescale_counter is not None:
             self.put('PrescaleCounter', prescale_counter)
         time.sleep(0.002)
@@ -142,7 +141,7 @@ class USBCTR(Device):
         self._mode = SCALER_MODE
 
     def NDArrayMode(self, dwelltime=None, numframes=None,
-                    point0_action=1, prescale_counter=0):
+                    point0_action=0, prescale_counter=0):
         """ set to array mode: ready for slew scanning
 
     Arguments:
@@ -167,7 +166,7 @@ class USBCTR(Device):
 
 
     def ROIMode(self, dwelltime=None, numframes=None,
-                point0_action=1, prescale_counter=0):
+                point0_action=2, prescale_counter=0):
 
         """set to ROI mode: ready for slew scanning"""
         self.NDArrayMode(dwelltime=dwelltime, numframes=numframes,
@@ -231,7 +230,10 @@ class USBCTR(Device):
 
     def save_arraydata(self, filename='sis.dat', npts=None, **kws):
         "save MCA spectra to ASCII file"
+        t0 = time.time()
+        # print(f"SAVE MCS: {filename=}")
         nmcas, npts, names, headers, fmts, sdata = self.get_arraydata(npts=npts)
+        # print(f"SAVE MCS:  array data {npts=}, {(time.time()-t0):.3f}")
         buff = [f'# USBCTR MCS MCA data: {self._prefix}',
                 f'# Nchannels, Nmcas = {npts}, {nmcas}',
                 '# Time in microseconds']
@@ -246,6 +248,7 @@ class USBCTR(Device):
         buff.append('')
         with open(filename, 'w') as fh:
             fh.write("\n".join(buff))
+        # print(f"SAVE MCS: wrote data, {(time.time()-t0):.3f}")
         return (nmcas, npts)
 
     def get_arraydata(self, npts=None, **kws):
@@ -261,7 +264,7 @@ class USBCTR(Device):
         for name in avars:
             self.ast_interp.symtable[name] = adat[name] = numpy.zeros(npts)
         scaler_config = self.read_scaler_config()
-
+        # print("Read Scaler Config " , scaler_config)
         # read MCAs until all data have a consistent length (up to ~3 seconds)
         t0 = time.time()
         time.sleep(0.010)
@@ -275,10 +278,11 @@ class USBCTR(Device):
                 npts_chan.append(len(dat))
             if npts_req is None:
                 npts_req = npts_chan[0]
-            waiting_for_data = abs(npts_req-npts_chan[0]) > 1
-            waiting_for_data = waiting_for_data or (max(npts_chan) != min(npts_chan))
-            waiting_for_data = waiting_for_data and (time.time() < (t0+3.0))
+            waiting_for_data = (abs(npts_req-npts_chan[0]) > 2) or (max(npts_chan) != min(npts_chan))
+            # print(" mcs wait : ", npts_chan, npts_req, max(npts_chan), min(npts_chan), waiting_for_data)
             time.sleep(0.010)
+            if time.time() > (t0+3.0):
+                break
 
         if max(npts_chan) != min(npts_chan):
             print(" MCS warning, inconsistent number of points!")
