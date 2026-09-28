@@ -781,6 +781,7 @@ class StepScan(object):
             try:
                 point_ok = True
                 self.cpt = i+1
+                # print("Point ", self.cpt)
                 self.look_for_interrupts()
                 self.dtimer.add('Pt %i : looked for interrupts' % i)
                 while self.pause:
@@ -817,7 +818,6 @@ class StepScan(object):
 
                 time.sleep(self.pos_settle_time)
                 self.dtimer.add('Pt %i : pos settled' % i)
-
                 # trigger detectors
                 [trig.start(cpt=i) for trig in self.triggers]
                 self.dtimer.add('Pt %i : triggers fired, (%d)' % (i, len(self.triggers)))
@@ -852,38 +852,33 @@ class StepScan(object):
                         if not point_ok:
                             print('Trigger problem?:', trig, trig.runtime, self.min_dwelltime)
                             trig.abort()
-
                 # read counters and actual positions
                 time.sleep(self.det_settle_time)
-
+                mca_wait_time = self.scandb.get_info('mca_wait_time', 0.5)
                 self.dtimer.add(f'Pt {i} : det settled done. {self.det_settle_time}')
 
-                def get_counters_not_ready(waittime=0.1):
+                def get_mcas_not_ready():
                     not_ready = []
                     for counter in self.counters:
                         label = counter.label.lower().replace(' ', '_')
-                        pvname = getattr(counter, 'pvname', '')
                         pvobj = getattr(counter, 'pv', None)
-                        if (pvobj is not None and len(pvname) > 3
-                            and not pvname.startswith(EVAL4PLOT)):
-                            val = counter.pv.get(timeout=waittime)
-                            if ('clock' in label or  '_mca' in label):
-                                if abs(val) < 0.5:
-                                    not_ready.append(counter.label)
+                        pvname = getattr(counter, 'pvname', '')
+                        if ('sum' not in label and '_mca' in label and
+                            len(pvname) > 3 and pvobj is not None):
+                            val = counter.pv.get(timeout=0.05)
+                            if abs(val) < 0.5:
+                                not_ready.append(counter.label)
                     return not_ready
-
                 not_ready = get_counters_not_ready()
                 if len(not_ready) > 0:
-                    t0 = time.time()
-                    print(f"## waiting for data pt{i} not_ready={len(not_ready)} / {len(self.counters)}, [{self.det_settle_time=:.3f}]")
-                    for iw in range(1, 21):
-                        time.sleep(0.5 * self.det_settle_time)
+                    mca_timeout = time.time() + mca_wait_time
+                    print(f"## Point{i} some detectors {not_ready=}")
+                    while len(not_ready) > 0 and time.time() < mca_timeout:
+                        time.sleep(0.05 * self.det_settle_time)
                         not_ready = get_counters_not_ready()
-                        if len(not_ready) == 0:
-                            break
-                    print(f"##  not_ready={not_ready}  {iw} loops, {(time.time()-t0):.3f} sec")
-                    if iw > 2:
-                        self.det_settle_time = max(0.150, self.det_settle_time*1.02)
+                if len(not_ready) > 0:
+                    print(f"##     some detectors {not_ready=}")
+
                 dat = [c.read() for c in self.counters]
                 self.dtimer.add('Pt %i : read counters' % i)
                 self.pos_actual.append([p.current() for p in self.positioners])
