@@ -16,7 +16,7 @@ from asteval import Interpreter
 from asteval.astutils import Procedure
 
 NON_RESERVED_WORDS = ('fv', 'ipmt', 'irr', 'mirr', 'nper', 'npv', 'pmt',
-                      'ppmt', 'pv', 'rate', 'compress', 'fabs', 'rint')
+                      'ppmt', 'pv', 'rate', 'compress', 'fabs', 'print')
 
 
 class MessageWriter(object):
@@ -79,7 +79,8 @@ class MacroKernel(object):
         self.eval(text)
         read_only = list(self.eval.readonly_symbols)
         for w in NON_RESERVED_WORDS:
-            read_only.remove(w)
+            if w in read_only:
+                read_only.remove(w)
 
         read_only.extend(INITSYMS)
         read_only.extend(['_scandb', '_instdb', '_mkernel'])
