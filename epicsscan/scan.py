@@ -854,31 +854,34 @@ class StepScan(object):
                             trig.abort()
                 # read counters and actual positions
                 time.sleep(self.det_settle_time)
-                mca_wait_time = self.scandb.get_info('mca_wait_time', 0.5)
+                mca_wait_time = float(self.scandb.get_info('mca_wait_time', 0.5))
                 self.dtimer.add(f'Pt {i} : det settled done. {self.det_settle_time}')
-
                 def get_mcas_not_ready():
                     not_ready = []
+                    dtfacts = []
                     for counter in self.counters:
                         label = counter.label.lower().replace(' ', '_')
                         pvobj = getattr(counter, 'pv', None)
                         pvname = getattr(counter, 'pvname', '')
-                        if ('sum' not in label and '_mca' in label and
+                        if ('_mca' in label and 'sum' not in label and
                             len(pvname) > 3 and pvobj is not None):
                             val = counter.pv.get(timeout=0.05)
-                            if abs(val) < 0.5:
+                            if abs(val) < 0.9:
                                 not_ready.append(counter.label)
+                            if 'dtfact' in label and val > 3.5:
+                                dtfacts.append(label)
+                    if len(dtfacts) > 3:
+                        not_ready = []
                     return not_ready
-                not_ready = get_counters_not_ready()
+                not_ready = get_mcas_not_ready()
+                mca_t0 = time.perf_counter()
                 if len(not_ready) > 0:
-                    mca_timeout = time.time() + mca_wait_time
-                    print(f"## Point{i} some detectors {not_ready=}")
-                    while len(not_ready) > 0 and time.time() < mca_timeout:
-                        time.sleep(0.05 * self.det_settle_time)
-                        not_ready = get_counters_not_ready()
-                if len(not_ready) > 0:
-                    print(f"##     some detectors {not_ready=}")
-
+                    print(f"## Point{i} some mca detectors {not_ready=}")
+                    while len(not_ready) > 0 and time.perf_counter() < (mca_t0 + mca_wait_time):
+                        time.sleep(0.005)
+                        not_ready = get_mcas_not_ready()
+                    time.sleep(0.005)
+                    print(f"##    -> mcas took {(time.perf_counter()-mca_t0):.3f} sec {not_ready=}")
                 dat = [c.read() for c in self.counters]
                 self.dtimer.add('Pt %i : read counters' % i)
                 self.pos_actual.append([p.current() for p in self.positioners])
