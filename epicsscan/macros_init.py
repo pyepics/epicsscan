@@ -318,8 +318,8 @@ def scan_from_db(scanname, filename="scan.001"):
 
     return scan
 
-def do_scan(scanname, filename="scan.001", nscans=1, comments="", merge_nscans=True):
-    """do_scan(scanname, filename="scan.001", nscans=1, comments="", merge_nscans=True)
+def do_scan(scanname, filename="scan.001", nscans=1, comments="", merge_nscans=None):
+    """do_scan(scanname, filename="scan.001", nscans=1, comments="")
 
     execute a step scan as defined in Scan database
 
@@ -329,7 +329,6 @@ def do_scan(scanname, filename="scan.001", nscans=1, comments="", merge_nscans=T
     filename (string): name of output data file ['scan.001']
     comments (string): user comments for file ['']
     nscans (integer):  number of repeats to make. [1]
-    merge_nscans (bool):  whether to merge multiple scans. [True]
 
     Examples
     --------
@@ -348,19 +347,20 @@ def do_scan(scanname, filename="scan.001", nscans=1, comments="", merge_nscans=T
     if scan.scantype == "slew":
         return scan.run(filename=filename, comments=comments)
     else:
+        scount = int(_scandb.get_info("stepscan_count", 0))
         nscans_done = 0
         nscans_left = get_dbinfo("nscans", as_int=True)
         if get_dbinfo("request_abort", as_bool=True):
             nscans_left = -1
         while nscans_left > 0:
             scan.run()
+            scount += 1
+            _scandb.set_info("stepscan_count", scount)
             out_filenames.append(scan.filename)
             nscans_done += 1
             nscans_left = get_dbinfo("nscans", as_int=True) - nscans_done
             if get_dbinfo("request_abort", as_bool=True):
                 nscans_left = -1
-        if merge_nscans and len(out_filenames) > 1:
-            print("should merge nscans: ", len(out_filenames))
 
         return scan
 
