@@ -90,7 +90,7 @@ class Slew_Scan1D(StepScan):
             for i, axes in enumerate(trajs['foreward']['axes']):
                 pvname = self.slewscan_config['motors'][axes]
                 v1, v2 = trajs['foreward']['start'][i], trajs['backward']['start'][i]
-                thispv = PV(pvname)
+                thispv = get_pv(pvname)
                 self.motor_vals[pvname] = (thispv, v1, v2)
                 self.orig_positions[pvname] = thispv.get()
 
@@ -102,7 +102,7 @@ class Slew_Scan1D(StepScan):
             self.motor_vals = {}
             self.orig_positions = {}
             pvname = self.inner['pvread']
-            thispv = PV(pvname)
+            thispv = get_pv(pvname)
             self.motor_vals[pvname] = (thispv, xvals, xvals)
             self.orig_positions[pvname] = thispv.get()
 

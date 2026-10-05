@@ -126,7 +126,7 @@ class ADMCA(Device):
         Device.__init__(self, self._prefix, delim='',
                               attrs=self._attrs, with_poll=False)
         if data_pv is not None:
-            self._pvs['VAL'] = PV(data_pv)
+            self._pvs['VAL'] = get_pv(data_pv)
         self._npts = None
         self._nrois = nrois
         if self._nrois is None:

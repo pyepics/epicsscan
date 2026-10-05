@@ -242,7 +242,7 @@ class ScanFrame(wx.Frame):
         for pv in self.scandb.get_rows('pv'):
             name = normalize_pvname(pv.name)
             if len(name)>0:
-                self.pvlist[name] = epics.PV(name)
+                self.pvlist[name] = epics.get_pv(name)
             time.sleep(0.01)
         # print("PVs connected")
         self.statusbar.SetStatusText('Epics Ready')

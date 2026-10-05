@@ -285,14 +285,14 @@ class GenericScanPanel(scrolled.ScrolledPanel):
         pvnames[1] = normalize_pvname(pvnames[1])
         for pvn in pvnames:
             if pvn not in self.pvlist:
-                self.pvlist[pvn] = epics.PV(pvn)
+                self.pvlist[pvn] = epics.get_pv(pvn)
                 time.sleep(0.01)
                 self.pvlist[pvn].connect()
 
         unitspv = pvnames[1][:-4] + '.EGU'
         has_unitspv = unitspv in self.pvlist
         if not has_unitspv:
-            self.pvlist[unitspv]  = epics.PV(unitspv)
+            self.pvlist[unitspv]  = epics.get_pv(unitspv)
 
         mpv  = self.pvlist[pvnames[1]]
         units = mpv.units
@@ -749,10 +749,14 @@ class XAFSScanPanel(GenericScanPanel):
                                label='Collect HERFD ROIs',
                                action=self.onUseHERFD)
 
-        idgap_scan = self.scandb.get_infobool('qxafs_use_gapscan')
-        self.gap_scan = check(self, default=idgap_scan,
-                              label='ID Gap Scan',
-                              action=self.onUseGapScan)
+#         idgap_scan = self.scandb.get_infobool('qxafs_use_gapscan')
+#         self.gap_scan = check(self, default=idgap_scan,
+#                               label='ID Gap Scan',
+#                               action=self.onUseGapScan)
+
+        self.is_trans = check(self, default=False,
+                              label='Is transmission?',
+                              action=self.onIsTransmission)
 
         qxafs_default = self.scandb.get_infobool('qxafs_continuous')
         self.qxafs = check(self, default=qxafs_default,
@@ -796,8 +800,9 @@ class XAFSScanPanel(GenericScanPanel):
 
         sizer.Add(olabel,         (1, 0), (1, 1), LEFT,  3)
         sizer.Add(self.qxafs,     (1, 1), (1, 1), LEFT,  3)
-        sizer.Add(self.gap_scan,  (1, 2), (1, 2), LEFT,  3)
-        sizer.Add(self.use_herfd, (1, 4), (1, 2), LEFT,  3)
+        # sizer.Add(self.gap_scan,  (1, 2), (1, 2), LEFT,  3)
+        sizer.Add(self.use_herfd, (1, 2), (1, 2), LEFT,  3)
+        sizer.Add(self.is_trans,  (1, 4), (1, 2), LEFT,  3)
 
         sizer.Add(alabel,         (2, 0), (1, 1), LEFT,  3)
         sizer.Add(self.absrel,    (2, 1), (1, 1), LEFT,  3)
@@ -953,6 +958,10 @@ class XAFSScanPanel(GenericScanPanel):
     def onUseGapScan(self, evt=None):
         val = 1 if self.gap_scan.IsChecked() else 0
         self.scandb.set_info('qxafs_use_gapscan', val)
+
+    def onIsTransmission(self, evt=None):
+        val = 0.1 if self.is_trans.IsChecked() else 0.5
+        self.scandb.set_info('mca_wait_time', val)
 
     def onAbsRel(self, evt=None):
         """xafs abs/rel"""

@@ -63,7 +63,7 @@ class Slew_Scan(StepScan):
             for pos in self.scandb.get_positioners():
                 pname = str(pos.name.lower().replace(' ', ''))
                 if pname in vals:
-                    pvs[pname]  = PV(pos.drivepv)
+                    pvs[pname]  = get_pv(pos.drivepv)
                     vals[pname] = caget(pos.drivepv)
             if abs(vals['finex']) > 1.e-5 and pvs['coarsex'] is not None:
                 coarsex = vals['coarsex'] + float(zconf['finex_scale']) * vals['finex']
@@ -239,7 +239,7 @@ class Slew_Scan(StepScan):
         for i, axes in enumerate(trajs['foreward']['axes']):
             pvname = self.slewscan_config['motors'][axes]
             v1, v2 = trajs['foreward']['start'][i], trajs['backward']['start'][i]
-            thispv = PV(pvname)
+            thispv = get_pv(pvname)
             self.motor_vals[pvname] = (thispv, v1, v2)
             self.orig_positions[pvname] = thispv.get()
 
