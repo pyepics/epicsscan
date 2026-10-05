@@ -25,6 +25,7 @@ class ScanServer():
         self.epicsdb = None
         self.abort = False
         self.command_in_progress = False
+        self.last_starttime = time()
         self.req_shutdown = False
         self.req_abort = False
         self.req_pause = False
@@ -39,6 +40,7 @@ class ScanServer():
         """setup / initialze Server, load macros"""
         self.set_scan_message('Server Initializing')
         self.scandb.set_hostpid()
+        self.scandb.set_info('stepscan_count',   0)
         self.scandb.set_info('request_abort',    0)
         self.scandb.set_info('request_pause',    0)
         self.scandb.set_info('request_shutdown', 0)
@@ -79,7 +81,7 @@ class ScanServer():
         self.set_scan_message('Server Shutting Down')
         self.scandb.set_info('request_pause',    0)
         self.scandb.set_info('request_abort',    0)
-        self.scandb.set_info('request_shutdown', 0)
+        self.scandb.set_info('request_shutdown', 1)
         sleep(0.025)
 
     def set_status(self, status):
@@ -121,6 +123,7 @@ class ScanServer():
             return
 
         self.command_in_progress = True
+        self.last_starttime = time()
         self.set_status('starting')
         self.set_scan_message(f"Executing: {command}")
         self.scandb.set_command_status('starting', cmdid=cmdid)
@@ -245,20 +248,29 @@ class ScanServer():
         self.set_status('idle')
         msgtime = time()
         self.set_scan_message('Server Ready')
+        self.scandb.set_info('server_starttime', isotime())
         request_id = self.scandb.status_codes['requested']
 
         # Note: this loop is really just looking for new commands
         # or interrupts, so does not need to go super fast.
         cmds = deque([])
         while True:
-            epics.poll(0.02, 1.0)
-            sleep(0.25)
+            try:
+                epics.poll(0.02, 1.0)
+                sleep(0.25)
+            except KeyboardInterrupt:
+                break
 
             now = time()
             # update server heartbeat / message
             if now > msgtime + 0.75:
                 msgtime = now
                 self.set_heartbeat()
+                idle_time = 0.0
+                ncmds = int(self.scandb.get_info('n_command_queue'))
+                if ncmds == 0 and not self.command_in_progress:
+                    idle_time = time() - self.last_starttime
+                self.scandb.set_info('server_idletime', int(idle_time))
 
             self.look_for_interrupts()
             # shutdown?
