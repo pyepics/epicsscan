@@ -135,7 +135,7 @@ class XAFS_Scan(StepScan):
         self.with_gapscan = self.scandb.get_infobool('qxafs_use_gapscan')
         id_prefix    = self.scandb.get_info('qxafs_id_prefix', default=None)
         if self.with_gapscan and id_prefix is not None:
-            print("Step XAFS with gap scan: adding trigger!!")
+            # print("Step XAFS with gap scan: adding trigger!!")
             self.triggers.append(IDGapScanTrigger(prefix=id_prefix, label='ID GapTrigger'))
 
     def add_region(self, start, stop, step=None, npts=None,

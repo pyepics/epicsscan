@@ -876,7 +876,7 @@ class StepScan(object):
                 not_ready = get_mcas_not_ready()
                 mca_t0 = time.perf_counter()
                 if len(not_ready) > 0:
-                    print(f"## Point{i} some mca detectors {not_ready=}")
+                    print(f"## Point {i} some mca detectors {not_ready=} / {mca_wait_time=}")
                     while len(not_ready) > 0 and time.perf_counter() < (mca_t0 + mca_wait_time):
                         time.sleep(0.005)
                         not_ready = get_mcas_not_ready()
