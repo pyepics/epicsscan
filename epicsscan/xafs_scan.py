@@ -59,7 +59,6 @@ class ScanRegion(Saveable):
                           dtime_wt=dtime_wt)
 
 
-
 class IDGapScanTrigger(Trigger):
     def __init__(self, prefix, value=1, cpt=0, **kws):
         if prefix.endswith(':'):
@@ -115,6 +114,7 @@ class XAFS_Scan(StepScan):
         self.dwelltime = []
         self.energy_pos = None
         self.scandb = scandb
+        self.gap_trigger = None
         self.set_energy_pv(energy_pv, read_pv=read_pv, extra_pvs=extra_pvs)
 
         self.pre_scan_methods.append(self.setup_idgap_scan)
@@ -136,7 +136,10 @@ class XAFS_Scan(StepScan):
         id_prefix    = self.scandb.get_info('qxafs_id_prefix', default=None)
         if self.with_gapscan and id_prefix is not None:
             # print("Step XAFS with gap scan: adding trigger!!")
-            self.triggers.append(IDGapScanTrigger(prefix=id_prefix, label='ID GapTrigger'))
+            if self.gap_trigger is None:
+                self.gap_trigger = IDGapScanTrigger(prefix=id_prefix, label='ID GapTrigger')
+            if self.gap_trigger is not None:
+                self.triggers.append(self.gap_trigger)
 
     def add_region(self, start, stop, step=None, npts=None,
                    relative=True, use_k=False, e0=None,
@@ -394,7 +397,6 @@ class QXAFS_Scan(XAFS_Scan):
         dspace = self.pvs['dspace_pv'].get()
         energy = HC/(2.0 * dspace * np.sin(angle/RAD2DEG))
         return (energy, height)
-
 
     def run(self, filename=None, comments=None, debug=False, reverse=False, use_full=None):
         """
