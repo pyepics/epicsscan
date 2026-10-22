@@ -4,6 +4,10 @@ basic utils
 from datetime import timedelta
 
 
+CHAR_MAPPING = {8216: "'", 8217: "'", 8218: "'", 8219: "'",
+                8220: '"' ,8221: '"', 8222: '"', 8223: '"'}
+
+
 def hms(secs):
     "format time in seconds to H:M:S"
     return str(timedelta(seconds=int(secs)))
@@ -20,14 +24,18 @@ def strip_quotes(t):
             t = t[1:-1]
     return t
 
-def plain_ascii(s):
+def plain_ascii(sval):
     """
-    replace non-ASCII characters with blank or other string
-    very restrictive (basically ord(c) < 128 only)
+    replace non-ASCII characters with best attempt of an ASCII equivalent,
+    handling multiple variations of quote strings.
     """
-    if s is None:
-        s = ''
-    return "".join([i for i in s if ord(i)<128])
+    if sval is None:
+        sval = ''
+
+    if not all(((ord(w) < 127 and ord(w) > 31) for w in sval)):
+        for old, new in CHAR_MAPPING.items():
+            sval = sval.replace(chr(old), new)
+    return sval
 
 def get_units(pv, default):
     "get PV units"
