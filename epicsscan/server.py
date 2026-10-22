@@ -118,7 +118,7 @@ class ScanServer():
             self.epicsdb.workdir = workdir
 
         if not is_complete(command):
-            self.set_scan_message("Error: command <command> is incomplete")
+            self.set_scan_message(f"Error: command {command} is incomplete")
             self.scandb.set_command_status('canceled', cmdid=cmdid)
             return
 
