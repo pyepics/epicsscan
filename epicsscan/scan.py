@@ -128,8 +128,7 @@ def set_scandata_with_roisums(scandb, counters, skip_first=False):
             alldata.append((c.db_label, c.buff[off:]))
             nptsdet.append(len(c.buff))
     npts = min(nptsdet)
-    if npts < 1 or  len(needs_calc) < 1:
-        print("not enough points for sum ", nptsdet, needs_calc)
+    if npts < 1:
         return
     for c in counters:
         label = c.label.lower().replace(' ', '_')
